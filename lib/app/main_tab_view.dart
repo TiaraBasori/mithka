@@ -679,7 +679,8 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         Expanded(child: _stack(tabs)),
         Consumer<dc.TabBarVisibility>(
           builder: (context, vis, _) {
-            final hidden = vis.depth(activeTabIndex) > 0;
+            final hidden =
+                vis.depth(activeTabIndex) > 0 || vis.isChatSuppressed;
             return AnimatedSize(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeInOut,
