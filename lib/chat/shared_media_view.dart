@@ -43,6 +43,9 @@ class _MediaTab {
 
 enum _SharedMediaFileFilter { all, downloaded, notDownloaded }
 
+const Color _musicAccent = Color(0xFF22C7A9);
+const double _musicMiniPlayerHeight = 70;
+
 class _SharedFileState {
   const _SharedFileState({
     required this.fileId,
@@ -123,6 +126,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
   List<ChatMessage> _recentGlobalVideos = const [];
   final TextEditingController _search = TextEditingController();
   final VoicePlayer _voice = VoicePlayer();
+  ChatMessage? _nowPlayingMusic;
   StreamSubscription? _fileSub;
   Timer? _searchDebounce;
   String _query = '';
@@ -344,6 +348,16 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     }
   }
 
+  void _playMusicMessage(ChatMessage message) {
+    final music = message.music;
+    if (music?.file == null) {
+      _openSourceMessage(message);
+      return;
+    }
+    setState(() => _nowPlayingMusic = message);
+    unawaited(_voice.toggleAudio(music!.file));
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -354,11 +368,27 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           _header(),
           _toolbar(),
           if (!widget.lockedTab) _tabStrip(),
-          Expanded(child: _body()),
+          Expanded(
+            child: Stack(
+              children: [
+                Positioned.fill(child: _body()),
+                if (_showMusicMiniPlayer)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: _musicMiniPlayer(),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
+
+  bool get _showMusicMiniPlayer =>
+      _tabs[_tab].musicOnly && _nowPlayingMusic?.music != null;
 
   Widget _header() {
     final c = context.colors;
@@ -757,7 +787,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
 
   Widget _list(List<ChatMessage> items) {
     return ListView.builder(
-      padding: EdgeInsets.zero,
+      padding: EdgeInsets.only(
+        bottom: _showMusicMiniPlayer
+            ? _musicMiniPlayerHeight + MediaQuery.of(context).padding.bottom
+            : 0,
+      ),
       itemCount: items.length,
       itemBuilder: (context, i) => _listRow(items[i]),
     );
@@ -940,36 +974,20 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     final c = context.colors;
     final music = message.music;
     if (music == null) return const SizedBox.shrink();
-    const accent = Color(0xFF22C7A9);
     return AnimatedBuilder(
       animation: _voice,
       builder: (context, _) {
         final active = _voice.isActive(music.file);
-        final total = active && _voice.total.inMilliseconds > 0
-            ? _voice.total
-            : Duration(seconds: music.duration);
-        final position = active ? _voice.position : Duration.zero;
-        final fraction = total.inMilliseconds > 0
-            ? (position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0)
-            : 0.0;
-        final durationText = active && position > Duration.zero
-            ? '${_duration(position.inSeconds)} / ${_duration(total.inSeconds)}'
-            : _duration(music.duration);
         final subtitle = [
-          durationText,
+          if ((music.performer ?? '').trim().isNotEmpty)
+            music.performer!.trim(),
           DateText.listLabel(message.date),
           if (_usesGlobalSearch(_tab) && _sourceTitleFor(message).isNotEmpty)
             '来自 ${_sourceTitleFor(message)}',
         ].join(' · ');
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () {
-            if (music.file != null) {
-              _voice.toggleAudio(music.file);
-            } else {
-              _openSourceMessage(message);
-            }
-          },
+          onTap: () => _playMusicMessage(message),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
@@ -986,11 +1004,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                         ? TDImage(photo: music.cover, fit: BoxFit.cover)
                         : Container(
                             alignment: Alignment.center,
-                            color: accent.withValues(alpha: 0.14),
+                            color: _musicAccent.withValues(alpha: 0.14),
                             child: AppIcon(
                               HeroAppIcons.music,
                               size: 23,
-                              color: accent,
+                              color: _musicAccent,
                             ),
                           ),
                   ),
@@ -1001,28 +1019,18 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _musicTitle(music),
+                        _musicName(music),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 15,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: active
+                              ? FontWeight.w600
+                              : FontWeight.w500,
                           color: c.textPrimary,
                         ),
                       ),
-                      const SizedBox(height: 5),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: LinearProgressIndicator(
-                          value: fraction,
-                          minHeight: 3,
-                          backgroundColor: c.searchFill,
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            accent,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
+                      const SizedBox(height: 3),
                       Text(
                         subtitle,
                         maxLines: 1,
@@ -1033,39 +1041,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    tooltip: active && _voice.isPlaying ? '暂停' : '播放',
-                    onPressed: music.file == null
-                        ? null
-                        : () => _voice.toggleAudio(music.file),
-                    icon: _voice.isLoading && active
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator.adaptive(
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Container(
-                            width: 30,
-                            height: 30,
-                            alignment: Alignment.center,
-                            decoration: BoxDecoration(
-                              border: Border.all(color: accent, width: 2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: AppIcon(
-                              active && _voice.isPlaying
-                                  ? HeroAppIcons.pause
-                                  : HeroAppIcons.play,
-                              size: 13,
-                              color: accent,
-                            ),
-                          ),
+                Text(
+                  _duration(music.duration),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: active ? _musicAccent : c.textTertiary,
                   ),
                 ),
                 _rowMenu(message),
@@ -1074,6 +1054,169 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           ),
         );
       },
+    );
+  }
+
+  Widget _musicMiniPlayer() {
+    final c = context.colors;
+    final message = _nowPlayingMusic;
+    final music = message?.music;
+    if (message == null || music == null) return const SizedBox.shrink();
+    return AnimatedBuilder(
+      animation: _voice,
+      builder: (context, _) {
+        final active = _voice.isActive(music.file);
+        final total = active && _voice.total.inMilliseconds > 0
+            ? _voice.total
+            : Duration(seconds: music.duration);
+        final position = active ? _voice.position : Duration.zero;
+        final fraction = total.inMilliseconds > 0
+            ? (position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0)
+            : 0.0;
+        final subtitle = [
+          if ((music.performer ?? '').trim().isNotEmpty)
+            music.performer!.trim(),
+          if (total.inSeconds > 0)
+            '${_duration(position.inSeconds)} / ${_duration(total.inSeconds)}',
+        ].join(' · ');
+        return SafeArea(
+          top: false,
+          child: Container(
+            height: _musicMiniPlayerHeight,
+            padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
+            decoration: BoxDecoration(
+              color: c.background.withValues(alpha: 0.94),
+              border: Border(top: BorderSide(color: c.divider, width: 0.5)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 18,
+                  offset: const Offset(0, -4),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: SizedBox(
+                    width: 46,
+                    height: 46,
+                    child: music.cover != null
+                        ? TDImage(photo: music.cover, fit: BoxFit.cover)
+                        : Container(
+                            alignment: Alignment.center,
+                            color: _musicAccent.withValues(alpha: 0.14),
+                            child: AppIcon(
+                              HeroAppIcons.music,
+                              size: 22,
+                              color: _musicAccent,
+                            ),
+                          ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _openSourceMessage(message),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _musicName(music),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: c.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: fraction,
+                            minHeight: 3,
+                            backgroundColor: c.searchFill,
+                            valueColor: const AlwaysStoppedAnimation<Color>(
+                              _musicAccent,
+                            ),
+                          ),
+                        ),
+                        if (subtitle.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: c.textTertiary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                _musicMiniButton(
+                  tooltip: active && _voice.isPlaying ? '暂停' : '播放',
+                  onTap: music.file == null
+                      ? null
+                      : () => _playMusicMessage(message),
+                  child: _voice.isLoading && active
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator.adaptive(
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : AppIcon(
+                          active && _voice.isPlaying
+                              ? HeroAppIcons.pause
+                              : HeroAppIcons.play,
+                          size: 20,
+                          color: c.textPrimary,
+                        ),
+                ),
+                _musicMiniButton(
+                  tooltip: AppStrings.t(
+                    AppStringKeys.momentsOpenOriginalMessage,
+                  ),
+                  onTap: () => _openSourceMessage(message),
+                  child: AppIcon(
+                    HeroAppIcons.listCheck,
+                    size: 21,
+                    color: c.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _musicMiniButton({
+    required String tooltip,
+    required VoidCallback? onTap,
+    required Widget child,
+  }) {
+    return SizedBox(
+      width: 38,
+      height: 38,
+      child: IconButton(
+        tooltip: tooltip,
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        icon: child,
+      ),
     );
   }
 
@@ -1427,10 +1570,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     return '${DateText.listLabel(message.date)} 视频';
   }
 
-  String _musicTitle(MessageMusic music) {
+  String _musicName(MessageMusic music) {
     final title = music.title.trim().replaceAll('\n', ' ');
     final performer = (music.performer ?? '').trim().replaceAll('\n', ' ');
-    if (title.isNotEmpty && performer.isNotEmpty) return '$title - $performer';
     if (title.isNotEmpty) return title;
     if (performer.isNotEmpty) return performer;
     return AppStrings.t(AppStringKeys.profileDetailMusic);
