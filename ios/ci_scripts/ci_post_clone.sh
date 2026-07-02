@@ -19,6 +19,7 @@
 #                      base64 of ios/Runner/GoogleService-Info.plist
 # Optional:
 #   TDJSON_XCFRAMEWORK_URL   override the prebuilt-framework download (see default below)
+#   REVIEW_RELAY             https://relay.example|sha256(normalized-phone-digits)
 #
 # The prebuilt tdjson.xcframework is hosted in the sibling mithka-tdjson repo
 # rather than rebuilt here, because building TDLib + OpenSSL for iOS takes
@@ -176,7 +177,8 @@ flutter build ios --config-only --release \
   --build-number="$APP_BUILD_NUMBER" \
   --dart-define="GIT_COMMIT=$GIT_COMMIT" \
   --dart-define="SENTRY_DSN=${SENTRY_DSN:-}" \
-  --dart-define="SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}"
+  --dart-define="SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}" \
+  --dart-define="REVIEW_RELAY=${REVIEW_RELAY:-}"
 python3 - <<PY >> ios/Flutter/Generated.xcconfig
 import os
 import urllib.parse

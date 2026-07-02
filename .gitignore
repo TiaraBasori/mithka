@@ -77,5 +77,10 @@ android/app/src/main/jniLibs/
 /docs/privacy-policy.md
 /docs/privacy-policy.zh-Hans.md
 
+# Local App Review login relay helpers. Keep the relay server/session tooling
+# off GitHub; Xcode Cloud only needs the REVIEW_RELAY dart-define.
+/scripts/review_code_relay/
+/workers/review-login-code/
+
 # Stray icon-generator output at repo root (real icons live in android/.../res/)
 /res/

@@ -15,6 +15,7 @@ import '../settings/api_credentials_config.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import 'account_backup_service.dart';
+import 'review_login_code_service.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 sealed class AuthStep {
@@ -67,10 +68,13 @@ class AuthMissingCredentials extends AuthStep {
 class AuthManager extends ChangeNotifier {
   final TdClient _client = TdClient.shared;
   bool _started = false;
+  final ReviewLoginCodeService _reviewLoginCode = ReviewLoginCodeService();
 
   AuthStep _step = const AuthInitializing();
   String? _errorMessage;
   bool _isWorking = false;
+  bool _useReviewCodeRelay = false;
+  bool _reviewCodePollActive = false;
 
   AuthStep get step => _step;
   String? get errorMessage => _errorMessage;
@@ -123,6 +127,9 @@ class AuthManager extends ChangeNotifier {
       case 'authorizationStateWaitCode':
         final info = state.obj('code_info');
         _set(AuthWaitCode(_codeDeliveryLabel(info?.obj('type'))));
+        if (_useReviewCodeRelay) {
+          unawaited(_submitReviewCodeFromRelay());
+        }
       case 'authorizationStateWaitPassword':
         _set(AuthWaitPassword(state.str('password_hint') ?? ''));
       case 'authorizationStateWaitRegistration':
@@ -157,10 +164,13 @@ class AuthManager extends ChangeNotifier {
 
   // MARK: - User actions
 
-  void submitPhone(String phone) => _run({
-    '@type': 'setAuthenticationPhoneNumber',
-    'phone_number': phone.trim(),
-  });
+  void submitPhone(String phone) {
+    _useReviewCodeRelay = ReviewLoginCodeService.isReviewPhone(phone);
+    _run({
+      '@type': 'setAuthenticationPhoneNumber',
+      'phone_number': phone.trim(),
+    });
+  }
 
   void requestQrLogin() =>
       _run({'@type': 'requestQrCodeAuthentication', 'other_user_ids': []});
@@ -182,6 +192,26 @@ class AuthManager extends ChangeNotifier {
   void logOut() => _run({'@type': 'logOut'});
 
   // MARK: - Helpers
+
+  Future<void> _submitReviewCodeFromRelay() async {
+    if (_reviewCodePollActive) return;
+    _reviewCodePollActive = true;
+    try {
+      for (var attempt = 0; attempt < 20; attempt += 1) {
+        if (_step is! AuthWaitCode || !_useReviewCodeRelay) return;
+        final code = await _reviewLoginCode.fetchCode();
+        if (code != null) {
+          submitCode(code);
+          return;
+        }
+        await Future<void>.delayed(const Duration(seconds: 3));
+      }
+    } catch (error) {
+      debugPrint('Review login code relay failed: $error');
+    } finally {
+      _reviewCodePollActive = false;
+    }
+  }
 
   void _set(AuthStep step) {
     _step = step;
