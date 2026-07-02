@@ -11,14 +11,17 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:heroicons_flutter/heroicons_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app/app_navigator.dart';
 import '../components/app_icons.dart';
 import '../components/photo_avatar.dart';
+import '../components/toast.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import 'audio_search_view.dart';
 import 'chat_view.dart';
 import 'voice_audio.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -30,6 +33,7 @@ enum MusicPlaybackMode { sequence, repeatOne, shuffle }
 class MusicPlayerController extends ChangeNotifier {
   MusicPlayerController._() {
     _player.onFinished = _onFinished;
+    _player.addListener(notifyListeners);
   }
 
   static final MusicPlayerController shared = MusicPlayerController._();
@@ -65,17 +69,29 @@ class MusicPlayerController extends ChangeNotifier {
         playlist.any((item) => item.music?.file?.id == fileId);
   }
 
+  bool addToPlaylist(ChatMessage message) {
+    _loadPlaylistIfNeeded();
+    final fileId = message.music?.file?.id;
+    if (fileId == null) return false;
+    if (playlist.any((item) => item.music?.file?.id == fileId)) {
+      playlist = _dedupeMusic(playlist);
+      _savePlaylist();
+      notifyListeners();
+      return false;
+    }
+    playlist = _dedupeMusic([...playlist, _playlistCopyOf(message)]);
+    _savePlaylist();
+    notifyListeners();
+    return true;
+  }
+
   bool togglePlaylist(ChatMessage message) {
     _loadPlaylistIfNeeded();
     if (isInPlaylist(message)) {
       removeFromPlaylist(message);
       return false;
     }
-    final item = _playlistCopyOf(message);
-    playlist = _dedupeMusic([...playlist, item]);
-    _savePlaylist();
-    notifyListeners();
-    return true;
+    return addToPlaylist(message);
   }
 
   void removeFromPlaylist(ChatMessage message) {
@@ -101,6 +117,19 @@ class MusicPlayerController extends ChangeNotifier {
         .where((item) => item.music?.file?.id == current?.music?.file?.id)
         .toList();
     if (removedCurrent) _stopPlayback(clearCurrent: true);
+    _savePlaylist();
+    notifyListeners();
+  }
+
+  void reorderPlaylist(int oldIndex, int newIndex) {
+    _loadPlaylistIfNeeded();
+    final items = _dedupeMusic(playlist);
+    if (oldIndex < 0 || oldIndex >= items.length) return;
+    final moved = items.removeAt(oldIndex);
+    final target = newIndex.clamp(0, items.length);
+    items.insert(target, moved);
+    playlist = items;
+    if (_usesPlaylistQueue) queue = items;
     _savePlaylist();
     notifyListeners();
   }
@@ -243,6 +272,14 @@ class MusicPlayerController extends ChangeNotifier {
       current = null;
       queue = const [];
     }
+  }
+
+  bool get _usesPlaylistQueue {
+    if (queue.length != playlist.length) return false;
+    final queueIds = queue.map((item) => item.music?.file?.id).toSet();
+    final playlistIds = playlist.map((item) => item.music?.file?.id).toSet();
+    return queueIds.length == playlistIds.length &&
+        queueIds.containsAll(playlistIds);
   }
 
   List<ChatMessage> _dedupeMusic(List<ChatMessage> items) {
@@ -611,7 +648,7 @@ class _ExpandedMusicPlayer extends StatelessWidget {
                 tooltip: '下一首',
                 onTap: controller.next,
                 child: AppIcon(
-                  HeroAppIcons.chevronRight,
+                  const AppIconData(HeroiconsOutline.forward),
                   size: 21,
                   color: c.textPrimary,
                 ),
@@ -770,18 +807,34 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          _modeIconWidget(
-                            controller.mode,
-                            size: 17,
-                            color: c.textSecondary,
-                          ),
-                          const SizedBox(width: 8),
                           Expanded(
-                            child: Text(
-                              _modeLabel(controller.mode),
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: c.textSecondary,
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () {
+                                controller.cycleMode();
+                                setSheetState(() {});
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 6,
+                                ),
+                                child: Row(
+                                  children: [
+                                    _modeIconWidget(
+                                      controller.mode,
+                                      size: 17,
+                                      color: c.textSecondary,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _modeLabel(controller.mode),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: c.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
@@ -789,7 +842,12 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                             icon: HeroAppIcons.download,
                             tooltip: '下载',
                           ),
-                          _SheetIcon(icon: HeroAppIcons.plus, tooltip: '添加'),
+                          _SheetIcon(
+                            icon: HeroAppIcons.plus,
+                            tooltip: '添加',
+                            onTap: () =>
+                                _openMusicSearch(sheetContext, controller),
+                          ),
                           _SheetIcon(
                             icon: HeroAppIcons.trash,
                             tooltip: '清空',
@@ -817,14 +875,23 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                             ),
                           ),
                         )
-                      : ListView.builder(
+                      : ReorderableListView.builder(
+                          buildDefaultDragHandles: false,
                           shrinkWrap: true,
                           padding: EdgeInsets.only(
                             bottom:
                                 4 + MediaQuery.of(sheetContext).padding.bottom,
                           ),
                           itemCount: queue.length,
+                          onReorderItem: (oldIndex, newIndex) {
+                            controller.reorderPlaylist(oldIndex, newIndex);
+                            setSheetState(() {});
+                          },
                           itemBuilder: (context, index) => _QueueRow(
+                            key: ValueKey(
+                              'music-queue-${queue[index].music?.file?.id ?? queue[index].id}',
+                            ),
+                            index: index,
                             message: queue[index],
                             controller: controller,
                             onRemove: () {
@@ -871,13 +938,45 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
   );
 }
 
+Future<void> _openMusicSearch(
+  BuildContext sheetContext,
+  MusicPlayerController controller,
+) async {
+  final rootContext = appNavigatorKey.currentContext;
+  if (rootContext == null) return;
+  Navigator.of(sheetContext).pop();
+  final picked = await Navigator.of(rootContext).push<(int, ChatMessage)>(
+    MaterialPageRoute(builder: (_) => const AudioSearchView(selectOnly: true)),
+  );
+  if (picked == null) return;
+  final sourceChatId = picked.$1;
+  final message = picked.$2;
+  final added = controller.addToPlaylist(
+    ChatMessage(
+      id: message.id,
+      isOutgoing: message.isOutgoing,
+      text: '',
+      date: message.date,
+      chatId: sourceChatId,
+      senderName: message.senderName,
+      music: message.music,
+    ),
+  );
+  if (rootContext.mounted) {
+    showToast(rootContext, added ? '已加入播放列表' : '已在播放列表中');
+  }
+}
+
 class _QueueRow extends StatelessWidget {
   const _QueueRow({
+    super.key,
+    required this.index,
     required this.message,
     required this.controller,
     required this.onRemove,
   });
 
+  final int index;
   final ChatMessage message;
   final MusicPlayerController controller;
   final VoidCallback onRemove;
@@ -932,6 +1031,18 @@ class _QueueRow extends StatelessWidget {
                 size: 16,
                 color: musicPlayerAccent,
               ),
+            ReorderableDelayedDragStartListener(
+              index: index,
+              child: SizedBox(
+                width: 30,
+                height: 30,
+                child: AppIcon(
+                  HeroAppIcons.bars,
+                  size: 15,
+                  color: c.textTertiary,
+                ),
+              ),
+            ),
             SizedBox(
               width: 30,
               height: 30,
