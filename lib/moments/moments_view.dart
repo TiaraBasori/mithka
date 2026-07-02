@@ -18,6 +18,7 @@ import '../chat/full_image_viewer.dart';
 import '../chat/chat_view.dart';
 import '../chat/media_album_layout.dart';
 import '../chat/rich_text_format.dart';
+import '../chat/shared_media_view.dart';
 import '../chat/telegram_rich_text.dart';
 import '../chat/video_player_view.dart';
 import '../chats/chat_list_view_model.dart';
@@ -238,6 +239,43 @@ class _MomentsViewState extends State<MomentsView> {
                         onTap: () => _openDetail(
                           StoriesView(
                             showBackButton: widget.onOpenDetail == null,
+                          ),
+                        ),
+                      ),
+                      const InsetDivider(leadingInset: 72),
+                      _menuRow(
+                        icon: HeroAppIcons.music.data,
+                        iconColor: const Color(0xFFFF8A2A),
+                        title: AppStrings.t(AppStringKeys.profileDetailMusic),
+                        onTap: () => _openDetail(
+                          SharedMediaView(
+                            chatId: 0,
+                            title: AppStrings.t(
+                              AppStringKeys.profileDetailMusic,
+                            ),
+                            initialTab: 5,
+                            displayTitle: AppStrings.t(
+                              AppStringKeys.profileDetailMusic,
+                            ),
+                            lockedTab: true,
+                          ),
+                        ),
+                      ),
+                      _menuRow(
+                        icon: HeroAppIcons.video.data,
+                        iconColor: const Color(0xFF7B61FF),
+                        title: AppStrings.t(AppStringKeys.sharedMediaVideos),
+                        onTap: () => _openDetail(
+                          SharedMediaView(
+                            chatId: 0,
+                            title: AppStrings.t(
+                              AppStringKeys.sharedMediaVideos,
+                            ),
+                            initialTab: 4,
+                            displayTitle: AppStrings.t(
+                              AppStringKeys.sharedMediaVideos,
+                            ),
+                            lockedTab: true,
                           ),
                         ),
                       ),
