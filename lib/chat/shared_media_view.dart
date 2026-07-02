@@ -7,10 +7,8 @@
 //
 
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
@@ -24,6 +22,7 @@ import 'chat_view.dart';
 import 'file_detail_view.dart';
 import 'full_image_viewer.dart';
 import 'link_handler.dart';
+import 'music_player_controller.dart';
 import 'video_player_view.dart';
 import 'voice_audio.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -44,9 +43,6 @@ class _MediaTab {
 }
 
 enum _SharedMediaFileFilter { all, downloaded, notDownloaded }
-
-const Color _musicAccent = Color(0xFF22C7A9);
-const double _musicMiniPlayerHeight = 70;
 
 class _SharedFileState {
   const _SharedFileState({
@@ -128,9 +124,6 @@ class _SharedMediaViewState extends State<SharedMediaView> {
   List<ChatMessage> _recentGlobalVideos = const [];
   final TextEditingController _search = TextEditingController();
   final VoicePlayer _voice = VoicePlayer();
-  ChatMessage? _nowPlayingMusic;
-  List<ChatMessage> _musicQueue = const [];
-  List<ChatMessage> _musicPlaylist = const [];
   StreamSubscription? _fileSub;
   Timer? _searchDebounce;
   String _query = '';
@@ -139,8 +132,6 @@ class _SharedMediaViewState extends State<SharedMediaView> {
   @override
   void initState() {
     super.initState();
-    _voice.onFinished = _onAudioFinished;
-    unawaited(_loadMusicPlaylist());
     _fileSub = _client.subscribe().listen((update) {
       if (update.type != 'updateFile') return;
       final file = update.obj('file');
@@ -153,7 +144,6 @@ class _SharedMediaViewState extends State<SharedMediaView> {
   void dispose() {
     _searchDebounce?.cancel();
     _fileSub?.cancel();
-    _voice.onFinished = null;
     _voice.dispose();
     _search.dispose();
     super.dispose();
@@ -355,125 +345,43 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     }
   }
 
-  String get _musicPlaylistPrefsKey =>
-      'mithka.musicPlaylist.v1.${_client.activeSlot}';
-
-  Future<void> _loadMusicPlaylist() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final rawItems =
-          prefs.getStringList(_musicPlaylistPrefsKey) ?? const <String>[];
-      final playlist = rawItems
-          .map(_musicMessageFromPlaylistJson)
-          .whereType<ChatMessage>()
-          .toList();
-      if (!mounted) return;
-      setState(() => _musicPlaylist = _dedupeMusic(playlist));
-    } catch (_) {}
-  }
-
-  Future<void> _saveMusicPlaylist() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
-        _musicPlaylistPrefsKey,
-        _musicPlaylist.map((message) {
-          return jsonEncode(_musicMessageToPlaylistJson(message));
-        }).toList(),
-      );
-    } catch (_) {}
-  }
-
-  Map<String, dynamic> _musicMessageToPlaylistJson(ChatMessage message) {
-    final music = message.music!;
-    return {
-      'message_id': message.id,
-      'chat_id': _sourceChatIdFor(message),
-      'date': message.date,
-      'source_title': _sourceTitleFor(message),
-      'file_id': music.file!.id,
-      'cover_id': music.cover?.id,
-      'title': music.title,
-      'performer': music.performer,
-      'duration': music.duration,
-    };
-  }
-
-  ChatMessage? _musicMessageFromPlaylistJson(String raw) {
-    try {
-      final json = jsonDecode(raw);
-      if (json is! Map<String, dynamic>) return null;
-      final fileId = _jsonInt(json['file_id']);
-      if (fileId == null || fileId <= 0) return null;
-      final messageId = _jsonInt(json['message_id']) ?? 0;
-      final chatId = _jsonInt(json['chat_id']);
-      final coverId = _jsonInt(json['cover_id']);
-      final title = (json['title'] as String?)?.trim();
-      final performer = (json['performer'] as String?)?.trim();
-      return ChatMessage(
-        id: messageId,
-        isOutgoing: false,
-        text: '',
-        date: _jsonInt(json['date']) ?? 0,
-        chatId: chatId,
-        senderName: (json['source_title'] as String?)?.trim(),
-        music: MessageMusic(
-          title: title == null || title.isEmpty
-              ? AppStrings.t(AppStringKeys.profileDetailMusic)
-              : title,
-          performer: performer == null || performer.isEmpty ? null : performer,
-          cover: coverId == null || coverId <= 0
-              ? null
-              : TdFileRef(id: coverId),
-          file: TdFileRef(id: fileId),
-          duration: _jsonInt(json['duration']) ?? 0,
-        ),
-      );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  int? _jsonInt(Object? value) {
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value);
-    return null;
-  }
-
   void _toggleMusicPlaylist(ChatMessage message) {
+    final added = MusicPlayerController.shared.togglePlaylist(
+      _musicPlayerMessage(message),
+    );
+    showToast(context, added ? '已加入播放列表' : '已从播放列表移除');
+  }
+
+  bool _isMusicInPlaylist(ChatMessage message) {
+    return MusicPlayerController.shared.isInPlaylist(
+      _musicPlayerMessage(message),
+    );
+  }
+
+  void _playMusicMessage(ChatMessage message) {
     final music = message.music;
-    final fileId = music?.file?.id;
-    if (fileId == null) return;
-    final exists = _isMusicInPlaylist(message);
-    if (exists) {
-      _removeMusicFromPlaylist(message);
+    if (music?.file == null) {
+      _openSourceMessage(message);
       return;
     }
-    setState(() {
-      _musicPlaylist = [..._musicPlaylist, _playlistCopyOf(message)];
-    });
-    unawaited(_saveMusicPlaylist());
-    showToast(context, '已加入播放列表');
+    MusicPlayerController.shared.play(
+      _musicPlayerMessage(message),
+      visibleQueue: _visibleMusicMessages(),
+    );
   }
 
-  void _removeMusicFromPlaylist(ChatMessage message, {bool toast = true}) {
-    final fileId = message.music?.file?.id;
-    if (fileId == null) return;
-    setState(() {
-      _musicPlaylist = _musicPlaylist
-          .where((item) => item.music?.file?.id != fileId)
-          .toList();
-      if (_musicQueue.any((item) => item.music?.file?.id == fileId)) {
-        _musicQueue = _musicQueue
-            .where((item) => item.music?.file?.id != fileId)
-            .toList();
-      }
-    });
-    unawaited(_saveMusicPlaylist());
-    if (toast) showToast(context, '已从播放列表移除');
+  List<ChatMessage> _visibleMusicMessages() {
+    final cached = _cache[_tab] ?? const <ChatMessage>[];
+    if (!_tabs[_tab].musicOnly || cached.isEmpty) {
+      return const <ChatMessage>[];
+    }
+    return _filteredItems(cached)
+        .where((message) => message.music?.file != null)
+        .map(_musicPlayerMessage)
+        .toList();
   }
 
-  ChatMessage _playlistCopyOf(ChatMessage message) {
+  ChatMessage _musicPlayerMessage(ChatMessage message) {
     return ChatMessage(
       id: message.id,
       isOutgoing: message.isOutgoing,
@@ -485,72 +393,6 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     );
   }
 
-  bool _isMusicInPlaylist(ChatMessage message) {
-    final fileId = message.music?.file?.id;
-    if (fileId == null) return false;
-    return _musicPlaylist.any((item) => item.music?.file?.id == fileId);
-  }
-
-  void _playMusicMessage(ChatMessage message) {
-    final music = message.music;
-    if (music?.file == null) {
-      _openSourceMessage(message);
-      return;
-    }
-    final queue = _musicQueueFor(message);
-    setState(() {
-      _nowPlayingMusic = message;
-      _musicQueue = queue;
-    });
-    unawaited(_voice.toggleAudio(music!.file));
-  }
-
-  void _onAudioFinished(int fileId) {
-    if (_nowPlayingMusic?.music?.file?.id != fileId) return;
-    _playNextMusic();
-  }
-
-  void _playNextMusic() => _playAdjacentMusic(1, fromCompletion: true);
-
-  void _playAdjacentMusic(int delta, {bool fromCompletion = false}) {
-    final current = _nowPlayingMusic;
-    if (current == null || _musicQueue.isEmpty) return;
-    final index = _musicQueue.indexWhere(
-      (message) => _sameMessage(message, current),
-    );
-    if (index < 0) return;
-    final nextIndex = index + delta;
-    if (nextIndex < 0 || nextIndex >= _musicQueue.length) {
-      if (fromCompletion) return;
-      return;
-    }
-    _playMusicMessage(_musicQueue[nextIndex]);
-  }
-
-  List<ChatMessage> _musicQueueFor(ChatMessage seed) {
-    if (_isMusicInPlaylist(seed) && _musicPlaylist.isNotEmpty) {
-      return _musicPlaylist
-          .where((message) => message.music?.file != null)
-          .toList();
-    }
-    final visible = _visibleMusicMessages();
-    if (visible.isNotEmpty) return visible;
-    return [seed];
-  }
-
-  List<ChatMessage> _visibleMusicMessages() {
-    final cached = _cache[_tab] ?? const <ChatMessage>[];
-    if (!_tabs[_tab].musicOnly || cached.isEmpty) {
-      return _musicQueue;
-    }
-    return _filteredItems(
-      cached,
-    ).where((message) => message.music?.file != null).toList();
-  }
-
-  bool _sameMessage(ChatMessage a, ChatMessage b) =>
-      a.id == b.id && _sourceChatIdFor(a) == _sourceChatIdFor(b);
-
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -561,27 +403,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           _header(),
           _toolbar(),
           if (!widget.lockedTab) _tabStrip(),
-          Expanded(
-            child: Stack(
-              children: [
-                Positioned.fill(child: _body()),
-                if (_showMusicMiniPlayer)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: _musicMiniPlayer(),
-                  ),
-              ],
-            ),
-          ),
+          Expanded(child: _body()),
         ],
       ),
     );
   }
-
-  bool get _showMusicMiniPlayer =>
-      _tabs[_tab].musicOnly && _nowPlayingMusic?.music != null;
 
   Widget _header() {
     final c = context.colors;
@@ -980,11 +806,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
 
   Widget _list(List<ChatMessage> items) {
     return ListView.builder(
-      padding: EdgeInsets.only(
-        bottom: _showMusicMiniPlayer
-            ? _musicMiniPlayerHeight + MediaQuery.of(context).padding.bottom
-            : 0,
-      ),
+      padding: EdgeInsets.zero,
       itemCount: items.length,
       itemBuilder: (context, i) => _listRow(items[i]),
     );
@@ -1075,12 +897,12 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         final durationText = active && position > Duration.zero
             ? '${_duration(position.inSeconds)} / ${_duration(voice.duration)}'
             : _duration(voice.duration);
-        final sender = _senderLabel(message);
+        final sender = _voiceSenderLabel(message);
+        final source = _sourceTitleFor(message);
         final subtitle = [
           durationText,
           DateText.listLabel(message.date),
-          if (_usesGlobalSearch(_tab) && _sourceTitleFor(message).isNotEmpty)
-            '来自 ${_sourceTitleFor(message)}',
+          if (source.isNotEmpty) '来自 $source',
         ].join(' · ');
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -1167,10 +989,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     final c = context.colors;
     final music = message.music;
     if (music == null) return const SizedBox.shrink();
+    final controller = MusicPlayerController.shared;
     return AnimatedBuilder(
-      animation: _voice,
+      animation: controller,
       builder: (context, _) {
-        final active = _voice.isActive(music.file);
+        final active = controller.isActive(music.file);
         final subtitle = [
           if ((music.performer ?? '').trim().isNotEmpty)
             music.performer!.trim(),
@@ -1197,11 +1020,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                         ? TDImage(photo: music.cover, fit: BoxFit.cover)
                         : Container(
                             alignment: Alignment.center,
-                            color: _musicAccent.withValues(alpha: 0.14),
+                            color: musicPlayerAccent.withValues(alpha: 0.14),
                             child: AppIcon(
                               HeroAppIcons.music,
                               size: 23,
-                              color: _musicAccent,
+                              color: musicPlayerAccent,
                             ),
                           ),
                   ),
@@ -1239,7 +1062,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                   _duration(music.duration),
                   style: TextStyle(
                     fontSize: 12,
-                    color: active ? _musicAccent : c.textTertiary,
+                    color: active ? musicPlayerAccent : c.textTertiary,
                   ),
                 ),
                 _rowMenu(message),
@@ -1248,440 +1071,6 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           ),
         );
       },
-    );
-  }
-
-  Widget _musicMiniPlayer() {
-    final c = context.colors;
-    final message = _nowPlayingMusic;
-    final music = message?.music;
-    if (message == null || music == null) return const SizedBox.shrink();
-    return AnimatedBuilder(
-      animation: _voice,
-      builder: (context, _) {
-        final active = _voice.isActive(music.file);
-        final total = active && _voice.total.inMilliseconds > 0
-            ? _voice.total
-            : Duration(seconds: music.duration);
-        final position = active ? _voice.position : Duration.zero;
-        final fraction = total.inMilliseconds > 0
-            ? (position.inMilliseconds / total.inMilliseconds).clamp(0.0, 1.0)
-            : 0.0;
-        final subtitle = [
-          if ((music.performer ?? '').trim().isNotEmpty)
-            music.performer!.trim(),
-          if (total.inSeconds > 0)
-            '${_duration(position.inSeconds)} / ${_duration(total.inSeconds)}',
-        ].join(' · ');
-        return SafeArea(
-          top: false,
-          child: Container(
-            height: _musicMiniPlayerHeight,
-            padding: const EdgeInsets.fromLTRB(14, 8, 10, 8),
-            decoration: BoxDecoration(
-              color: c.background.withValues(alpha: 0.94),
-              border: Border(top: BorderSide(color: c.divider, width: 0.5)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 18,
-                  offset: const Offset(0, -4),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: SizedBox(
-                    width: 46,
-                    height: 46,
-                    child: music.cover != null
-                        ? TDImage(photo: music.cover, fit: BoxFit.cover)
-                        : Container(
-                            alignment: Alignment.center,
-                            color: _musicAccent.withValues(alpha: 0.14),
-                            child: AppIcon(
-                              HeroAppIcons.music,
-                              size: 22,
-                              color: _musicAccent,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => _openSourceMessage(message),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _musicName(music),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: c.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(2),
-                          child: LinearProgressIndicator(
-                            value: fraction,
-                            minHeight: 3,
-                            backgroundColor: c.searchFill,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                              _musicAccent,
-                            ),
-                          ),
-                        ),
-                        if (subtitle.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: c.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-                _musicMiniButton(
-                  tooltip: _isMusicInPlaylist(message) ? '从播放列表移除' : '加入播放列表',
-                  onTap: () => _toggleMusicPlaylist(message),
-                  child: AppIcon(
-                    _isMusicInPlaylist(message)
-                        ? HeroAppIcons.heart
-                        : HeroAppIcons.plus,
-                    size: 20,
-                    color: _isMusicInPlaylist(message)
-                        ? _musicAccent
-                        : c.textPrimary,
-                  ),
-                ),
-                _musicMiniButton(
-                  tooltip: active && _voice.isPlaying ? '暂停' : '播放',
-                  onTap: music.file == null
-                      ? null
-                      : () => _playMusicMessage(message),
-                  child: _voice.isLoading && active
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator.adaptive(
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : AppIcon(
-                          active && _voice.isPlaying
-                              ? HeroAppIcons.pause
-                              : HeroAppIcons.play,
-                          size: 20,
-                          color: c.textPrimary,
-                        ),
-                ),
-                _musicMiniButton(
-                  tooltip: '播放列表',
-                  onTap: _showMusicQueue,
-                  child: AppIcon(
-                    HeroAppIcons.listCheck,
-                    size: 21,
-                    color: c.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  void _showMusicQueue() {
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, setSheetState) {
-          final c = sheetContext.colors;
-          final queue = _musicPlaylist;
-          return SafeArea(
-            top: false,
-            child: Container(
-              height: MediaQuery.sizeOf(sheetContext).height * 0.58,
-              decoration: BoxDecoration(
-                color: c.background,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(14),
-                ),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(18, 18, 14, 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '当前播放列表 (${queue.length})',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: c.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            AppIcon(
-                              HeroAppIcons.arrowsRotate,
-                              size: 17,
-                              color: c.textSecondary,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                '顺序播放',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: c.textSecondary,
-                                ),
-                              ),
-                            ),
-                            _playlistSheetIcon(
-                              sheetContext,
-                              HeroAppIcons.download,
-                              '下载',
-                            ),
-                            _playlistSheetIcon(
-                              sheetContext,
-                              HeroAppIcons.plus,
-                              '添加',
-                            ),
-                            _playlistSheetIcon(
-                              sheetContext,
-                              HeroAppIcons.trash,
-                              '清空',
-                              onTap: queue.isEmpty
-                                  ? null
-                                  : () {
-                                      setState(() {
-                                        _musicPlaylist = const [];
-                                        _musicQueue = const [];
-                                      });
-                                      setSheetState(() {});
-                                      unawaited(_saveMusicPlaylist());
-                                    },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  Flexible(
-                    child: queue.isEmpty
-                        ? Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 40, 20, 42),
-                            child: Text(
-                              '还没有加入的音乐',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: c.textTertiary,
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            padding: EdgeInsets.only(
-                              bottom:
-                                  4 +
-                                  MediaQuery.of(sheetContext).padding.bottom,
-                            ),
-                            itemCount: queue.length,
-                            itemBuilder: (context, index) => _musicQueueRow(
-                              queue[index],
-                              onRemove: () {
-                                _removeMusicFromPlaylist(
-                                  queue[index],
-                                  toast: false,
-                                );
-                                setSheetState(() {});
-                              },
-                            ),
-                          ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4, bottom: 6),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _playlistDot(active: true),
-                        _playlistDot(active: false),
-                        _playlistDot(active: false),
-                      ],
-                    ),
-                  ),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () => Navigator.of(sheetContext).pop(),
-                    child: Container(
-                      height: 48,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        border: Border(
-                          top: BorderSide(color: c.divider, width: 0.5),
-                        ),
-                      ),
-                      child: Text(
-                        '关闭',
-                        style: TextStyle(fontSize: 15, color: c.textPrimary),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _musicQueueRow(ChatMessage message, {required VoidCallback onRemove}) {
-    final c = context.colors;
-    final music = message.music;
-    if (music == null) return const SizedBox.shrink();
-    final active =
-        _nowPlayingMusic != null && _sameMessage(message, _nowPlayingMusic!);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () {
-        Navigator.of(context).pop();
-        _playMusicMessage(message);
-      },
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(18, 8, 12, 8),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _musicName(music),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                      color: active ? _musicAccent : c.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    [
-                      if ((music.performer ?? '').trim().isNotEmpty)
-                        music.performer!.trim(),
-                      _duration(music.duration),
-                    ].join(' · '),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11, color: c.textTertiary),
-                  ),
-                ],
-              ),
-            ),
-            if (active)
-              AppIcon(
-                _voice.isPlaying ? HeroAppIcons.pause : HeroAppIcons.play,
-                size: 16,
-                color: _musicAccent,
-              ),
-            SizedBox(
-              width: 30,
-              height: 30,
-              child: IconButton(
-                tooltip: '从播放列表移除',
-                padding: EdgeInsets.zero,
-                onPressed: onRemove,
-                icon: AppIcon(
-                  HeroAppIcons.xmark,
-                  size: 14,
-                  color: c.textTertiary,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _playlistSheetIcon(
-    BuildContext context,
-    AppIconData icon,
-    String tooltip, {
-    VoidCallback? onTap,
-  }) {
-    final c = context.colors;
-    return SizedBox(
-      width: 34,
-      height: 30,
-      child: IconButton(
-        tooltip: tooltip,
-        padding: EdgeInsets.zero,
-        onPressed: onTap,
-        icon: AppIcon(
-          icon,
-          size: 17,
-          color: onTap == null && tooltip == '清空'
-              ? c.textTertiary.withValues(alpha: 0.42)
-              : c.textTertiary,
-        ),
-      ),
-    );
-  }
-
-  Widget _playlistDot({required bool active}) {
-    return Container(
-      width: active ? 5 : 4,
-      height: active ? 5 : 4,
-      margin: const EdgeInsets.symmetric(horizontal: 3),
-      decoration: BoxDecoration(
-        color: active
-            ? _musicAccent
-            : context.colors.textTertiary.withValues(alpha: 0.35),
-        shape: BoxShape.circle,
-      ),
-    );
-  }
-
-  Widget _musicMiniButton({
-    required String tooltip,
-    required VoidCallback? onTap,
-    required Widget child,
-  }) {
-    return SizedBox(
-      width: 38,
-      height: 38,
-      child: IconButton(
-        tooltip: tooltip,
-        padding: EdgeInsets.zero,
-        onPressed: onTap,
-        icon: child,
-      ),
     );
   }
 
@@ -1700,7 +1089,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         icon: AppIcon(
           inPlaylist ? HeroAppIcons.circleCheck : HeroAppIcons.plus,
           size: 18,
-          color: inPlaylist ? _musicAccent : c.textTertiary,
+          color: inPlaylist ? musicPlayerAccent : c.textTertiary,
         ),
       ),
     );
@@ -2025,14 +1414,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     return parts.join(' · ');
   }
 
-  String _senderLabel(ChatMessage message) {
+  String _voiceSenderLabel(ChatMessage message) {
     final sender = message.senderName?.trim();
     if (sender != null && sender.isNotEmpty) return sender;
     if (message.isOutgoing) return AppStrings.t(AppStringKeys.chatMeLabel);
-    final source = _sourceTitleFor(message).trim();
-    return source.isEmpty
-        ? AppStrings.t(AppStringKeys.sharedMediaVoiceMessages)
-        : source;
+    return AppStrings.t(AppStringKeys.sharedMediaVoiceMessages);
   }
 
   String _downloadLabel(ChatMessage message, _SharedFileState? state) {
@@ -2076,9 +1462,64 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           chatId: sourceChatId,
           title: _sourceTitleFor(message),
           initialMessageId: message.id,
+          seedMessage: _seedMessageForSource(message),
         ),
       ),
     );
+  }
+
+  ChatMessage _seedMessageForSource(ChatMessage message) {
+    return ChatMessage(
+        id: message.id,
+        isOutgoing: message.isOutgoing,
+        text: message.text,
+        date: message.date,
+        chatId: _sourceChatIdFor(message),
+        senderName: message.senderName,
+        senderId: message.senderId,
+        senderPhoto: message.senderPhoto,
+        image: message.image,
+        imageWidth: message.imageWidth,
+        imageHeight: message.imageHeight,
+        document: message.document,
+        music: message.music,
+        senderRole: message.senderRole,
+        senderTitle: message.senderTitle,
+        senderIsPremium: message.senderIsPremium,
+        senderAccentColorId: message.senderAccentColorId,
+        senderEmojiStatusId: message.senderEmojiStatusId,
+        mediaAlbumId: message.mediaAlbumId,
+        animatedSticker: message.animatedSticker,
+        videoSticker: message.videoSticker,
+        video: message.video,
+        videoDuration: message.videoDuration,
+        diceEmoji: message.diceEmoji,
+        diceValue: message.diceValue,
+        stickerFileId: message.stickerFileId,
+        stickerSetId: message.stickerSetId,
+        isAnimatedEmoji: message.isAnimatedEmoji,
+        location: message.location,
+        voice: message.voice,
+        replyToMessageId: message.replyToMessageId,
+        replyToDate: message.replyToDate,
+        serviceUserIds: message.serviceUserIds,
+        customEmoji: message.customEmoji,
+        textEntities: message.textEntities,
+        linkPreview: message.linkPreview,
+        translationText: message.translationText,
+        translationEntities: message.translationEntities,
+        translationLanguageCode: message.translationLanguageCode,
+        isTranslating: message.isTranslating,
+        buttonRows: message.buttonRows,
+        isEdited: message.isEdited,
+        hasCommentThread: message.hasCommentThread,
+        commentCount: message.commentCount,
+        lastCommentMessageId: message.lastCommentMessageId,
+      )
+      ..reactions = message.reactions
+      ..forwardOrigin = message.forwardOrigin
+      ..forwardFromUserId = message.forwardFromUserId
+      ..forwardFromChatId = message.forwardFromChatId;
   }
 
   int _sourceChatIdFor(ChatMessage message) => message.chatId ?? widget.chatId;

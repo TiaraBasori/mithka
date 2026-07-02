@@ -26,6 +26,7 @@ import 'app/app_version.dart';
 import 'app/app_navigator.dart';
 import 'auth/account_store.dart';
 import 'auth/auth_manager.dart';
+import 'chat/music_player_controller.dart';
 import 'components/drawer_controller.dart' as dc;
 import 'l10n/app_locale_controller.dart';
 import 'l10n/app_localizations.dart';
@@ -91,6 +92,7 @@ Future<void> _bootstrapAndRunApp() async {
   }
   final prefs = await SharedPreferences.getInstance();
   KeywordBlocker.shared.initialize(prefs);
+  MusicPlayerController.shared.initialize(prefs);
   final app = MithkaApp(prefs: prefs);
   _runAppWithNonFatalGoogleFonts(app);
 }
@@ -257,10 +259,16 @@ class _MithkaAppState extends State<MithkaApp> {
                 ),
                 child: child ?? const SizedBox.shrink(),
               );
+              final appChild = Stack(
+                children: [
+                  Positioned.fill(child: themedChild),
+                  const GlobalMusicPlayerOverlay(),
+                ],
+              );
               return _ScaledAppView(
                 fontScale: theme.fontScale,
                 interfaceScale: theme.interfaceScale,
-                child: themedChild,
+                child: appChild,
               );
             },
             // Rebuild the whole tree when the active account changes.

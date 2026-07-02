@@ -46,6 +46,21 @@ class _TdVideoStreamServer {
     if (_path == null || _path!.isEmpty) {
       _path = await TdFileCenter.shared.playbackPath(fileId);
     }
+    if (_total <= 0) {
+      try {
+        final file = await TdClient.shared.query({
+          '@type': 'getFile',
+          'file_id': fileId,
+        });
+        _updateFileInfo(file);
+      } catch (_) {}
+    }
+    if (_total <= 0 && _path != null && _path!.isNotEmpty) {
+      try {
+        final localSize = await File(_path!).length();
+        if (localSize > 0) _total = localSize;
+      } catch (_) {}
+    }
     if (_total <= 0) return null;
 
     _server = await HttpServer.bind(
@@ -145,16 +160,14 @@ class _TdVideoStreamServer {
   Future<bool> _ensureRange(int start, int end) async {
     final length = end - start + 1;
     try {
-      final file = await TdClient.shared
-          .query({
-            '@type': 'downloadFile',
-            'file_id': fileId,
-            'priority': 32,
-            'offset': start,
-            'limit': length,
-            'synchronous': true,
-          })
-          .timeout(const Duration(seconds: 45));
+      final file = await TdFileCenter.shared.downloadPriorityRange(
+        fileId,
+        offset: start,
+        length: length,
+        priority: 32,
+        timeout: const Duration(seconds: 45),
+      );
+      if (file == null) return false;
       _updateFileInfo(file);
       return _path != null && _path!.isNotEmpty;
     } catch (_) {
