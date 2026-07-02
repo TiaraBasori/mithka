@@ -3,7 +3,7 @@
 //
 //  Chat search — a pushed secondary screen. Custom header (back chevron +
 //  rounded search field) on the list-header wash, with a live list of matching
-//  chats below. Port of the Swift `SearchView` / `SearchViewModel`.
+//  chats below. Port of the Swift `SearchView` / `_SearchViewModel`.
 //
 
 import 'dart:async';
@@ -18,6 +18,7 @@ import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import '../theme/date_text.dart';
 import 'chat_row_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
@@ -31,13 +32,15 @@ class SearchView extends StatefulWidget {
 class _SearchViewState extends State<SearchView> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
-  final _vm = SearchViewModel();
+  final _vm = _SearchViewModel();
+  _SearchTab _tab = _SearchTab.chats;
   String _query = '';
 
   @override
   void initState() {
     super.initState();
     _vm.addListener(() => setState(() {}));
+    _vm.search('', _tab);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Future.delayed(const Duration(milliseconds: 250), () {
         if (mounted) _focus.requestFocus();
@@ -62,6 +65,7 @@ class _SearchViewState extends State<SearchView> {
         children: [
           _header(),
           Expanded(child: _results()),
+          _tabBar(),
         ],
       ),
     );
@@ -125,7 +129,7 @@ class _SearchViewState extends State<SearchView> {
                           ),
                           onChanged: (q) {
                             setState(() => _query = q);
-                            _vm.search(q);
+                            _vm.search(q, _tab);
                           },
                         ),
                       ),
@@ -134,7 +138,7 @@ class _SearchViewState extends State<SearchView> {
                           onTap: () {
                             _controller.clear();
                             setState(() => _query = '');
-                            _vm.search('');
+                            _vm.search('', _tab);
                           },
                           child: AppIcon(
                             HeroAppIcons.xmark,
@@ -155,10 +159,23 @@ class _SearchViewState extends State<SearchView> {
 
   Widget _results() {
     final c = context.colors;
-    if (_query.trim().isEmpty) {
+    final hits = _vm.resultsFor(_tab);
+    final allowEmptyQuery = _tab != _SearchTab.chats;
+    if (_query.trim().isEmpty && !allowEmptyQuery) {
       return _empty(AppStrings.t(AppStringKeys.chatsSearchPlaceholder));
     }
-    if (_vm.results.isEmpty) {
+    if (_vm.isLoading(_tab) && hits.isEmpty) {
+      return Container(
+        color: c.groupedBackground,
+        alignment: Alignment.center,
+        child: const SizedBox(
+          width: 22,
+          height: 22,
+          child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+        ),
+      );
+    }
+    if (hits.isEmpty) {
       return _empty(AppStrings.t(AppStringKeys.chatsSearchNoResults));
     }
     return Container(
@@ -166,9 +183,9 @@ class _SearchViewState extends State<SearchView> {
       child: ListView.builder(
         padding: EdgeInsets.zero,
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        itemCount: _vm.results.length,
+        itemCount: hits.length,
         itemBuilder: (context, i) {
-          final hit = _vm.results[i];
+          final hit = hits[i];
           return Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -187,7 +204,20 @@ class _SearchViewState extends State<SearchView> {
     );
   }
 
-  Future<void> _open(SearchHit hit) async {
+  Future<void> _open(_SearchHit hit) async {
+    if (hit.message != null && hit.chatId != null) {
+      final title = hit.sourceTitle;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ChatView(
+            chatId: hit.chatId!,
+            title: title.isEmpty ? hit.title : title,
+            initialMessageId: hit.message!.id,
+          ),
+        ),
+      );
+      return;
+    }
     final chat = hit.chat;
     if (chat != null) {
       await Navigator.of(context).push(
@@ -215,15 +245,16 @@ class _SearchViewState extends State<SearchView> {
     } catch (_) {}
   }
 
-  Widget _hitRow(SearchHit hit) {
+  Widget _hitRow(_SearchHit hit) {
     final c = context.colors;
+    final thumb = _hitThumb(hit);
     return Container(
       height: 66,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       color: c.background,
       child: Row(
         children: [
-          PhotoAvatar(title: hit.title, photo: hit.photo, size: 54),
+          thumb,
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -250,8 +281,64 @@ class _SearchViewState extends State<SearchView> {
               ],
             ),
           ),
+          if (hit.timeLabel.isNotEmpty) ...[
+            const SizedBox(width: 10),
+            Text(
+              hit.timeLabel,
+              style: TextStyle(fontSize: 13, color: c.textTertiary),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _hitThumb(_SearchHit hit) {
+    final image = hit.thumbnail ?? hit.photo;
+    if (hit.chat != null || hit.userId != null && hit.message == null) {
+      return PhotoAvatar(title: hit.title, photo: hit.photo, size: 54);
+    }
+    if (image != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(9),
+        child: SizedBox(
+          width: 54,
+          height: 54,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              TDImage(photo: image, fit: BoxFit.cover),
+              if (hit.message?.video != null)
+                Center(
+                  child: Container(
+                    width: 26,
+                    height: 26,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.50),
+                      shape: BoxShape.circle,
+                    ),
+                    child: AppIcon(
+                      HeroAppIcons.play,
+                      size: 13,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+    return Container(
+      width: 54,
+      height: 54,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: hit.tint.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(hit.icon, size: 24, color: hit.tint),
     );
   }
 
@@ -264,26 +351,138 @@ class _SearchViewState extends State<SearchView> {
       child: Text(text, style: TextStyle(fontSize: 14, color: c.textTertiary)),
     );
   }
+
+  Widget _tabBar() {
+    final c = context.colors;
+    return SafeArea(
+      top: false,
+      child: Container(
+        color: c.groupedBackground.withValues(alpha: 0.92),
+        padding: const EdgeInsets.fromLTRB(10, 7, 10, 10),
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: c.searchFill.withValues(alpha: 0.94),
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: c.divider, width: 0.5),
+          ),
+          child: Row(
+            children: [
+              for (final tab in _SearchTab.values)
+                Expanded(child: _tabButton(tab)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tabButton(_SearchTab tab) {
+    final c = context.colors;
+    final selected = _tab == tab;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () {
+        if (_tab == tab) return;
+        setState(() => _tab = tab);
+        _vm.search(_query, tab);
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? c.background : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: selected
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          tab.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+            color: selected ? c.textPrimary : c.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class SearchViewModel extends ChangeNotifier {
-  List<SearchHit> results = [];
-  String _currentQuery = '';
+enum _SearchTab {
+  chats,
+  posts,
+  media,
+  links,
+  files,
+  music,
+  voice;
 
-  void search(String q) {
+  String get label => switch (this) {
+    _SearchTab.chats => AppStrings.t(AppStringKeys.audioSearchChatTab),
+    _SearchTab.posts => AppStrings.t(
+      AppStringKeys.chatSearchMessageResultLabel,
+    ).replaceAll('[', '').replaceAll(']', ''),
+    _SearchTab.media => AppStrings.t(AppStringKeys.sharedMediaPhotosAndVideos),
+    _SearchTab.links => AppStrings.t(AppStringKeys.sharedMediaLinks),
+    _SearchTab.files => AppStrings.t(AppStringKeys.topicPostContentFile),
+    _SearchTab.music => AppStrings.t(AppStringKeys.profileDetailMusic),
+    _SearchTab.voice => AppStrings.t(AppStringKeys.sharedMediaVoice),
+  };
+
+  String? get filter => switch (this) {
+    _SearchTab.chats => null,
+    _SearchTab.posts => 'searchMessagesFilterEmpty',
+    _SearchTab.media => 'searchMessagesFilterPhotoAndVideo',
+    _SearchTab.links => 'searchMessagesFilterUrl',
+    _SearchTab.files => 'searchMessagesFilterDocument',
+    _SearchTab.music => 'searchMessagesFilterAudio',
+    _SearchTab.voice => 'searchMessagesFilterVoiceNote',
+  };
+}
+
+class _SearchViewModel extends ChangeNotifier {
+  final Map<_SearchTab, List<_SearchHit>> _results = {
+    for (final tab in _SearchTab.values) tab: <_SearchHit>[],
+  };
+  final Set<_SearchTab> _loading = {};
+  String _currentQuery = '';
+  int _runId = 0;
+
+  List<_SearchHit> resultsFor(_SearchTab tab) => _results[tab] ?? const [];
+  bool isLoading(_SearchTab tab) => _loading.contains(tab);
+
+  void search(String q, _SearchTab tab) {
     final trimmed = q.trim();
     _currentQuery = trimmed;
-    if (trimmed.isEmpty) {
-      results = [];
+    if (trimmed.isEmpty && tab == _SearchTab.chats) {
+      _results[tab] = [];
       notifyListeners();
       return;
     }
-    _run(trimmed);
+    final runId = ++_runId;
+    _loading.add(tab);
+    notifyListeners();
+    if (tab == _SearchTab.chats) {
+      _runChats(trimmed, tab, runId);
+    } else {
+      _runMessages(trimmed, tab, runId);
+    }
   }
 
-  Future<void> _run(String trimmed) async {
+  Future<void> _runChats(String trimmed, _SearchTab tab, int runId) async {
     try {
-      final out = <SearchHit>[];
+      final out = <_SearchHit>[];
       final seenChats = <int>{};
       final seenUsers = <int>{};
 
@@ -296,7 +495,7 @@ class SearchViewModel extends ChangeNotifier {
           });
           final s = TDParse.chat(chat);
           if (s == null) return;
-          out.add(SearchHit.chat(s, subtitle: subtitle));
+          out.add(_SearchHit.chat(s, subtitle: subtitle));
           final uid = s.peerUserId;
           if (uid != null) seenUsers.add(uid);
         } catch (_) {}
@@ -326,7 +525,7 @@ class SearchViewModel extends ChangeNotifier {
               '@type': 'getUser',
               'user_id': id,
             });
-            out.add(SearchHit.user(id, user));
+            out.add(_SearchHit.user(id, user));
           } catch (_) {}
         }
       } catch (_) {}
@@ -360,10 +559,90 @@ class SearchViewModel extends ChangeNotifier {
         } catch (_) {}
       }
 
-      if (trimmed != _currentQuery) return; // stale
-      results = out;
-      notifyListeners();
-    } catch (_) {}
+      _finish(tab, runId, trimmed, out);
+    } catch (_) {
+      _finish(tab, runId, trimmed, const []);
+    }
+  }
+
+  Future<void> _runMessages(String trimmed, _SearchTab tab, int runId) async {
+    final filter = tab.filter;
+    if (filter == null) return;
+    try {
+      final raw = <Map<String, dynamic>>[
+        ...await _searchMessagesInList(
+          query: trimmed,
+          filter: filter,
+          chatList: {'@type': 'chatListMain'},
+        ),
+        ...await _searchMessagesInList(
+          query: trimmed,
+          filter: filter,
+          chatList: {'@type': 'chatListArchive'},
+        ),
+      ];
+      final seen = <String>{};
+      final out = <_SearchHit>[];
+      for (final object in raw) {
+        final chatId = object.int64('chat_id');
+        final message = TDParse.message(object);
+        if (chatId == null || message == null) continue;
+        final key = '$chatId:${message.id}';
+        if (!seen.add(key)) continue;
+        final source = await _sourceFor(chatId);
+        out.add(_SearchHit.message(message, chatId: chatId, source: source));
+      }
+      out.sort((a, b) => b.date.compareTo(a.date));
+      _finish(tab, runId, trimmed, out);
+    } catch (_) {
+      _finish(tab, runId, trimmed, const []);
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _searchMessagesInList({
+    required String query,
+    required String filter,
+    required Map<String, dynamic> chatList,
+  }) async {
+    try {
+      final res = await TdClient.shared.query({
+        '@type': 'searchMessages',
+        'chat_list': chatList,
+        'query': query,
+        'offset_date': 0,
+        'offset_chat_id': 0,
+        'offset_message_id': 0,
+        'limit': 60,
+        'filter': {'@type': filter},
+        'min_date': 0,
+        'max_date': 0,
+      });
+      return res.objects('messages') ?? const <Map<String, dynamic>>[];
+    } catch (_) {
+      return const <Map<String, dynamic>>[];
+    }
+  }
+
+  Future<_SearchSource> _sourceFor(int chatId) async {
+    try {
+      final chat = await TdClient.shared.query({
+        '@type': 'getChat',
+        'chat_id': chatId,
+      });
+      return _SearchSource(
+        title: chat.str('title') ?? '',
+        photo: TDParse.smallPhoto(chat.obj('photo')),
+      );
+    } catch (_) {
+      return const _SearchSource(title: '', photo: null);
+    }
+  }
+
+  void _finish(_SearchTab tab, int runId, String query, List<_SearchHit> out) {
+    if (runId != _runId || query != _currentQuery) return;
+    _results[tab] = out;
+    _loading.remove(tab);
+    notifyListeners();
   }
 
   String? _usernameOf(String q) {
@@ -378,16 +657,24 @@ class SearchViewModel extends ChangeNotifier {
   }
 }
 
-class SearchHit {
-  SearchHit({
+class _SearchHit {
+  _SearchHit({
     required this.title,
     required this.subtitle,
+    this.timeLabel = '',
+    this.date = 0,
+    this.sourceTitle = '',
+    this.thumbnail,
+    this.icon = Icons.chat_bubble_outline,
+    this.tint = const Color(0xFF12B7F5),
     this.photo,
     this.chat,
     this.userId,
+    this.chatId,
+    this.message,
   });
 
-  factory SearchHit.chat(ChatSummary chat, {String? subtitle}) => SearchHit(
+  factory _SearchHit.chat(ChatSummary chat, {String? subtitle}) => _SearchHit(
     title: chat.title,
     subtitle: subtitle ?? _chatSubtitle(chat),
     photo: chat.photo,
@@ -395,9 +682,9 @@ class SearchHit {
     userId: chat.peerUserId,
   );
 
-  factory SearchHit.user(int id, Map<String, dynamic> user) {
+  factory _SearchHit.user(int id, Map<String, dynamic> user) {
     final username = user.obj('usernames')?.str('editable_username');
-    return SearchHit(
+    return _SearchHit(
       title: TDParse.userName(user),
       subtitle: username != null && username.isNotEmpty
           ? '@$username'
@@ -407,11 +694,43 @@ class SearchHit {
     );
   }
 
+  factory _SearchHit.message(
+    ChatMessage message, {
+    required int chatId,
+    required _SearchSource source,
+  }) {
+    final document = message.document;
+    final music = message.music;
+    final title = document?.fileName ?? music?.title ?? _messageTitle(message);
+    final subtitle = _messageSubtitle(message, source.title);
+    return _SearchHit(
+      title: title,
+      subtitle: subtitle,
+      timeLabel: DateText.listLabel(message.date),
+      date: message.date,
+      sourceTitle: source.title,
+      photo: source.photo,
+      thumbnail: message.image ?? music?.cover,
+      chatId: chatId,
+      message: message,
+      icon: _messageIcon(message),
+      tint: _messageTint(message),
+    );
+  }
+
   final String title;
   final String subtitle;
+  final String timeLabel;
+  final int date;
+  final String sourceTitle;
   final TdFileRef? photo;
+  final TdFileRef? thumbnail;
   final ChatSummary? chat;
   final int? userId;
+  final int? chatId;
+  final ChatMessage? message;
+  final IconData icon;
+  final Color tint;
 
   static String _chatSubtitle(ChatSummary chat) {
     if (chat.kind == ChatKind.group) {
@@ -427,4 +746,90 @@ class SearchHit {
         ? AppStrings.t(AppStringKeys.audioSearchChatTab)
         : chat.lastMessage;
   }
+
+  static String _messageTitle(ChatMessage message) {
+    if (message.music != null) return message.music!.title;
+    if (message.voice != null) {
+      return AppStrings.t(AppStringKeys.sharedMediaVoiceMessages);
+    }
+    if (message.video != null) {
+      final text = message.text.trim();
+      return text.isEmpty ||
+              text == AppStrings.t(AppStringKeys.chatVideoPlaceholder)
+          ? AppStrings.t(AppStringKeys.chatVideoPlaceholder)
+          : text;
+    }
+    if (message.image != null) {
+      final text = message.text.trim();
+      return text.isEmpty ||
+              text == AppStrings.t(AppStringKeys.composerImagePreview)
+          ? AppStrings.t(AppStringKeys.composerImagePreview)
+          : text;
+    }
+    return message.text.trim().isEmpty
+        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
+        : message.text.trim();
+  }
+
+  static String _messageSubtitle(ChatMessage message, String sourceTitle) {
+    final pieces = <String>[];
+    final document = message.document;
+    if (document != null && document.size > 0) {
+      pieces.add(_fileSize(document.size));
+    }
+    final music = message.music;
+    if (music?.performer?.isNotEmpty == true) pieces.add(music!.performer!);
+    if (message.voice != null && message.voice!.duration > 0) {
+      pieces.add(_duration(message.voice!.duration));
+    }
+    if (sourceTitle.isNotEmpty) pieces.add(sourceTitle);
+    final text = message.text.trim();
+    if (text.isNotEmpty &&
+        document == null &&
+        music == null &&
+        message.voice == null &&
+        text != AppStrings.t(AppStringKeys.composerImagePreview) &&
+        text != AppStrings.t(AppStringKeys.chatVideoPlaceholder)) {
+      pieces.add(text.replaceAll('\n', ' '));
+    }
+    return pieces.join(' · ');
+  }
+
+  static IconData _messageIcon(ChatMessage message) {
+    if (message.document != null) return HeroAppIcons.solidFile.data;
+    if (message.music != null) return HeroAppIcons.music.data;
+    if (message.voice != null) return HeroAppIcons.microphone.data;
+    if (message.linkPreview != null) return HeroAppIcons.link.data;
+    if (message.video != null) return HeroAppIcons.video.data;
+    if (message.image != null) return HeroAppIcons.solidImage.data;
+    return HeroAppIcons.message.data;
+  }
+
+  static Color _messageTint(ChatMessage message) {
+    if (message.document != null) return const Color(0xFF4AA3F0);
+    if (message.music != null) return const Color(0xFFFF8A2A);
+    if (message.voice != null) return const Color(0xFF28A878);
+    if (message.linkPreview != null) return const Color(0xFF8E7BFF);
+    if (message.video != null) return const Color(0xFF7B61FF);
+    if (message.image != null) return const Color(0xFF15A7F7);
+    return AppTheme.brand;
+  }
+
+  static String _fileSize(int bytes) {
+    if (bytes >= 1 << 20) return '${(bytes / (1 << 20)).toStringAsFixed(1)} MB';
+    if (bytes >= 1 << 10) return '${(bytes / (1 << 10)).toStringAsFixed(0)} KB';
+    return '$bytes B';
+  }
+
+  static String _duration(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
+}
+
+class _SearchSource {
+  const _SearchSource({required this.title, required this.photo});
+  final String title;
+  final TdFileRef? photo;
 }
