@@ -652,7 +652,12 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     return _TabNavigator(
       navigatorKey: _navKeys[i],
       observer: dc.TabDepthObserver(i, _tabBar),
-      root: _root(i),
+      root: _PhoneRootTabShell(
+        tabIndex: i,
+        onSelect: _select,
+        onClearUnread: _chatListController.markAllRead,
+        root: _root(i),
+      ),
     );
   }
 
@@ -682,32 +687,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     if (_usesTabletSplit(context)) {
       return _tabletSplitTabs(tabs, selection, activeTabIndex);
     }
-    return Column(
-      children: [
-        Expanded(child: _stack(tabs)),
-        Consumer<dc.TabBarVisibility>(
-          builder: (context, vis, _) {
-            final hidden =
-                vis.depth(activeTabIndex) > 0 || vis.isChatSuppressed;
-            return AnimatedSize(
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeInOut,
-              child: hidden
-                  ? const SizedBox(width: double.infinity)
-                  : _ClassicTabBar(
-                      selection: selection,
-                      onSelect: _select,
-                      items: tabs,
-                      onClearUnread: _chatListController.markAllRead,
-                      unread: context.watch<UnreadBadgeModel>().countFor(
-                        theme.unreadBadgeMode,
-                      ),
-                    ),
-            );
-          },
-        ),
-      ],
-    );
+    return _stack(tabs);
   }
 
   Widget _tabletSplitTabs(
@@ -1030,6 +1010,55 @@ class _TabNavigator extends StatelessWidget {
       observers: [observer],
       onGenerateRoute: (settings) =>
           MaterialPageRoute(builder: (_) => root, settings: settings),
+    );
+  }
+}
+
+class _PhoneRootTabShell extends StatelessWidget {
+  const _PhoneRootTabShell({
+    required this.tabIndex,
+    required this.onSelect,
+    required this.onClearUnread,
+    required this.root,
+  });
+
+  final int tabIndex;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onClearUnread;
+  final Widget root;
+
+  List<_MainTabItem> _visibleTabs(ThemeController theme) => [
+    _MainRootViewState._allTabs[0],
+    if (theme.showChannelsTab) _MainRootViewState._allTabs[1],
+    _MainRootViewState._allTabs[2],
+    if (theme.showMomentsTab) _MainRootViewState._allTabs[3],
+  ];
+
+  bool _usesTabletSplit(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    return size.width > size.height && math.min(size.width, size.height) >= 600;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_usesTabletSplit(context)) return root;
+    final theme = context.watch<ThemeController>();
+    final tabs = _visibleTabs(theme);
+    final selection = tabs.indexWhere((tab) => tab.index == tabIndex);
+    if (selection < 0) return root;
+    return Column(
+      children: [
+        Expanded(child: root),
+        _ClassicTabBar(
+          selection: selection,
+          onSelect: onSelect,
+          items: tabs,
+          onClearUnread: onClearUnread,
+          unread: context.watch<UnreadBadgeModel>().countFor(
+            theme.unreadBadgeMode,
+          ),
+        ),
+      ],
     );
   }
 }

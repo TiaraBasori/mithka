@@ -5,6 +5,7 @@
 //  header's avatar can open it. Port of the Swift `DrawerController`.
 //
 
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 class DrawerController extends ChangeNotifier {
@@ -26,11 +27,12 @@ class DrawerController extends ChangeNotifier {
 class TabBarVisibility extends ChangeNotifier {
   final Map<int, int> _depths = {};
   int _chatSuppressions = 0;
+  bool _notifyScheduled = false;
 
   void setDepth(int tab, int depth) {
     if (_depths[tab] == depth) return;
     _depths[tab] = depth;
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   int depth(int tab) => _depths[tab] ?? 0;
@@ -39,13 +41,26 @@ class TabBarVisibility extends ChangeNotifier {
 
   void retainChatSuppression() {
     _chatSuppressions++;
-    notifyListeners();
+    _notifyListenersSafely();
   }
 
   void releaseChatSuppression() {
     if (_chatSuppressions == 0) return;
     _chatSuppressions--;
-    notifyListeners();
+    _notifyListenersSafely();
+  }
+
+  void _notifyListenersSafely() {
+    if (SchedulerBinding.instance.schedulerPhase == SchedulerPhase.idle) {
+      notifyListeners();
+      return;
+    }
+    if (_notifyScheduled) return;
+    _notifyScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _notifyScheduled = false;
+      notifyListeners();
+    });
   }
 }
 
