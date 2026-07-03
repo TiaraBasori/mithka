@@ -8,7 +8,17 @@ cache_dir="${TMPDIR:-/tmp}/mithka-mdk-cache"
 archive="$cache_dir/mdk-sdk-apple-$version.tar.xz"
 partial="$archive.partial"
 
+install_headers() {
+  rm -rf include
+  mkdir -p include/mdk
+  cp -R \
+    mdk-sdk/lib/mdk.xcframework/ios-arm64/mdk.framework/Headers/. \
+    include/mdk/
+  test -f include/mdk/Player.h
+}
+
 if [ -d mdk-sdk/lib/mdk.xcframework ]; then
+  install_headers
   exit 0
 fi
 
@@ -59,3 +69,4 @@ done
 rm -rf mdk-sdk
 tar -xJf "$archive" mdk-sdk
 test -d mdk-sdk/lib/mdk.xcframework
+install_headers

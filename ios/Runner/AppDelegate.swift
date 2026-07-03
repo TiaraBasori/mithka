@@ -207,24 +207,42 @@ private final class AccountSessionBackupKeychain {
   }
 
   private func saveSession(id: String, data: Data) throws {
-    let query: [String: Any] = [
+    do {
+      try saveSession(id: id, data: data, synchronizable: true)
+    } catch AccountSessionBackupError.keychain(let status)
+      where isSynchronizableUnsupported(status) {
+      try saveSession(id: id, data: data, synchronizable: false)
+    }
+  }
+
+  private func saveSession(id: String, data: Data, synchronizable: Bool) throws {
+    var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: id,
       kSecValueData as String: data,
       kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
     ]
+    if synchronizable {
+      query[kSecAttrSynchronizable as String] = true
+    }
 
     let status = SecItemAdd(query as CFDictionary, nil)
     if status == errSecDuplicateItem {
-      let updateQuery: [String: Any] = [
+      var updateQuery: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
         kSecAttrService as String: service,
         kSecAttrAccount as String: id
       ]
+      if synchronizable {
+        updateQuery[kSecAttrSynchronizable as String] = true
+      }
       let updateStatus = SecItemUpdate(
         updateQuery as CFDictionary,
-        [kSecValueData as String: data] as CFDictionary
+        [
+          kSecValueData as String: data,
+          kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+        ] as CFDictionary
       )
       guard updateStatus == errSecSuccess else {
         throw AccountSessionBackupError.keychain(updateStatus)
@@ -235,12 +253,24 @@ private final class AccountSessionBackupKeychain {
   }
 
   private func getAllSessions() throws -> [Data] {
-    let query: [String: Any] = [
+    do {
+      return try getAllSessions(synchronizable: kSecAttrSynchronizableAny)
+    } catch AccountSessionBackupError.keychain(let status)
+      where isSynchronizableUnsupported(status) {
+      return try getAllSessions(synchronizable: nil)
+    }
+  }
+
+  private func getAllSessions(synchronizable: CFString?) throws -> [Data] {
+    var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecReturnData as String: true,
       kSecMatchLimit as String: kSecMatchLimitAll
     ]
+    if let synchronizable {
+      query[kSecAttrSynchronizable as String] = synchronizable
+    }
     var result: AnyObject?
     let status = SecItemCopyMatching(query as CFDictionary, &result)
     if status == errSecItemNotFound {
@@ -253,11 +283,23 @@ private final class AccountSessionBackupKeychain {
   }
 
   private func deleteSession(id: String) throws {
-    let query: [String: Any] = [
+    do {
+      try deleteSession(id: id, synchronizable: kSecAttrSynchronizableAny)
+    } catch AccountSessionBackupError.keychain(let status)
+      where isSynchronizableUnsupported(status) {
+      try deleteSession(id: id, synchronizable: nil)
+    }
+  }
+
+  private func deleteSession(id: String, synchronizable: CFString?) throws {
+    var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: id
     ]
+    if let synchronizable {
+      query[kSecAttrSynchronizable as String] = synchronizable
+    }
     let status = SecItemDelete(query as CFDictionary)
     guard status == errSecSuccess || status == errSecItemNotFound else {
       throw AccountSessionBackupError.keychain(status)
@@ -265,14 +307,30 @@ private final class AccountSessionBackupKeychain {
   }
 
   private func deleteAllSessions() throws {
-    let query: [String: Any] = [
+    do {
+      try deleteAllSessions(synchronizable: kSecAttrSynchronizableAny)
+    } catch AccountSessionBackupError.keychain(let status)
+      where isSynchronizableUnsupported(status) {
+      try deleteAllSessions(synchronizable: nil)
+    }
+  }
+
+  private func deleteAllSessions(synchronizable: CFString?) throws {
+    var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service
     ]
+    if let synchronizable {
+      query[kSecAttrSynchronizable as String] = synchronizable
+    }
     let status = SecItemDelete(query as CFDictionary)
     guard status == errSecSuccess || status == errSecItemNotFound else {
       throw AccountSessionBackupError.keychain(status)
     }
+  }
+
+  private func isSynchronizableUnsupported(_ status: OSStatus) -> Bool {
+    status == errSecNotAvailable || status == errSecMissingEntitlement || status == errSecParam
   }
 }
 

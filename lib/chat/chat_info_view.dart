@@ -723,10 +723,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                     ? AppStringKeys.topicChatLeaveChannel
                     : AppStringKeys.chatInfoLeaveGroup,
               ),
-              () {
-                _vm.leaveChat();
-                Navigator.of(context).pop();
-              },
+              _leaveChat,
             ),
           ],
         ],
@@ -769,8 +766,21 @@ class _ChatInfoViewState extends State<ChatInfoView> {
       destructive: true,
     );
     if (!mounted || !second) return;
-    _vm.clearHistory();
-    Navigator.of(context).pop();
+    try {
+      await _vm.clearHistory();
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) showToast(context, _vm.actionErrorNotice(error));
+    }
+  }
+
+  Future<void> _leaveChat() async {
+    try {
+      await _vm.leaveChat();
+      if (mounted) Navigator.of(context).pop();
+    } catch (error) {
+      if (mounted) showToast(context, _vm.actionErrorNotice(error));
+    }
   }
 }
 
@@ -1301,6 +1311,7 @@ class ChatInfoViewModel extends ChangeNotifier {
         final uname = sg.obj('usernames')?.str('editable_username') ?? '';
         username = uname.isEmpty ? null : uname;
         isPublic = uname.isNotEmpty;
+        _applySelfStatus(sg.obj('status'), defaultInvite: false);
       }
     } catch (_) {}
     notifyListeners();
@@ -1319,40 +1330,61 @@ class ChatInfoViewModel extends ChangeNotifier {
         'chat_id': chatId,
         'member_id': {'@type': 'messageSenderUser', 'user_id': uid},
       });
-      final status = member.obj('status');
-      final st = status?.type;
-      isMember =
-          st == 'chatMemberStatusCreator' ||
-          st == 'chatMemberStatusAdministrator' ||
-          st == 'chatMemberStatusMember' ||
-          (st == 'chatMemberStatusRestricted' &&
-              (status?.boolean('is_member') ?? false));
-      switch (st) {
-        case 'chatMemberStatusCreator':
-          canInvite = true;
-          canRemove = true;
-          canManageGroup = true;
-          canChangeAutoDelete = true;
-        case 'chatMemberStatusAdministrator':
-          final rights = status?.obj('rights');
-          canInvite = rights?.boolean('can_invite_users') ?? false;
-          canRemove = rights?.boolean('can_restrict_members') ?? false;
-          canManageGroup = true;
-          canChangeAutoDelete = rights?.boolean('can_change_info') ?? false;
-        default:
-          canInvite = defaultInvite;
-          canRemove = false;
-          canManageGroup = false;
-          canChangeAutoDelete = false;
-      }
+      _applySelfStatus(member.obj('status'), defaultInvite: defaultInvite);
     } catch (_) {
       canInvite = defaultInvite;
       canRemove = false;
       canManageGroup = false;
       canChangeAutoDelete = !isGroup;
-      isMember = false;
+      isMember = isMember && isChannel;
     }
     notifyListeners();
+  }
+
+  void _applySelfStatus(
+    Map<String, dynamic>? status, {
+    required bool defaultInvite,
+  }) {
+    switch (status?.type) {
+      case 'chatMemberStatusCreator':
+        isMember = true;
+        canInvite = true;
+        canRemove = true;
+        canManageGroup = true;
+        canChangeAutoDelete = true;
+      case 'chatMemberStatusAdministrator':
+        final rights = status?.obj('rights');
+        isMember = true;
+        canInvite = rights?.boolean('can_invite_users') ?? false;
+        canRemove = rights?.boolean('can_restrict_members') ?? false;
+        canManageGroup = true;
+        canChangeAutoDelete = rights?.boolean('can_change_info') ?? false;
+      case 'chatMemberStatusMember':
+        isMember = true;
+        canInvite = defaultInvite;
+        canRemove = false;
+        canManageGroup = false;
+        canChangeAutoDelete = false;
+      case 'chatMemberStatusRestricted':
+        isMember = status?.boolean('is_member') ?? false;
+        canInvite = defaultInvite;
+        canRemove = false;
+        canManageGroup = false;
+        canChangeAutoDelete = false;
+      case 'chatMemberStatusLeft':
+      case 'chatMemberStatusBanned':
+        isMember = false;
+        canInvite = false;
+        canRemove = false;
+        canManageGroup = false;
+        canChangeAutoDelete = false;
+      default:
+        isMember = false;
+        canInvite = defaultInvite;
+        canRemove = false;
+        canManageGroup = false;
+        canChangeAutoDelete = !isGroup;
+    }
   }
 
   Future<void> _loadMembers(Map<String, dynamic> chat) async {
@@ -1480,17 +1512,35 @@ class ChatInfoViewModel extends ChangeNotifier {
     });
   }
 
-  void clearHistory() {
-    TdClient.shared.send({
+  Future<void> clearHistory() async {
+    await TdClient.shared.query({
       '@type': 'deleteChatHistory',
       'chat_id': chatId,
       'remove_from_chat_list': false,
       'revoke': false,
     });
+    TdClient.shared.emitLocalUpdate({
+      '@type': 'mithkaChatHistoryCleared',
+      'chat_id': chatId,
+    });
   }
 
-  void leaveChat() {
-    TdClient.shared.send({'@type': 'leaveChat', 'chat_id': chatId});
+  Future<void> leaveChat() async {
+    await TdClient.shared.query({'@type': 'leaveChat', 'chat_id': chatId});
+    isMember = false;
+    notifyListeners();
+    TdClient.shared.emitLocalUpdate({
+      '@type': 'mithkaChatLeft',
+      'chat_id': chatId,
+    });
+  }
+
+  String actionErrorNotice(Object error) {
+    final message = error is TdError ? error.message : error.toString();
+    final text = message.trim();
+    return text.isEmpty
+        ? AppStrings.t(AppStringKeys.topicPostContentActionFailed)
+        : '${AppStrings.t(AppStringKeys.topicPostContentActionFailed)}: $text';
   }
 
   String _pinErrorNotice(Object error) {

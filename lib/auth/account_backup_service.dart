@@ -14,7 +14,7 @@ class AccountSessionBackup {
     required this.name,
     required this.createdAt,
     required this.sizeBytes,
-    required this.tdBinlog,
+    required this.sessionString,
     this.phone,
     this.userId,
   });
@@ -25,7 +25,7 @@ class AccountSessionBackup {
   final int? userId;
   final DateTime createdAt;
   final int sizeBytes;
-  final Uint8List tdBinlog;
+  final String sessionString;
 
   String get displayName => name.trim().isEmpty ? id : name;
 }
@@ -35,11 +35,8 @@ class AccountBackupService {
   static final AccountBackupService shared = AccountBackupService._();
 
   static const _channel = MethodChannel('mithka/account_backup');
-  static const _format = 'mithka.tdlib.session.v1';
-  static const _binaryFormat = 'mithka.tdlib.session.v2';
+  static const _format = 'mithka.tdlib.session_string.v1';
   static const _enabledKey = 'mithka.accountBackup.enabled';
-  static final List<int> _binaryMagic = ascii.encode('MITHKA_TDSESSION2\n');
-  static const _fileName = 'td.binlog';
   final Set<int> _inFlightAutoBackups = {};
 
   Future<bool> get isSupported async {
@@ -78,13 +75,18 @@ class AccountBackupService {
   Future<List<AccountSessionBackup>> listBackups() async {
     if (!await isSupported) return const [];
     final rawItems = await _channel.invokeListMethod<Object?>('getAllSessions');
-    final backups = <AccountSessionBackup>[];
+    final backupsById = <String, AccountSessionBackup>{};
     for (final raw in rawItems ?? const []) {
       final data = raw is Uint8List ? raw : null;
       if (data == null) continue;
       final backup = _decode(data);
-      if (backup != null) backups.add(backup);
+      if (backup == null) continue;
+      final existing = backupsById[backup.id];
+      if (existing == null || backup.createdAt.isAfter(existing.createdAt)) {
+        backupsById[backup.id] = backup;
+      }
     }
+    final backups = backupsById.values.toList();
     backups.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return backups;
   }
@@ -94,32 +96,34 @@ class AccountBackupService {
       throw UnsupportedError('Account session backup is only available on iOS');
     }
     final slot = TdClient.shared.activeSlot;
-    final sessionExport = await TdClient.shared.exportSessionBackupForSlot(
-      slot,
-    );
-    final tdBinlog = sessionExport.bytes;
-    if (tdBinlog.isEmpty) {
-      throw StateError('TDLib session file is empty');
-    }
-
     final me = await TdClient.shared.query({'@type': 'getMe'});
     final userId = me.int64('id');
     final name = TDParse.userName(me);
     final phone = TDParse.formatPhone(me.str('phone_number'));
+    final sessionString = await TdClient.shared.exportSessionStringForSlot(
+      slot,
+    );
+    if (sessionString.trim().isEmpty) {
+      throw StateError('TDLib session string is empty');
+    }
+
     final id = userId?.toString() ?? 'slot-$slot';
     final createdAt = DateTime.now().toUtc();
-    final header = <String, Object?>{
-      'format': _binaryFormat,
-      'id': id,
-      'slot': slot,
-      'userId': userId,
-      'name': name,
-      'phone': phone,
-      'createdAt': createdAt.toIso8601String(),
-      'fileName': _fileName,
-      'compact': sessionExport.isCompact,
-    };
-    final data = _encodeBinaryBackup(header, tdBinlog);
+    final data = Uint8List.fromList(
+      utf8.encode(
+        jsonEncode(<String, Object?>{
+          'format': _format,
+          'id': id,
+          'accountId': id,
+          'slot': slot,
+          'userId': userId,
+          'name': name,
+          'phone': phone,
+          'createdAt': createdAt.toIso8601String(),
+          'sessionString': sessionString,
+        }),
+      ),
+    );
     await _channel.invokeMethod<void>('saveSession', {'id': id, 'data': data});
     return AccountSessionBackup(
       id: id,
@@ -127,13 +131,13 @@ class AccountBackupService {
       phone: phone,
       userId: userId,
       createdAt: createdAt,
-      sizeBytes: tdBinlog.length,
-      tdBinlog: tdBinlog,
+      sizeBytes: utf8.encode(sessionString).length,
+      sessionString: sessionString,
     );
   }
 
   Future<int> restore(AccountSessionBackup backup) async {
-    final slot = await TdClient.shared.restoreSessionSlot(backup.tdBinlog);
+    final slot = await TdClient.shared.restoreSessionSlot(backup.sessionString);
     return slot;
   }
 
@@ -149,22 +153,18 @@ class AccountBackupService {
 
   AccountSessionBackup? _decode(Uint8List data) {
     try {
-      final binary = _decodeBinaryBackup(data);
-      if (binary != null) return binary;
       final decoded = jsonDecode(utf8.decode(data));
       if (decoded is! Map<String, dynamic>) return null;
       if (decoded['format'] != _format) return null;
-      final files = decoded['files'];
-      if (files is! Map<String, dynamic>) return null;
-      final encodedSession = files[_fileName];
-      if (encodedSession is! String || encodedSession.isEmpty) return null;
-      final tdBinlog = base64Decode(encodedSession);
-      if (tdBinlog.isEmpty) return null;
+      final sessionString = decoded['sessionString'];
+      if (sessionString is! String || sessionString.trim().isEmpty) {
+        return null;
+      }
       final createdAtText = decoded['createdAt'];
       final createdAt = createdAtText is String
           ? DateTime.tryParse(createdAtText)
           : null;
-      final id = decoded['id']?.toString();
+      final id = decoded['accountId']?.toString() ?? decoded['id']?.toString();
       if (id == null || id.isEmpty) return null;
       final userIdValue = decoded['userId'];
       return AccountSessionBackup(
@@ -173,66 +173,11 @@ class AccountBackupService {
         phone: decoded['phone']?.toString(),
         userId: userIdValue is int ? userIdValue : int.tryParse('$userIdValue'),
         createdAt: createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-        sizeBytes: tdBinlog.length,
-        tdBinlog: Uint8List.fromList(tdBinlog),
+        sizeBytes: utf8.encode(sessionString).length,
+        sessionString: sessionString,
       );
     } catch (_) {
       return null;
     }
-  }
-
-  Uint8List _encodeBinaryBackup(
-    Map<String, Object?> header,
-    List<int> tdBinlog,
-  ) {
-    final headerBytes = utf8.encode(jsonEncode(header));
-    final lengthBytes = ascii.encode(
-      headerBytes.length.toRadixString(16).padLeft(8, '0'),
-    );
-    return Uint8List.fromList([
-      ..._binaryMagic,
-      ...lengthBytes,
-      ...headerBytes,
-      ...tdBinlog,
-    ]);
-  }
-
-  AccountSessionBackup? _decodeBinaryBackup(Uint8List data) {
-    if (data.length < _binaryMagic.length + 8) return null;
-    for (var i = 0; i < _binaryMagic.length; i++) {
-      if (data[i] != _binaryMagic[i]) return null;
-    }
-    final lengthStart = _binaryMagic.length;
-    final lengthEnd = lengthStart + 8;
-    final headerLength = int.tryParse(
-      ascii.decode(data.sublist(lengthStart, lengthEnd)),
-      radix: 16,
-    );
-    if (headerLength == null || headerLength <= 0) return null;
-    final headerEnd = lengthEnd + headerLength;
-    if (headerEnd >= data.length) return null;
-
-    final decoded = jsonDecode(utf8.decode(data.sublist(lengthEnd, headerEnd)));
-    if (decoded is! Map<String, dynamic>) return null;
-    if (decoded['format'] != _binaryFormat) return null;
-    if (decoded['fileName'] != _fileName) return null;
-    final id = decoded['id']?.toString();
-    if (id == null || id.isEmpty) return null;
-    final tdBinlog = data.sublist(headerEnd);
-    if (tdBinlog.isEmpty) return null;
-    final createdAtText = decoded['createdAt'];
-    final createdAt = createdAtText is String
-        ? DateTime.tryParse(createdAtText)
-        : null;
-    final userIdValue = decoded['userId'];
-    return AccountSessionBackup(
-      id: id,
-      name: decoded['name']?.toString() ?? id,
-      phone: decoded['phone']?.toString(),
-      userId: userIdValue is int ? userIdValue : int.tryParse('$userIdValue'),
-      createdAt: createdAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-      sizeBytes: tdBinlog.length,
-      tdBinlog: Uint8List.fromList(tdBinlog),
-    );
   }
 }

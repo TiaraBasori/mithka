@@ -31,10 +31,19 @@ typedef _ReceiveDart = Pointer<Utf8> Function(double timeout);
 typedef _ExecuteC = Pointer<Utf8> Function(Pointer<Utf8> request);
 typedef _ExecuteDart = Pointer<Utf8> Function(Pointer<Utf8> request);
 
-typedef _CompactSessionC =
-    Int32 Function(Pointer<Utf8> sourcePath, Pointer<Utf8> destinationPath);
-typedef _CompactSessionDart =
-    int Function(Pointer<Utf8> sourcePath, Pointer<Utf8> destinationPath);
+typedef _ExportSessionStringC =
+    Pointer<Utf8> Function(
+      Pointer<Utf8> sourcePath,
+      Int32 apiId,
+      Int32 testMode,
+    );
+typedef _ExportSessionStringDart =
+    Pointer<Utf8> Function(Pointer<Utf8> sourcePath, int apiId, int testMode);
+
+typedef _ImportSessionStringC =
+    Int32 Function(Pointer<Utf8> sessionString, Pointer<Utf8> destinationPath);
+typedef _ImportSessionStringDart =
+    int Function(Pointer<Utf8> sessionString, Pointer<Utf8> destinationPath);
 
 typedef _LastErrorC = Pointer<Utf8> Function();
 typedef _LastErrorDart = Pointer<Utf8> Function();
@@ -51,7 +60,8 @@ class TdBindings {
       _send = lib.lookupFunction<_SendC, _SendDart>('td_send'),
       _receive = lib.lookupFunction<_ReceiveC, _ReceiveDart>('td_receive'),
       _execute = lib.lookupFunction<_ExecuteC, _ExecuteDart>('td_execute'),
-      _compactSession = _lookupCompactSession(lib),
+      _exportSessionString = _lookupExportSessionString(lib),
+      _importSessionString = _lookupImportSessionString(lib),
       _lastError = _lookupLastError(lib);
 
   factory TdBindings.open() => TdBindings._(_openLibrary());
@@ -60,20 +70,39 @@ class TdBindings {
   final _SendDart _send;
   final _ReceiveDart _receive;
   final _ExecuteDart _execute;
-  final _CompactSessionDart? _compactSession;
+  final _ExportSessionStringDart? _exportSessionString;
+  final _ImportSessionStringDart? _importSessionString;
   final _LastErrorDart? _lastError;
 
   /// Creates a fresh per-process client id.
   int createClientId() => _createClientId();
 
-  bool get supportsCompactSessionBackup =>
-      _compactSession != null && _lastError != null;
+  bool get supportsSessionStringBackup =>
+      _exportSessionString != null &&
+      _importSessionString != null &&
+      _lastError != null;
 
-  static _CompactSessionDart? _lookupCompactSession(DynamicLibrary lib) {
+  static _ExportSessionStringDart? _lookupExportSessionString(
+    DynamicLibrary lib,
+  ) {
     try {
-      return lib.lookupFunction<_CompactSessionC, _CompactSessionDart>(
-        'td_mithka_write_compact_session_binlog',
-      );
+      return lib
+          .lookupFunction<_ExportSessionStringC, _ExportSessionStringDart>(
+            'td_mithka_export_session_string',
+          );
+    } on ArgumentError {
+      return null;
+    }
+  }
+
+  static _ImportSessionStringDart? _lookupImportSessionString(
+    DynamicLibrary lib,
+  ) {
+    try {
+      return lib
+          .lookupFunction<_ImportSessionStringC, _ImportSessionStringDart>(
+            'td_mithka_import_session_string',
+          );
     } on ArgumentError {
       return null;
     }
@@ -135,25 +164,51 @@ class TdBindings {
     }
   }
 
-  void writeCompactSessionBinlog(String sourcePath, String destinationPath) {
-    final compactSession = _compactSession;
-    if (compactSession == null) {
-      throw UnsupportedError('Compact TDLib session backup is unavailable');
+  String exportSessionString(
+    String sourcePath, {
+    required int apiId,
+    required bool testMode,
+  }) {
+    final exportSessionString = _exportSessionString;
+    if (exportSessionString == null) {
+      throw UnsupportedError('TDLib session string export is unavailable');
     }
 
     final sourcePtr = sourcePath.toNativeUtf8();
+    try {
+      final result = exportSessionString(sourcePtr, apiId, testMode ? 1 : 0);
+      if (result == nullptr) {
+        final errorPtr = _lastError?.call();
+        final message = errorPtr == null || errorPtr == nullptr
+            ? 'Unknown TDLib session string export error'
+            : errorPtr.toDartString();
+        throw StateError(message);
+      }
+      return result.toDartString();
+    } finally {
+      malloc.free(sourcePtr);
+    }
+  }
+
+  void importSessionString(String sessionString, String destinationPath) {
+    final importSessionString = _importSessionString;
+    if (importSessionString == null) {
+      throw UnsupportedError('TDLib session string import is unavailable');
+    }
+
+    final sessionPtr = sessionString.toNativeUtf8();
     final destinationPtr = destinationPath.toNativeUtf8();
     try {
-      final code = compactSession(sourcePtr, destinationPtr);
+      final code = importSessionString(sessionPtr, destinationPtr);
       if (code != 0) {
         final errorPtr = _lastError?.call();
         final message = errorPtr == null || errorPtr == nullptr
-            ? 'Unknown compact TDLib session backup error'
+            ? 'Unknown TDLib session string import error'
             : errorPtr.toDartString();
         throw StateError(message);
       }
     } finally {
-      malloc.free(sourcePtr);
+      malloc.free(sessionPtr);
       malloc.free(destinationPtr);
     }
   }

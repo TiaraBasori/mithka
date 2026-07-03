@@ -714,7 +714,15 @@ class _ProfileViewState extends State<ProfileView> {
         children: [
           Icon(icon, size: 22, color: c.textPrimary),
           const SizedBox(height: 5),
-          Text(label, style: TextStyle(fontSize: 13, color: c.textPrimary)),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13, color: c.textPrimary),
+            ),
+          ),
         ],
       ),
     );

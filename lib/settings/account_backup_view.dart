@@ -20,10 +20,12 @@ class AccountBackupView extends StatefulWidget {
     super.key,
     this.showCreateAction = true,
     this.closeAfterRestore = false,
+    this.returnToPhoneOnBack = false,
   });
 
   final bool showCreateAction;
   final bool closeAfterRestore;
+  final bool returnToPhoneOnBack;
 
   @override
   State<AccountBackupView> createState() => _AccountBackupViewState();
@@ -155,45 +157,57 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     }
   }
 
+  void _close() {
+    Navigator.of(context).pop(widget.returnToPhoneOnBack ? true : null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Scaffold(
-      backgroundColor: c.groupedBackground,
-      body: Column(
-        children: [
-          NavHeader(
-            title: AppStrings.t(AppStringKeys.accountBackupTitle),
-            onBack: () => Navigator.of(context).pop(),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
-              children: [
-                _enabledSwitch(),
-                if (widget.showCreateAction) ...[
-                  const SizedBox(height: 12),
-                  _actionButton(),
-                ],
-                const SizedBox(height: 12),
-                _notice(),
-                const SizedBox(height: 18),
-                _sectionTitle(AppStringKeys.accountBackupSessions),
-                if (_loading)
-                  const Padding(
-                    padding: EdgeInsets.only(top: 24),
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (!Platform.isIOS)
-                  _empty(AppStringKeys.accountBackupIOSOnly)
-                else if (_backups.isEmpty)
-                  _empty(AppStringKeys.accountBackupEmpty)
-                else
-                  _backupList(),
-              ],
+    return PopScope(
+      canPop: !widget.returnToPhoneOnBack,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && widget.returnToPhoneOnBack) {
+          _close();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: c.groupedBackground,
+        body: Column(
+          children: [
+            NavHeader(
+              title: AppStrings.t(AppStringKeys.accountBackupTitle),
+              onBack: _close,
             ),
-          ),
-        ],
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
+                children: [
+                  _enabledSwitch(),
+                  if (widget.showCreateAction) ...[
+                    const SizedBox(height: 12),
+                    _actionButton(),
+                  ],
+                  const SizedBox(height: 12),
+                  _notice(),
+                  const SizedBox(height: 18),
+                  _sectionTitle(AppStringKeys.accountBackupSessions),
+                  if (_loading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 24),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (!Platform.isIOS)
+                    _empty(AppStringKeys.accountBackupIOSOnly)
+                  else if (_backups.isEmpty)
+                    _empty(AppStringKeys.accountBackupEmpty)
+                  else
+                    _backupList(),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

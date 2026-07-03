@@ -159,6 +159,8 @@ class ChatViewModel extends ChangeNotifier {
   bool isMuted =
       false; // notifications muted (channel subscribers get a toggle)
   String sendDisabledReason = ''; // shown in the disabled composer bar
+  bool isTelegramTosRestricted = false;
+  String telegramTosRestrictionText = '';
   bool _chatCanSend = true; // chat-wide default can_send_basic_messages
   bool peerIsBot = false;
   bool botStartSent = false;
@@ -258,6 +260,11 @@ class ChatViewModel extends ChangeNotifier {
     () async {
       unawaited(_loadMe());
       await _loadChatHeader();
+      if (isTelegramTosRestricted) {
+        initialLoaded = true;
+        notifyListeners();
+        return;
+      }
       final target = initialMessageId;
       if (target != null) {
         await loadAroundMessage(target);
@@ -1125,7 +1132,8 @@ class ChatViewModel extends ChangeNotifier {
     Map<String, dynamic> chat;
     try {
       chat = await _client.query({'@type': 'getChat', 'chat_id': chatId});
-    } catch (_) {
+    } catch (error) {
+      if (_markTelegramTosRestricted(error)) notifyListeners();
       return;
     }
     peerTitle = chat.str('title') ?? peerTitle;
@@ -1142,6 +1150,10 @@ class ChatViewModel extends ChangeNotifier {
     final kind = TDParse.chatKind(chat);
     isGroup = kind == ChatKind.group || kind == ChatKind.channel;
     _primeLastMessage(chat);
+    if (isTelegramTosRestricted) {
+      notifyListeners();
+      return;
+    }
 
     // Chat-wide default send permission + permissive membership defaults
     // (refined per type below).
@@ -1212,6 +1224,7 @@ class ChatViewModel extends ChangeNotifier {
     final lastRaw = chat.obj('last_message');
     final lastMessage = lastRaw == null ? null : TDParse.message(lastRaw);
     if (lastMessage == null) return;
+    if (_markTelegramTosRestrictedText(lastMessage.text)) return;
     _merge([lastMessage]);
     _resolveRepliesIfNeeded([lastMessage]);
     _resolveForwardsIfNeeded([lastMessage]);
@@ -1586,7 +1599,12 @@ class ChatViewModel extends ChangeNotifier {
       });
       final target = TDParse.message(targetRaw);
       if (target != null) batch.add(target);
-    } catch (_) {}
+    } catch (error) {
+      if (_markTelegramTosRestricted(error)) {
+        notifyListeners();
+        return false;
+      }
+    }
 
     try {
       final response = await _client.query({
@@ -1602,7 +1620,9 @@ class ChatViewModel extends ChangeNotifier {
             .map(TDParse.message)
             .whereType<ChatMessage>(),
       );
-    } catch (_) {}
+    } catch (error) {
+      if (_markTelegramTosRestricted(error)) notifyListeners();
+    }
 
     if (batch.isEmpty) return false;
     _allMessages = [];
@@ -1638,7 +1658,8 @@ class ChatViewModel extends ChangeNotifier {
         'limit': limit,
         'only_local': onlyLocal,
       });
-    } catch (_) {
+    } catch (error) {
+      if (_markTelegramTosRestricted(error)) notifyListeners();
       return false;
     }
 
@@ -1647,6 +1668,15 @@ class ChatViewModel extends ChangeNotifier {
             .map(TDParse.message)
             .whereType<ChatMessage>()
             .toList();
+    if (parsed.any((message) => _isTelegramTosRestrictedText(message.text))) {
+      _markTelegramTosRestrictedText(
+        parsed
+            .firstWhere((message) => _isTelegramTosRestrictedText(message.text))
+            .text,
+      );
+      notifyListeners();
+      return false;
+    }
     if (parsed.isEmpty) {
       if (isOlder || fromMessageId != 0) _hasOlderHistory = false;
       return false;
@@ -1665,6 +1695,57 @@ class ChatViewModel extends ChangeNotifier {
     _resolveForwardsIfNeeded(parsed);
     _resolveServiceUsersIfNeeded(parsed);
     return true;
+  }
+
+  bool _markTelegramTosRestricted(Object error) {
+    final text = error.toString();
+    final normalized = _normalizedRestrictionText(text);
+    final restricted =
+        _isTelegramTosRestrictedText(text) ||
+        normalized.contains('chat_restricted') ||
+        normalized.contains('channel_restricted');
+    if (!restricted) return false;
+    _setTelegramTosRestricted(text);
+    return true;
+  }
+
+  bool _markTelegramTosRestrictedText(String text) {
+    if (!_isTelegramTosRestrictedText(text)) return false;
+    _setTelegramTosRestricted(text);
+    return true;
+  }
+
+  bool _isTelegramTosRestrictedText(String text) {
+    final normalized = _normalizedRestrictionText(text);
+    final cannotDisplay =
+        normalized.contains("can't be displayed") ||
+        normalized.contains('cannot be displayed');
+    final telegramTerms =
+        normalized.contains('terms of service') ||
+        normalized.contains('violated telegram');
+    return cannotDisplay && telegramTerms;
+  }
+
+  String _normalizedRestrictionText(String text) =>
+      text.toLowerCase().replaceAll('’', "'");
+
+  void _setTelegramTosRestricted(String text) {
+    isTelegramTosRestricted = true;
+    telegramTosRestrictionText = text;
+    messages = [];
+    _allMessages = [];
+    anchoredHistory = false;
+    _hasOlderHistory = false;
+    canSendMessages = false;
+    canJoin = false;
+    isMember = true;
+    sendDisabledReason = AppStrings.t(
+      AppStringKeys.chatRestrictedTelegramTosMessage,
+    );
+  }
+
+  Future<void> leaveChat() async {
+    await _client.query({'@type': 'leaveChat', 'chat_id': chatId});
   }
 
   Future<void> markLoadedMessagesRead() async {
@@ -1828,6 +1909,24 @@ class ChatViewModel extends ChangeNotifier {
       case 'updateDeleteMessages':
         if (update.int64('chat_id') != chatId) return;
         _removeMessages(update.int64Array('message_ids') ?? const <int>[]);
+
+      case 'mithkaChatHistoryCleared':
+        if (update.int64('chat_id') != chatId) return;
+        _allMessages = [];
+        messages = [];
+        _hasOlderHistory = false;
+        _pendingScrollToId = null;
+        notifyListeners();
+
+      case 'mithkaChatLeft':
+        if (update.int64('chat_id') != chatId) return;
+        isMember = false;
+        canSendMessages = false;
+        canJoin = true;
+        sendDisabledReason = isChannel
+            ? AppStrings.t(AppStringKeys.topicChatLeaveChannel)
+            : AppStrings.t(AppStringKeys.chatYouWereRemovedFromGroup);
+        notifyListeners();
 
       case 'updateChatReadOutbox':
         if (update.int64('chat_id') != chatId) return;

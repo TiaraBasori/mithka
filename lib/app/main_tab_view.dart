@@ -813,6 +813,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               headerHeight: headerHeight,
               headerColor: headerColor,
               showHeaderDivider: false,
+              onBack: () => setState(() => _selectedMessageChat = null),
             ),
     );
   }

@@ -68,6 +68,7 @@ class TdClient {
   // Accounts
   final Map<int, int> _clientForSlot = {};
   final Map<int, int> _slotForClient = {};
+  final Set<int> _proxyAppliedClients = {};
   int _activeClientId = 0;
   int _activeSlot = 0;
   List<int> _slots = [0];
@@ -160,25 +161,64 @@ class TdClient {
     return newSlot;
   }
 
-  Future<int> restoreSessionSlot(Uint8List tdBinlog) async {
-    if (tdBinlog.isEmpty) {
-      throw ArgumentError.value(tdBinlog.length, 'tdBinlog', 'is empty');
+  Future<int> restoreSessionSlot(String sessionString) async {
+    final trimmedSessionString = sessionString.trim();
+    if (trimmedSessionString.isEmpty) {
+      throw ArgumentError.value(sessionString, 'sessionString', 'is empty');
     }
     final newSlot = _nextSlot();
     final dbDir = Directory(_databaseDirectory(newSlot));
     await dbDir.create(recursive: true);
     final sessionFile = File('${dbDir.path}/td.binlog');
-    await sessionFile.writeAsBytes(tdBinlog, flush: true);
+    _bindings.importSessionString(trimmedSessionString, sessionFile.path);
 
     final cid = _bindings.createClientId();
     _slots.add(newSlot);
     _clientForSlot[newSlot] = cid;
     _slotForClient[cid] = newSlot;
-    setActive(newSlot);
-    _persist();
     if (kDebugMode) unawaited(_persistDebugLiveClientIds());
     _bindings.send(cid, jsonEncode({'@type': 'getOption', 'name': 'version'}));
-    return newSlot;
+    try {
+      await _waitForRestoredSessionReady(newSlot, cid);
+      setActive(newSlot);
+      _persist();
+      return newSlot;
+    } catch (_) {
+      _closeAndForgetSlot(newSlot);
+      if (await dbDir.exists()) await dbDir.delete(recursive: true);
+      if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+      rethrow;
+    }
+  }
+
+  Future<void> _waitForRestoredSessionReady(int slot, int clientId) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 20));
+    while (DateTime.now().isBefore(deadline)) {
+      final state = await queryTo({
+        '@type': 'getAuthorizationState',
+      }, clientId).timeout(const Duration(seconds: 3));
+      switch (state.type) {
+        case 'authorizationStateWaitTdlibParameters':
+          _sendParameters(clientId);
+        case 'authorizationStateReady':
+          return;
+        case 'authorizationStateWaitPhoneNumber':
+          throw StateError(
+            'Restored account session is not authorized for slot $slot',
+          );
+        case 'authorizationStateWaitCode':
+        case 'authorizationStateWaitPassword':
+        case 'authorizationStateWaitRegistration':
+        case 'authorizationStateWaitOtherDeviceConfirmation':
+          throw StateError(
+            'Restored account session requires interactive login for slot $slot',
+          );
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    throw TimeoutException(
+      'Timed out restoring account session for slot $slot',
+    );
   }
 
   Future<File> sessionFileForSlot(int slot) async {
@@ -188,35 +228,30 @@ class TdClient {
     return File('${_databaseDirectory(slot)}/td.binlog');
   }
 
-  Future<TdSessionBackupExport> exportSessionBackupForSlot(int slot) async {
+  Future<String> exportSessionStringForSlot(int slot) async {
     final source = await sessionFileForSlot(slot);
     if (!await source.exists()) {
       throw StateError('No TDLib session file found for account slot $slot');
     }
 
-    if (!_bindings.supportsCompactSessionBackup) {
-      return TdSessionBackupExport(
-        bytes: await source.readAsBytes(),
-        isCompact: false,
-      );
+    if (!_bindings.supportsSessionStringBackup) {
+      throw UnsupportedError('TDLib session string backup is unavailable');
     }
 
-    final tempDir = await getTemporaryDirectory();
-    final destination = File(
-      '${tempDir.path}/mithka-td-session-$slot-${DateTime.now().microsecondsSinceEpoch}.binlog',
+    final api = ApiCredentialsConfig.fromPrefs(_prefs);
+    final useCustomApi = api.isUsable;
+    final sessionString = _bindings.exportSessionString(
+      source.path,
+      apiId: useCustomApi ? api.apiId : Secrets.apiId,
+      testMode: false,
     );
-    try {
-      _bindings.writeCompactSessionBinlog(source.path, destination.path);
-      final bytes = await destination.readAsBytes();
-      if (bytes.isEmpty) {
-        throw StateError('Compact TDLib session backup is empty');
-      }
-      return TdSessionBackupExport(bytes: bytes, isCompact: true);
-    } finally {
-      if (await destination.exists()) {
-        await destination.delete();
-      }
+    if (sessionString.trim().isEmpty) {
+      throw StateError('TDLib session string backup is empty');
     }
+    debugPrint(
+      '🔑 [Mithka] session string backup size: ${sessionString.length} chars',
+    );
+    return sessionString;
   }
 
   /// Routes future query/send/broadcast to the given account slot.
@@ -226,6 +261,7 @@ class TdClient {
     _activeSlot = slot;
     _activeClientId = cid;
     _persist();
+    _applySavedProxyToClientOnce(cid);
   }
 
   /// Discards an account slot: closes its TDLib client and forgets it, so it
@@ -260,6 +296,7 @@ class TdClient {
       _bindings.send(cid, jsonEncode({'@type': 'close'}));
       _slotForClient.remove(cid);
       _latestChatFoldersByClient.remove(cid);
+      _proxyAppliedClients.remove(cid);
     }
     _slots.remove(slot);
   }
@@ -321,8 +358,8 @@ class TdClient {
 
   void _startDebugReceivePump() {
     _debugReceiveTimer?.cancel();
-    _debugReceiveTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
-      for (var i = 0; i < 100; i++) {
+    _debugReceiveTimer = Timer.periodic(const Duration(milliseconds: 33), (_) {
+      for (var i = 0; i < 40; i++) {
         final event = _bindings.receive(0.0);
         if (event == null) break;
         _routeRaw(event);
@@ -379,7 +416,9 @@ class TdClient {
         'application_version': '1.0',
       }),
     );
-    unawaited(_applySavedProxyToClient(clientId));
+    if (clientId == _activeClientId) {
+      _applySavedProxyToClientOnce(clientId);
+    }
   }
 
   /// Re-sends TDLib parameters for the active client. This is intentionally
@@ -394,6 +433,7 @@ class TdClient {
   Future<void> applySavedProxyToActive() async {
     final clientId = _activeClientId;
     if (clientId == 0) return;
+    _proxyAppliedClients.add(clientId);
     await _applySavedProxyToClient(clientId);
   }
 
@@ -402,7 +442,13 @@ class TdClient {
     if (clientId == 0) {
       throw StateError('TDLib client is not active yet');
     }
+    _proxyAppliedClients.add(clientId);
     await _applyProxyConfigToClient(config, clientId);
+  }
+
+  void _applySavedProxyToClientOnce(int clientId) {
+    if (!_proxyAppliedClients.add(clientId)) return;
+    unawaited(_applySavedProxyToClient(clientId));
   }
 
   Future<void> _applySavedProxyToClient(int clientId) async {
@@ -525,13 +571,6 @@ class TdClient {
   /// list and badge UI can converge immediately while waiting for TDLib's
   /// eventual aggregate updates.
   void emitLocalUpdate(Map<String, dynamic> update) => _updates.add(update);
-}
-
-class TdSessionBackupExport {
-  const TdSessionBackupExport({required this.bytes, required this.isCompact});
-
-  final Uint8List bytes;
-  final bool isCompact;
 }
 
 // MARK: - Receive isolate

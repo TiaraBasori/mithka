@@ -66,8 +66,8 @@ class ChatListViewModel extends ChangeNotifier {
   final Set<String> _exhaustedChatLists = {};
   static const _pageSize = 100;
   static const _initialPageSize = 36;
-  static const _backgroundHydrateLimit = 120;
-  static const _backgroundPrefetchPasses = 3;
+  static const _backgroundHydrateLimit = 60;
+  static const _backgroundPrefetchPasses = 1;
 
   void onAppear() {
     if (_listening) return;
@@ -80,6 +80,7 @@ class ChatListViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    _listening = false;
     _sub?.cancel();
     _resortTimer?.cancel();
     super.dispose();
@@ -219,10 +220,12 @@ class ChatListViewModel extends ChangeNotifier {
   }
 
   void _deferWarmCaches() {
-    Future<void>.delayed(const Duration(milliseconds: 450), () {
+    Future<void>.delayed(const Duration(milliseconds: 1500), () {
+      if (!_listening) return;
       _loadArchive(_pageSize);
     });
-    Future<void>.delayed(const Duration(seconds: 2), () {
+    Future<void>.delayed(const Duration(seconds: 5), () {
+      if (!_listening) return;
       if (_selectedFilter.isAll) _prefetchMainChats();
     });
   }
@@ -233,6 +236,7 @@ class ChatListViewModel extends ChangeNotifier {
     Future<void>(() async {
       var passes = 0;
       while (!_exhaustedChatLists.contains('main') &&
+          _listening &&
           passes < _backgroundPrefetchPasses) {
         passes += 1;
         final loaded = await _loadChatList({

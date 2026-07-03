@@ -24,6 +24,8 @@ Pod::Spec.new do |s|
     :path => '.',
   }
   s.prepare_command = 'sh install-mdk.sh'
+  s.header_mappings_dir = 'include'
+  s.public_header_files = 'include/mdk/**/*.h'
   s.vendored_frameworks = 'mdk-sdk/lib/mdk.xcframework'
   s.pod_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=*simulator*]' => 'i386' }
   s.user_target_xcconfig = { 'EXCLUDED_ARCHS[sdk=*simulator*]' => 'i386' }

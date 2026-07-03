@@ -43,7 +43,7 @@ class _LoginViewState extends State<LoginView> {
   ProxyConfig? _proxy;
 
   // When true, show the phone-number step even though TDLib is still at a later
-  // auth state — lets the user back out of the code / 2FA step to fix the number.
+  // auth state — lets the user back out of QR / code / 2FA to fix the number.
   bool _forcePhone = false;
 
   String get _phoneDigits => _phone.text.replaceAll(RegExp(r'[^0-9]'), '');
@@ -113,78 +113,91 @@ class _LoginViewState extends State<LoginView> {
     final canGoBack =
         (beyondPhone && !_forcePhone) ||
         TdClient.shared.configuredSlots.length > 1;
-    return Scaffold(
-      backgroundColor: c.background,
-      body: Stack(
-        children: [
-          Column(
-            children: [
-              _header(),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _stepFor(auth),
-                      if (auth.errorMessage != null) ...[
-                        const SizedBox(height: 18),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            auth.errorMessage!,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: AppTheme.unreadBadge,
+    final backToPhoneOnly = !_forcePhone && auth.step is AuthWaitQrCode;
+    return PopScope(
+      canPop: !backToPhoneOnly,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && backToPhoneOnly) {
+          _showPhoneEntry();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: c.background,
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                _header(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _stepFor(auth),
+                        if (auth.errorMessage != null) ...[
+                          const SizedBox(height: 18),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              auth.errorMessage!,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.unreadBadge,
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
-                    ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            if (canGoBack)
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 6,
+                left: 6,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  // QR back returns to the phone-number form. Aborting an
+                  // add-account at the phone step has nothing to re-enter, so
+                  // go straight back to the previous account.
+                  onTap: () => backToPhoneOnly
+                      ? _showPhoneEntry()
+                      : accounts.hasPendingAdd && showingPhone
+                      ? accounts.cancelAddAccount(auth)
+                      : _showBackOptions(auth),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: AppIcon(
+                      HeroAppIcons.chevronLeft,
+                      size: 26,
+                      color: c.textPrimary,
+                    ),
                   ),
                 ),
               ),
-            ],
-          ),
-          if (canGoBack)
             Positioned(
               top: MediaQuery.of(context).padding.top + 6,
-              left: 6,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                // Aborting an add-account at the phone step has nothing to
-                // re-enter, so go straight back to the previous account.
-                onTap: () => accounts.hasPendingAdd && showingPhone
-                    ? accounts.cancelAddAccount(auth)
-                    : _showBackOptions(auth),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: AppIcon(
-                    HeroAppIcons.chevronLeft,
-                    size: 26,
-                    color: c.textPrimary,
-                  ),
-                ),
-              ),
+              right: 6,
+              child: _topRightActions(auth, showingPhone),
             ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 6,
-            right: 6,
-            child: _proxyIconButton(),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
-  /// Back affordance for the code / 2FA / registration steps: re-enter the phone
-  /// number, abort an add-account back to the previous account, or switch to
-  /// another configured account.
+  /// Back affordance for QR / code / 2FA / registration steps: re-enter the
+  /// phone number, abort an add-account back to the previous account, or switch
+  /// to another configured account.
   void _showBackOptions(AuthManager auth) {
     final accounts = context.read<AccountStore>();
     final showReenter =
         !_forcePhone &&
-        (auth.step is AuthWaitCode ||
+        (auth.step is AuthWaitQrCode ||
+            auth.step is AuthWaitCode ||
             auth.step is AuthWaitPassword ||
             auth.step is AuthWaitRegistration);
     final pendingAdd = accounts.hasPendingAdd;
@@ -200,9 +213,7 @@ class _LoginViewState extends State<LoginView> {
             CupertinoActionSheetAction(
               onPressed: () {
                 Navigator.of(sheet).pop();
-                _code.clear();
-                _password.clear();
-                setState(() => _forcePhone = true);
+                _showPhoneEntry();
               },
               child: Text(AppStrings.t(AppStringKeys.loginReenterPhoneNumber)),
             ),
@@ -240,6 +251,12 @@ class _LoginViewState extends State<LoginView> {
         ),
       ),
     );
+  }
+
+  void _showPhoneEntry() {
+    _code.clear();
+    _password.clear();
+    setState(() => _forcePhone = true);
   }
 
   Widget _stepFor(AuthManager auth) {
@@ -375,12 +392,6 @@ class _LoginViewState extends State<LoginView> {
             if (_forcePhone) setState(() => _forcePhone = false);
           },
         ),
-        const SizedBox(height: 12),
-        _qrLoginButton(auth),
-        if (Platform.isIOS) ...[
-          const SizedBox(height: 12),
-          _restoreAccountButton(auth),
-        ],
         const SizedBox(height: 20),
         Text(
           AppStrings.t(AppStringKeys.loginCodeWillBeSentToNumber),
@@ -391,91 +402,109 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  Widget _qrLoginButton(AuthManager auth) {
+  Widget _topRightActions(AuthManager auth, bool showingPhone) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (showingPhone)
+          _loginIconButton(
+            icon: HeroAppIcons.qrcode,
+            tooltip: AppStrings.t(AppStringKeys.loginWithQrCode),
+            enabled: !auth.isWorking,
+            onTap: () => _requestQrLogin(auth),
+          ),
+        if (showingPhone && Platform.isIOS)
+          _loginIconButton(
+            icon: HeroAppIcons.key,
+            tooltip: AppStrings.t(AppStringKeys.accountBackupRestoreAccount),
+            enabled: !auth.isWorking,
+            onTap: _openAccountRestore,
+          ),
+        _proxyIconButton(),
+      ],
+    );
+  }
+
+  Widget _loginIconButton({
+    required AppIconData icon,
+    required String tooltip,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
     final c = context.colors;
-    return OutlinedButton.icon(
-      onPressed: auth.isWorking
-          ? null
-          : () {
-              if (_forcePhone) setState(() => _forcePhone = false);
-              auth.requestQrLogin();
-            },
-      icon: AppIcon(
-        HeroAppIcons.qrcode,
-        size: 18,
-        color: auth.isWorking ? c.textTertiary : AppTheme.brand,
-      ),
-      label: Text(AppStrings.t(AppStringKeys.loginWithQrCode)),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(46),
-        side: BorderSide(color: AppTheme.brand.withValues(alpha: 0.45)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        foregroundColor: auth.isWorking ? c.textTertiary : AppTheme.brand,
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? onTap : null,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: AppIcon(
+            icon,
+            size: 25,
+            color: enabled ? c.textPrimary : c.textTertiary,
+          ),
+        ),
       ),
     );
   }
 
-  Widget _restoreAccountButton(AuthManager auth) {
-    final c = context.colors;
-    return OutlinedButton.icon(
-      onPressed: auth.isWorking
-          ? null
-          : () => Navigator.of(context).push(
-              MaterialPageRoute(
-                fullscreenDialog: true,
-                builder: (_) => const AccountBackupView(
-                  showCreateAction: false,
-                  closeAfterRestore: true,
-                ),
-              ),
-            ),
-      icon: AppIcon(
-        HeroAppIcons.key,
-        size: 18,
-        color: auth.isWorking ? c.textTertiary : AppTheme.brand,
-      ),
-      label: Text(AppStrings.t(AppStringKeys.accountBackupRestoreAccount)),
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(46),
-        side: BorderSide(color: AppTheme.brand.withValues(alpha: 0.45)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        foregroundColor: auth.isWorking ? c.textTertiary : AppTheme.brand,
+  void _requestQrLogin(AuthManager auth) {
+    if (_forcePhone) setState(() => _forcePhone = false);
+    auth.requestQrLogin();
+  }
+
+  Future<void> _openAccountRestore() async {
+    final backToPhone = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const AccountBackupView(
+          showCreateAction: false,
+          closeAfterRestore: true,
+          returnToPhoneOnBack: true,
+        ),
       ),
     );
+    if (backToPhone == true && mounted) {
+      _showPhoneEntry();
+    }
   }
 
   Widget _proxyIconButton() {
     final c = context.colors;
     final enabled = _proxy?.isUsable ?? false;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: _openProxySetup,
-      onLongPress: enabled ? _disableProxy : null,
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            AppIcon(
-              HeroAppIcons.globe,
-              size: 25,
-              color: enabled ? AppTheme.brand : c.textPrimary,
-            ),
-            if (enabled)
-              Positioned(
-                right: -2,
-                top: -2,
-                child: Container(
-                  width: 7,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    color: AppTheme.brand,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: c.background, width: 1.2),
+    return Tooltip(
+      message: AppStrings.t(AppStringKeys.proxyTitle),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _openProxySetup,
+        onLongPress: enabled ? _disableProxy : null,
+        child: Padding(
+          padding: const EdgeInsets.all(10),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              AppIcon(
+                HeroAppIcons.globe,
+                size: 25,
+                color: enabled ? AppTheme.brand : c.textPrimary,
+              ),
+              if (enabled)
+                Positioned(
+                  right: -2,
+                  top: -2,
+                  child: Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: AppTheme.brand,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: c.background, width: 1.2),
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -571,6 +600,18 @@ class _LoginViewState extends State<LoginView> {
           ),
           child: Text(
             AppStrings.t(AppStringKeys.loginRefreshQrCode),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: auth.isWorking ? c.textTertiary : AppTheme.brand,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TextButton(
+          onPressed: auth.isWorking ? null : _showPhoneEntry,
+          child: Text(
+            AppStrings.t(AppStringKeys.loginReenterPhoneNumber),
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,

@@ -1459,6 +1459,12 @@ class _ChatViewState extends State<ChatView> {
   Widget build(BuildContext context) {
     final c = context.colors;
     _syncKeyboardInset(MediaQuery.of(context).viewInsets.bottom);
+    if (_vm.isTelegramTosRestricted) {
+      return Scaffold(
+        backgroundColor: c.groupedBackground,
+        body: _restrictedChatBody(),
+      );
+    }
     // Not a member, joinable, and nothing to preview → a custom join screen
     // (header + centered card) instead of the transcript + composer.
     if (!_vm.isMember && _vm.canJoin && _vm.messages.isEmpty) {
@@ -1509,6 +1515,146 @@ class _ChatViewState extends State<ChatView> {
         ),
       ),
     );
+  }
+
+  Widget _restrictedChatBody() {
+    final c = context.colors;
+    return Column(
+      children: [
+        _header(),
+        Expanded(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 36),
+              child: Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 360),
+                padding: const EdgeInsets.fromLTRB(24, 22, 24, 14),
+                decoration: BoxDecoration(
+                  color: c.card,
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.16),
+                      blurRadius: 22,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      AppStringKeys.chatRestrictedTitle.l10n(context),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: c.textPrimary,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      AppStringKeys.chatRestrictedTelegramTosMessage.l10n(
+                        context,
+                      ),
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: c.textSecondary,
+                        fontSize: 14,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _restrictedActionButton(
+                            label: AppStringKeys.chatInfoLeaveGroup.l10n(
+                              context,
+                            ),
+                            color: Colors.redAccent,
+                            onTap: _leaveRestrictedChat,
+                          ),
+                        ),
+                        Container(width: 0.5, height: 24, color: c.divider),
+                        Expanded(
+                          child: _restrictedActionButton(
+                            label: AppStringKeys.chatRestrictedAcknowledge.l10n(
+                              context,
+                            ),
+                            color: AppTheme.brand,
+                            onTap: _acknowledgeRestrictedChat,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _restrictedActionButton({
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: 44,
+        child: Center(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 15,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _acknowledgeRestrictedChat() {
+    final onBack = widget.onBack;
+    if (onBack != null) {
+      onBack();
+      return;
+    }
+    final navigator = Navigator.of(context);
+    if (navigator.canPop()) navigator.pop();
+  }
+
+  Future<void> _leaveRestrictedChat() async {
+    try {
+      await _vm.leaveChat();
+      if (!mounted) return;
+      final onBack = widget.onBack;
+      if (onBack != null) {
+        onBack();
+      } else {
+        final navigator = Navigator.of(context);
+        if (navigator.canPop()) navigator.pop();
+      }
+    } catch (error) {
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.chatRestrictedLeaveFailed, {
+          'value1': error,
+        }),
+      );
+    }
   }
 
   Widget _initialVisibility(Widget child) {

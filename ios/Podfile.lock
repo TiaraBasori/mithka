@@ -276,7 +276,7 @@ SPEC CHECKSUMS:
   GoogleAppMeasurement: 9abf64b682732fed36da827aa2a68f0221fd2356
   GoogleUtilities: ea963c370a38a8069cc5f7ba4ca849a60b6d7d15
   image_picker_ios: e0ece4aa2a75771a7de3fa735d26d90817041326
-  mdk: 2d820ff5ff6898494debe5d137629e40337aa3bc
+  mdk: 8f974ab0bfe9c03504efea86e4b56bafce9dbec6
   nanopb: 438bc412db1928dac798aa6fd75726007be04262
   open_filex: 432f3cd11432da3e39f47fcc0df2b1603854eff1
   package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
@@ -290,6 +290,6 @@ SPEC CHECKSUMS:
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
   video_player_avfoundation: 3453f792138786248960ca029747fcd9f318ef52
 
-PODFILE CHECKSUM: c971a443f44c42b788b136430858122bdcf2241c
+PODFILE CHECKSUM: a6b6e03033070f9e503fd65960d8578953f1e66c
 
 COCOAPODS: 1.16.2
