@@ -339,7 +339,7 @@ extension _DisplayAppearanceHelpers on AppearanceView {
                   ],
                 ),
                 child: color.toARGB32() == selected
-                    ? AppIcon(HeroAppIcons.check, size: 18, color: Colors.white)
+                    ? const AppIcon(HeroAppIcons.check, size: 18, color: Colors.white)
                     : null,
               ),
             ),
@@ -1286,7 +1286,7 @@ class _FontCacheEntry {
   }
 
   static String _displayName(String rawFamily) {
-    var value = rawFamily
+    final value = rawFamily
         .replaceAll(RegExp(r'_(regular|italic)$', caseSensitive: false), '')
         .replaceAll(
           RegExp(r'_(100|200|300|400|500|600|700|800|900)(italic)?$'),
@@ -2265,7 +2265,7 @@ class _FontAddViewState extends State<FontAddView> {
     required bool last,
     required Widget child,
   }) {
-    final radius = Radius.circular(AppRadius.card);
+    const radius = Radius.circular(AppRadius.card);
     return ClipRRect(
       borderRadius: BorderRadius.vertical(
         top: first ? radius : Radius.zero,
@@ -2708,7 +2708,7 @@ class _MonospaceFontPickerViewState extends State<MonospaceFontPickerView> {
     required bool last,
     required Widget child,
   }) {
-    final radius = Radius.circular(AppRadius.card);
+    const radius = Radius.circular(AppRadius.card);
     return ClipRRect(
       borderRadius: BorderRadius.vertical(
         top: first ? radius : Radius.zero,

@@ -335,7 +335,7 @@ class _LoginViewState extends State<LoginView> {
           child: Row(
             children: [
               GestureDetector(
-                onTap: () => _showCountrySheet(),
+                onTap: _showCountrySheet,
                 child: SizedBox(
                   width: 42,
                   height: 42,

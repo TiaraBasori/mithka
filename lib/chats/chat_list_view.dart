@@ -231,7 +231,7 @@ class _ChatListViewState extends State<ChatListView> {
   Future<void> _createChannel() async {
     final title = await Navigator.of(context).push<String>(
       MaterialPageRoute(
-        builder: (_) => EditFieldView(
+        builder: (_) => const EditFieldView(
           title: AppStringKeys.chatListCreateChannel,
           initial: '',
           hint: AppStringKeys.chatListChannelName,
@@ -776,8 +776,6 @@ class _ChatListViewState extends State<ChatListView> {
     return index < 0 ? chats.length : index;
   }
 
-  Widget _rowContainer(Widget child) => child;
-
   Widget _swipeRow(ChatSummary chat) {
     return ChatSwipeRow(
       rowId: chat.id,
@@ -803,12 +801,10 @@ class _ChatListViewState extends State<ChatListView> {
           onTap: () => _model.deleteChat(chat),
         ),
       ],
-      child: _rowContainer(
-        ChatRowView(
-          chat: chat,
-          selected: widget.selectedChatId == chat.id,
-          onClearUnread: () => _model.markRead(chat),
-        ),
+      child: ChatRowView(
+        chat: chat,
+        selected: widget.selectedChatId == chat.id,
+        onClearUnread: () => _model.markRead(chat),
       ),
     );
   }
@@ -823,11 +819,9 @@ class _ChatListViewState extends State<ChatListView> {
           ),
         ),
       ),
-      child: _rowContainer(
-        GroupAssistantRow(
-          archived: _model.archived,
-          onClearUnread: _model.markAllRead,
-        ),
+      child: GroupAssistantRow(
+        archived: _model.archived,
+        onClearUnread: _model.markAllRead,
       ),
     );
   }

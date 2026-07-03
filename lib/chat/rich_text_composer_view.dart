@@ -186,7 +186,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
         alignment: Alignment.centerLeft,
         child: TextButton.icon(
           onPressed: _pickMedia,
-          icon: AppIcon(HeroAppIcons.image, size: 20),
+          icon: const AppIcon(HeroAppIcons.image, size: 20),
           label: Text(AppStringKeys.richTextComposerPhotoVideo.l10n(context)),
         ),
       );
@@ -249,7 +249,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
           ),
         ),
         if (isVideo)
-          Positioned.fill(
+          const Positioned.fill(
             child: Center(
               child: AppIcon(HeroAppIcons.play, color: Colors.white, size: 24),
             ),
@@ -268,7 +268,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                 color: Colors.black.withValues(alpha: 0.55),
                 shape: BoxShape.circle,
               ),
-              child: AppIcon(HeroAppIcons.xmark, size: 12, color: Colors.white),
+              child: const AppIcon(HeroAppIcons.xmark, size: 12, color: Colors.white),
             ),
           ),
         ),

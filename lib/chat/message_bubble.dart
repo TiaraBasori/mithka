@@ -1014,7 +1014,7 @@ class _MessageBubbleState extends State<MessageBubble>
                   color: Colors.black.withValues(alpha: 0.45),
                   shape: BoxShape.circle,
                 ),
-                child: AppIcon(
+                child: const AppIcon(
                   HeroAppIcons.play,
                   color: Colors.white,
                   size: 20,
@@ -1158,7 +1158,7 @@ class _MessageBubbleState extends State<MessageBubble>
               color: const Color(0xFFFF3B30),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: AppIcon(HeroAppIcons.music, color: Colors.white, size: 14),
+            child: const AppIcon(HeroAppIcons.music, color: Colors.white, size: 14),
           ),
           const SizedBox(width: 7),
           Text(
@@ -2249,7 +2249,7 @@ class _MessageBubbleState extends State<MessageBubble>
                   color: Colors.black.withValues(alpha: 0.45),
                   shape: BoxShape.circle,
                 ),
-                child: AppIcon(
+                child: const AppIcon(
                   HeroAppIcons.play,
                   color: Colors.white,
                   size: 24,
@@ -2612,7 +2612,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 shape: BoxShape.circle,
                 border: Border.all(color: c.card, width: 1.5),
               ),
-              child: AppIcon(
+              child: const AppIcon(
                 HeroAppIcons.arrowDown,
                 size: 11,
                 color: Colors.white,

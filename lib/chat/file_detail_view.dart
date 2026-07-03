@@ -225,7 +225,7 @@ class _FileDetailViewState extends State<FileDetailView> {
                   shape: BoxShape.circle,
                   color: Color(0xFFFF3B30),
                 ),
-                child: AppIcon(
+                child: const AppIcon(
                   HeroAppIcons.xmark,
                   size: 20,
                   color: Colors.white,
@@ -250,7 +250,7 @@ class _FileDetailViewState extends State<FileDetailView> {
         ),
         child: Text(
           AppStrings.t(AppStringKeys.fileDetailOpen),
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,
             color: Colors.white,
@@ -273,7 +273,7 @@ class _FileDetailViewState extends State<FileDetailView> {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          AppIcon(HeroAppIcons.solidFile, size: 60, color: Colors.white),
+          const AppIcon(HeroAppIcons.solidFile, size: 60, color: Colors.white),
           if (widget.doc.ext.isNotEmpty)
             Positioned(
               bottom: 24,

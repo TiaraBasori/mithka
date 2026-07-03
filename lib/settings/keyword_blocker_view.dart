@@ -159,7 +159,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
               ),
               child: Text(
                 AppStrings.t(AppStringKeys.imageEditAdd),
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 14,
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
@@ -219,7 +219,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
                     )
                   : Text(
                       AppStrings.t(AppStringKeys.keywordBlockerDownload),
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 14,
                         color: Colors.white,
                         fontWeight: FontWeight.w600,

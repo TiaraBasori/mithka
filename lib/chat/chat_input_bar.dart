@@ -814,7 +814,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          AppIcon(
+                          const AppIcon(
                             HeroAppIcons.solidStar,
                             size: 14,
                             color: Colors.white,
@@ -830,7 +830,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                           ),
                         ],
                       )
-                    : AppIcon(
+                    : const AppIcon(
                         HeroAppIcons.solidPaperPlane,
                         size: 17,
                         color: Colors.white,
@@ -1599,7 +1599,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   color: _recordCancelled ? AppTheme.tagRed : AppTheme.brand,
                   shape: BoxShape.circle,
                 ),
-                child: AppIcon(
+                child: const AppIcon(
                   HeroAppIcons.microphone,
                   size: 32,
                   color: Colors.white,

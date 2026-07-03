@@ -128,7 +128,7 @@ class TdFileCenter {
     final k = _key(slot, fileId);
     final controller = _progressControllers.putIfAbsent(
       k,
-      () => StreamController<TdFileProgress>.broadcast(),
+      StreamController<TdFileProgress>.broadcast,
     );
     scheduleMicrotask(() async {
       try {

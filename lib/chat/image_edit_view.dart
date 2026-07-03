@@ -402,10 +402,10 @@ class _ImageEditViewState extends State<ImageEditView> {
 
   void _undo() {
     if (_labels.isNotEmpty) {
-      setState(() => _labels.removeLast());
+      setState(_labels.removeLast);
       return;
     }
-    if (_strokes.isNotEmpty) setState(() => _strokes.removeLast());
+    if (_strokes.isNotEmpty) setState(_strokes.removeLast);
   }
 
   void _resetCrop() {
@@ -452,7 +452,7 @@ class _ImageEditViewState extends State<ImageEditView> {
         backgroundColor: const Color(0xFF1C1C1E),
         title: Text(
           AppStrings.t(AppStringKeys.imageEditAddText),
-          style: TextStyle(color: Colors.white),
+          style: const TextStyle(color: Colors.white),
         ),
         content: TextField(
           controller: controller,
@@ -463,7 +463,7 @@ class _ImageEditViewState extends State<ImageEditView> {
             hintText: AppStrings.t(
               AppStringKeys.imageEditCaptionInputPlaceholder,
             ),
-            hintStyle: TextStyle(color: Colors.white54),
+            hintStyle: const TextStyle(color: Colors.white54),
           ),
         ),
         actions: [
@@ -587,7 +587,7 @@ class _ImageEditViewState extends State<ImageEditView> {
         children: [
           IconButton(
             onPressed: () => Navigator.of(context).pop(),
-            icon: AppIcon(HeroAppIcons.xmark, color: Colors.white),
+            icon: const AppIcon(HeroAppIcons.xmark, color: Colors.white),
           ),
           Text(
             widget.avatar
@@ -603,7 +603,7 @@ class _ImageEditViewState extends State<ImageEditView> {
           IconButton(
             tooltip: AppStrings.t(AppStringKeys.imageEditResetCrop),
             onPressed: _resetCrop,
-            icon: AppIcon(HeroAppIcons.rotate, color: Colors.white),
+            icon: const AppIcon(HeroAppIcons.rotate, color: Colors.white),
           ),
           if (!widget.avatar)
             IconButton(

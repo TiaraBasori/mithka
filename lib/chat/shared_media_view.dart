@@ -796,7 +796,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                   color: Colors.black.withValues(alpha: 0.48),
                   shape: BoxShape.circle,
                 ),
-                child: AppIcon(
+                child: const AppIcon(
                   HeroAppIcons.play,
                   size: 18,
                   color: Colors.white,
@@ -1051,7 +1051,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                         : Container(
                             alignment: Alignment.center,
                             color: musicPlayerAccent.withValues(alpha: 0.14),
-                            child: AppIcon(
+                            child: const AppIcon(
                               HeroAppIcons.music,
                               size: 23,
                               color: musicPlayerAccent,
@@ -1184,7 +1184,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                           color: Colors.black.withValues(alpha: 0.52),
                           shape: BoxShape.circle,
                         ),
-                        child: AppIcon(
+                        child: const AppIcon(
                           HeroAppIcons.play,
                           size: 14,
                           color: Colors.white,

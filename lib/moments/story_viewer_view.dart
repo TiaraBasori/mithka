@@ -302,7 +302,7 @@ class _StoryViewerViewState extends State<StoryViewerView> {
                     ),
                     GestureDetector(
                       onTap: () => Navigator.of(context).pop(),
-                      child: SizedBox(
+                      child: const SizedBox(
                         width: 36,
                         height: 36,
                         child: AppIcon(
@@ -360,13 +360,13 @@ class _StoryViewerViewState extends State<StoryViewerView> {
       return Center(
         child: Text(
           AppStringKeys.storyLoadFailed.l10n(context),
-          style: TextStyle(fontSize: 15, color: Colors.white70),
+          style: const TextStyle(fontSize: 15, color: Colors.white70),
         ),
       );
     }
     final story = _current;
     if (story == null) {
-      return Center(
+      return const Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation(Colors.white),
         ),
@@ -377,7 +377,7 @@ class _StoryViewerViewState extends State<StoryViewerView> {
       return Center(
         child: Text(
           AppStringKeys.storyUnsupported.l10n(context),
-          style: TextStyle(fontSize: 15, color: Colors.white70),
+          style: const TextStyle(fontSize: 15, color: Colors.white70),
         ),
       );
     }
@@ -410,7 +410,7 @@ class _StoryViewerViewState extends State<StoryViewerView> {
               color: Colors.black.withValues(alpha: 0.35),
               shape: BoxShape.circle,
             ),
-            child: AppIcon(HeroAppIcons.play, size: 30, color: Colors.white),
+            child: const AppIcon(HeroAppIcons.play, size: 30, color: Colors.white),
           ),
       ],
     );

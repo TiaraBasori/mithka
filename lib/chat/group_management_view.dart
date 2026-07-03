@@ -258,7 +258,7 @@ class _GroupManagementViewState extends State<GroupManagementView> {
                         [
                           _navRow(
                             AppStrings.t(AppStringKeys.groupManagementMembers),
-                            onTap: () => _openMembers(),
+                            onTap: _openMembers,
                           ),
                           _divider(),
                           _navRow(
@@ -270,7 +270,7 @@ class _GroupManagementViewState extends State<GroupManagementView> {
                                 : AppStrings.t(
                                     AppStringKeys.groupManagementReadOnly,
                                   ),
-                            onTap: () => _openMembers(),
+                            onTap: _openMembers,
                           ),
                           _divider(),
                           _navRow(

@@ -186,7 +186,7 @@ class _CallScreenState extends State<CallScreen> {
           shape: BoxShape.circle,
           border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         ),
-        child: AppIcon(HeroAppIcons.rotate, size: 22, color: Colors.white),
+        child: const AppIcon(HeroAppIcons.rotate, size: 22, color: Colors.white),
       ),
     );
   }

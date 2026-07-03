@@ -77,13 +77,21 @@ class ChatView extends StatefulWidget {
 }
 
 class _TranscriptEntry {
-  const _TranscriptEntry(this.messages, this.startIndex);
+  _TranscriptEntry(this.messages, this.startIndex);
 
   final List<ChatMessage> messages;
   final int startIndex;
 
   ChatMessage get first => messages.first;
   bool get isImageGroup => messages.length > 1;
+
+  /// Stable identity for element reuse across index shifts (history pages
+  /// prepend and shift every index).
+  late final Key key = ValueKey(
+    isImageGroup
+        ? 'album-${messages.map((m) => m.id).join('-')}'
+        : 'message-${first.id}',
+  );
 }
 
 class _ChatViewState extends State<ChatView> {
@@ -1827,7 +1835,7 @@ class _ChatViewState extends State<ChatView> {
           ),
           child: Text(
             AppStringKeys.startButton.l10n(context),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.white,
@@ -2059,7 +2067,7 @@ class _ChatViewState extends State<ChatView> {
               if (_vm.isForum) ...[
                 GestureDetector(
                   behavior: HitTestBehavior.opaque,
-                  onTap: () => _openTopicMode(),
+                  onTap: _openTopicMode,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: AppIcon(
@@ -2405,10 +2413,10 @@ class _ChatViewState extends State<ChatView> {
                 border: Border.all(color: const Color(0xFFFFB300), width: 2),
                 borderRadius: BorderRadius.circular(6),
               ),
-              child: AppIcon(
+              child: const AppIcon(
                 HeroAppIcons.check,
                 size: 15,
-                color: const Color(0xFFFFB300),
+                color: Color(0xFFFFB300),
               ),
             ),
             const SizedBox(width: 14),
@@ -2595,7 +2603,7 @@ class _ChatViewState extends State<ChatView> {
 
   Widget _transcript() {
     final groupImages = context.watch<ThemeController>().groupImageMessages;
-    final entries = groupImages ? _groupedTranscript() : _plainTranscript();
+    final entries = _transcriptEntries(groupImages);
     return Container(
       color: context.colors.chatBackground,
       child: ListView.builder(
@@ -2606,6 +2614,9 @@ class _ChatViewState extends State<ChatView> {
         scrollCacheExtent: const ScrollCacheExtent.pixels(420),
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: entries.length,
+        // Lets keyed children be reused when history pages shift indices
+        // instead of being torn down and rebuilt.
+        findChildIndexCallback: (key) => _transcriptIndexByKey[key],
         itemBuilder: (context, index) {
           final entry = entries[index];
           final message = entry.first;
@@ -2652,7 +2663,7 @@ class _ChatViewState extends State<ChatView> {
                         _vm.insertMention(m);
                       }
                     },
-                    onOpenReply: (messageId) => _scrollToMessage(messageId),
+                    onOpenReply: _scrollToMessage,
                     onOpenImage: _openImage,
                     onOpenSticker: _openSticker,
                     onPlayVideo: _playVideo,
@@ -2666,16 +2677,44 @@ class _ChatViewState extends State<ChatView> {
             ],
           );
           return KeyedSubtree(
-            key: ValueKey(
-              entry.isImageGroup
-                  ? 'album-${entry.messages.map((m) => m.id).join('-')}'
-                  : 'message-${message.id}',
-            ),
+            key: entry.key,
             child: RepaintBoundary(child: content),
           );
         },
       ),
     );
+  }
+
+  // The transcript is rebuilt on every view-model notification (send/read/
+  // typing/file progress); grouping a few hundred messages each time is
+  // avoidable garbage, so entries are memoized on their actual inputs.
+  List<_TranscriptEntry>? _transcriptCache;
+  Map<Key, int> _transcriptIndexByKey = const {};
+  List<ChatMessage>? _transcriptCacheMessages;
+  bool _transcriptCacheGrouped = false;
+  int _transcriptCacheUnreadCount = -1;
+  int _transcriptCacheLastReadInboxId = -1;
+
+  List<_TranscriptEntry> _transcriptEntries(bool groupImages) {
+    final messages = _vm.messages;
+    final cached = _transcriptCache;
+    if (cached != null &&
+        identical(_transcriptCacheMessages, messages) &&
+        _transcriptCacheGrouped == groupImages &&
+        _transcriptCacheUnreadCount == _vm.unreadCount &&
+        _transcriptCacheLastReadInboxId == _vm.lastReadInboxId) {
+      return cached;
+    }
+    final entries = groupImages ? _groupedTranscript() : _plainTranscript();
+    _transcriptCache = entries;
+    _transcriptCacheMessages = messages;
+    _transcriptCacheGrouped = groupImages;
+    _transcriptCacheUnreadCount = _vm.unreadCount;
+    _transcriptCacheLastReadInboxId = _vm.lastReadInboxId;
+    _transcriptIndexByKey = {
+      for (var i = 0; i < entries.length; i++) entries[i].key: i,
+    };
+    return entries;
   }
 
   Widget _selectionEntry(_TranscriptEntry entry, Widget child) {
@@ -2706,7 +2745,11 @@ class _ChatViewState extends State<ChatView> {
               ),
             ),
             child: selected
-                ? AppIcon(HeroAppIcons.check, size: 17, color: Colors.white)
+                ? const AppIcon(
+                    HeroAppIcons.check,
+                    size: 17,
+                    color: Colors.white,
+                  )
                 : null,
           ),
           const SizedBox(width: 8),
@@ -2826,7 +2869,7 @@ class _ChatViewState extends State<ChatView> {
           captions,
           maxWidth: _messageMediaMaxWidth(chatWidth),
         );
-        Widget body = outgoing
+        final Widget body = outgoing
             ? gallery
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -3000,7 +3043,7 @@ class _ChatViewState extends State<ChatView> {
                     color: Colors.black.withValues(alpha: 0.45),
                     shape: BoxShape.circle,
                   ),
-                  child: AppIcon(
+                  child: const AppIcon(
                     HeroAppIcons.play,
                     color: Colors.white,
                     size: 21,
@@ -3215,7 +3258,7 @@ class _ChatViewState extends State<ChatView> {
                 color: Color(0xFF3A3A3C),
                 shape: BoxShape.circle,
               ),
-              child: AppIcon(
+              child: const AppIcon(
                 HeroAppIcons.chevronDown,
                 size: 22,
                 color: Colors.white,
@@ -3314,7 +3357,7 @@ class _ChatViewState extends State<ChatView> {
         children: [
           _reactionTab2(
             'standard',
-            AppIcon(
+            const AppIcon(
               HeroAppIcons.solidFaceSmile,
               size: 22,
               color: Colors.white70,
@@ -3329,7 +3372,7 @@ class _ChatViewState extends State<ChatView> {
                       size: 26,
                       color: Colors.white,
                     )
-                  : AppIcon(
+                  : const AppIcon(
                       HeroAppIcons.objectGroup,
                       size: 20,
                       color: Colors.white70,

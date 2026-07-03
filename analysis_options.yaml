@@ -26,3 +26,7 @@ linter:
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    unnecessary_lambdas: true
+    prefer_final_locals: true

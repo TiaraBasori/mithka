@@ -874,7 +874,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
           Center(
             child: Text(
               AppStringKeys.videoPlayerLoadFailed.l10n(context),
-              style: TextStyle(color: Colors.white, fontSize: 15),
+              style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
           )
         else ...[
@@ -981,7 +981,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         bottom: 10,
         child: Row(
           children: [
-            Text(
+            const Text(
               '00:00',
               style: TextStyle(color: Colors.white70, fontSize: 11),
             ),
@@ -1517,7 +1517,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
           SizedBox(
             width: 20,
             child: mode == widget.currentMode
-                ? AppIcon(HeroAppIcons.check, size: 14, color: Colors.white)
+                ? const AppIcon(HeroAppIcons.check, size: 14, color: Colors.white)
                 : null,
           ),
           const SizedBox(width: 8),

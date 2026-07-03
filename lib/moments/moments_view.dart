@@ -208,7 +208,7 @@ class _MomentsViewState extends State<MomentsView> {
       color: c.groupedBackground,
       child: Column(
         children: [
-          NavHeader(title: AppStringKeys.tabMoments),
+          const NavHeader(title: AppStringKeys.tabMoments),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.only(top: AppSpacing.md),
@@ -2950,7 +2950,7 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
                 color: Colors.black.withValues(alpha: 0.55),
                 shape: BoxShape.circle,
               ),
-              child: AppIcon(
+              child: const AppIcon(
                 HeroAppIcons.xmark,
                 size: AppIconSize.xs,
                 color: Colors.white,
@@ -3739,7 +3739,7 @@ class _PostImageTile extends StatelessWidget {
                     color: Colors.black.withValues(alpha: 0.45),
                     shape: BoxShape.circle,
                   ),
-                  child: AppIcon(
+                  child: const AppIcon(
                     HeroAppIcons.play,
                     color: Colors.white,
                     size: 24,

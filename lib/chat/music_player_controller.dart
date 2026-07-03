@@ -917,11 +917,11 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                           ),
                         ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 6),
+                const Padding(
+                  padding: EdgeInsets.only(top: 4, bottom: 6),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    children: const [
+                    children: [
                       _PlaylistDot(active: true),
                       _PlaylistDot(active: false),
                       _PlaylistDot(active: false),

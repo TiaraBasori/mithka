@@ -103,7 +103,7 @@ class _ChatMembersViewState extends State<ChatMembersView> {
       if (mid?.type != 'messageSenderUser') continue;
       final uid = mid?.int64('user_id');
       if (uid == null) continue;
-      var status = entry.obj('status');
+      final status = entry.obj('status');
       var role = _memberRole(status);
       final title = _memberTitle(entry, status);
       role ??= MemberRole.member;

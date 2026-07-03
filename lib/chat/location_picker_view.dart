@@ -187,7 +187,7 @@ class _LocationPickerViewState extends State<LocationPickerView> {
                   ),
                   child: Text(
                     AppStrings.t(AppStringKeys.composerSend),
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,

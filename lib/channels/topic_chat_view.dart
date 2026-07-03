@@ -521,8 +521,8 @@ class _TopicChatViewState extends State<TopicChatView> {
       padding: EdgeInsets.only(top: top),
       decoration: BoxDecoration(
         color: widget.headerColor ?? c.navBar,
-        image: DecorationImage(
-          image: const AssetImage('assets/app_icon.png'),
+        image: const DecorationImage(
+          image: AssetImage('assets/app_icon.png'),
           fit: BoxFit.cover,
           opacity: 0.04,
         ),
@@ -1353,7 +1353,7 @@ class _TopicSearchViewState extends State<_TopicSearchView> {
                     style: TextStyle(color: c.textPrimary),
                   ),
                   const SizedBox(width: 3),
-                  AppIcon(HeroAppIcons.arrowsUpDown, size: 17),
+                  const AppIcon(HeroAppIcons.arrowsUpDown, size: 17),
                 ],
               ),
             ),
@@ -1790,7 +1790,7 @@ class _TopicChannelSettingsViewState extends State<_TopicChannelSettingsView> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  SettingsCard(
+                  const SettingsCard(
                     children: [
                       SettingsRow(
                         title: AppStringKeys.topicChatMyProfile,
@@ -1842,9 +1842,9 @@ class _TopicChannelSettingsViewState extends State<_TopicChannelSettingsView> {
                                 AppStrings.t(
                                   AppStringKeys.topicChatLeaveChannel,
                                 ).l10n(context),
-                                style: TextStyle(
+                                style: const TextStyle(
                                   fontSize: 16,
-                                  color: const Color(0xFFFF3B30),
+                                  color: Color(0xFFFF3B30),
                                 ),
                               ),
                             ),

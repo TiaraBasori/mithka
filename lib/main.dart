@@ -7,6 +7,7 @@
 //  rebuilds for the newly active account. Port of the Swift `MithkaApp`.
 //
 
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -55,7 +56,7 @@ Future<void> main() async {
 
 Future<void> _bootstrapAndRunApp() async {
   GoogleFonts.config.allowRuntimeFetching = true;
-  final useFvp = true;
+  const useFvp = true;
   if (useFvp) {
     // Route video_player through the MDK/FFmpeg backend so .webm (VP9 + alpha)
     // video stickers decode + play (and stay transparent).
@@ -74,27 +75,40 @@ Future<void> _bootstrapAndRunApp() async {
     DeviceOrientation.landscapeLeft,
     DeviceOrientation.landscapeRight,
   ]);
-  await Firebase.initializeApp();
-  final appVersion = await AppVersion.load();
-  await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
-  await FirebaseAnalytics.instance.setDefaultEventParameters(
-    appVersion.analyticsParameters,
-  );
-  await FirebaseAnalytics.instance.logAppOpen(
-    parameters: appVersion.analyticsParameters,
-  );
-  if (_sentryDsn.isNotEmpty) {
-    await Sentry.configureScope((scope) async {
-      await scope.setTag('app.version', appVersion.version);
-      await scope.setTag('app.build_number', appVersion.buildNumber);
-      await scope.setTag('git.commit', appVersion.commit);
-    });
-  }
   final prefs = await SharedPreferences.getInstance();
   KeywordBlocker.shared.initialize(prefs);
   MusicPlayerController.shared.initialize(prefs);
+  // Firebase + analytics + Sentry tags are several platform-channel round
+  // trips that nothing in the widget tree depends on — initialize them in
+  // parallel with the first frame instead of blocking it.
+  unawaited(_initTelemetry());
   final app = MithkaApp(prefs: prefs);
   _runAppWithNonFatalGoogleFonts(app);
+}
+
+Future<void> _initTelemetry() async {
+  try {
+    await Firebase.initializeApp();
+    final appVersion = await AppVersion.load();
+    await FirebaseAnalytics.instance.setAnalyticsCollectionEnabled(true);
+    await FirebaseAnalytics.instance.setDefaultEventParameters(
+      appVersion.analyticsParameters,
+    );
+    await FirebaseAnalytics.instance.logAppOpen(
+      parameters: appVersion.analyticsParameters,
+    );
+    if (_sentryDsn.isNotEmpty) {
+      await Sentry.configureScope((scope) async {
+        await scope.setTag('app.version', appVersion.version);
+        await scope.setTag('app.build_number', appVersion.buildNumber);
+        await scope.setTag('git.commit', appVersion.commit);
+      });
+    }
+  } catch (error) {
+    // Telemetry must never take the app down (e.g. missing Firebase config
+    // on a dev build); the app runs fine without it.
+    debugPrint('telemetry init failed: $error');
+  }
 }
 
 void _configureSentry(SentryFlutterOptions options) {

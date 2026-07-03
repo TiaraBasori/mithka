@@ -157,9 +157,7 @@ class AuthManager extends ChangeNotifier {
     _errorMessage = null;
     _client
         .query({'@type': 'getAuthorizationState'})
-        .then((state) {
-          _handle(state);
-        })
+        .then(_handle)
         .catchError((_) {});
   }
 

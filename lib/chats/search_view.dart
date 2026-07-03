@@ -318,7 +318,7 @@ class _SearchViewState extends State<SearchView> {
                       color: Colors.black.withValues(alpha: 0.50),
                       shape: BoxShape.circle,
                     ),
-                    child: AppIcon(
+                    child: const AppIcon(
                       HeroAppIcons.play,
                       size: 13,
                       color: Colors.white,

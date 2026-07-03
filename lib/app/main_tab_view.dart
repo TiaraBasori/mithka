@@ -793,7 +793,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     final selected = _selectedMessageChat;
     if (selected == null) return const _MessageEmptyPane();
     final chat = selected.chat;
-    final headerHeight =
+    const headerHeight =
         AppMetric.headerAvatarSize + (AppSpacing.md + AppSpacing.xxs) * 2;
     final headerColor = context.colors.chatBackground;
     return KeyedSubtree(

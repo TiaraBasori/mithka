@@ -391,7 +391,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                   color: Colors.black.withValues(alpha: 0.22),
                   shape: BoxShape.circle,
                 ),
-                child: AppIcon(
+                child: const AppIcon(
                   HeroAppIcons.chevronLeft,
                   size: 20,
                   color: Colors.white,
@@ -413,7 +413,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                 color: Colors.black.withValues(alpha: 0.22),
                 shape: BoxShape.circle,
               ),
-              child: AppIcon(
+              child: const AppIcon(
                 HeroAppIcons.ellipsis,
                 size: 21,
                 color: Colors.white,
@@ -527,7 +527,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
             Row(
               children: [
                 if (_isOnline) ...[
-                  AppIcon(
+                  const AppIcon(
                     HeroAppIcons.solidCircle,
                     size: 7,
                     color: Color(0xFF1AC81A),

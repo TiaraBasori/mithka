@@ -278,7 +278,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
                           color: Colors.black.withValues(alpha: 0.45),
                           shape: BoxShape.circle,
                         ),
-                        child: AppIcon(
+                        child: const AppIcon(
                           HeroAppIcons.play,
                           color: Colors.white,
                           size: 22,

@@ -251,7 +251,7 @@ class _ProfileViewState extends State<ProfileView> {
                 const Spacer(),
                 GestureDetector(
                   onTap: _openMyProfile,
-                  child: AppIcon(
+                  child: const AppIcon(
                     HeroAppIcons.circleUser,
                     size: 22,
                     color: Colors.white,
@@ -268,7 +268,7 @@ class _ProfileViewState extends State<ProfileView> {
                       ),
                     ),
                   ),
-                  child: AppIcon(
+                  child: const AppIcon(
                     HeroAppIcons.qrcode,
                     size: 22,
                     color: Colors.white,
@@ -277,7 +277,7 @@ class _ProfileViewState extends State<ProfileView> {
                 const SizedBox(width: 16),
                 GestureDetector(
                   onTap: () => context.read<dc.DrawerController>().close(),
-                  child: AppIcon(
+                  child: const AppIcon(
                     HeroAppIcons.xmark,
                     size: 22,
                     color: Colors.white,
@@ -348,7 +348,7 @@ class _ProfileViewState extends State<ProfileView> {
                   onTap: () => _root.push(
                     MaterialPageRoute(builder: (_) => const EditProfileView()),
                   ),
-                  child: AppIcon(
+                  child: const AppIcon(
                     HeroAppIcons.penToSquare,
                     size: 22,
                     color: Colors.white,
@@ -913,7 +913,7 @@ class _VipBadge extends StatelessWidget {
           const SizedBox(width: 2),
           Text(
             AppStringKeys.vipBadgeLabel.l10n(context),
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.3,
