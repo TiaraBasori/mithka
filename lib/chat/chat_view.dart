@@ -1466,7 +1466,8 @@ class _ChatViewState extends State<ChatView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    _syncKeyboardInset(MediaQuery.of(context).viewInsets.bottom);
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    _syncKeyboardInset(keyboardInset);
     // Not a member, joinable, and nothing to preview → a custom join screen
     // (header + centered card) instead of the transcript + composer.
     if (!_vm.isMember && _vm.canJoin && _vm.messages.isEmpty) {
@@ -1476,31 +1477,19 @@ class _ChatViewState extends State<ChatView> {
       );
     }
     return Scaffold(
-      backgroundColor: c.chatBackground,
-      // The input bar manages the keyboard inset itself (see ChatInputBar), so
-      // an open emoji/+ panel sits flush instead of leaving a keyboard-sized gap.
-      resizeToAvoidBottomInset: false,
-      body: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: _onBackSwipePointerDown,
-        onPointerMove: _onBackSwipePointerMove,
-        onPointerUp: _onBackSwipePointerEnd,
-        onPointerCancel: _onBackSwipePointerEnd,
-        child: Stack(
-          children: [
-            if (_keyboardInset > 0)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: _keyboardInset,
-                child: ColoredBox(color: c.inputBarBackground),
-              ),
-            Positioned.fill(
-              child: AnimatedPadding(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOut,
-                padding: EdgeInsets.only(bottom: _keyboardInset),
+      backgroundColor: c.inputBarBackground,
+      resizeToAvoidBottomInset: true,
+      body: ColoredBox(
+        color: c.chatBackground,
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _onBackSwipePointerDown,
+          onPointerMove: _onBackSwipePointerMove,
+          onPointerUp: _onBackSwipePointerEnd,
+          onPointerCancel: _onBackSwipePointerEnd,
+          child: Stack(
+            children: [
+              Positioned.fill(
                 child: Column(
                   children: [
                     _isSelecting ? _selectionHeader() : _header(),
@@ -1511,10 +1500,10 @@ class _ChatViewState extends State<ChatView> {
                   ],
                 ),
               ),
-            ),
-            if (_actionTarget != null && !_isSelecting) _actionMenuOverlay(),
-            if (_vm.isTelegramTosRestricted) _restrictedChatOverlay(),
-          ],
+              if (_actionTarget != null && !_isSelecting) _actionMenuOverlay(),
+              if (_vm.isTelegramTosRestricted) _restrictedChatOverlay(),
+            ],
+          ),
         ),
       ),
     );
