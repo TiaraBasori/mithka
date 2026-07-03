@@ -36,9 +36,15 @@ typedef _ExportSessionStringC =
       Pointer<Utf8> sourcePath,
       Int32 apiId,
       Int32 testMode,
+      Int64 userId,
     );
 typedef _ExportSessionStringDart =
-    Pointer<Utf8> Function(Pointer<Utf8> sourcePath, int apiId, int testMode);
+    Pointer<Utf8> Function(
+      Pointer<Utf8> sourcePath,
+      int apiId,
+      int testMode,
+      int userId,
+    );
 
 typedef _ImportSessionStringC =
     Int32 Function(Pointer<Utf8> sessionString, Pointer<Utf8> destinationPath);
@@ -168,6 +174,7 @@ class TdBindings {
     String sourcePath, {
     required int apiId,
     required bool testMode,
+    required int userId,
   }) {
     final exportSessionString = _exportSessionString;
     if (exportSessionString == null) {
@@ -176,7 +183,12 @@ class TdBindings {
 
     final sourcePtr = sourcePath.toNativeUtf8();
     try {
-      final result = exportSessionString(sourcePtr, apiId, testMode ? 1 : 0);
+      final result = exportSessionString(
+        sourcePtr,
+        apiId,
+        testMode ? 1 : 0,
+        userId,
+      );
       if (result == nullptr) {
         final errorPtr = _lastError?.call();
         final message = errorPtr == null || errorPtr == nullptr

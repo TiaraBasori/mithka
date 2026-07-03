@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -104,6 +105,28 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     }
   }
 
+  Future<void> _copyPyrogramSession() async {
+    final ok = await confirmDialog(
+      context,
+      title: AppStringKeys.accountBackupCopyPyrogramTitle,
+      message: AppStringKeys.accountBackupCopyPyrogramMessage,
+      confirmText: AppStringKeys.accountBackupCopyPyrogramSession,
+    );
+    if (!ok || !mounted || _working) return;
+    setState(() => _working = true);
+    try {
+      final backup = await _service.exportActiveSession();
+      await Clipboard.setData(ClipboardData(text: backup.sessionString));
+      if (mounted) {
+        showToast(context, AppStrings.t(AppStringKeys.accountBackupCopied));
+      }
+    } catch (error) {
+      if (mounted) showToast(context, error.toString());
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
   Future<void> _restore(AccountSessionBackup backup) async {
     final ok = await confirmDialog(
       context,
@@ -187,6 +210,8 @@ class _AccountBackupViewState extends State<AccountBackupView> {
                   if (widget.showCreateAction) ...[
                     const SizedBox(height: 12),
                     _actionButton(),
+                    const SizedBox(height: 8),
+                    _copyPyrogramButton(),
                   ],
                   const SizedBox(height: 12),
                   _notice(),
@@ -231,6 +256,46 @@ class _AccountBackupViewState extends State<AccountBackupView> {
             Expanded(
               child: Text(
                 AppStrings.t(AppStringKeys.accountBackupCreate),
+                style: TextStyle(fontSize: 16, color: c.textPrimary),
+              ),
+            ),
+            if (_working)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              AppIcon(
+                HeroAppIcons.chevronRight,
+                size: 14,
+                color: c.textTertiary,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _copyPyrogramButton() {
+    final c = context.colors;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _working || !Platform.isIOS ? null : _copyPyrogramSession,
+      child: Container(
+        height: 52,
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            Icon(HeroAppIcons.code.data, size: 20, color: AppTheme.brand),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                AppStrings.t(AppStringKeys.accountBackupCopyPyrogramSession),
                 style: TextStyle(fontSize: 16, color: c.textPrimary),
               ),
             ),

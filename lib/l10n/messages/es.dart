@@ -4,6 +4,11 @@ const esMessages = <String, String>{
   'aboutVersion': "Versión {value1}",
   'aboutWebsite': "Sitio web",
   'accentColorPickerSave': "Guardar",
+  'accountBackupCopied': "Sesión de Pyrogram copiada",
+  'accountBackupCopyPyrogramMessage':
+      "Esto copia la sesión de autorización activa de Telegram al portapapeles. Cualquiera que tenga esta cadena puede iniciar sesión como esta cuenta.",
+  'accountBackupCopyPyrogramSession': "Copiar sesión de Pyrogram",
+  'accountBackupCopyPyrogramTitle': "¿Copiar sesión de Pyrogram?",
   'accountBackupCreate': "Guardar cuenta actual en Keychain",
   'accountBackupDeleteMessage':
       "Esto elimina la sesión guardada de Keychain. La sesión de Telegram no se revocará.",
@@ -687,9 +692,12 @@ const esMessages = <String, String>{
   'profileDetailSendMessage': "Enviar mensaje",
   'profileDetailYearMonthDate': "{value2} de {value1}",
   'profileNightMode': "Noche",
+  'profileLogOutAccount': "Cerrar sesión de la cuenta",
+  'profileLogOutAccountConfirm':
+      "Esto revocará la sesión de Telegram de {value1}, eliminará sus datos locales y borrará su copia de Keychain guardada.",
   'profileRemoveAccount': "Eliminar cuenta",
   'profileRemoveAccountConfirm':
-      "Se eliminará {value1} de la lista de cuentas. Puedes volver a iniciar sesión cuando quieras.",
+      "Se eliminará {value1} de este dispositivo. La sesión de Telegram seguirá activa y se podrá restaurar desde una copia guardada.",
   'profileSettings': "Ajustes",
   'proxyAddFailed': "No se pudo añadir el proxy",
   'proxyAddProxy': "Añadir proxy",
@@ -713,6 +721,16 @@ const esMessages = <String, String>{
       "Escanea el código QR de arriba para unirte al grupo",
   'richTextComposerContentPlaceholder':
       "Introduce contenido Markdown o de texto enriquecido",
+  'richTextComposerFormatBold': "Negrita",
+  'richTextComposerFormatBoldMark': "B",
+  'richTextComposerFormatCode': "Código",
+  'richTextComposerFormatItalic': "Cursiva",
+  'richTextComposerFormatItalicMark': "I",
+  'richTextComposerFormatSpoiler': "Spoiler",
+  'richTextComposerFormatStrikethrough': "Tachado",
+  'richTextComposerFormatStrikethroughMark': "S",
+  'richTextComposerFormatUnderline': "Subrayado",
+  'richTextComposerFormatUnderlineMark': "U",
   'richTextComposerPhotoVideo': "Foto/video",
   'settingsAboutMithka': "Acerca de Mithka",
   'settingsLogOut': "Cerrar sesión",

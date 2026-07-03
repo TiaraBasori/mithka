@@ -95,44 +95,55 @@ class AccountBackupService {
     if (!await isSupported) {
       throw UnsupportedError('Account session backup is only available on iOS');
     }
+    final exported = await _exportActiveAccountSession();
+    await _channel.invokeMethod<void>('saveSession', {
+      'id': exported.backup.id,
+      'data': _encode(exported.backup, slot: exported.slot),
+    });
+    return exported.backup;
+  }
+
+  Future<AccountSessionBackup> exportActiveSession() async {
+    if (!await isSupported) {
+      throw UnsupportedError('Account session export is only available on iOS');
+    }
+    return (await _exportActiveAccountSession()).backup;
+  }
+
+  Future<_ExportedAccountSession> _exportActiveAccountSession() async {
     final slot = TdClient.shared.activeSlot;
     final me = await TdClient.shared.query({'@type': 'getMe'});
     final userId = me.int64('id');
+    if (userId == null) {
+      throw StateError('TDLib getMe did not return a user id');
+    }
     final name = TDParse.userName(me);
     final phone = TDParse.formatPhone(me.str('phone_number'));
     final sessionString = await TdClient.shared.exportSessionStringForSlot(
       slot,
+      userId: userId,
     );
     if (sessionString.trim().isEmpty) {
       throw StateError('TDLib session string is empty');
     }
-
-    final id = userId?.toString() ?? 'slot-$slot';
-    final createdAt = DateTime.now().toUtc();
-    final data = Uint8List.fromList(
-      utf8.encode(
-        jsonEncode(<String, Object?>{
-          'format': _format,
-          'id': id,
-          'accountId': id,
-          'slot': slot,
-          'userId': userId,
-          'name': name,
-          'phone': phone,
-          'createdAt': createdAt.toIso8601String(),
-          'sessionString': sessionString,
-        }),
-      ),
+    TdClient.shared.validateSessionString(
+      sessionString,
+      expectedUserId: userId,
     );
-    await _channel.invokeMethod<void>('saveSession', {'id': id, 'data': data});
-    return AccountSessionBackup(
-      id: id,
-      name: name,
-      phone: phone,
-      userId: userId,
-      createdAt: createdAt,
-      sizeBytes: utf8.encode(sessionString).length,
-      sessionString: sessionString,
+
+    final id = userId.toString();
+    final createdAt = DateTime.now().toUtc();
+    return _ExportedAccountSession(
+      slot: slot,
+      backup: AccountSessionBackup(
+        id: id,
+        name: name,
+        phone: phone,
+        userId: userId,
+        createdAt: createdAt,
+        sizeBytes: utf8.encode(sessionString).length,
+        sessionString: sessionString,
+      ),
     );
   }
 
@@ -142,13 +153,35 @@ class AccountBackupService {
   }
 
   Future<void> delete(AccountSessionBackup backup) async {
+    await deleteAccountId(backup.id);
+  }
+
+  Future<void> deleteAccountId(String id) async {
     if (!await isSupported) return;
-    await _channel.invokeMethod<void>('deleteSession', {'id': backup.id});
+    await _channel.invokeMethod<void>('deleteSession', {'id': id});
   }
 
   Future<void> deleteAll() async {
     if (!await isSupported) return;
     await _channel.invokeMethod<void>('deleteAllSessions');
+  }
+
+  Uint8List _encode(AccountSessionBackup backup, {required int slot}) {
+    return Uint8List.fromList(
+      utf8.encode(
+        jsonEncode(<String, Object?>{
+          'format': _format,
+          'id': backup.id,
+          'accountId': backup.id,
+          'slot': slot,
+          'userId': backup.userId,
+          'name': backup.name,
+          'phone': backup.phone,
+          'createdAt': backup.createdAt.toIso8601String(),
+          'sessionString': backup.sessionString,
+        }),
+      ),
+    );
   }
 
   AccountSessionBackup? _decode(Uint8List data) {
@@ -180,4 +213,11 @@ class AccountBackupService {
       return null;
     }
   }
+}
+
+class _ExportedAccountSession {
+  const _ExportedAccountSession({required this.slot, required this.backup});
+
+  final int slot;
+  final AccountSessionBackup backup;
 }

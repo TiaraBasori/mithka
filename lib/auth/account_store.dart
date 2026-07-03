@@ -14,16 +14,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import 'account_backup_service.dart';
 import 'auth_manager.dart';
 
 class AccountSummary {
   AccountSummary({
     required this.slot,
+    required this.userId,
     required this.name,
     required this.phone,
     this.avatarPath,
   });
   final int slot;
+  final int userId;
   final String name;
   final String phone;
   final String? avatarPath; // resolved via this account's OWN TDLib client
@@ -133,6 +136,7 @@ class AccountStore extends ChangeNotifier {
       result.add(
         AccountSummary(
           slot: slot,
+          userId: selfId,
           name: name,
           phone: phone,
           avatarPath: avatarPath,
@@ -192,7 +196,7 @@ class AccountStore extends ChangeNotifier {
 
   /// Removes an account slot from the switcher. If this is the last slot,
   /// replace it with a clean login slot so the app lands on initial login.
-  void removeAccount(int slot, AuthManager auth) {
+  Future<void> removeAccount(int slot, AuthManager auth) async {
     final slots = TdClient.shared.configuredSlots;
     if (!slots.contains(slot)) return;
     if (slots.length <= 1) {
@@ -201,9 +205,10 @@ class AccountStore extends ChangeNotifier {
         _persistPending();
       }
       _activeSlot = TdClient.shared.replaceActiveWithFreshLoginSlot();
+      await TdClient.shared.deleteSlotData(slot);
       notifyListeners();
       auth.reloadAuthState();
-      refresh();
+      await refresh();
       return;
     }
     if (slot == _activeSlot) {
@@ -217,46 +222,37 @@ class AccountStore extends ChangeNotifier {
       _persistPending();
     }
     TdClient.shared.removeSlot(slot);
+    await TdClient.shared.deleteSlotData(slot);
     notifyListeners();
-    refresh();
+    await refresh();
   }
 
   /// Logs out the active account. When another logged-in account exists, switch
   /// to it first and remove the logged-out slot so the UI does not land on a
   /// stale account row.
-  Future<void> logOutActive(AuthManager auth) async {
-    final slot = _activeSlot;
+  Future<void> logOutActive(AuthManager auth) =>
+      logOutAccount(_activeSlot, auth);
+
+  /// Revokes the Telegram session for [slot], then removes local data and the
+  /// matching Keychain account backup.
+  Future<void> logOutAccount(int slot, AuthManager auth) async {
+    final userId = await _userIdForSlot(slot);
     final slots = TdClient.shared.configuredSlots;
-    final target = await _nextReadySlot(after: slot);
-    if (target == null) {
-      final oldClientId = TdClient.shared.clientId(slot);
-      if (oldClientId != null) {
-        try {
-          await TdClient.shared
-              .queryTo({'@type': 'logOut'}, oldClientId)
-              .timeout(const Duration(seconds: 8));
-        } catch (_) {}
-      }
+    if (!slots.contains(slot)) return;
+    final oldClientId = TdClient.shared.clientId(slot);
+    final isActiveSlot = slot == _activeSlot;
+    final target = isActiveSlot ? await _nextReadySlot(after: slot) : null;
+
+    if (isActiveSlot && target != null) {
+      TdClient.shared.setActive(target);
+      _activeSlot = target;
       if (slot == _pendingSlot) {
         _pendingSlot = null;
         _persistPending();
       }
-      _activeSlot = TdClient.shared.replaceActiveWithFreshLoginSlot();
       notifyListeners();
       auth.reloadAuthState();
-      await refresh();
-      return;
     }
-
-    final oldClientId = TdClient.shared.clientId(slot);
-    TdClient.shared.setActive(target);
-    _activeSlot = target;
-    if (slot == _pendingSlot) {
-      _pendingSlot = null;
-      _persistPending();
-    }
-    notifyListeners();
-    auth.reloadAuthState();
 
     if (oldClientId != null) {
       try {
@@ -266,10 +262,39 @@ class AccountStore extends ChangeNotifier {
       } catch (_) {}
     }
 
-    if (slots.length > 1 && TdClient.shared.configuredSlots.contains(slot)) {
+    if (slot == _pendingSlot) {
+      _pendingSlot = null;
+      _persistPending();
+    }
+
+    if (isActiveSlot && target == null) {
+      _activeSlot = TdClient.shared.replaceActiveWithFreshLoginSlot();
+      notifyListeners();
+      auth.reloadAuthState();
+    } else if (TdClient.shared.configuredSlots.contains(slot)) {
       TdClient.shared.removeSlot(slot);
     }
+    await TdClient.shared.deleteSlotData(slot);
+    if (userId != null) {
+      await AccountBackupService.shared.deleteAccountId('$userId');
+    }
     await refresh();
+  }
+
+  Future<int?> _userIdForSlot(int slot) async {
+    for (final summary in _summaries) {
+      if (summary.slot == slot) return summary.userId;
+    }
+    final cid = TdClient.shared.clientId(slot);
+    if (cid == null) return null;
+    try {
+      final me = await TdClient.shared
+          .queryTo({'@type': 'getMe'}, cid)
+          .timeout(const Duration(seconds: 2));
+      return me.int64('id');
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<int?> _nextReadySlot({required int after}) async {

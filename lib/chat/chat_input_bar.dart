@@ -86,6 +86,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Timer? _recTimer;
   String? _recPath;
   late bool _hasText = vm.draft.trim().isNotEmpty;
+  bool _showFormatBar = false;
 
   ChatViewModel get vm => widget.vm;
 
@@ -95,9 +96,17 @@ class _ChatInputBarState extends State<ChatInputBar> {
     _controller.text = vm.draft;
     _controller.addListener(_onTextChanged);
     _focus.addListener(() {
+      var needsRebuild = false;
       if (_focus.hasFocus && _panel != _Panel.none) {
-        setState(() => _panel = _Panel.none);
+        _panel = _Panel.none;
+        needsRebuild = true;
       }
+      final showFormatBar = _focus.hasFocus && _controller.hasSelection;
+      if (showFormatBar != _showFormatBar) {
+        _showFormatBar = showFormatBar;
+        needsRebuild = true;
+      }
+      if (needsRebuild && mounted) setState(() {});
     });
     vm.addListener(_syncFromVm);
     EmojiStore.shared.addListener(_onStore);
@@ -116,8 +125,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
     // rebuild just the composer here — otherwise `hasText` stays stale and the
     // send button never appears while typing.
     final hasText = _controller.text.trim().isNotEmpty;
+    final showFormatBar = _focus.hasFocus && _controller.hasSelection;
     if (hasText != _hasText) {
       _hasText = hasText;
+      _showFormatBar = showFormatBar;
+      if (mounted) setState(() {});
+    } else if (showFormatBar != _showFormatBar) {
+      _showFormatBar = showFormatBar;
       if (mounted) setState(() {});
     }
     final now = DateTime.now();
@@ -136,6 +150,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       );
     }
     _hasText = _controller.text.trim().isNotEmpty;
+    _showFormatBar = _focus.hasFocus && _controller.hasSelection;
     if (mounted) setState(() {});
   }
 
@@ -357,6 +372,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
           children: [
             if (vm.replyTo != null) _replyBanner(vm.replyTo!),
             _inputRow(),
+            if (_showFormatBar) _formatToolbar(),
             _iconStrip(),
             if (_panel == _Panel.function) _functionPanel(),
             if (_panel == _Panel.emoji) _emojiPanel(),
@@ -823,6 +839,136 @@ class _ChatInputBarState extends State<ChatInputBar> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _formatToolbar() {
+    final c = context.colors;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 6),
+      child: Container(
+        height: 44,
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: ListView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          children: [
+            _formatButton(
+              tooltip: AppStrings.t(AppStringKeys.messageActionQuote),
+              type: 'textEntityTypeBlockQuote',
+              icon: HeroAppIcons.quoteLeft.data,
+            ),
+            _formatButton(
+              tooltip: AppStrings.t(AppStringKeys.richTextComposerFormatCode),
+              type: 'textEntityTypeCode',
+              icon: HeroAppIcons.code.data,
+            ),
+            _formatButton(
+              tooltip: AppStrings.t(AppStringKeys.richTextComposerFormatBold),
+              type: 'textEntityTypeBold',
+              label: AppStrings.t(AppStringKeys.richTextComposerFormatBoldMark),
+              fontWeight: FontWeight.w800,
+            ),
+            _formatButton(
+              tooltip: AppStrings.t(AppStringKeys.richTextComposerFormatItalic),
+              type: 'textEntityTypeItalic',
+              label: AppStrings.t(
+                AppStringKeys.richTextComposerFormatItalicMark,
+              ),
+              fontStyle: FontStyle.italic,
+            ),
+            _formatButton(
+              tooltip: AppStrings.t(
+                AppStringKeys.richTextComposerFormatStrikethrough,
+              ),
+              type: 'textEntityTypeStrikethrough',
+              label: AppStrings.t(
+                AppStringKeys.richTextComposerFormatStrikethroughMark,
+              ),
+              decoration: TextDecoration.lineThrough,
+            ),
+            _formatButton(
+              tooltip: AppStrings.t(
+                AppStringKeys.richTextComposerFormatUnderline,
+              ),
+              type: 'textEntityTypeUnderline',
+              label: AppStrings.t(
+                AppStringKeys.richTextComposerFormatUnderlineMark,
+              ),
+              decoration: TextDecoration.underline,
+            ),
+            _formatButton(
+              tooltip: AppStrings.t(
+                AppStringKeys.richTextComposerFormatSpoiler,
+              ),
+              type: 'textEntityTypeSpoiler',
+              icon: HeroAppIcons.eyeSlash.data,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _formatButton({
+    required String tooltip,
+    required String type,
+    IconData? icon,
+    String? label,
+    FontWeight? fontWeight,
+    FontStyle? fontStyle,
+    TextDecoration? decoration,
+  }) {
+    final c = context.colors;
+    final active = _controller.selectionHasFormat(type);
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          _controller.toggleFormat(type);
+          _focus.requestFocus();
+          setState(() {
+            _showFormatBar = _focus.hasFocus && _controller.hasSelection;
+          });
+        },
+        child: Container(
+          width: 42,
+          alignment: Alignment.center,
+          margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+          decoration: BoxDecoration(
+            color: active ? AppTheme.brand.withValues(alpha: 0.16) : null,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: icon != null
+              ? Icon(
+                  icon,
+                  size: 19,
+                  color: active ? AppTheme.brand : c.textSecondary,
+                )
+              : Text(
+                  label ?? '',
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: fontWeight,
+                    fontStyle: fontStyle,
+                    decoration: decoration,
+                    color: active ? AppTheme.brand : c.textSecondary,
+                  ),
+                ),
+        ),
       ),
     );
   }

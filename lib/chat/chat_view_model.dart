@@ -260,11 +260,6 @@ class ChatViewModel extends ChangeNotifier {
     () async {
       unawaited(_loadMe());
       await _loadChatHeader();
-      if (isTelegramTosRestricted) {
-        initialLoaded = true;
-        notifyListeners();
-        return;
-      }
       final target = initialMessageId;
       if (target != null) {
         await loadAroundMessage(target);
@@ -1624,17 +1619,18 @@ class ChatViewModel extends ChangeNotifier {
       if (_markTelegramTosRestricted(error)) notifyListeners();
     }
 
-    if (batch.isEmpty) return false;
+    final visibleBatch = _withoutRestrictedNoticeMessages(batch);
+    if (visibleBatch.isEmpty) return false;
     _allMessages = [];
     messages = [];
     _hasOlderHistory = true;
     anchoredHistory = true;
     if (scrollToTarget) _pendingScrollToId = messageId;
-    _merge(batch);
-    _resolveSendersIfNeeded(batch);
-    _resolveRepliesIfNeeded(batch);
-    _resolveForwardsIfNeeded(batch);
-    _resolveServiceUsersIfNeeded(batch);
+    _merge(visibleBatch);
+    _resolveSendersIfNeeded(visibleBatch);
+    _resolveRepliesIfNeeded(visibleBatch);
+    _resolveForwardsIfNeeded(visibleBatch);
+    _resolveServiceUsersIfNeeded(visibleBatch);
     return messages.any((m) => m.id == messageId);
   }
 
@@ -1668,21 +1664,17 @@ class ChatViewModel extends ChangeNotifier {
             .map(TDParse.message)
             .whereType<ChatMessage>()
             .toList();
-    if (parsed.any((message) => _isTelegramTosRestrictedText(message.text))) {
-      _markTelegramTosRestrictedText(
-        parsed
-            .firstWhere((message) => _isTelegramTosRestrictedText(message.text))
-            .text,
-      );
+    final visibleMessages = _withoutRestrictedNoticeMessages(parsed);
+    if (parsed.isNotEmpty && visibleMessages.isEmpty) {
       notifyListeners();
       return false;
     }
-    if (parsed.isEmpty) {
+    if (visibleMessages.isEmpty) {
       if (isOlder || fromMessageId != 0) _hasOlderHistory = false;
       return false;
     }
 
-    _merge(parsed);
+    _merge(visibleMessages);
     if (isOlder &&
         restorePosition &&
         anchor != null &&
@@ -1690,10 +1682,10 @@ class ChatViewModel extends ChangeNotifier {
         _allMessages.first.id != allAnchor) {
       _restoreTopId = anchor;
     }
-    _resolveSendersIfNeeded(parsed);
-    _resolveRepliesIfNeeded(parsed);
-    _resolveForwardsIfNeeded(parsed);
-    _resolveServiceUsersIfNeeded(parsed);
+    _resolveSendersIfNeeded(visibleMessages);
+    _resolveRepliesIfNeeded(visibleMessages);
+    _resolveForwardsIfNeeded(visibleMessages);
+    _resolveServiceUsersIfNeeded(visibleMessages);
     return true;
   }
 
@@ -1729,13 +1721,32 @@ class ChatViewModel extends ChangeNotifier {
   String _normalizedRestrictionText(String text) =>
       text.toLowerCase().replaceAll('’', "'");
 
+  List<ChatMessage> _withoutRestrictedNoticeMessages(List<ChatMessage> source) {
+    var restrictedNotice = '';
+    final visible = <ChatMessage>[];
+    for (final message in source) {
+      if (_isTelegramTosRestrictedText(message.text)) {
+        restrictedNotice = message.text;
+        continue;
+      }
+      visible.add(message);
+    }
+    if (restrictedNotice.isNotEmpty) {
+      _setTelegramTosRestricted(restrictedNotice);
+    }
+    return visible;
+  }
+
   void _setTelegramTosRestricted(String text) {
     isTelegramTosRestricted = true;
     telegramTosRestrictionText = text;
-    messages = [];
-    _allMessages = [];
+    messages = messages
+        .where((message) => !_isTelegramTosRestrictedText(message.text))
+        .toList();
+    _allMessages = _allMessages
+        .where((message) => !_isTelegramTosRestrictedText(message.text))
+        .toList();
     anchoredHistory = false;
-    _hasOlderHistory = false;
     canSendMessages = false;
     canJoin = false;
     isMember = true;

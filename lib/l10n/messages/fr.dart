@@ -4,6 +4,11 @@ const frMessages = <String, String>{
   'aboutVersion': "Version {value1}",
   'aboutWebsite': "Site officiel",
   'accentColorPickerSave': "Enregistrer",
+  'accountBackupCopied': "Session Pyrogram copiée",
+  'accountBackupCopyPyrogramMessage':
+      "Cette action copie la session d’autorisation Telegram active dans le presse-papiers. Toute personne possédant cette chaîne peut se connecter à ce compte.",
+  'accountBackupCopyPyrogramSession': "Copier la session Pyrogram",
+  'accountBackupCopyPyrogramTitle': "Copier la session Pyrogram ?",
   'accountBackupCreate': "Sauvegarder le compte actuel dans Keychain",
   'accountBackupDeleteMessage':
       "Cette action supprime la session enregistrée dans Keychain. La session Telegram n’est pas révoquée.",
@@ -694,9 +699,12 @@ const frMessages = <String, String>{
   'profileDetailSendMessage': "Envoyer un message",
   'profileDetailYearMonthDate': "{value2} {value1}",
   'profileNightMode': "Nuit",
+  'profileLogOutAccount': "Déconnecter le compte",
+  'profileLogOutAccountConfirm':
+      "Cette action révoquera la session Telegram de {value1}, supprimera ses données locales et effacera sa sauvegarde Keychain enregistrée.",
   'profileRemoveAccount': "Supprimer le compte",
   'profileRemoveAccountConfirm':
-      "{value1} sera supprimé de la liste des comptes. Vous pourrez vous reconnecter à tout moment.",
+      "{value1} sera supprimé de cet appareil. La session Telegram restera active et pourra être restaurée depuis une sauvegarde enregistrée.",
   'profileSettings': "Paramètres",
   'proxyAddFailed': "Échec de l’ajout du proxy",
   'proxyAddProxy': "Ajouter un proxy",
@@ -719,6 +727,16 @@ const frMessages = <String, String>{
       "Scannez le QR code ci-dessus pour rejoindre le groupe",
   'richTextComposerContentPlaceholder':
       "Saisissez du Markdown ou du texte enrichi",
+  'richTextComposerFormatBold': "Gras",
+  'richTextComposerFormatBoldMark': "B",
+  'richTextComposerFormatCode': "Code",
+  'richTextComposerFormatItalic': "Italique",
+  'richTextComposerFormatItalicMark': "I",
+  'richTextComposerFormatSpoiler': "Spoiler",
+  'richTextComposerFormatStrikethrough': "Barré",
+  'richTextComposerFormatStrikethroughMark': "S",
+  'richTextComposerFormatUnderline': "Souligné",
+  'richTextComposerFormatUnderlineMark': "U",
   'richTextComposerPhotoVideo': "Photo/vidéo",
   'settingsAboutMithka': "À propos de Mithka",
   'settingsLogOut': "Se déconnecter",

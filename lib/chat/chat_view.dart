@@ -1459,12 +1459,6 @@ class _ChatViewState extends State<ChatView> {
   Widget build(BuildContext context) {
     final c = context.colors;
     _syncKeyboardInset(MediaQuery.of(context).viewInsets.bottom);
-    if (_vm.isTelegramTosRestricted) {
-      return Scaffold(
-        backgroundColor: c.groupedBackground,
-        body: _restrictedChatBody(),
-      );
-    }
     // Not a member, joinable, and nothing to preview → a custom join screen
     // (header + centered card) instead of the transcript + composer.
     if (!_vm.isMember && _vm.canJoin && _vm.messages.isEmpty) {
@@ -1511,91 +1505,100 @@ class _ChatViewState extends State<ChatView> {
               ),
             ),
             if (_actionTarget != null && !_isSelecting) _actionMenuOverlay(),
+            if (_vm.isTelegramTosRestricted) _restrictedChatOverlay(),
           ],
         ),
       ),
     );
   }
 
-  Widget _restrictedChatBody() {
+  Widget _restrictedChatOverlay() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mask = isDark
+        ? Colors.black.withValues(alpha: 0.56)
+        : Colors.black.withValues(alpha: 0.18);
+    return Positioned.fill(
+      child: Stack(
+        children: [
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {},
+            child: ColoredBox(color: mask, child: const SizedBox.expand()),
+          ),
+          Center(child: _restrictedChatCard()),
+        ],
+      ),
+    );
+  }
+
+  Widget _restrictedChatCard() {
     final c = context.colors;
-    return Column(
-      children: [
-        _header(),
-        Expanded(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 36),
-              child: Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(maxWidth: 360),
-                padding: const EdgeInsets.fromLTRB(24, 22, 24, 14),
-                decoration: BoxDecoration(
-                  color: c.card,
-                  borderRadius: BorderRadius.circular(10),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.16),
-                      blurRadius: 22,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      AppStringKeys.chatRestrictedTitle.l10n(context),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: c.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      AppStringKeys.chatRestrictedTelegramTosMessage.l10n(
-                        context,
-                      ),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: c.textSecondary,
-                        fontSize: 14,
-                        height: 1.35,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _restrictedActionButton(
-                            label: AppStringKeys.chatInfoLeaveGroup.l10n(
-                              context,
-                            ),
-                            color: Colors.redAccent,
-                            onTap: _leaveRestrictedChat,
-                          ),
-                        ),
-                        Container(width: 0.5, height: 24, color: c.divider),
-                        Expanded(
-                          child: _restrictedActionButton(
-                            label: AppStringKeys.chatRestrictedAcknowledge.l10n(
-                              context,
-                            ),
-                            color: AppTheme.brand,
-                            onTap: _acknowledgeRestrictedChat,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surface = isDark ? AppColors.dark.card : AppColors.light.card;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 36),
+      child: Container(
+        width: double.infinity,
+        constraints: const BoxConstraints(maxWidth: 360),
+        padding: const EdgeInsets.fromLTRB(24, 22, 24, 14),
+        decoration: BoxDecoration(
+          color: surface,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.34 : 0.16),
+              blurRadius: 22,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              AppStringKeys.chatRestrictedTitle.l10n(context),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: c.textPrimary,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          ),
+            const SizedBox(height: 12),
+            Text(
+              AppStringKeys.chatRestrictedTelegramTosMessage.l10n(context),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: c.textSecondary,
+                fontSize: 14,
+                height: 1.35,
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Expanded(
+                  child: _restrictedActionButton(
+                    label: AppStringKeys.chatInfoLeaveGroup.l10n(context),
+                    color: Colors.redAccent,
+                    onTap: _leaveRestrictedChat,
+                  ),
+                ),
+                Container(width: 0.5, height: 24, color: c.divider),
+                Expanded(
+                  child: _restrictedActionButton(
+                    label: AppStringKeys.chatRestrictedAcknowledge.l10n(
+                      context,
+                    ),
+                    color: AppTheme.brand,
+                    onTap: _acknowledgeRestrictedChat,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 

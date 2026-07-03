@@ -516,13 +516,12 @@ class _ProfileViewState extends State<ProfileView> {
         children: [
           const InsetDivider(leadingInset: 0),
           for (final s in accounts.summaries) ...[
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
+            _SwipeAccountRow(
               onTap: () =>
                   accounts.switchTo(s.slot, context.read<AuthManager>()),
-              onLongPress: accounts.summaries.length > 1
-                  ? () => _confirmRemoveAccount(accounts, s)
-                  : null,
+              onLongPress: () => _confirmRemoveAccount(accounts, s),
+              onRemove: () => _confirmRemoveAccount(accounts, s),
+              onLogout: () => _confirmLogOutAccount(accounts, s),
               child: _accountRow(
                 s.name,
                 hidePhone ? '' : s.phone,
@@ -572,23 +571,42 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
-  /// Long-press an account row to remove it from the switcher.
+  String _accountLabel(AccountSummary s) =>
+      s.phone.isNotEmpty ? '${s.name}（${s.phone}）' : s.name;
+
+  /// Long-press or swipe an account row to remove it from this device only.
   Future<void> _confirmRemoveAccount(
     AccountStore accounts,
     AccountSummary s,
   ) async {
-    final label = s.phone.isNotEmpty ? '${s.name}（${s.phone}）' : s.name;
     final ok = await confirmDialog(
       context,
       title: AppStrings.t(AppStringKeys.profileRemoveAccount),
       message: AppStrings.t(AppStringKeys.profileRemoveAccountConfirm, {
-        'value1': label,
+        'value1': _accountLabel(s),
       }),
       confirmText: AppStrings.t(AppStringKeys.chatInfoRemove),
       destructive: true,
     );
     if (!ok || !mounted) return;
-    accounts.removeAccount(s.slot, context.read<AuthManager>());
+    await accounts.removeAccount(s.slot, context.read<AuthManager>());
+  }
+
+  Future<void> _confirmLogOutAccount(
+    AccountStore accounts,
+    AccountSummary s,
+  ) async {
+    final ok = await confirmDialog(
+      context,
+      title: AppStrings.t(AppStringKeys.profileLogOutAccount),
+      message: AppStrings.t(AppStringKeys.profileLogOutAccountConfirm, {
+        'value1': _accountLabel(s),
+      }),
+      confirmText: AppStrings.t(AppStringKeys.settingsLogOut),
+      destructive: true,
+    );
+    if (!ok || !mounted) return;
+    await accounts.logOutAccount(s.slot, context.read<AuthManager>());
   }
 
   Widget _accountRow(
@@ -724,6 +742,137 @@ class _ProfileViewState extends State<ProfileView> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SwipeAccountRow extends StatefulWidget {
+  const _SwipeAccountRow({
+    required this.child,
+    required this.onTap,
+    required this.onLongPress,
+    required this.onRemove,
+    required this.onLogout,
+  });
+
+  final Widget child;
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+  final VoidCallback onRemove;
+  final VoidCallback onLogout;
+
+  @override
+  State<_SwipeAccountRow> createState() => _SwipeAccountRowState();
+}
+
+class _SwipeAccountRowState extends State<_SwipeAccountRow> {
+  static const double _actionWidth = 78;
+  static const double _actionsWidth = _actionWidth * 2;
+  double _offset = 0;
+
+  void _close() {
+    if (_offset == 0) return;
+    setState(() => _offset = 0);
+  }
+
+  void _run(VoidCallback action) {
+    _close();
+    action();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return SizedBox(
+      height: 56,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _SwipeActionButton(
+                    label: AppStrings.t(AppStringKeys.chatInfoRemove),
+                    color: const Color(0xFFFF9500),
+                    onTap: () => _run(widget.onRemove),
+                  ),
+                  _SwipeActionButton(
+                    label: AppStrings.t(AppStringKeys.settingsLogOut),
+                    color: AppTheme.tagRed,
+                    onTap: () => _run(widget.onLogout),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOutCubic,
+            left: _offset,
+            right: -_offset,
+            top: 0,
+            bottom: 0,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _offset < 0 ? _close : widget.onTap,
+              onLongPress: widget.onLongPress,
+              onHorizontalDragUpdate: (details) {
+                final next = (_offset + details.delta.dx).clamp(
+                  -_actionsWidth,
+                  0.0,
+                );
+                if (next != _offset) setState(() => _offset = next);
+              },
+              onHorizontalDragEnd: (_) {
+                setState(() {
+                  _offset = _offset.abs() > _actionsWidth * 0.35
+                      ? -_actionsWidth
+                      : 0;
+                });
+              },
+              child: ColoredBox(color: c.card, child: widget.child),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SwipeActionButton extends StatelessWidget {
+  const _SwipeActionButton({
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        width: _SwipeAccountRowState._actionWidth,
+        height: double.infinity,
+        alignment: Alignment.center,
+        color: color,
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ),
     );
   }

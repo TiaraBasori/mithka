@@ -128,6 +128,13 @@ abstract final class AppStringKeys {
   static const aboutVersion = 'aboutVersion';
   static const aboutWebsite = 'aboutWebsite';
   static const accentColorPickerSave = 'accentColorPickerSave';
+  static const accountBackupCopied = 'accountBackupCopied';
+  static const accountBackupCopyPyrogramMessage =
+      'accountBackupCopyPyrogramMessage';
+  static const accountBackupCopyPyrogramSession =
+      'accountBackupCopyPyrogramSession';
+  static const accountBackupCopyPyrogramTitle =
+      'accountBackupCopyPyrogramTitle';
   static const accountBackupCreate = 'accountBackupCreate';
   static const accountBackupDeleteMessage = 'accountBackupDeleteMessage';
   static const accountBackupDeleteTitle = 'accountBackupDeleteTitle';
@@ -1031,6 +1038,8 @@ abstract final class AppStringKeys {
   static const profileDetailSendMessage = 'profileDetailSendMessage';
   static const profileDetailYearMonthDate = 'profileDetailYearMonthDate';
   static const profileNightMode = 'profileNightMode';
+  static const profileLogOutAccount = 'profileLogOutAccount';
+  static const profileLogOutAccountConfirm = 'profileLogOutAccountConfirm';
   static const profileRemoveAccount = 'profileRemoveAccount';
   static const profileRemoveAccountConfirm = 'profileRemoveAccountConfirm';
   static const profileSettings = 'profileSettings';
@@ -1053,6 +1062,22 @@ abstract final class AppStringKeys {
   static const qrCodeScanToJoinGroup = 'qrCodeScanToJoinGroup';
   static const richTextComposerContentPlaceholder =
       'richTextComposerContentPlaceholder';
+  static const richTextComposerFormatBold = 'richTextComposerFormatBold';
+  static const richTextComposerFormatBoldMark =
+      'richTextComposerFormatBoldMark';
+  static const richTextComposerFormatCode = 'richTextComposerFormatCode';
+  static const richTextComposerFormatItalic = 'richTextComposerFormatItalic';
+  static const richTextComposerFormatItalicMark =
+      'richTextComposerFormatItalicMark';
+  static const richTextComposerFormatSpoiler = 'richTextComposerFormatSpoiler';
+  static const richTextComposerFormatStrikethrough =
+      'richTextComposerFormatStrikethrough';
+  static const richTextComposerFormatStrikethroughMark =
+      'richTextComposerFormatStrikethroughMark';
+  static const richTextComposerFormatUnderline =
+      'richTextComposerFormatUnderline';
+  static const richTextComposerFormatUnderlineMark =
+      'richTextComposerFormatUnderlineMark';
   static const richTextComposerPhotoVideo = 'richTextComposerPhotoVideo';
   static const settingsAboutMithka = 'settingsAboutMithka';
   static const settingsLogOut = 'settingsLogOut';

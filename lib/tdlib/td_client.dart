@@ -45,6 +45,33 @@ class TdError implements Exception {
   String toString() => 'TDLib error $code: $message';
 }
 
+class TdSessionRestoreException implements Exception {
+  const TdSessionRestoreException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class _TdSessionStringInfo {
+  const _TdSessionStringInfo({
+    required this.rawSize,
+    required this.dcId,
+    required this.apiId,
+    required this.testMode,
+    required this.userId,
+    required this.isBot,
+  });
+
+  final int rawSize;
+  final int dcId;
+  final int apiId;
+  final bool testMode;
+  final int userId;
+  final bool isBot;
+}
+
 class TdClient {
   TdClient._();
   static final TdClient shared = TdClient._();
@@ -105,6 +132,7 @@ class TdClient {
     final stored =
         _prefs.getStringList(_slotsKey)?.map(int.parse).toList() ?? <int>[];
     var loaded = stored.isEmpty ? <int>[0] : stored;
+    loaded = await _quarantineMalformedSessionStringSlots(loaded);
     final storedActive = _prefs.getInt(_activeKey);
     final active = (storedActive != null && loaded.contains(storedActive))
         ? storedActive
@@ -167,37 +195,62 @@ class TdClient {
     return newSlot;
   }
 
-  Future<int> restoreSessionSlot(String sessionString) async {
+  Future<int> restoreSessionSlot(
+    String sessionString, {
+    bool reuseExisting = true,
+  }) async {
     final trimmedSessionString = sessionString.trim();
     if (trimmedSessionString.isEmpty) {
       throw ArgumentError.value(sessionString, 'sessionString', 'is empty');
     }
+    final info = _decodeSessionString(trimmedSessionString);
+    if (reuseExisting) {
+      final existingSlot = await _readySlotForUserId(info.userId);
+      if (existingSlot != null) {
+        setActive(existingSlot);
+        return existingSlot;
+      }
+    }
     final newSlot = _nextSlot();
     final dbDir = Directory(_databaseDirectory(newSlot));
+    if (await dbDir.exists()) {
+      await dbDir.delete(recursive: true);
+    }
     await dbDir.create(recursive: true);
     final sessionFile = File('${dbDir.path}/td.binlog');
     _bindings.importSessionString(trimmedSessionString, sessionFile.path);
 
     final cid = _bindings.createClientId();
-    _slots.add(newSlot);
+    if (!_slots.contains(newSlot)) _slots.add(newSlot);
     _clientForSlot[newSlot] = cid;
     _slotForClient[cid] = newSlot;
     if (kDebugMode) unawaited(_persistDebugLiveClientIds());
     _bindings.send(cid, jsonEncode({'@type': 'getOption', 'name': 'version'}));
     try {
-      await _waitForRestoredSessionReady(newSlot, cid);
+      await _waitForRestoredSessionReady(newSlot, cid, info.userId);
       setActive(newSlot);
       _persist();
       return newSlot;
-    } catch (_) {
+    } catch (error) {
       _closeAndForgetSlot(newSlot);
-      if (await dbDir.exists()) await dbDir.delete(recursive: true);
+      await _deleteDirectoryIfPresent(dbDir);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await _deleteDirectoryIfPresent(dbDir);
       if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+      if (_isRequestAborted(error)) {
+        throw const TdSessionRestoreException(
+          'Restored account session is invalid or has been revoked',
+        );
+      }
       rethrow;
     }
   }
 
-  Future<void> _waitForRestoredSessionReady(int slot, int clientId) async {
+  Future<void> _waitForRestoredSessionReady(
+    int slot,
+    int clientId,
+    int expectedUserId,
+  ) async {
     final deadline = DateTime.now().add(const Duration(seconds: 20));
     while (DateTime.now().isBefore(deadline)) {
       final state = await queryTo({
@@ -207,6 +260,7 @@ class TdClient {
         case 'authorizationStateWaitTdlibParameters':
           _sendParameters(clientId);
         case 'authorizationStateReady':
+          await _verifyRestoredSessionStable(slot, clientId, expectedUserId);
           return;
         case 'authorizationStateWaitPhoneNumber':
           throw StateError(
@@ -227,6 +281,33 @@ class TdClient {
     );
   }
 
+  Future<void> _verifyRestoredSessionStable(
+    int slot,
+    int clientId,
+    int expectedUserId,
+  ) async {
+    final me = await queryTo({
+      '@type': 'getMe',
+    }, clientId).timeout(const Duration(seconds: 5));
+    final restoredUserId = me.int64('id');
+    if (restoredUserId != expectedUserId) {
+      throw TdSessionRestoreException(
+        'Restored account user mismatch for slot $slot: expected $expectedUserId, got $restoredUserId',
+      );
+    }
+
+    for (var i = 0; i < 10; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+      final state = await queryTo({
+        '@type': 'getAuthorizationState',
+      }, clientId).timeout(const Duration(seconds: 2));
+      if (state.type == 'authorizationStateReady') continue;
+      throw TdSessionRestoreException(
+        'Restored account session closed during verification for slot $slot: ${state.type}',
+      );
+    }
+  }
+
   Future<File> sessionFileForSlot(int slot) async {
     if (_supportDir.isEmpty) {
       _supportDir = (await getApplicationSupportDirectory()).path;
@@ -234,7 +315,87 @@ class TdClient {
     return File('${_databaseDirectory(slot)}/td.binlog');
   }
 
-  Future<String> exportSessionStringForSlot(int slot) async {
+  Future<List<int>> _quarantineMalformedSessionStringSlots(
+    List<int> slots,
+  ) async {
+    final kept = <int>[];
+    var changed = false;
+    for (final slot in slots) {
+      final dbDir = Directory(_databaseDirectory(slot));
+      final sessionFile = File('${dbDir.path}/td.binlog');
+      if (slot != 0 && !await sessionFile.exists()) {
+        changed = true;
+        debugPrint('🔑 [Mithka] removing incomplete account slot $slot');
+        await _deleteDirectoryIfPresent(dbDir);
+        continue;
+      }
+      if (!await _isMalformedSessionStringBinlog(sessionFile)) {
+        kept.add(slot);
+        continue;
+      }
+      changed = true;
+      debugPrint(
+        '🔑 [Mithka] quarantining malformed restored session slot $slot',
+      );
+      if (slot == 0) {
+        await sessionFile.rename(
+          '${sessionFile.path}.malformed-session-string',
+        );
+      } else {
+        await _deleteDirectoryIfPresent(dbDir);
+      }
+    }
+    final normalized = kept.isEmpty ? <int>[0] : kept;
+    if (changed) {
+      await _prefs.setStringList(
+        _slotsKey,
+        normalized.map((slot) => slot.toString()).toList(),
+      );
+      final active = _prefs.getInt(_activeKey);
+      if (active == null || !normalized.contains(active)) {
+        await _prefs.setInt(_activeKey, normalized.first);
+      }
+    }
+    return normalized;
+  }
+
+  Future<void> _deleteDirectoryIfPresent(Directory directory) async {
+    try {
+      if (await directory.exists()) {
+        await directory.delete(recursive: true);
+      }
+    } on FileSystemException catch (error) {
+      if (error.osError?.errorCode != 2) rethrow;
+    }
+  }
+
+  bool _isRequestAborted(Object error) =>
+      error is TdError &&
+      error.code == 500 &&
+      error.message.toLowerCase().contains('request aborted');
+
+  Future<bool> _isMalformedSessionStringBinlog(File file) async {
+    if (!await file.exists()) return false;
+    final input = await file.open();
+    try {
+      final bytes = await input.read(64);
+      if (bytes.length < 32) return false;
+      final hasDefaultPmcMagic = bytes[14] == 0x28 && bytes[15] == 0x2a;
+      final hasAuthKey =
+          bytes[29] == 0x61 &&
+          bytes[30] == 0x75 &&
+          bytes[31] == 0x74 &&
+          bytes[32] == 0x68;
+      return hasDefaultPmcMagic && hasAuthKey;
+    } finally {
+      await input.close();
+    }
+  }
+
+  Future<String> exportSessionStringForSlot(
+    int slot, {
+    required int userId,
+  }) async {
     final source = await sessionFileForSlot(slot);
     if (!await source.exists()) {
       throw StateError('No TDLib session file found for account slot $slot');
@@ -246,18 +407,113 @@ class TdClient {
 
     final api = ApiCredentialsConfig.fromPrefs(_prefs);
     final useCustomApi = api.isUsable;
+    final apiId = useCustomApi ? api.apiId : Secrets.apiId;
     final sessionString = _bindings.exportSessionString(
       source.path,
-      apiId: useCustomApi ? api.apiId : Secrets.apiId,
+      apiId: apiId,
       testMode: false,
+      userId: userId,
     );
     if (sessionString.trim().isEmpty) {
       throw StateError('TDLib session string backup is empty');
     }
+    final info = _decodeSessionString(sessionString);
+    if (info.apiId != apiId) {
+      throw StateError(
+        'TDLib session string API id mismatch: expected $apiId, got ${info.apiId}',
+      );
+    }
+    if (info.userId != userId) {
+      throw StateError(
+        'TDLib session string user mismatch: expected $userId, got ${info.userId}',
+      );
+    }
     debugPrint(
-      '🔑 [Mithka] session string backup size: ${sessionString.length} chars',
+      '🔑 [Mithka] session string backup size: '
+      '${sessionString.length} chars, ${info.rawSize} bytes, '
+      'dc ${info.dcId}, user ${info.userId}',
     );
     return sessionString;
+  }
+
+  void validateSessionString(String sessionString, {int? expectedUserId}) {
+    final info = _decodeSessionString(sessionString);
+    if (expectedUserId != null && info.userId != expectedUserId) {
+      throw StateError(
+        'TDLib session string user mismatch: expected $expectedUserId, got ${info.userId}',
+      );
+    }
+  }
+
+  Future<int?> _readySlotForUserId(int userId) async {
+    for (final entry in _clientForSlot.entries) {
+      try {
+        final state = await queryTo({
+          '@type': 'getAuthorizationState',
+        }, entry.value).timeout(const Duration(seconds: 2));
+        if (state.type != 'authorizationStateReady') continue;
+        final me = await queryTo({
+          '@type': 'getMe',
+        }, entry.value).timeout(const Duration(seconds: 3));
+        if (me.int64('id') == userId) return entry.key;
+      } catch (_) {
+        continue;
+      }
+    }
+    return null;
+  }
+
+  static _TdSessionStringInfo _decodeSessionString(String sessionString) {
+    final normalized = sessionString.trim();
+    if (normalized.isEmpty) {
+      throw const FormatException('TDLib session string is empty');
+    }
+
+    final Uint8List bytes;
+    try {
+      bytes = base64Url.decode(base64Url.normalize(normalized));
+    } on FormatException catch (error) {
+      throw FormatException(
+        'TDLib session string is not valid base64url',
+        error,
+      );
+    }
+
+    const rawLength = 271;
+    if (bytes.length != rawLength) {
+      throw FormatException(
+        'TDLib session string decoded size is ${bytes.length}, expected $rawLength',
+      );
+    }
+
+    final dcId = bytes[0];
+    final apiId = ByteData.sublistView(bytes, 1, 5).getUint32(0);
+    final testMode = bytes[5] != 0;
+    final authKey = bytes.sublist(6, 262);
+    final userId = ByteData.sublistView(bytes, 262, 270).getUint64(0);
+    final isBot = bytes[270] != 0;
+
+    if (dcId == 0) {
+      throw const FormatException('TDLib session string has invalid DC id');
+    }
+    if (apiId == 0) {
+      throw const FormatException('TDLib session string has invalid API id');
+    }
+    if (userId == 0) {
+      throw const FormatException('TDLib session string has invalid user id');
+    }
+    if (authKey.every((byte) => byte == 0)) {
+      throw const FormatException('TDLib session string has an empty auth key');
+    }
+
+    return _TdSessionStringInfo(
+      rawSize: bytes.length,
+      dcId: dcId,
+      apiId: apiId,
+      testMode: testMode,
+      userId: userId,
+      isBot: isBot,
+    );
   }
 
   /// Routes future query/send/broadcast to the given account slot.
@@ -281,6 +537,32 @@ class TdClient {
     if (kDebugMode) unawaited(_persistDebugLiveClientIds());
   }
 
+  /// Deletes the local TDLib data for a forgotten slot without contacting
+  /// Telegram. Slot 0 is the legacy base directory, so keep account-* child
+  /// directories for other slots while removing slot-0 files.
+  Future<void> deleteSlotData(int slot) async {
+    final dbDir = Directory(_databaseDirectory(slot));
+    if (!await dbDir.exists()) return;
+    if (slot != 0) {
+      await _deleteDirectoryIfPresent(dbDir);
+      return;
+    }
+
+    await for (final entity in dbDir.list(followLinks: false)) {
+      final name = entity.path.split(Platform.pathSeparator).last;
+      if (name.startsWith('account-')) continue;
+      if (entity is Directory) {
+        await _deleteDirectoryIfPresent(entity);
+      } else {
+        try {
+          await entity.delete();
+        } on FileSystemException catch (error) {
+          if (error.osError?.errorCode != 2) rethrow;
+        }
+      }
+    }
+  }
+
   /// Drops the current active slot and replaces it with a clean login client.
   /// Used when the last account is cancelled/logged out: internally TDLib still
   /// needs one active client, but the account switcher can remain empty.
@@ -297,6 +579,11 @@ class TdClient {
   }
 
   void _closeAndForgetSlot(int slot) {
+    _closeClientForSlot(slot);
+    _slots.remove(slot);
+  }
+
+  void _closeClientForSlot(int slot) {
     final cid = _clientForSlot.remove(slot);
     if (cid != null) {
       _bindings.send(cid, jsonEncode({'@type': 'close'}));
@@ -304,7 +591,6 @@ class TdClient {
       _latestChatFoldersByClient.remove(cid);
       _proxyAppliedClients.remove(cid);
     }
-    _slots.remove(slot);
   }
 
   void _persist() {
@@ -380,11 +666,7 @@ class TdClient {
         .whereType<int>()
         .toList();
     if (ids == null || ids.isEmpty) return;
-    for (final id in ids) {
-      _bindings.send(id, jsonEncode({'@type': 'close'}));
-    }
     await _prefs.remove(_liveClientIdsKey);
-    await Future<void>.delayed(const Duration(milliseconds: 200));
   }
 
   Future<void> _persistDebugLiveClientIds() {
