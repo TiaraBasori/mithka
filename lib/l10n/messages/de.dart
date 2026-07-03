@@ -15,7 +15,15 @@ const deMessages = <String, String>{
   'accountBackupDeleteTitle': "Gespeicherte Sitzung löschen?",
   'accountBackupEmpty': "Es wurden noch keine Kontositzungen gesichert.",
   'accountBackupEnabled': "Konten sichern",
+  'accountBackupImported': "In Kontoplatz {value1} importiert",
   'accountBackupIOSOnly': "Kontosicherung ist nur unter iOS verfügbar.",
+  'accountBackupLoadPyrogramConfirm': "Sitzung laden",
+  'accountBackupLoadPyrogramMessage':
+      "Füge eine Pyrogram-kompatible Telegram-Sitzungszeichenfolge ein. Wenn die Sitzung noch gültig ist, wird sie lokal als Konto importiert.",
+  'accountBackupLoadPyrogramPaste': "Einfügen",
+  'accountBackupLoadPyrogramPlaceholder': "Pyrogram-Sitzungszeichenfolge",
+  'accountBackupLoadPyrogramSession': "Pyrogram-Sitzung laden",
+  'accountBackupLoadPyrogramTitle': "Pyrogram-Sitzung laden",
   'accountBackupNotice':
       "Nur die TDLib-Sitzungsdatei wird im Keychain des Geräts gespeichert. Nachrichtendatenbanken, Medien, Protokolle und Caches werden nicht gesichert. Um diesen Keychain-Eintrag auf ein neues Gerät zu übertragen, stelle ein verschlüsseltes Geräte-Backup wieder her.",
   'accountBackupRestore': "Wiederherstellen",
@@ -244,6 +252,7 @@ const deMessages = <String, String>{
   'chatListCreateChannelFailed': "Kanal konnte nicht erstellt werden",
   'chatListCreateGroup': "Gruppe erstellen",
   'chatListMarkUnread': "Als ungelesen markieren",
+  'chatListNoChats': "Noch keine Chats",
   'chatListUnpin': "Lösen",
   'chatLoadingTopics': "Themen werden geladen",
   'chatMeLabel': "Ich",

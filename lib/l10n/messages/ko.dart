@@ -15,7 +15,15 @@ const koMessages = <String, String>{
   'accountBackupDeleteTitle': "저장된 세션을 삭제할까요?",
   'accountBackupEmpty': "아직 백업된 계정 세션이 없습니다.",
   'accountBackupEnabled': "계정 백업",
+  'accountBackupImported': "계정 슬롯 {value1}에 가져왔습니다",
   'accountBackupIOSOnly': "계정 백업은 iOS에서만 사용할 수 있습니다.",
+  'accountBackupLoadPyrogramConfirm': "세션 불러오기",
+  'accountBackupLoadPyrogramMessage':
+      "Pyrogram과 호환되는 Telegram 세션 문자열을 붙여넣으세요. 세션이 아직 유효하면 이 기기에 계정으로 가져옵니다.",
+  'accountBackupLoadPyrogramPaste': "붙여넣기",
+  'accountBackupLoadPyrogramPlaceholder': "Pyrogram 세션 문자열",
+  'accountBackupLoadPyrogramSession': "Pyrogram 세션 불러오기",
+  'accountBackupLoadPyrogramTitle': "Pyrogram 세션 불러오기",
   'accountBackupNotice':
       "TDLib 세션 파일만 기기 Keychain에 저장됩니다. 메시지 데이터베이스, 미디어, 로그, 캐시는 백업되지 않습니다. 이 Keychain 항목을 새 기기로 옮기려면 암호화된 기기 백업에서 복원하세요.",
   'accountBackupRestore': "복원",
@@ -231,6 +239,7 @@ const koMessages = <String, String>{
   'chatListCreateChannelFailed': "채널 만들기 실패",
   'chatListCreateGroup': "그룹 채팅 만들기",
   'chatListMarkUnread': "읽지 않음으로 표시",
+  'chatListNoChats': "아직 채팅이 없습니다",
   'chatListUnpin': "고정 해제",
   'chatLoadingTopics': "주제 불러오는 중",
   'chatMeLabel': "나",

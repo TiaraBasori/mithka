@@ -8,7 +8,7 @@
 
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import '../chat/chat_view.dart';
 import '../components/photo_avatar.dart';
@@ -59,13 +59,12 @@ class _SearchViewState extends State<SearchView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Scaffold(
+    return CupertinoPageScaffold(
       backgroundColor: c.groupedBackground,
-      body: Column(
+      child: Column(
         children: [
           _header(),
           Expanded(child: _results()),
-          _tabBar(),
         ],
       ),
     );
@@ -79,80 +78,91 @@ class _SearchViewState extends State<SearchView> {
         color: c.listHeaderTint,
         border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
       ),
-      child: SizedBox(
-        height: 52,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            children: [
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => Navigator.of(context).pop(),
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 10),
-                  child: AppIcon(
-                    HeroAppIcons.chevronLeft,
-                    size: 22,
-                    color: c.textPrimary,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: Container(
-                  height: 34,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: c.searchFill,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      AppIcon(
-                        HeroAppIcons.magnifyingGlass,
-                        size: 15,
-                        color: c.textTertiary,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: 52,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 10),
+                      child: AppIcon(
+                        HeroAppIcons.chevronLeft,
+                        size: 22,
+                        color: c.textPrimary,
                       ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focus,
-                          autocorrect: false,
-                          textInputAction: TextInputAction.search,
-                          style: TextStyle(fontSize: 15, color: c.textPrimary),
-                          decoration: InputDecoration(
-                            hintText: AppStrings.t(
-                              AppStringKeys.topicChatSearch,
-                            ),
-                            border: InputBorder.none,
-                            isCollapsed: true,
-                          ),
-                          onChanged: (q) {
-                            setState(() => _query = q);
-                            _vm.search(q, _tab);
-                          },
-                        ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Container(
+                      height: 34,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: BoxDecoration(
+                        color: c.searchFill,
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      if (_query.isNotEmpty)
-                        GestureDetector(
-                          onTap: () {
-                            _controller.clear();
-                            setState(() => _query = '');
-                            _vm.search('', _tab);
-                          },
-                          child: AppIcon(
-                            HeroAppIcons.xmark,
-                            size: 16,
+                      child: Row(
+                        children: [
+                          AppIcon(
+                            HeroAppIcons.magnifyingGlass,
+                            size: 15,
                             color: c.textTertiary,
                           ),
-                        ),
-                    ],
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: CupertinoTextField(
+                              controller: _controller,
+                              focusNode: _focus,
+                              autocorrect: false,
+                              textInputAction: TextInputAction.search,
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: c.textPrimary,
+                              ),
+                              placeholder: AppStrings.t(
+                                AppStringKeys.topicChatSearch,
+                              ),
+                              placeholderStyle: TextStyle(
+                                fontSize: 15,
+                                color: c.textTertiary,
+                              ),
+                              padding: EdgeInsets.zero,
+                              decoration: null,
+                              onChanged: (q) {
+                                setState(() => _query = q);
+                                _vm.search(q, _tab);
+                              },
+                            ),
+                          ),
+                          if (_query.isNotEmpty)
+                            GestureDetector(
+                              onTap: () {
+                                _controller.clear();
+                                setState(() => _query = '');
+                                _vm.search('', _tab);
+                              },
+                              child: AppIcon(
+                                HeroAppIcons.xmark,
+                                size: 16,
+                                color: c.textTertiary,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          _tabBar(),
+        ],
       ),
     );
   }
@@ -171,7 +181,7 @@ class _SearchViewState extends State<SearchView> {
         child: const SizedBox(
           width: 22,
           height: 22,
-          child: CircularProgressIndicator.adaptive(strokeWidth: 2),
+          child: CupertinoActivityIndicator(radius: 11),
         ),
       );
     }
@@ -208,7 +218,7 @@ class _SearchViewState extends State<SearchView> {
     if (hit.message != null && hit.chatId != null) {
       final title = hit.sourceTitle;
       await Navigator.of(context).push(
-        MaterialPageRoute(
+        CupertinoPageRoute(
           builder: (_) => ChatView(
             chatId: hit.chatId!,
             title: title.isEmpty ? hit.title : title,
@@ -221,7 +231,7 @@ class _SearchViewState extends State<SearchView> {
     final chat = hit.chat;
     if (chat != null) {
       await Navigator.of(context).push(
-        MaterialPageRoute(
+        CupertinoPageRoute(
           builder: (_) => ChatView(chatId: chat.id, title: chat.title),
         ),
       );
@@ -238,7 +248,7 @@ class _SearchViewState extends State<SearchView> {
       final summary = TDParse.chat(chat);
       if (!mounted || summary == null) return;
       await Navigator.of(context).push(
-        MaterialPageRoute(
+        CupertinoPageRoute(
           builder: (_) => ChatView(chatId: summary.id, title: summary.title),
         ),
       );
@@ -315,13 +325,13 @@ class _SearchViewState extends State<SearchView> {
                     height: 26,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.50),
+                      color: const Color(0xFF000000).withValues(alpha: 0.50),
                       shape: BoxShape.circle,
                     ),
                     child: const AppIcon(
                       HeroAppIcons.play,
                       size: 13,
-                      color: Colors.white,
+                      color: Color(0xFFFFFFFF),
                     ),
                   ),
                 ),
@@ -354,24 +364,15 @@ class _SearchViewState extends State<SearchView> {
 
   Widget _tabBar() {
     final c = context.colors;
-    return SafeArea(
-      top: false,
-      child: Container(
-        color: c.groupedBackground.withValues(alpha: 0.92),
-        padding: const EdgeInsets.fromLTRB(10, 7, 10, 10),
-        child: Container(
-          height: 50,
-          decoration: BoxDecoration(
-            color: c.searchFill.withValues(alpha: 0.94),
-            borderRadius: BorderRadius.circular(25),
-            border: Border.all(color: c.divider, width: 0.5),
-          ),
-          child: Row(
-            children: [
-              for (final tab in _SearchTab.values)
-                Expanded(child: _tabButton(tab)),
-            ],
-          ),
+    return Container(
+      height: 44,
+      color: c.listHeaderTint,
+      alignment: Alignment.centerLeft,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        child: Row(
+          children: [for (final tab in _SearchTab.values) _tabButton(tab)],
         ),
       ),
     );
@@ -387,31 +388,35 @@ class _SearchViewState extends State<SearchView> {
         setState(() => _tab = tab);
         _vm.search(_query, tab);
       },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 160),
-        margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 5),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? c.background : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.06),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        child: SizedBox(
+          height: 44,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 160),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  color: selected ? AppTheme.brand : c.textSecondary,
+                ),
+                child: Text(tab.label, maxLines: 1),
+              ),
+              Positioned(
+                bottom: 4,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  width: selected ? 18 : 0,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: AppTheme.brand,
+                    borderRadius: BorderRadius.circular(2),
                   ),
-                ]
-              : null,
-        ),
-        child: Text(
-          tab.label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-            color: selected ? c.textPrimary : c.textSecondary,
+                ),
+              ),
+            ],
           ),
         ),
       ),
@@ -665,14 +670,14 @@ class _SearchHit {
     this.date = 0,
     this.sourceTitle = '',
     this.thumbnail,
-    this.icon = Icons.chat_bubble_outline,
+    IconData? icon,
     this.tint = const Color(0xFF12B7F5),
     this.photo,
     this.chat,
     this.userId,
     this.chatId,
     this.message,
-  });
+  }) : icon = icon ?? HeroAppIcons.message.data;
 
   factory _SearchHit.chat(ChatSummary chat, {String? subtitle}) => _SearchHit(
     title: chat.title,

@@ -140,7 +140,20 @@ abstract final class AppStringKeys {
   static const accountBackupDeleteTitle = 'accountBackupDeleteTitle';
   static const accountBackupEmpty = 'accountBackupEmpty';
   static const accountBackupEnabled = 'accountBackupEnabled';
+  static const accountBackupImported = 'accountBackupImported';
   static const accountBackupIOSOnly = 'accountBackupIOSOnly';
+  static const accountBackupLoadPyrogramConfirm =
+      'accountBackupLoadPyrogramConfirm';
+  static const accountBackupLoadPyrogramMessage =
+      'accountBackupLoadPyrogramMessage';
+  static const accountBackupLoadPyrogramPaste =
+      'accountBackupLoadPyrogramPaste';
+  static const accountBackupLoadPyrogramPlaceholder =
+      'accountBackupLoadPyrogramPlaceholder';
+  static const accountBackupLoadPyrogramSession =
+      'accountBackupLoadPyrogramSession';
+  static const accountBackupLoadPyrogramTitle =
+      'accountBackupLoadPyrogramTitle';
   static const accountBackupNotice = 'accountBackupNotice';
   static const accountBackupRestore = 'accountBackupRestore';
   static const accountBackupRestoreAccount = 'accountBackupRestoreAccount';
@@ -370,6 +383,7 @@ abstract final class AppStringKeys {
   static const chatListCreateChannelFailed = 'chatListCreateChannelFailed';
   static const chatListCreateGroup = 'chatListCreateGroup';
   static const chatListMarkUnread = 'chatListMarkUnread';
+  static const chatListNoChats = 'chatListNoChats';
   static const chatListUnpin = 'chatListUnpin';
   static const chatLoadingTopics = 'chatLoadingTopics';
   static const chatMeLabel = 'chatMeLabel';

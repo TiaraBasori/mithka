@@ -15,7 +15,15 @@ const jaMessages = <String, String>{
   'accountBackupDeleteTitle': "保存済みセッションを削除しますか？",
   'accountBackupEmpty': "バックアップ済みのアカウントセッションはまだありません。",
   'accountBackupEnabled': "アカウントをバックアップ",
+  'accountBackupImported': "アカウントスロット {value1} にインポートしました",
   'accountBackupIOSOnly': "アカウントバックアップは iOS でのみ利用できます。",
+  'accountBackupLoadPyrogramConfirm': "セッションを読み込む",
+  'accountBackupLoadPyrogramMessage':
+      "Pyrogram 互換の Telegram セッション文字列を貼り付けます。セッションがまだ有効な場合、この端末にアカウントとしてインポートされます。",
+  'accountBackupLoadPyrogramPaste': "貼り付け",
+  'accountBackupLoadPyrogramPlaceholder': "Pyrogram セッション文字列",
+  'accountBackupLoadPyrogramSession': "Pyrogram セッションを読み込む",
+  'accountBackupLoadPyrogramTitle': "Pyrogram セッションを読み込む",
   'accountBackupNotice':
       "端末の Keychain には TDLib のセッションファイルのみ保存されます。メッセージデータベース、メディア、ログ、キャッシュはバックアップされません。この Keychain 項目を新しい端末へ移行するには、暗号化された端末バックアップから復元してください。",
   'accountBackupRestore': "復元",
@@ -231,6 +239,7 @@ const jaMessages = <String, String>{
   'chatListCreateChannelFailed': "チャンネルの作成に失敗しました",
   'chatListCreateGroup': "グループチャットを作成",
   'chatListMarkUnread': "未読にする",
+  'chatListNoChats': "チャットはまだありません",
   'chatListUnpin': "ピン留めを解除",
   'chatLoadingTopics': "トピックを読み込み中",
   'chatMeLabel': "自分",

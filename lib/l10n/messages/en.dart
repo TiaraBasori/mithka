@@ -15,7 +15,15 @@ const enMessages = <String, String>{
   'accountBackupDeleteTitle': "Delete saved session?",
   'accountBackupEmpty': "No account sessions are backed up yet.",
   'accountBackupEnabled': "Back up accounts",
+  'accountBackupImported': "Imported to account slot {value1}",
   'accountBackupIOSOnly': "Account backup is available on iOS only.",
+  'accountBackupLoadPyrogramConfirm': "Load Session",
+  'accountBackupLoadPyrogramMessage':
+      "Paste a Pyrogram-compatible Telegram session string. The session will be imported locally as an account if it is still valid.",
+  'accountBackupLoadPyrogramPaste': "Paste",
+  'accountBackupLoadPyrogramPlaceholder': "Pyrogram session string",
+  'accountBackupLoadPyrogramSession': "Load Pyrogram session",
+  'accountBackupLoadPyrogramTitle': "Load Pyrogram session",
   'accountBackupNotice':
       "Only the TDLib session file is stored in the device Keychain. Message databases, media, logs, and caches are not backed up. To transfer this Keychain item to a new device, restore from an encrypted device backup.",
   'accountBackupRestore': "Restore",
@@ -241,6 +249,7 @@ const enMessages = <String, String>{
   'chatListCreateChannelFailed': "Failed to create channel",
   'chatListCreateGroup': "Create group",
   'chatListMarkUnread': "Mark as unread",
+  'chatListNoChats': "No chats yet",
   'chatListUnpin': "Unpin",
   'chatLoadingTopics': "Loading topics",
   'chatMeLabel': "Me",

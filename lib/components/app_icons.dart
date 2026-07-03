@@ -143,6 +143,7 @@ class HeroAppIcons {
   static const triangleExclamation = AppIconData(
     HeroiconsOutline.exclamationTriangle,
   );
+  static const upload = AppIconData(HeroiconsOutline.arrowUpTray);
   static const userPlus = AppIconData(HeroiconsOutline.userPlus);
   static const users = AppIconData(HeroiconsOutline.userGroup);
   static const video = AppIconData(HeroiconsOutline.videoCamera);

@@ -250,9 +250,7 @@ class _MithkaAppState extends State<MithkaApp> {
               GlobalCupertinoLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
             ],
-            navigatorObservers: [
-              FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
-            ],
+            navigatorObservers: _analyticsNavigatorObservers(),
             theme: _themeData(Brightness.light, theme),
             darkTheme: _themeData(Brightness.dark, theme),
             themeMode: theme.themeMode,
@@ -300,6 +298,15 @@ class _MithkaAppState extends State<MithkaApp> {
         },
       ),
     );
+  }
+}
+
+List<NavigatorObserver> _analyticsNavigatorObservers() {
+  try {
+    if (Firebase.apps.isEmpty) return const [];
+    return [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)];
+  } catch (_) {
+    return const [];
   }
 }
 

@@ -10,7 +10,6 @@
 //  malformed events fall back to the raw string.
 //
 
-import 'dart:async';
 import 'dart:convert';
 import 'dart:isolate';
 

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -160,6 +160,42 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     }
   }
 
+  Future<void> _loadPyrogramSession() async {
+    if (_working) return;
+    final sessionString = await showCupertinoModalPopup<String>(
+      context: context,
+      barrierColor: const Color(0x66000000),
+      builder: (_) => const _PyrogramSessionImportSheet(),
+    );
+    if (sessionString == null || sessionString.trim().isEmpty || !mounted) {
+      return;
+    }
+
+    final auth = context.read<AuthManager>();
+    final accounts = context.read<AccountStore>();
+    setState(() => _working = true);
+    try {
+      final slot = await _service.restoreSessionString(sessionString);
+      auth.reloadAuthState();
+      await accounts.refresh();
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.accountBackupImported, {
+            'value1': '$slot',
+          }),
+        );
+        if (widget.closeAfterRestore) {
+          Navigator.of(context).pop();
+        }
+      }
+    } catch (error) {
+      if (mounted) showToast(context, error.toString());
+    } finally {
+      if (mounted) setState(() => _working = false);
+    }
+  }
+
   Future<void> _delete(AccountSessionBackup backup) async {
     final ok = await confirmDialog(
       context,
@@ -194,9 +230,9 @@ class _AccountBackupViewState extends State<AccountBackupView> {
           _close();
         }
       },
-      child: Scaffold(
+      child: CupertinoPageScaffold(
         backgroundColor: c.groupedBackground,
-        body: Column(
+        child: Column(
           children: [
             NavHeader(
               title: AppStrings.t(AppStringKeys.accountBackupTitle),
@@ -206,13 +242,16 @@ class _AccountBackupViewState extends State<AccountBackupView> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
                 children: [
-                  _enabledSwitch(),
                   if (widget.showCreateAction) ...[
+                    _enabledSwitch(),
                     const SizedBox(height: 12),
                     _actionButton(),
                     const SizedBox(height: 8),
                     _copyPyrogramButton(),
-                  ],
+                    const SizedBox(height: 8),
+                    _loadPyrogramButton(),
+                  ] else
+                    _loadPyrogramButton(),
                   const SizedBox(height: 12),
                   _notice(),
                   const SizedBox(height: 18),
@@ -220,7 +259,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
                   if (_loading)
                     const Padding(
                       padding: EdgeInsets.only(top: 24),
-                      child: Center(child: CircularProgressIndicator()),
+                      child: Center(child: CupertinoActivityIndicator()),
                     )
                   else if (!Platform.isIOS)
                     _empty(AppStringKeys.accountBackupIOSOnly)
@@ -263,7 +302,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
               const SizedBox(
                 width: 18,
                 height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
+                child: CupertinoActivityIndicator(radius: 9),
               )
             else
               AppIcon(
@@ -278,40 +317,64 @@ class _AccountBackupViewState extends State<AccountBackupView> {
   }
 
   Widget _copyPyrogramButton() {
+    return _tileButton(
+      icon: HeroAppIcons.code,
+      title: AppStringKeys.accountBackupCopyPyrogramSession,
+      onTap: _working || !Platform.isIOS ? null : _copyPyrogramSession,
+    );
+  }
+
+  Widget _loadPyrogramButton() {
+    return _tileButton(
+      icon: HeroAppIcons.upload,
+      title: AppStringKeys.accountBackupLoadPyrogramSession,
+      onTap: _working || !Platform.isIOS ? null : _loadPyrogramSession,
+    );
+  }
+
+  Widget _tileButton({
+    required AppIconData icon,
+    required String title,
+    required VoidCallback? onTap,
+  }) {
     final c = context.colors;
+    final enabled = onTap != null;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _working || !Platform.isIOS ? null : _copyPyrogramSession,
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            Icon(HeroAppIcons.code.data, size: 20, color: AppTheme.brand),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                AppStrings.t(AppStringKeys.accountBackupCopyPyrogramSession),
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+      onTap: onTap,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.45,
+        child: Container(
+          height: 52,
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Icon(icon.data, size: 20, color: AppTheme.brand),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title.l10n(context),
+                  style: TextStyle(fontSize: 16, color: c.textPrimary),
+                ),
               ),
-            ),
-            if (_working)
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            else
-              AppIcon(
-                HeroAppIcons.chevronRight,
-                size: 14,
-                color: c.textTertiary,
-              ),
-          ],
+              if (_working)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CupertinoActivityIndicator(radius: 9),
+                )
+              else
+                AppIcon(
+                  HeroAppIcons.chevronRight,
+                  size: 14,
+                  color: c.textTertiary,
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -405,6 +468,151 @@ class _AccountBackupViewState extends State<AccountBackupView> {
   }
 }
 
+class _PyrogramSessionImportSheet extends StatefulWidget {
+  const _PyrogramSessionImportSheet();
+
+  @override
+  State<_PyrogramSessionImportSheet> createState() =>
+      _PyrogramSessionImportSheetState();
+}
+
+class _PyrogramSessionImportSheetState
+    extends State<_PyrogramSessionImportSheet> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _paste() async {
+    final data = await Clipboard.getData(Clipboard.kTextPlain);
+    final text = data?.text?.trim();
+    if (text == null || text.isEmpty || !mounted) return;
+    setState(() => _controller.text = text);
+  }
+
+  void _submit() {
+    final value = _controller.text.trim();
+    if (value.isEmpty) return;
+    Navigator.of(context).pop(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final media = MediaQuery.of(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: Container(
+        decoration: BoxDecoration(
+          color: c.groupedBackground,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+        ),
+        padding: EdgeInsets.fromLTRB(16, 14, 16, media.padding.bottom + 16),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      AppStrings.t(
+                        AppStringKeys.accountBackupLoadPyrogramTitle,
+                      ),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: c.textPrimary,
+                      ),
+                    ),
+                  ),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: AppIcon(
+                        HeroAppIcons.circleXmark,
+                        size: 24,
+                        color: c.textTertiary,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                AppStrings.t(AppStringKeys.accountBackupLoadPyrogramMessage),
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: c.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                decoration: BoxDecoration(
+                  color: c.card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: c.divider),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: CupertinoTextField(
+                  controller: _controller,
+                  autofocus: true,
+                  minLines: 4,
+                  maxLines: 7,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  keyboardType: TextInputType.visiblePassword,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submit(),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  style: TextStyle(fontSize: 14, color: c.textPrimary),
+                  placeholder: AppStrings.t(
+                    AppStringKeys.accountBackupLoadPyrogramPlaceholder,
+                  ),
+                  placeholderStyle: TextStyle(
+                    fontSize: 14,
+                    color: c.textTertiary,
+                  ),
+                  decoration: null,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _SheetActionButton(
+                      onPressed: _paste,
+                      icon: HeroAppIcons.code,
+                      label: AppStringKeys.accountBackupLoadPyrogramPaste,
+                      filled: false,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _SheetActionButton(
+                      onPressed: _submit,
+                      label: AppStringKeys.accountBackupLoadPyrogramConfirm,
+                      filled: true,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BackupRow extends StatelessWidget {
   const _BackupRow({
     required this.backup,
@@ -450,18 +658,98 @@ class _BackupRow extends StatelessWidget {
                 ],
               ),
             ),
-            IconButton(
-              tooltip: AppStrings.t(AppStringKeys.accountBackupRestore),
-              onPressed: onRestore,
-              icon: AppIcon(HeroAppIcons.arrowUp, color: AppTheme.brand),
+            _BackupIconButton(
+              icon: HeroAppIcons.arrowUp,
+              color: AppTheme.brand,
+              onTap: onRestore,
             ),
-            IconButton(
-              tooltip: AppStrings.t(AppStringKeys.chatDelete),
-              onPressed: onDelete,
-              icon: const AppIcon(HeroAppIcons.trash, color: Color(0xFFFF3B30)),
+            _BackupIconButton(
+              icon: HeroAppIcons.trash,
+              color: const Color(0xFFFF3B30),
+              onTap: onDelete,
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SheetActionButton extends StatelessWidget {
+  const _SheetActionButton({
+    required this.onPressed,
+    required this.label,
+    required this.filled,
+    this.icon,
+  });
+
+  final VoidCallback onPressed;
+  final String label;
+  final bool filled;
+  final AppIconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final background = filled ? AppTheme.brand : c.card;
+    final foreground = filled ? const Color(0xFFFFFFFF) : AppTheme.brand;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onPressed,
+      child: Container(
+        height: 46,
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(23),
+          border: filled ? null : Border.all(color: AppTheme.brand),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              AppIcon(icon!, size: 18, color: foreground),
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Text(
+                label.l10n(context),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BackupIconButton extends StatelessWidget {
+  const _BackupIconButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final AppIconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(child: AppIcon(icon, size: 22, color: color)),
       ),
     );
   }

@@ -672,6 +672,21 @@ class _ChatListViewState extends State<ChatListView> {
               },
             );
           }
+          if (chats.isEmpty) {
+            final searchHeight = showSearch
+                ? AppSpacing.md + AppMetric.searchHeight + AppSpacing.sm
+                : 0.0;
+            return ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                if (showSearch) _searchPill(),
+                SizedBox(
+                  height: math.max(180, geo.maxHeight - searchHeight),
+                  child: _emptyChatList(),
+                ),
+              ],
+            );
+          }
           final hasArchive = _model.isAllFilter && _model.archived.isNotEmpty;
           final topAssistant =
               hasArchive && assistantPlacement == GroupAssistantPlacement.top;
@@ -867,6 +882,31 @@ class _ChatListViewState extends State<ChatListView> {
               onSelect: _selectFilter,
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyChatList() {
+    final c = context.colors;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 36),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppIcon(HeroAppIcons.message, size: 34, color: c.textTertiary),
+            const SizedBox(height: 12),
+            Text(
+              AppStringKeys.chatListNoChats.l10n(context),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 15,
+                height: 1.35,
+                color: c.textTertiary,
+              ),
+            ),
+          ],
         ),
       ),
     );

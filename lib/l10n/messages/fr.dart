@@ -15,8 +15,16 @@ const frMessages = <String, String>{
   'accountBackupDeleteTitle': "Supprimer la session enregistrée ?",
   'accountBackupEmpty': "Aucune session de compte n’est encore sauvegardée.",
   'accountBackupEnabled': "Sauvegarder les comptes",
+  'accountBackupImported': "Importé dans l’emplacement de compte {value1}",
   'accountBackupIOSOnly':
       "La sauvegarde des comptes est disponible uniquement sur iOS.",
+  'accountBackupLoadPyrogramConfirm': "Charger la session",
+  'accountBackupLoadPyrogramMessage':
+      "Collez une chaîne de session Telegram compatible Pyrogram. Si la session est encore valide, elle sera importée localement comme compte.",
+  'accountBackupLoadPyrogramPaste': "Coller",
+  'accountBackupLoadPyrogramPlaceholder': "Chaîne de session Pyrogram",
+  'accountBackupLoadPyrogramSession': "Charger la session Pyrogram",
+  'accountBackupLoadPyrogramTitle': "Charger la session Pyrogram",
   'accountBackupNotice':
       "Seul le fichier de session TDLib est stocké dans le Keychain de l’appareil. Les bases de données de messages, médias, journaux et caches ne sont pas sauvegardés. Pour transférer cet élément Keychain vers un nouvel appareil, restaurez une sauvegarde chiffrée de l’appareil.",
   'accountBackupRestore': "Restaurer",
@@ -249,6 +257,7 @@ const frMessages = <String, String>{
   'chatListCreateChannelFailed': "Échec de la création de la chaîne",
   'chatListCreateGroup': "Créer un groupe",
   'chatListMarkUnread': "Marquer comme non lu",
+  'chatListNoChats': "Aucune discussion pour le moment",
   'chatListUnpin': "Désépingler",
   'chatLoadingTopics': "Chargement des sujets",
   'chatMeLabel': "Moi",

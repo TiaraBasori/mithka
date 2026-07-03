@@ -14,7 +14,15 @@ const zhHantMessages = <String, String>{
   'accountBackupDeleteTitle': "要刪除已儲存的工作階段嗎？",
   'accountBackupEmpty': "尚未備份任何帳號工作階段。",
   'accountBackupEnabled': "備份帳號",
+  'accountBackupImported': "已匯入到帳號欄位 {value1}",
   'accountBackupIOSOnly': "帳號備份僅支援 iOS。",
+  'accountBackupLoadPyrogramConfirm': "載入工作階段",
+  'accountBackupLoadPyrogramMessage':
+      "貼上相容 Pyrogram 的 Telegram 工作階段字串。若工作階段仍有效，會在本機匯入為一個帳號。",
+  'accountBackupLoadPyrogramPaste': "貼上",
+  'accountBackupLoadPyrogramPlaceholder': "Pyrogram 工作階段字串",
+  'accountBackupLoadPyrogramSession': "載入 Pyrogram 工作階段",
+  'accountBackupLoadPyrogramTitle': "載入 Pyrogram 工作階段",
   'accountBackupNotice':
       "只會將 TDLib 工作階段檔案儲存在裝置 Keychain 中。訊息資料庫、媒體、記錄和快取不會備份。若要將此 Keychain 項目轉移到新裝置，請從加密的裝置備份還原。",
   'accountBackupRestore': "還原",
@@ -228,6 +236,7 @@ const zhHantMessages = <String, String>{
   'chatListCreateChannelFailed': "建立頻道失敗",
   'chatListCreateGroup': "建立群組",
   'chatListMarkUnread': "標示為未讀",
+  'chatListNoChats': "尚未有聊天",
   'chatListUnpin': "取消置頂",
   'chatLoadingTopics': "正在載入話題",
   'chatMeLabel': "我",

@@ -152,6 +152,11 @@ class AccountBackupService {
     return slot;
   }
 
+  Future<int> restoreSessionString(String sessionString) async {
+    TdClient.shared.validateSessionString(sessionString);
+    return TdClient.shared.restoreSessionSlot(sessionString);
+  }
+
   Future<void> delete(AccountSessionBackup backup) async {
     await deleteAccountId(backup.id);
   }

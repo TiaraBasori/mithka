@@ -15,8 +15,16 @@ const esMessages = <String, String>{
   'accountBackupDeleteTitle': "¿Eliminar sesión guardada?",
   'accountBackupEmpty': "Aún no hay sesiones de cuenta guardadas.",
   'accountBackupEnabled': "Guardar cuentas",
+  'accountBackupImported': "Importada en la ranura de cuenta {value1}",
   'accountBackupIOSOnly':
       "La copia de seguridad de cuentas solo está disponible en iOS.",
+  'accountBackupLoadPyrogramConfirm': "Cargar sesión",
+  'accountBackupLoadPyrogramMessage':
+      "Pega una cadena de sesión de Telegram compatible con Pyrogram. Si la sesión sigue siendo válida, se importará localmente como una cuenta.",
+  'accountBackupLoadPyrogramPaste': "Pegar",
+  'accountBackupLoadPyrogramPlaceholder': "Cadena de sesión de Pyrogram",
+  'accountBackupLoadPyrogramSession': "Cargar sesión de Pyrogram",
+  'accountBackupLoadPyrogramTitle': "Cargar sesión de Pyrogram",
   'accountBackupNotice':
       "Solo el archivo de sesión de TDLib se guarda en Keychain del dispositivo. No se guardan bases de datos de mensajes, medios, registros ni cachés. Para transferir este elemento de Keychain a un dispositivo nuevo, restaura desde una copia de seguridad cifrada del dispositivo.",
   'accountBackupRestore': "Restaurar",
@@ -242,6 +250,7 @@ const esMessages = <String, String>{
   'chatListCreateChannelFailed': "No se pudo crear el canal",
   'chatListCreateGroup': "Crear grupo",
   'chatListMarkUnread': "Marcar como no leído",
+  'chatListNoChats': "Aún no hay chats",
   'chatListUnpin': "Desfijar",
   'chatLoadingTopics': "Cargando temas",
   'chatMeLabel': "Yo",
