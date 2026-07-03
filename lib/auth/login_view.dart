@@ -36,11 +36,16 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
+  static const _resendCooldown = Duration(seconds: 60);
+
   final _phone = TextEditingController(text: '+');
   final _code = TextEditingController();
   final _password = ObscuringController();
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
+  Timer? _resendTimer;
+  DateTime? _resendAvailableAt;
+  int _resendRemainingSeconds = 0;
   ProxyConfig? _proxy;
   int _restorableBackupCount = 0;
 
@@ -60,6 +65,7 @@ class _LoginViewState extends State<LoginView> {
 
   @override
   void dispose() {
+    _resendTimer?.cancel();
     for (final c in [_phone, _code, _password, _firstName, _lastName]) {
       c.dispose();
     }
@@ -120,6 +126,7 @@ class _LoginViewState extends State<LoginView> {
     // True when the phone-entry step is on screen (the natural state, or because
     // the user chose to re-enter the number).
     final showingPhone = _forcePhone || auth.step is AuthWaitPhoneNumber;
+    _syncResendCountdown(auth);
     // A back affordance is useful once past the phone step, or whenever another
     // account exists to switch to.
     final canGoBack =
@@ -269,6 +276,7 @@ class _LoginViewState extends State<LoginView> {
     context.read<AuthManager>().cancelPendingAction();
     _code.clear();
     _password.clear();
+    _stopResendCountdown();
     setState(() => _forcePhone = true);
   }
 
@@ -727,26 +735,79 @@ class _LoginViewState extends State<LoginView> {
           _code.text.isNotEmpty,
           () => auth.submitCode(_code.text),
         ),
-        const SizedBox(height: 12),
-        OutlinedButton(
-          onPressed: auth.isWorking ? null : auth.resendCode,
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(44),
-            side: BorderSide(color: AppTheme.brand.withValues(alpha: 0.45)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
+        const SizedBox(height: 14),
+        _resendCodeAction(auth),
+      ],
+    );
+  }
+
+  void _syncResendCountdown(AuthManager auth) {
+    if (_forcePhone || auth.step is! AuthWaitCode) {
+      _stopResendCountdown();
+      return;
+    }
+    if (_resendAvailableAt == null) _startResendCountdown();
+  }
+
+  void _startResendCountdown({bool notify = false}) {
+    _resendTimer?.cancel();
+    _resendAvailableAt = DateTime.now().add(_resendCooldown);
+    _updateResendRemaining(notify: notify);
+    _resendTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _updateResendRemaining(notify: true),
+    );
+  }
+
+  void _stopResendCountdown() {
+    _resendTimer?.cancel();
+    _resendTimer = null;
+    _resendAvailableAt = null;
+    _resendRemainingSeconds = 0;
+  }
+
+  void _updateResendRemaining({required bool notify}) {
+    final availableAt = _resendAvailableAt;
+    if (availableAt == null) return;
+    final remainingMs = availableAt.difference(DateTime.now()).inMilliseconds;
+    final next = remainingMs <= 0 ? 0 : (remainingMs + 999) ~/ 1000;
+    if (next == _resendRemainingSeconds) return;
+    _resendRemainingSeconds = next;
+    if (next == 0) {
+      _resendTimer?.cancel();
+      _resendTimer = null;
+    }
+    if (notify && mounted) setState(() {});
+  }
+
+  Widget _resendCodeAction(AuthManager auth) {
+    final c = context.colors;
+    final canResend = _resendRemainingSeconds == 0 && !auth.isWorking;
+    final base = AppStrings.t(AppStringKeys.loginResendVerificationCode);
+    final title = _resendRemainingSeconds > 0
+        ? '$base (${_resendRemainingSeconds}s)'
+        : base;
+    return Center(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: canResend
+            ? () {
+                auth.resendCode();
+                _startResendCountdown(notify: true);
+              }
+            : null,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text(
-            AppStrings.t(AppStringKeys.loginResendVerificationCode),
+            title,
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w500,
-              color: auth.isWorking ? c.textTertiary : AppTheme.brand,
+              color: canResend ? c.textSecondary : c.textTertiary,
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 

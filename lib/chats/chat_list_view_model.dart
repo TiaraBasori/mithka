@@ -393,13 +393,18 @@ class ChatListViewModel extends ChangeNotifier {
     });
   }
 
-  void deleteChat(ChatSummary chat) {
-    _client.send({
+  Future<void> deleteChat(ChatSummary chat) async {
+    await _client.query({
       '@type': 'deleteChatHistory',
       'chat_id': chat.id,
       'remove_from_chat_list': true,
       'revoke': false,
     });
+  }
+
+  Future<void> leaveAndDeleteChat(ChatSummary chat) async {
+    await _client.query({'@type': 'leaveChat', 'chat_id': chat.id});
+    await deleteChat(chat);
   }
 
   void clearNotice() {

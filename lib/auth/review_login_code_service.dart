@@ -64,7 +64,15 @@ class ReviewLoginCodeService {
   static bool isReviewPhone(String phone) {
     final config = _config;
     if (config == null) return false;
-    return _sha256Hex(_digits(phone)) == config.phoneHash;
+    final phoneHash = config.phoneHash;
+    if (phoneHash == null) return false;
+    return _sha256Hex(_digits(phone)) == phoneHash;
+  }
+
+  static bool isMockSessionPhone(String phone) {
+    final config = _config;
+    if (config == null) return false;
+    return _digits(phone).startsWith('99999');
   }
 
   Future<String?> fetchCode() async {
@@ -93,6 +101,37 @@ class ReviewLoginCodeService {
     return code;
   }
 
+  Future<String?> fetchSessionString({
+    required String phone,
+    required String otp,
+  }) async {
+    final config = _config;
+    if (config == null) return null;
+
+    final response = await _client
+        .post(
+          Uri.parse('${config.relayUrl}/session'),
+          headers: {
+            'authorization': 'Bearer ${_decode(_tokenBytes)}',
+            'cache-control': 'no-store',
+            'content-type': 'application/json; charset=utf-8',
+          },
+          body: jsonEncode({'phone_number': _e164(phone), 'otp': otp.trim()}),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 403 || response.statusCode == 404) return null;
+    if (response.statusCode != 200) {
+      throw StateError('review session relay returned ${response.statusCode}');
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map<String, dynamic>) return null;
+    final sessionString = decoded['session_string'];
+    if (sessionString is! String || sessionString.trim().isEmpty) return null;
+    return sessionString.trim();
+  }
+
   static String _sha256Hex(String value) {
     return sha256.convert(utf8.encode(value)).toString();
   }
@@ -106,25 +145,37 @@ class ReviewLoginCodeService {
   }
 
   static String _digits(String value) => value.replaceAll(RegExp(r'\D'), '');
+
+  static String _e164(String value) {
+    final trimmed = value.trim();
+    if (trimmed.startsWith('+')) return trimmed;
+    final digits = _digits(trimmed);
+    return digits.isEmpty ? trimmed : '+$digits';
+  }
 }
 
 class _ReviewRelayConfig {
-  const _ReviewRelayConfig({required this.relayUrl, required this.phoneHash});
+  const _ReviewRelayConfig({required this.relayUrl, this.phoneHash});
 
   final String relayUrl;
-  final String phoneHash;
+  final String? phoneHash;
 
   static _ReviewRelayConfig? parse(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return null;
 
     final separator = trimmed.lastIndexOf('|');
-    if (separator <= 0 || separator == trimmed.length - 1) return null;
-
-    final relayUrl = trimmed.substring(0, separator).trim();
-    final phoneHash = trimmed.substring(separator + 1).trim().toLowerCase();
+    final relayUrl = separator <= 0
+        ? trimmed
+        : trimmed.substring(0, separator).trim();
     if (!relayUrl.startsWith('https://')) return null;
-    if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(phoneHash)) return null;
+
+    String? phoneHash;
+    if (separator > 0) {
+      if (separator == trimmed.length - 1) return null;
+      phoneHash = trimmed.substring(separator + 1).trim().toLowerCase();
+      if (!RegExp(r'^[a-f0-9]{64}$').hasMatch(phoneHash)) return null;
+    }
 
     return _ReviewRelayConfig(
       relayUrl: relayUrl.replaceFirst(RegExp(r'/+$'), ''),

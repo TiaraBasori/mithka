@@ -2077,7 +2077,7 @@ class _ChatViewState extends State<ChatView> {
             borderRadius: BorderRadius.circular(23),
           ),
           child: Text(
-            label,
+            label.l10n(context),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -2175,7 +2175,7 @@ class _ChatViewState extends State<ChatView> {
                         borderRadius: BorderRadius.circular(23),
                       ),
                       child: Text(
-                        label,
+                        label.l10n(context),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,

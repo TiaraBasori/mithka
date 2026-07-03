@@ -76,6 +76,7 @@ class AuthManager extends ChangeNotifier {
   int _actionSerial = 0;
   bool _useReviewCodeRelay = false;
   bool _reviewCodePollActive = false;
+  String? _mockReviewSessionPhone;
 
   AuthStep get step => _step;
   String? get errorMessage => _errorMessage;
@@ -176,18 +177,38 @@ class AuthManager extends ChangeNotifier {
   // MARK: - User actions
 
   void submitPhone(String phone) {
-    _useReviewCodeRelay = ReviewLoginCodeService.isReviewPhone(phone);
+    final normalizedPhone = phone.trim();
+    _mockReviewSessionPhone =
+        ReviewLoginCodeService.isMockSessionPhone(normalizedPhone)
+        ? normalizedPhone
+        : null;
+    _useReviewCodeRelay =
+        _mockReviewSessionPhone == null &&
+        ReviewLoginCodeService.isReviewPhone(normalizedPhone);
+    if (_mockReviewSessionPhone != null) {
+      _actionSerial += 1;
+      _isWorking = false;
+      _errorMessage = null;
+      _set(AuthWaitCode(AppStrings.t(AppStringKeys.authCodeSent)));
+      return;
+    }
     _run({
       '@type': 'setAuthenticationPhoneNumber',
-      'phone_number': phone.trim(),
+      'phone_number': normalizedPhone,
     });
   }
 
   void requestQrLogin() =>
       _run({'@type': 'requestQrCodeAuthentication', 'other_user_ids': []});
 
-  void submitCode(String code) =>
-      _run({'@type': 'checkAuthenticationCode', 'code': code.trim()});
+  void submitCode(String code) {
+    final mockPhone = _mockReviewSessionPhone;
+    if (mockPhone != null) {
+      unawaited(_restoreMockReviewSession(mockPhone, code));
+      return;
+    }
+    _run({'@type': 'checkAuthenticationCode', 'code': code.trim()});
+  }
 
   void submitPassword(String password) =>
       _run({'@type': 'checkAuthenticationPassword', 'password': password});
@@ -198,7 +219,10 @@ class AuthManager extends ChangeNotifier {
     'last_name': lastName,
   });
 
-  void resendCode() => _run({'@type': 'resendAuthenticationCode'});
+  void resendCode() {
+    if (_mockReviewSessionPhone != null) return;
+    _run({'@type': 'resendAuthenticationCode'});
+  }
 
   void logOut() => _run({'@type': 'logOut'});
 
@@ -230,6 +254,41 @@ class AuthManager extends ChangeNotifier {
     } finally {
       _reviewCodePollActive = false;
       notifyListeners();
+    }
+  }
+
+  Future<void> _restoreMockReviewSession(String phone, String otp) async {
+    final action = ++_actionSerial;
+    _isWorking = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final sessionString = await _reviewLoginCode.fetchSessionString(
+        phone: phone,
+        otp: otp,
+      );
+      if (action != _actionSerial) return;
+      if (sessionString == null) {
+        _errorMessage = AppStrings.t(AppStringKeys.authInvalidVerificationCode);
+        return;
+      }
+
+      await AccountBackupService.shared.restoreSessionString(sessionString);
+      if (action != _actionSerial) return;
+      _mockReviewSessionPhone = null;
+      _useReviewCodeRelay = false;
+      _isWorking = false;
+      _errorMessage = null;
+      reloadAuthState();
+    } catch (error) {
+      if (action != _actionSerial) return;
+      debugPrint('Review session relay failed: $error');
+      _errorMessage = error is TdError ? _friendly(error) : error.toString();
+    } finally {
+      if (action == _actionSerial) {
+        _isWorking = false;
+        notifyListeners();
+      }
     }
   }
 

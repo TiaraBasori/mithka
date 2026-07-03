@@ -17,6 +17,7 @@ import 'package:provider/provider.dart';
 
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
+import '../components/confirm_dialog.dart';
 import '../components/drawer_controller.dart' as dc;
 import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
@@ -792,36 +793,78 @@ class _ChatListViewState extends State<ChatListView> {
   }
 
   Widget _swipeRow(ChatSummary chat) {
+    final actions = chat.isPinned
+        ? [
+            SwipeActionItem(
+              title: AppStringKeys.chatListMarkUnread,
+              color: const Color(0xFFF5A623),
+              onTap: () => _model.markUnread(chat),
+            ),
+            SwipeActionItem(
+              title: AppStringKeys.chatListUnpin,
+              color: const Color(0xFF8E8E93),
+              onTap: () => _model.togglePin(chat),
+            ),
+          ]
+        : [
+            SwipeActionItem(
+              title: AppStringKeys.chatInfoPin,
+              color: const Color(0xFF3C8CF0),
+              onTap: () => _model.togglePin(chat),
+            ),
+            SwipeActionItem(
+              title: AppStringKeys.chatListMarkUnread,
+              color: const Color(0xFFF5A623),
+              onTap: () => _model.markUnread(chat),
+            ),
+            SwipeActionItem(
+              title: AppStringKeys.chatDelete,
+              color: const Color(0xFFFA5151),
+              onTap: () => _confirmDeleteChat(chat),
+            ),
+          ];
     return ChatSwipeRow(
       rowId: chat.id,
       openRowId: _openSwipeChat,
       onOpenChanged: (id) => setState(() => _openSwipeChat = id),
       onTap: () => _openChat(chat),
-      actions: [
-        SwipeActionItem(
-          title: chat.isPinned
-              ? AppStringKeys.chatListUnpin
-              : AppStringKeys.chatInfoPin,
-          color: const Color(0xFF3C8CF0),
-          onTap: () => _model.togglePin(chat),
-        ),
-        SwipeActionItem(
-          title: AppStringKeys.chatListMarkUnread,
-          color: const Color(0xFFF5A623),
-          onTap: () => _model.markUnread(chat),
-        ),
-        SwipeActionItem(
-          title: AppStringKeys.chatDelete,
-          color: const Color(0xFFFA5151),
-          onTap: () => _model.deleteChat(chat),
-        ),
-      ],
+      actions: actions,
       child: ChatRowView(
         chat: chat,
         selected: widget.selectedChatId == chat.id,
         onClearUnread: () => _model.markRead(chat),
       ),
     );
+  }
+
+  Future<void> _confirmDeleteChat(ChatSummary chat) async {
+    final isGroup = chat.kind == ChatKind.group;
+    final confirmed = await confirmDialog(
+      context,
+      title: isGroup ? AppStringKeys.chatInfoLeaveGroup : 'Delete chat?',
+      message: isGroup
+          ? 'Leave "${chat.title}" and delete its chat history from this device?'
+          : AppStrings.t(AppStringKeys.chatInfoClearHistoryDescription),
+      confirmText: isGroup
+          ? AppStringKeys.chatInfoLeaveGroup
+          : AppStringKeys.chatDelete,
+      destructive: true,
+    );
+    if (!mounted || !confirmed) return;
+    try {
+      if (isGroup) {
+        await _model.leaveAndDeleteChat(chat);
+      } else {
+        await _model.deleteChat(chat);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      final message = error is TdError ? error.message : error.toString();
+      showToast(
+        context,
+        message.trim().isEmpty ? AppStringKeys.chatDelete : message,
+      );
+    }
   }
 
   Widget _assistantRow() {
