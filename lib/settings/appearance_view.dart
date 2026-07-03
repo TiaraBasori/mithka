@@ -22,6 +22,7 @@ import '../theme/emoji_font_catalog.dart';
 import '../theme/system_font_catalog.dart';
 import '../theme/theme_controller.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/l10n/preview_texts.dart';
 
 class AppearanceView extends StatelessWidget {
   const AppearanceView({super.key});

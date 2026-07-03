@@ -747,7 +747,7 @@ class ChatListViewModel extends ChangeNotifier {
     if (summary.kind == ChatKind.group &&
         lastMessage?.boolean('is_outgoing') == true) {
       _lastSenderKeys[id] = 'self';
-      _setLastSender('我', id);
+      _setLastSender(AppStrings.t(AppStringKeys.chatMeLabel), id);
       return;
     }
     final sender = lastMessage?.obj('sender_id');

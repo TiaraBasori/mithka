@@ -139,7 +139,7 @@ class _ApiCredentialsViewState extends State<ApiCredentialsView> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                         child: Text(
-                          '默认关闭。开启后需要填写你自己的 Telegram 客户端 API，保存后在下次启动或重新登录时生效；未填写完整时不会启用加速。',
+                          AppStrings.t(AppStringKeys.apiCredentialsDescription),
                           style: TextStyle(
                             fontSize: 13,
                             color: c.textSecondary,

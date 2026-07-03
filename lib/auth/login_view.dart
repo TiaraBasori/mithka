@@ -795,7 +795,12 @@ class _LoginViewState extends State<LoginView> {
             style: TextStyle(fontSize: 13, color: c.textSecondary),
           ),
           const SizedBox(height: 18),
-          _primaryButton(auth, '配置自定义 API', true, () => _openApiSetup(auth)),
+          _primaryButton(
+            auth,
+            AppStrings.t(AppStringKeys.loginConfigureCustomApi),
+            true,
+            () => _openApiSetup(auth),
+          ),
         ],
       ),
     );

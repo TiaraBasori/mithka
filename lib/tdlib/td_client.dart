@@ -140,7 +140,13 @@ class TdClient {
         debugName: 'TDLibReceive',
       );
       fromIsolate.listen((message) {
-        if (message is String) _routeRaw(message);
+        // The isolate ships already-decoded maps so JSON parsing stays off
+        // the UI thread; the String branch is a safety net.
+        if (message is Map<String, dynamic>) {
+          _route(message);
+        } else if (message is String) {
+          _routeRaw(message);
+        }
       });
     }
   }
@@ -577,10 +583,19 @@ class TdClient {
 
 /// Runs on its own isolate: opens its own handle to the (process-global)
 /// tdjson library and pumps every incoming event back to the main isolate.
+/// Events are decoded here so the main isolate never pays for JSON parsing
+/// during TDLib bursts (login sync, file progress, …).
 void _receiveEntry(SendPort toMain) {
   final bindings = TdBindings.open();
   while (true) {
     final event = bindings.receive(1.0);
-    if (event != null) toMain.send(event);
+    if (event == null) continue;
+    try {
+      final decoded = jsonDecode(event);
+      if (decoded is Map<String, dynamic>) toMain.send(decoded);
+    } catch (_) {
+      // Malformed event; let the main isolate decide (it logs via _routeRaw).
+      toMain.send(event);
+    }
   }
 }

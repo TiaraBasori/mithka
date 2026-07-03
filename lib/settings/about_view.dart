@@ -99,7 +99,7 @@ class _AboutViewState extends State<AboutView> {
                     children: [
                       _AboutLinkRow(
                         icon: HeroAppIcons.globe.data,
-                        title: 'Website',
+                        title: AppStrings.t(AppStringKeys.aboutWebsite),
                         value: 'mithka.ieb.app',
                         onTap: () => openLink(context, _websiteUrl),
                       ),

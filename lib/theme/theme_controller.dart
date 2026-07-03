@@ -18,6 +18,7 @@ import 'app_theme.dart';
 import 'emoji_font_catalog.dart';
 import 'system_font_catalog.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/l10n/preview_texts.dart';
 
 enum AppearanceMode {
   system(AppStringKeys.appLocaleFollowSystem, HeroAppIcons.circleHalfStroke),
@@ -81,9 +82,6 @@ enum GroupAssistantPlacement {
 
   IconData get icon => _icon.data;
 }
-
-const appFontPreviewText = 'Aa 123 中文 日本語 한국어';
-const appMonospaceFontPreviewText = 'final count = 123;';
 
 enum AppFontChoice {
   system(
