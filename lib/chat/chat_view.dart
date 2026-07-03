@@ -108,7 +108,6 @@ class _ChatViewState extends State<ChatView> {
   String _reactionTab = 'standard'; // 'standard' or a custom-emoji pack id
   int _lastCount = 0;
   bool _didInitialScroll = false; // one-time entry positioning has run
-  bool _initialPaintReady = false; // hide first layout until entry scroll lands
   bool _showJumpDown = false; // scrolled up → show jump-to-bottom button
   bool _bannerDismissed = false; // "N条新消息" banner dismissed / caught up
   Timer? _bannerTimer; // auto-hides the banner a few seconds after it appears
@@ -134,6 +133,8 @@ class _ChatViewState extends State<ChatView> {
   /// Gap (seconds) between messages that triggers a fresh time separator.
   static const _separatorGap = 300;
   static const _initialBottomScrollOffset = 1000000000.0;
+  static const _initialTargetAlignment = 0.30;
+  static const _initialUnreadAlignment = 0.12;
   static OverlayEntry? _globalPictureInPictureVideo;
 
   double _messageMediaMaxWidth([double? chatWidth]) {
@@ -405,18 +406,18 @@ class _ChatViewState extends State<ChatView> {
     final target = _vm.consumePendingScrollToId();
     if (target != null) {
       _scrollTargetId = target;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _ensureMessageVisible(target, instant: !_didInitialScroll);
-      });
+      if (_didInitialScroll) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _ensureMessageVisible(target);
+        });
+      }
     }
     // Telegram-style entry: once the initial history (incl. the unread
     // boundary) is loaded, jump to the first unread message — or stay at the
     // bottom when caught up. Runs exactly once per chat open.
     if (!_didInitialScroll && _vm.initialLoaded) {
       _didInitialScroll = true;
-      if (_vm.messages.isEmpty) {
-        _initialPaintReady = true;
-      } else {
+      if (_vm.messages.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           unawaited(_completeInitialScroll());
         });
@@ -443,56 +444,235 @@ class _ChatViewState extends State<ChatView> {
     (m) => !m.isOutgoing && !m.isService && m.id > _vm.lastReadInboxId,
   );
 
-  /// One-time positioning when a chat opens: either land on the latest message
-  /// per appearance settings, or on the first unread message (the "以下为新消息"
-  /// divider near the top). Because the list is lazily built, the divider's
-  /// context may not exist yet — jump approximately first to build it, then snap
-  /// precisely.
+  /// One-time positioning when a chat opens. This must never block painting:
+  /// a hidden transcript reads as a black screen in dark mode. We jump to the
+  /// deterministic estimate immediately and then do one zero-duration correction
+  /// after layout, without waiting to reveal the UI.
   Future<void> _completeInitialScroll() async {
-    await _initialScroll();
+    unawaited(_positionInitialTranscript());
     _scheduleShortTranscriptFill();
-    if (mounted && !_initialPaintReady) {
-      setState(() => _initialPaintReady = true);
-    }
   }
 
-  Future<void> _initialScroll() async {
+  Future<void> _positionInitialTranscript() async {
     if (!_scroll.hasClients) return;
-    final target = widget.initialMessageId;
+    _jumpToInitialEstimate();
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !_scroll.hasClients) return;
+    await _correctInitialPosition();
+  }
+
+  void _jumpToInitialEstimate() {
+    if (!_scroll.hasClients || _vm.messages.isEmpty) return;
+    final position = _initialPositionEstimate();
+    if (position == null) return;
+    _scroll.jumpTo(position);
+  }
+
+  double? _initialPositionEstimate() {
+    if (!_scroll.hasClients || _vm.messages.isEmpty) return null;
+    final max = _scroll.position.maxScrollExtent;
+    final target = widget.initialMessageId ?? _scrollTargetId;
     if (target != null) {
       _scrollTargetId = target;
-      await _ensureMessageVisible(target, instant: true);
-      return;
+      return _estimateMessageOffset(target, _initialTargetAlignment);
     }
     if (_vm.anchoredHistory) {
-      return;
+      return null;
     }
     if (_openAtLatest) {
-      _scrollToBottom();
-      unawaited(_vm.markLoadedMessagesRead());
-      return;
+      return max;
     }
     final i = _firstUnreadIndex();
     final boundaryLoaded = _isUnreadBoundaryLoaded();
     if (_vm.unreadCount <= 0 || i < 0 || !boundaryLoaded) {
       if (_vm.unreadCount > 0 && _vm.lastReadInboxId > 0) {
-        await _scrollToMessage(_vm.lastReadInboxId);
-        return;
+        _scrollTargetId = _vm.lastReadInboxId;
+        return _estimateMessageOffset(
+          _vm.lastReadInboxId,
+          _initialTargetAlignment,
+        );
       }
-      _scrollToBottom();
-      return;
+      return max;
     }
-    final max = _scroll.position.maxScrollExtent;
-    final approx = (max * (i / _vm.messages.length)).clamp(0.0, max);
-    _scroll.jumpTo(approx);
-    final ctx = _unreadKey.currentContext;
-    if (ctx != null) {
-      await Scrollable.ensureVisible(
-        ctx,
-        alignment: 0.12, // divider just below the top of the viewport
-        duration: Duration.zero,
+    return _estimateMessageOffset(
+      _vm.messages[i].id,
+      _initialUnreadAlignment,
+      beforeUnreadDivider: true,
+    );
+  }
+
+  Future<bool> _correctInitialPosition() async {
+    if (!_scroll.hasClients) return false;
+    final target = widget.initialMessageId ?? _scrollTargetId;
+    if (target != null) {
+      _scrollTargetId = target;
+      final corrected = await _ensureKeyVisible(
+        _targetKey,
+        alignment: _initialTargetAlignment,
       );
+      if (corrected && mounted && _scrollTargetId == target) {
+        setState(() => _scrollTargetId = null);
+      }
+      return corrected;
     }
+    if (_vm.anchoredHistory) return true;
+    if (_openAtLatest) {
+      _scrollToBottom();
+      unawaited(_vm.markLoadedMessagesRead());
+      return true;
+    }
+    final i = _firstUnreadIndex();
+    final boundaryLoaded = _isUnreadBoundaryLoaded();
+    if (_vm.unreadCount > 0 && i >= 0 && boundaryLoaded) {
+      final corrected = await _ensureKeyVisible(
+        _unreadKey,
+        alignment: _initialUnreadAlignment,
+      );
+      if (corrected) return true;
+      return false;
+    }
+    if (_vm.unreadCount > 0 && _vm.lastReadInboxId > 0) {
+      _scrollTargetId = _vm.lastReadInboxId;
+      final corrected = await _ensureKeyVisible(
+        _targetKey,
+        alignment: _initialTargetAlignment,
+      );
+      if (corrected) return true;
+    }
+    _scrollToBottom();
+    return true;
+  }
+
+  Future<bool> _ensureKeyVisible(
+    GlobalKey key, {
+    required double alignment,
+  }) async {
+    final ctx = key.currentContext;
+    if (ctx == null || !ctx.mounted) return false;
+    await Scrollable.ensureVisible(
+      ctx,
+      alignment: alignment,
+      duration: Duration.zero,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+    );
+    return true;
+  }
+
+  double? _estimateMessageOffset(
+    int messageId,
+    double alignment, {
+    bool beforeUnreadDivider = false,
+  }) {
+    final entries = _transcriptEntries(
+      context.read<ThemeController>().groupImageMessages,
+    );
+    if (entries.isEmpty || !_scroll.hasClients) return null;
+    final entryIndex = entries.indexWhere(
+      (entry) => entry.messages.any((message) => message.id == messageId),
+    );
+    if (entryIndex < 0) return null;
+    final estimatedContentExtent = _estimatedTranscriptExtent(entries);
+    if (estimatedContentExtent <= 0) return null;
+    var before = 8.0; // ListView vertical padding top
+    for (var i = 0; i < entryIndex; i++) {
+      before += _estimatedEntryExtent(entries[i]);
+    }
+    final entry = entries[entryIndex];
+    final messages = _transcriptCacheMessages ?? _vm.messages;
+    if (!beforeUnreadDivider &&
+        _needsUnreadDivider(entry.startIndex, messages: messages)) {
+      before += _estimatedUnreadDividerExtent;
+    }
+    final viewport = _scroll.position.viewportDimension;
+    final estimatedScrollable = math.max(1.0, estimatedContentExtent - viewport);
+    final actualScrollable = math.max(1.0, _scroll.position.maxScrollExtent);
+    final scale = actualScrollable / estimatedScrollable;
+    final raw = (before - viewport * alignment) * scale;
+    return raw.clamp(0.0, _scroll.position.maxScrollExtent);
+  }
+
+  double _estimatedTranscriptExtent(List<_TranscriptEntry> entries) {
+    var extent = 16.0; // ListView vertical padding
+    for (final entry in entries) {
+      extent += _estimatedEntryExtent(entry);
+    }
+    return extent;
+  }
+
+  static const _estimatedUnreadDividerExtent = 33.0;
+  static const _estimatedSeparatorExtent = 34.0;
+
+  double _estimatedEntryExtent(_TranscriptEntry entry) {
+    var extent = 0.0;
+    final messages = _transcriptCacheMessages ?? _vm.messages;
+    if (_needsUnreadDivider(entry.startIndex, messages: messages)) {
+      extent += _estimatedUnreadDividerExtent;
+    }
+    if (_needsSeparator(entry.startIndex, messages: messages)) {
+      extent += _estimatedSeparatorExtent;
+    }
+    final first = entry.first;
+    if (first.isService) return extent + 38;
+    if (entry.isImageGroup) {
+      return extent + _estimatedImageGroupExtent(entry);
+    }
+    return extent + _estimatedMessageExtent(first);
+  }
+
+  double _estimatedImageGroupExtent(_TranscriptEntry entry) {
+    final width = MediaQuery.sizeOf(context).width;
+    final maxWidth = _messageMediaMaxWidth(width);
+    final layout = buildTelegramMediaAlbumLayout(
+      items: [
+        for (final message in entry.messages.take(9))
+          MediaAlbumItem(
+            width: message.imageWidth,
+            height: message.imageHeight,
+          ),
+      ],
+      maxWidth: maxWidth - 8,
+      gap: 4,
+      minSingleHeight: 120,
+      maxSingleHeight: 300,
+      minRowHeight: 82,
+      maxRowHeight: 230,
+    );
+    final hasCaption = entry.messages.any((m) => m.text.trim().isNotEmpty);
+    return layout.height + (hasCaption ? 38 : 0) + 16;
+  }
+
+  double _estimatedMessageExtent(ChatMessage message) {
+    if (message.animatedSticker != null || message.videoSticker != null) {
+      return 180;
+    }
+    if (message.image != null || message.video != null) {
+      final h = message.imageHeight ?? 180;
+      final w = message.imageWidth ?? 180;
+      final scaled = w <= 0 ? 180.0 : _messageMediaMaxWidth() * h / w;
+      return scaled.clamp(120.0, 310.0) + 16;
+    }
+    if (message.document != null ||
+        message.music != null ||
+        message.voice != null ||
+        message.location != null ||
+        message.isCall) {
+      return 78;
+    }
+    if (message.diceEmoji != null || message.stickerFileId != null) {
+      return 94;
+    }
+    final text = message.text.trim();
+    final width = MediaQuery.sizeOf(context).width;
+    final charsPerLine = math.max(10, (width * 0.52 / 15).floor());
+    final lines = text.isEmpty
+        ? 1
+        : (text.length / charsPerLine).ceil().clamp(1, 8);
+    final sender = _vm.isGroup && !message.isOutgoing ? 18.0 : 0.0;
+    final reply = message.replyToMessageId != null ? 42.0 : 0.0;
+    final buttons = message.buttonRows.isNotEmpty
+        ? message.buttonRows.length * 38.0
+        : 0.0;
+    return 30 + sender + reply + lines * 22.0 + buttons;
   }
 
   void _scrollToBottom({bool settle = false, bool forceSettle = false}) {
@@ -803,14 +983,16 @@ class _ChatViewState extends State<ChatView> {
     super.dispose();
   }
 
-  bool _needsUnreadDivider(int index) {
+  bool _needsUnreadDivider(int index, {List<ChatMessage>? messages}) {
+    messages ??= _vm.messages;
     if (_vm.unreadCount <= 0) return false;
-    final m = _vm.messages[index];
+    if (index < 0 || index >= messages.length) return false;
+    final m = messages[index];
     if (m.isOutgoing || m.isService || m.id <= _vm.lastReadInboxId) {
       return false;
     }
     if (index == 0) return true;
-    return _vm.messages[index - 1].id <= _vm.lastReadInboxId;
+    return messages[index - 1].id <= _vm.lastReadInboxId;
   }
 
   Widget _unreadDivider() {
@@ -833,10 +1015,11 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  bool _needsSeparator(int index) {
+  bool _needsSeparator(int index, {List<ChatMessage>? messages}) {
+    messages ??= _vm.messages;
+    if (index < 0 || index >= messages.length) return false;
     if (index == 0) return true;
-    return _vm.messages[index].date - _vm.messages[index - 1].date >
-        _separatorGap;
+    return messages[index].date - messages[index - 1].date > _separatorGap;
   }
 
   bool _isRepeatTail(int index) {
@@ -1491,10 +1674,8 @@ class _ChatViewState extends State<ChatView> {
                 child: Column(
                   children: [
                     _isSelecting ? _selectionHeader() : _header(),
-                    Expanded(child: _initialVisibility(_transcriptLayer())),
-                    _initialVisibility(
-                      _isSelecting ? _selectionActionBar() : _composerArea(),
-                    ),
+                    Expanded(child: _transcriptLayer()),
+                    _isSelecting ? _selectionActionBar() : _composerArea(),
                   ],
                 ),
               ),
@@ -1653,11 +1834,6 @@ class _ChatViewState extends State<ChatView> {
         }),
       );
     }
-  }
-
-  Widget _initialVisibility(Widget child) {
-    if (_initialPaintReady) return child;
-    return Opacity(opacity: 0, child: IgnorePointer(child: child));
   }
 
   Widget _transcriptLayer() {
@@ -2591,6 +2767,7 @@ class _ChatViewState extends State<ChatView> {
   Widget _transcript() {
     final groupImages = context.watch<ThemeController>().groupImageMessages;
     final entries = _transcriptEntries(groupImages);
+    final messages = _transcriptCacheMessages ?? _vm.messages;
     return Container(
       color: context.colors.chatBackground,
       child: ListView.builder(
@@ -2620,9 +2797,9 @@ class _ChatViewState extends State<ChatView> {
                 : null,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (_needsUnreadDivider(messageIndex))
+              if (_needsUnreadDivider(messageIndex, messages: messages))
                 KeyedSubtree(key: _unreadKey, child: _unreadDivider()),
-              if (_needsSeparator(messageIndex))
+              if (_needsSeparator(messageIndex, messages: messages))
                 TimeSeparator(unix: message.date),
               if (message.isService)
                 SystemBanner(text: message.text)
@@ -2784,7 +2961,10 @@ class _ChatViewState extends State<ChatView> {
       var j = i + 1;
       while (j < messages.length) {
         final next = messages[j];
-        if (_needsSeparator(j) || _needsUnreadDivider(j)) break;
+        if (_needsSeparator(j, messages: messages) ||
+            _needsUnreadDivider(j, messages: messages)) {
+          break;
+        }
         if (!_sameImageGroup(group.last, next)) break;
         group.add(next);
         j++;
