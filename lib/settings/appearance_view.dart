@@ -1333,9 +1333,6 @@ Future<Set<String>> _cachedGoogleFontFamilies() async {
   return cached;
 }
 
-const _latinFontPreview = 'Aa 123';
-final _cjkFontPreview = AppStrings.t(AppStringKeys.appearanceCjkFontPreview);
-
 List<String> _fontTitleFallback() {
   return switch (defaultTargetPlatform) {
     TargetPlatform.iOS || TargetPlatform.macOS => const [
@@ -1366,63 +1363,7 @@ TextStyle _fontTitleStyle(
   return base.copyWith(fontFamily: family, fontFamilyFallback: fallback);
 }
 
-String _fontPreviewSample(String family, {String? label, bool cjk = false}) =>
-    cjk || _isCjkFontFamily(family, label: label)
-    ? _cjkFontPreview
-    : _latinFontPreview;
-
-bool _isCjkFontFamily(String family, {String? label}) {
-  final value = '${family.toLowerCase()} ${(label ?? '').toLowerCase()}';
-  const markers = [
-    '[cn]',
-    '[hk]',
-    '[tw]',
-    '[jp]',
-    '[kr]',
-    ' cjk',
-    'cjk ',
-    'sc',
-    'tc',
-    'hk',
-    'jp',
-    'kr',
-    'pingfang',
-    'hiragino',
-    'heiti',
-    'songti',
-    'kaiti',
-    'yahei',
-    'simsun',
-    'simhei',
-    'mingliu',
-    'meiryo',
-    'yu gothic',
-    'yu mincho',
-    'source han',
-    'noto sans sc',
-    'noto sans tc',
-    'noto sans hk',
-    'noto sans jp',
-    'noto serif sc',
-    'noto serif tc',
-    'noto serif hk',
-    'noto serif jp',
-    'line seed sans jp',
-    'lxgw',
-    'zcool',
-    'klee',
-    'dotgothic',
-    'm plus',
-    'stick',
-    'chocolate classical',
-  ];
-  return markers.any((marker) {
-    if (marker.length == 2) {
-      return RegExp('(^|[^a-z])$marker([^a-z]|\$)').hasMatch(value);
-    }
-    return value.contains(marker);
-  });
-}
+String _fontPreviewSample() => appFontPreviewText;
 
 int _popularSystemFontPriority(String family) {
   final popular = switch (defaultTargetPlatform) {
@@ -1688,7 +1629,7 @@ class TextFontView extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    _fontPreviewSample(family, label: displayFamily),
+                    _fontPreviewSample(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: previewStyle(
@@ -2185,7 +2126,7 @@ class _FontAddViewState extends State<FontAddView> {
         _FontCandidate(
           label: font,
           family: font,
-          preview: _fontPreviewSample(font),
+          preview: _fontPreviewSample(),
           source: AppStringKeys.appearanceSystem,
           priority: _popularSystemFontPriority(font),
         ),
@@ -2193,7 +2134,7 @@ class _FontAddViewState extends State<FontAddView> {
         _FontCandidate(
           label: family,
           family: family,
-          preview: _fontPreviewSample(family),
+          preview: _fontPreviewSample(),
           source: 'Google',
           google: true,
           downloaded: cachedGoogleFamilies.contains(family),
@@ -2579,7 +2520,7 @@ class _MonospaceFontPickerViewState extends State<MonospaceFontPickerView> {
         _MonoFontCandidate(
           label: family,
           family: family,
-          preview: 'final count = 123;',
+          preview: appMonospaceFontPreviewText,
           source: AppStringKeys.appearanceSystem,
           priority: _systemMonospacePriority(family),
         ),
@@ -2645,7 +2586,7 @@ class _MonospaceFontPickerViewState extends State<MonospaceFontPickerView> {
         _MonoFontCandidate(
           label: family,
           family: family,
-          preview: 'final count = 123;',
+          preview: appMonospaceFontPreviewText,
           source: 'Google',
           google: true,
           downloaded: cachedGoogleFamilies.contains(family),

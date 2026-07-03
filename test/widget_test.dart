@@ -1,5 +1,8 @@
 // Unit tests for the ported pure logic (date formatting, JSON helpers, parsing).
 
+import 'dart:ui' as ui;
+import 'dart:io';
+
 import 'package:mithka/tdlib/json_helpers.dart';
 import 'package:mithka/tdlib/td_models.dart';
 import 'package:mithka/l10n/app_locale_controller.dart';
@@ -12,8 +15,10 @@ import 'package:mithka/theme/date_text.dart';
 import 'package:mithka/theme/emoji_font_catalog.dart';
 import 'package:mithka/theme/theme_controller.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -28,35 +33,38 @@ void main() {
       expect(DateText.separatorLabel(0), '');
     });
 
-    test('localized labels do not expose l10n keys', () {
+    test('labels use locale-independent numeric format', () {
       Intl.defaultLocale = 'zh_Hans';
       final now = DateTime.now();
+      String two(int value) => value.toString().padLeft(2, '0');
+      String expectedDate(DateTime value) => value.year == now.year
+          ? '${two(value.month)}/${two(value.day)}'
+          : '${value.year}/${two(value.month)}/${two(value.day)}';
+
+      final today = DateTime(now.year, now.month, now.day, 9, 5);
       final yesterday = DateTime(
         now.year,
         now.month,
         now.day,
       ).subtract(const Duration(days: 1)).add(const Duration(minutes: 38));
-      final earlierThisWeek = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).subtract(const Duration(days: 2)).add(const Duration(hours: 9));
+      final previousYear = DateTime(now.year - 1, 6, 4, 7, 8);
 
+      expect(DateText.listLabel(today.millisecondsSinceEpoch ~/ 1000), '09:05');
       expect(
         DateText.listLabel(yesterday.millisecondsSinceEpoch ~/ 1000),
-        isNot(contains('themeDateTextText')),
-      );
-      expect(
-        DateText.listLabel(earlierThisWeek.millisecondsSinceEpoch ~/ 1000),
-        isNot(contains('themeDateTextText')),
+        expectedDate(yesterday),
       );
       expect(
         DateText.separatorLabel(yesterday.millisecondsSinceEpoch ~/ 1000),
-        isNot(contains('themeDateTextText')),
+        '${expectedDate(yesterday)} 00:38',
       );
       expect(
         DateText.quoteLabel(yesterday.millisecondsSinceEpoch ~/ 1000),
-        isNot(contains('themeDateTextText')),
+        '${expectedDate(yesterday)} 00:38',
+      );
+      expect(
+        DateText.quoteLabel(previousYear.millisecondsSinceEpoch ~/ 1000),
+        '${expectedDate(previousYear)} 07:08',
       );
     });
   });
@@ -664,6 +672,54 @@ void main() {
       );
     });
 
+    test('non-Chinese locales do not surface Chinese fallback strings', () {
+      final source = File('lib/l10n/app_localizations.dart').readAsStringSync();
+      final keys = RegExp(
+        r"static const [A-Za-z0-9_]+ = '([^']+)';",
+      ).allMatches(source).map((match) => match.group(1)!).toSet();
+      final zhValues = <String, String>{};
+      final zhBlock = File('lib/l10n/messages/zh_hans.dart').readAsStringSync();
+      for (final match in RegExp(
+        r''' '([^']+)':\s*"((?:\\.|[^"])*)" '''.trim(),
+        dotAll: true,
+      ).allMatches(zhBlock)) {
+        zhValues[match.group(1)!] = match.group(2)!;
+      }
+      final intentionalHan = RegExp(r'^(appLocale|country|markdown|theme)');
+      final han = RegExp(r'[\u3400-\u9fff]');
+      final failures = <String>[];
+      for (final localeKey in ['en', 'ko', 'fr', 'es', 'de']) {
+        for (final key in keys) {
+          if (intentionalHan.hasMatch(key)) continue;
+          final value = AppStrings.tForLocale(localeKey, key);
+          if (han.hasMatch(value)) failures.add('$localeKey.$key=$value');
+        }
+      }
+      final jaSameAsChinese = <String>[];
+      for (final key in keys) {
+        if (intentionalHan.hasMatch(key)) continue;
+        final value = AppStrings.tForLocale('ja', key);
+        final zhValue = zhValues[key];
+        if (zhValue != null && value == zhValue && han.hasMatch(value)) {
+          jaSameAsChinese.add('ja.$key=$value');
+        }
+      }
+      if (jaSameAsChinese.length > 80) {
+        failures.add(
+          'ja appears to be using Chinese fallback for '
+          '${jaSameAsChinese.length} keys: ${jaSameAsChinese.take(5).join(', ')}',
+        );
+      }
+      expect(failures, isEmpty);
+    });
+
+    test('country names resolve from the split country map', () {
+      expect(AppStrings.tForLocale('en', AppStringKeys.countryJP), 'Japan');
+      expect(AppStrings.tForLocale('ja', AppStringKeys.countryJP), '日本');
+      expect(AppStrings.tForLocale('ko', AppStringKeys.countryKR), '대한민국');
+      expect(AppStrings.tForLocale('zhHant', AppStringKeys.countryTW), '中國台灣');
+    });
+
     test('defaults to system and persists explicit locale choices', () async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
@@ -684,6 +740,50 @@ void main() {
 
       final systemAgain = AppLocaleController(prefs);
       expect(systemAgain.locale, isNull);
+    });
+
+    testWidgets('rebuilds localized text when language changes', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = AppLocaleController(prefs)
+        ..locale = const Locale.fromSubtags(
+          languageCode: 'zh',
+          scriptCode: 'Hans',
+        );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: controller,
+          child: Consumer<AppLocaleController>(
+            builder: (context, locale, _) {
+              return MaterialApp(
+                locale: locale.locale,
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                ],
+                home: Builder(
+                  builder: (context) => Text(
+                    AppStringKeys.tabMessages.l10n(context),
+                    textDirection: ui.TextDirection.ltr,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      expect(find.text('消息'), findsOneWidget);
+
+      controller.locale = const Locale('en');
+      await tester.pumpAndSettle();
+      expect(find.text('Messages'), findsOneWidget);
+      expect(find.text('消息'), findsNothing);
     });
   });
 }
