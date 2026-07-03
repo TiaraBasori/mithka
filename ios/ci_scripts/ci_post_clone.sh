@@ -20,6 +20,10 @@
 # Optional:
 #   TDJSON_XCFRAMEWORK_URL   override the prebuilt-framework download (see default below)
 #   REVIEW_RELAY             https://relay.example|sha256(normalized-phone-digits)
+#   SENTRY_AUTH_TOKEN        upload iOS dSYMs to Sentry when set
+#   SENTRY_ORG               Sentry org slug for dSYM upload
+#   SENTRY_PROJECT           Sentry project slug for dSYM upload
+#   SENTRY_URL               Sentry base URL; defaults to https://sentry.nekoko.it
 #
 # The prebuilt tdjson.xcframework is hosted in the sibling mithka-tdjson repo
 # rather than rebuilt here, because building TDLib + OpenSSL for iOS takes

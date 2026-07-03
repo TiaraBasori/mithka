@@ -271,6 +271,7 @@
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 				5E54E8582FECB8F0007D5001 /* Package tdjson dSYM */,
+				7A0B7FAF96F54D11A04FBB76 /* Upload Sentry dSYMs */,
 				DD25322E3CFF124210014386 /* [CP] Embed Pods Frameworks */,
 				30D0F1B1134481284A4524FE /* [CP] Copy Pods Resources */,
 			);
@@ -425,6 +426,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${SRCROOT}/../scripts/package-tdjson-dsym.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		7A0B7FAF96F54D11A04FBB76 /* Upload Sentry dSYMs */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Upload Sentry dSYMs";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/../scripts/upload-sentry-dsyms.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		68405FB96D6C951DBD039125 /* [CP] Check Pods Manifest.lock */ = {

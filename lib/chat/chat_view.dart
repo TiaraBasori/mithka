@@ -97,7 +97,7 @@ class _TranscriptEntry {
 class _ChatViewState extends State<ChatView> {
   late final bool _openAtLatest;
   late final ChatViewModel _vm;
-  final _scroll = ScrollController();
+  late final ScrollController _scroll;
   final _pinnedKey = GlobalKey(); // the pinned message's row, for scroll-to
   final _targetKey = GlobalKey(); // arbitrary linked/anchored message row
   final _unreadKey = GlobalKey(); // the "以下为新消息" divider, for entry scroll
@@ -133,6 +133,7 @@ class _ChatViewState extends State<ChatView> {
 
   /// Gap (seconds) between messages that triggers a fresh time separator.
   static const _separatorGap = 300;
+  static const _initialBottomScrollOffset = 1000000000.0;
   static OverlayEntry? _globalPictureInPictureVideo;
 
   double _messageMediaMaxWidth([double? chatWidth]) {
@@ -144,6 +145,9 @@ class _ChatViewState extends State<ChatView> {
   void initState() {
     super.initState();
     _openAtLatest = context.read<ThemeController>().openChatsAtLatest;
+    _scroll = ScrollController(
+      initialScrollOffset: _openAtLatest ? _initialBottomScrollOffset : 0,
+    )..addListener(_onScroll);
     _vm = ChatViewModel(
       chatId: widget.chatId,
       title: widget.title,
@@ -152,7 +156,6 @@ class _ChatViewState extends State<ChatView> {
       seedMessage: widget.seedMessage,
     );
     _vm.addListener(_onModel);
-    _scroll.addListener(_onScroll);
     _scrollTargetId = widget.initialMessageId;
     _vm.onAppear();
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -448,11 +451,9 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _completeInitialScroll() async {
     await _initialScroll();
     _scheduleShortTranscriptFill();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_initialPaintReady) {
-        setState(() => _initialPaintReady = true);
-      }
-    });
+    if (mounted && !_initialPaintReady) {
+      setState(() => _initialPaintReady = true);
+    }
   }
 
   Future<void> _initialScroll() async {
@@ -467,7 +468,7 @@ class _ChatViewState extends State<ChatView> {
       return;
     }
     if (_openAtLatest) {
-      _scrollToBottom(settle: true, forceSettle: true);
+      _scrollToBottom();
       unawaited(_vm.markLoadedMessagesRead());
       return;
     }
@@ -484,17 +485,14 @@ class _ChatViewState extends State<ChatView> {
     final max = _scroll.position.maxScrollExtent;
     final approx = (max * (i / _vm.messages.length)).clamp(0.0, max);
     _scroll.jumpTo(approx);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final ctx = _unreadKey.currentContext;
-      if (ctx != null) {
-        Scrollable.ensureVisible(
-          ctx,
-          alignment: 0.12, // divider just below the top of the viewport
-          duration: Duration.zero,
-        );
-      }
-    });
+    final ctx = _unreadKey.currentContext;
+    if (ctx != null) {
+      await Scrollable.ensureVisible(
+        ctx,
+        alignment: 0.12, // divider just below the top of the viewport
+        duration: Duration.zero,
+      );
+    }
   }
 
   void _scrollToBottom({bool settle = false, bool forceSettle = false}) {

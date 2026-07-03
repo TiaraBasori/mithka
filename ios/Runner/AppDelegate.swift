@@ -9,6 +9,7 @@ import UIKit
 @MainActor
 @objc class AppDelegate: FlutterAppDelegate, @preconcurrency FlutterImplicitEngineDelegate {
   private var nativeTranslationBridge: AnyObject?
+  private var didRegisterFlutterPlugins = false
 
   override func application(
     _ application: UIApplication,
@@ -51,6 +52,17 @@ import UIKit
   }
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
+    // Flutter creates the implicit engine before FlutterViewController runs it.
+    // Some plugins send an initial platform message during registration, so
+    // register after the engine has had a chance to launch on the main loop.
+    DispatchQueue.main.async { [weak self] in
+      self?.registerFlutterPluginsAndChannels(engineBridge)
+    }
+  }
+
+  private func registerFlutterPluginsAndChannels(_ engineBridge: FlutterImplicitEngineBridge) {
+    guard !didRegisterFlutterPlugins else { return }
+    didRegisterFlutterPlugins = true
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     let clipboardChannel = FlutterMethodChannel(
       name: "mithka/clipboard",
