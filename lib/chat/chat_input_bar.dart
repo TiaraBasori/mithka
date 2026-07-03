@@ -741,8 +741,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
                           minLines: 1,
                           maxLines: 4,
                           keyboardType: TextInputType.multiline,
-                          textInputAction: TextInputAction.send,
-                          onSubmitted: (_) => unawaited(_sendCurrentText()),
+                          textInputAction: Platform.isIOS
+                              ? TextInputAction.newline
+                              : TextInputAction.send,
+                          onSubmitted: Platform.isIOS
+                              ? null
+                              : (_) => unawaited(_sendCurrentText()),
                           style: TextStyle(fontSize: 16, color: c.textPrimary),
                           contentInsertionConfiguration:
                               ContentInsertionConfiguration(
