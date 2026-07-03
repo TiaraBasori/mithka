@@ -3848,7 +3848,7 @@ class _PostActions extends StatelessWidget {
         'value1': reactionCount,
       });
     }
-    final shown = names.take(3).join('、');
+    final shown = names.take(3).join(AppStrings.t(AppStringKeys.listSeparator));
     if (reactionCount > names.length || names.length > 3) {
       return AppStrings.t(AppStringKeys.momentsLikedByListWithOthers, {
         'value1': shown,

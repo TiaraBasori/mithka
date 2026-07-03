@@ -126,6 +126,8 @@ abstract final class AppStringKeys {
   static const aboutTelegramChannel = 'aboutTelegramChannel';
   static const aboutTitle = 'aboutTitle';
   static const aboutVersion = 'aboutVersion';
+  static const aboutWebsite = 'aboutWebsite';
+  static const accentColorPickerSave = 'accentColorPickerSave';
   static const accountBackupCreate = 'accountBackupCreate';
   static const accountBackupDeleteMessage = 'accountBackupDeleteMessage';
   static const accountBackupDeleteTitle = 'accountBackupDeleteTitle';
@@ -141,9 +143,6 @@ abstract final class AppStringKeys {
   static const accountBackupSaved = 'accountBackupSaved';
   static const accountBackupSessions = 'accountBackupSessions';
   static const accountBackupTitle = 'accountBackupTitle';
-  static const accentColorPickerSave = 'accentColorPickerSave';
-  static const apiCredentialsCustomClientApi = 'apiCredentialsCustomClientApi';
-  static const apiCredentialsTitle = 'apiCredentialsTitle';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';
@@ -158,26 +157,9 @@ abstract final class AppStringKeys {
   static const addPeopleNoUsersFound = 'addPeopleNoUsersFound';
   static const addPeopleUsernameOrPhonePlaceholder =
       'addPeopleUsernameOrPhonePlaceholder';
-  static const appLocaleArabic = 'appLocaleArabic';
-  static const appLocaleFollowSystem = 'appLocaleFollowSystem';
-  static const appLocaleEnglish = 'appLocaleEnglish';
-  static const appLocaleFrench = 'appLocaleFrench';
-  static const appLocaleGerman = 'appLocaleGerman';
-  static const appLocaleHindi = 'appLocaleHindi';
-  static const appLocaleIndonesian = 'appLocaleIndonesian';
-  static const appLocaleItalian = 'appLocaleItalian';
-  static const appLocaleJapanese = 'appLocaleJapanese';
-  static const appLocaleKorean = 'appLocaleKorean';
-  static const appLocaleMalay = 'appLocaleMalay';
-  static const appLocalePortuguese = 'appLocalePortuguese';
-  static const appLocaleRussian = 'appLocaleRussian';
-  static const appLocaleSimplifiedChinese = 'appLocaleSimplifiedChinese';
-  static const appLocaleSpanish = 'appLocaleSpanish';
-  static const appLocaleThai = 'appLocaleThai';
-  static const appLocaleTraditionalChinese = 'appLocaleTraditionalChinese';
-  static const appLocaleTurkish = 'appLocaleTurkish';
-  static const appLocaleUkrainian = 'appLocaleUkrainian';
-  static const appLocaleVietnamese = 'appLocaleVietnamese';
+  static const apiCredentialsCustomClientApi = 'apiCredentialsCustomClientApi';
+  static const apiCredentialsDescription = 'apiCredentialsDescription';
+  static const apiCredentialsTitle = 'apiCredentialsTitle';
   static const appearanceAddFont = 'appearanceAddFont';
   static const appearanceAddTextFont = 'appearanceAddTextFont';
   static const appearanceCacheCleaned = 'appearanceCacheCleaned';
@@ -186,8 +168,8 @@ abstract final class AppStringKeys {
   static const appearanceCapUnreadCountAt99 = 'appearanceCapUnreadCountAt99';
   static const appearanceChatList = 'appearanceChatList';
   static const appearanceChatView = 'appearanceChatView';
-  static const appearanceCleanUnusedFonts = 'appearanceCleanUnusedFonts';
   static const appearanceCleanableSize = 'appearanceCleanableSize';
+  static const appearanceCleanUnusedFonts = 'appearanceCleanUnusedFonts';
   static const appearanceClearTextFonts = 'appearanceClearTextFonts';
   static const appearanceColor = 'appearanceColor';
   static const appearanceDisplay = 'appearanceDisplay';
@@ -212,8 +194,8 @@ abstract final class AppStringKeys {
   static const appearanceGroupAssistantPosition =
       'appearanceGroupAssistantPosition';
   static const appearanceHidePhoneInSidebar = 'appearanceHidePhoneInSidebar';
-  static const appearanceInUseSize = 'appearanceInUseSize';
   static const appearanceInterfaceSize = 'appearanceInterfaceSize';
+  static const appearanceInUseSize = 'appearanceInUseSize';
   static const appearanceManage = 'appearanceManage';
   static const appearanceMergeConsecutiveImages =
       'appearanceMergeConsecutiveImages';
@@ -247,6 +229,26 @@ abstract final class AppStringKeys {
   static const appearanceTitle = 'appearanceTitle';
   static const appearanceTotalSize = 'appearanceTotalSize';
   static const appearanceUnreadBadge = 'appearanceUnreadBadge';
+  static const appLocaleArabic = 'appLocaleArabic';
+  static const appLocaleEnglish = 'appLocaleEnglish';
+  static const appLocaleFollowSystem = 'appLocaleFollowSystem';
+  static const appLocaleFrench = 'appLocaleFrench';
+  static const appLocaleGerman = 'appLocaleGerman';
+  static const appLocaleHindi = 'appLocaleHindi';
+  static const appLocaleIndonesian = 'appLocaleIndonesian';
+  static const appLocaleItalian = 'appLocaleItalian';
+  static const appLocaleJapanese = 'appLocaleJapanese';
+  static const appLocaleKorean = 'appLocaleKorean';
+  static const appLocaleMalay = 'appLocaleMalay';
+  static const appLocalePortuguese = 'appLocalePortuguese';
+  static const appLocaleRussian = 'appLocaleRussian';
+  static const appLocaleSimplifiedChinese = 'appLocaleSimplifiedChinese';
+  static const appLocaleSpanish = 'appLocaleSpanish';
+  static const appLocaleThai = 'appLocaleThai';
+  static const appLocaleTraditionalChinese = 'appLocaleTraditionalChinese';
+  static const appLocaleTurkish = 'appLocaleTurkish';
+  static const appLocaleUkrainian = 'appLocaleUkrainian';
+  static const appLocaleVietnamese = 'appLocaleVietnamese';
   static const archivedChatsGroupAssistant = 'archivedChatsGroupAssistant';
   static const audioSearchChatTab = 'audioSearchChatTab';
   static const audioSearchFailed = 'audioSearchFailed';
@@ -272,8 +274,8 @@ abstract final class AppStringKeys {
   static const callCamera = 'callCamera';
   static const callConnecting = 'callConnecting';
   static const callDecline = 'callDecline';
-  static const callEndToEndEncrypted = 'callEndToEndEncrypted';
   static const callEnded = 'callEnded';
+  static const callEndToEndEncrypted = 'callEndToEndEncrypted';
   static const callFrontCamera = 'callFrontCamera';
   static const callHangUp = 'callHangUp';
   static const callIncomingCallInvite = 'callIncomingCallInvite';
@@ -299,9 +301,9 @@ abstract final class AppStringKeys {
   static const chatDeleteSingleMessageQuestion =
       'chatDeleteSingleMessageQuestion';
   static const chatEditMessageTitle = 'chatEditMessageTitle';
+  static const chatForwardedToName = 'chatForwardedToName';
   static const chatForwardFailed = 'chatForwardFailed';
   static const chatForwardToTitle = 'chatForwardToTitle';
-  static const chatForwardedToName = 'chatForwardedToName';
   static const chatInfoAlbum = 'chatInfoAlbum';
   static const chatInfoAutoDeleteMessages = 'chatInfoAutoDeleteMessages';
   static const chatInfoAutoDeleteOff = 'chatInfoAutoDeleteOff';
@@ -393,14 +395,19 @@ abstract final class AppStringKeys {
   static const chatRestrictedTelegramTosMessage =
       'chatRestrictedTelegramTosMessage';
   static const chatRestrictedTitle = 'chatRestrictedTitle';
-  static const chatSaveFailed = 'chatSaveFailed';
   static const chatSavedToSavedMessages = 'chatSavedToSavedMessages';
+  static const chatSaveFailed = 'chatSaveFailed';
   static const chatSearchHistoryTitle = 'chatSearchHistoryTitle';
   static const chatSearchMessagePlaceholder = 'chatSearchMessagePlaceholder';
   static const chatSearchMessageResultLabel = 'chatSearchMessageResultLabel';
   static const chatSearchNoMessagesFound = 'chatSearchNoMessagesFound';
-  static const chatSelectUntilHere = 'chatSelectUntilHere';
   static const chatSelectedMessagesCount = 'chatSelectedMessagesCount';
+  static const chatSelectUntilHere = 'chatSelectUntilHere';
+  static const chatsSearchBots = 'chatsSearchBots';
+  static const chatsSearchNoResults = 'chatsSearchNoResults';
+  static const chatsSearchPlaceholder = 'chatsSearchPlaceholder';
+  static const chatsSearchPublicGroupsAndChannels =
+      'chatsSearchPublicGroupsAndChannels';
   static const chatStickerAddSuccess = 'chatStickerAddSuccess';
   static const chatTodoSetFailed = 'chatTodoSetFailed';
   static const chatTodoSetSuccess = 'chatTodoSetSuccess';
@@ -411,16 +418,11 @@ abstract final class AppStringKeys {
   static const chatUnmute = 'chatUnmute';
   static const chatUserFallbackName = 'chatUserFallbackName';
   static const chatUserLeftGroup = 'chatUserLeftGroup';
-  static const chatUserTyping = 'chatUserTyping';
   static const chatUsersJoinedGroup = 'chatUsersJoinedGroup';
+  static const chatUserTyping = 'chatUserTyping';
   static const chatVideoPlaceholder = 'chatVideoPlaceholder';
   static const chatYouAreMuted = 'chatYouAreMuted';
   static const chatYouWereRemovedFromGroup = 'chatYouWereRemovedFromGroup';
-  static const chatsSearchBots = 'chatsSearchBots';
-  static const chatsSearchNoResults = 'chatsSearchNoResults';
-  static const chatsSearchPlaceholder = 'chatsSearchPlaceholder';
-  static const chatsSearchPublicGroupsAndChannels =
-      'chatsSearchPublicGroupsAndChannels';
   static const checklistComposerAddTask = 'checklistComposerAddTask';
   static const checklistComposerNewChecklistTitle =
       'checklistComposerNewChecklistTitle';
@@ -430,9 +432,9 @@ abstract final class AppStringKeys {
   static const checklistComposerTitleLabel = 'checklistComposerTitleLabel';
   static const commonUiDraftBadge = 'commonUiDraftBadge';
   static const commonUiGroupOwner = 'commonUiGroupOwner';
-  static const commonUiMentionMeBadge = 'commonUiMentionMeBadge';
   static const commonUiMentionedBySomeoneBadge =
       'commonUiMentionedBySomeoneBadge';
+  static const commonUiMentionMeBadge = 'commonUiMentionMeBadge';
   static const commonUiNewFileBadge = 'commonUiNewFileBadge';
   static const composerAnimatedEmojiPreview = 'composerAnimatedEmojiPreview';
   static const composerAudio = 'composerAudio';
@@ -475,182 +477,182 @@ abstract final class AppStringKeys {
   static const contactsNoChannels = 'contactsNoChannels';
   static const contactsNoContacts = 'contactsNoContacts';
   static const contactsNoGroupChats = 'contactsNoGroupChats';
+  static const countryAD = 'countryAD';
+  static const countryAE = 'countryAE';
   static const countryAF = 'countryAF';
   static const countryAL = 'countryAL';
-  static const countryDZ = 'countryDZ';
-  static const countryAD = 'countryAD';
+  static const countryAM = 'countryAM';
   static const countryAO = 'countryAO';
   static const countryAR = 'countryAR';
-  static const countryAM = 'countryAM';
-  static const countryAU = 'countryAU';
   static const countryAT = 'countryAT';
+  static const countryAU = 'countryAU';
   static const countryAZ = 'countryAZ';
-  static const countryBH = 'countryBH';
-  static const countryBD = 'countryBD';
-  static const countryBY = 'countryBY';
-  static const countryBE = 'countryBE';
-  static const countryBZ = 'countryBZ';
-  static const countryBJ = 'countryBJ';
-  static const countryBT = 'countryBT';
-  static const countryBO = 'countryBO';
   static const countryBA = 'countryBA';
-  static const countryBW = 'countryBW';
-  static const countryBR = 'countryBR';
-  static const countryBN = 'countryBN';
-  static const countryBG = 'countryBG';
+  static const countryBD = 'countryBD';
+  static const countryBE = 'countryBE';
   static const countryBF = 'countryBF';
-  static const countryKH = 'countryKH';
-  static const countryCM = 'countryCM';
+  static const countryBG = 'countryBG';
+  static const countryBH = 'countryBH';
+  static const countryBJ = 'countryBJ';
+  static const countryBN = 'countryBN';
+  static const countryBO = 'countryBO';
+  static const countryBR = 'countryBR';
+  static const countryBT = 'countryBT';
+  static const countryBW = 'countryBW';
+  static const countryBY = 'countryBY';
+  static const countryBZ = 'countryBZ';
   static const countryCA = 'countryCA';
-  static const countryTD = 'countryTD';
+  static const countryCD = 'countryCD';
+  static const countryCG = 'countryCG';
+  static const countryCH = 'countryCH';
+  static const countryCI = 'countryCI';
   static const countryCL = 'countryCL';
+  static const countryCM = 'countryCM';
   static const countryCN = 'countryCN';
   static const countryCO = 'countryCO';
   static const countryCR = 'countryCR';
-  static const countryCI = 'countryCI';
-  static const countryHR = 'countryHR';
   static const countryCU = 'countryCU';
   static const countryCY = 'countryCY';
   static const countryCZ = 'countryCZ';
-  static const countryCD = 'countryCD';
+  static const countryDE = 'countryDE';
   static const countryDK = 'countryDK';
+  static const countryDZ = 'countryDZ';
   static const countryEC = 'countryEC';
-  static const countryEG = 'countryEG';
-  static const countrySV = 'countrySV';
   static const countryEE = 'countryEE';
+  static const countryEG = 'countryEG';
+  static const countryES = 'countryES';
   static const countryET = 'countryET';
-  static const countryFJ = 'countryFJ';
   static const countryFI = 'countryFI';
+  static const countryFJ = 'countryFJ';
   static const countryFR = 'countryFR';
   static const countryGA = 'countryGA';
+  static const countryGB = 'countryGB';
   static const countryGE = 'countryGE';
-  static const countryDE = 'countryDE';
   static const countryGH = 'countryGH';
+  static const countryGN = 'countryGN';
   static const countryGR = 'countryGR';
   static const countryGT = 'countryGT';
-  static const countryGN = 'countryGN';
   static const countryGY = 'countryGY';
-  static const countryHT = 'countryHT';
-  static const countryHN = 'countryHN';
   static const countryHK = 'countryHK';
+  static const countryHN = 'countryHN';
+  static const countryHR = 'countryHR';
+  static const countryHT = 'countryHT';
   static const countryHU = 'countryHU';
-  static const countryIS = 'countryIS';
-  static const countryIN = 'countryIN';
   static const countryID = 'countryID';
-  static const countryIR = 'countryIR';
-  static const countryIQ = 'countryIQ';
   static const countryIE = 'countryIE';
   static const countryIL = 'countryIL';
+  static const countryIN = 'countryIN';
+  static const countryIQ = 'countryIQ';
+  static const countryIR = 'countryIR';
+  static const countryIS = 'countryIS';
   static const countryIT = 'countryIT';
-  static const countryJP = 'countryJP';
   static const countryJO = 'countryJO';
-  static const countryKZ = 'countryKZ';
+  static const countryJP = 'countryJP';
   static const countryKE = 'countryKE';
-  static const countryXK = 'countryXK';
-  static const countryKW = 'countryKW';
   static const countryKG = 'countryKG';
+  static const countryKH = 'countryKH';
+  static const countryKP = 'countryKP';
+  static const countryKR = 'countryKR';
+  static const countryKW = 'countryKW';
+  static const countryKZ = 'countryKZ';
   static const countryLA = 'countryLA';
-  static const countryLV = 'countryLV';
   static const countryLB = 'countryLB';
-  static const countryLY = 'countryLY';
   static const countryLI = 'countryLI';
+  static const countryLK = 'countryLK';
   static const countryLT = 'countryLT';
   static const countryLU = 'countryLU';
-  static const countryMO = 'countryMO';
-  static const countryMG = 'countryMG';
-  static const countryMW = 'countryMW';
-  static const countryMY = 'countryMY';
-  static const countryMV = 'countryMV';
-  static const countryML = 'countryML';
-  static const countryMT = 'countryMT';
-  static const countryMR = 'countryMR';
-  static const countryMU = 'countryMU';
-  static const countryMX = 'countryMX';
-  static const countryMD = 'countryMD';
-  static const countryMC = 'countryMC';
-  static const countryMN = 'countryMN';
-  static const countryME = 'countryME';
+  static const countryLV = 'countryLV';
+  static const countryLY = 'countryLY';
   static const countryMA = 'countryMA';
-  static const countryMZ = 'countryMZ';
+  static const countryMC = 'countryMC';
+  static const countryMD = 'countryMD';
+  static const countryME = 'countryME';
+  static const countryMG = 'countryMG';
+  static const countryMK = 'countryMK';
+  static const countryML = 'countryML';
   static const countryMM = 'countryMM';
+  static const countryMN = 'countryMN';
+  static const countryMO = 'countryMO';
+  static const countryMR = 'countryMR';
+  static const countryMT = 'countryMT';
+  static const countryMU = 'countryMU';
+  static const countryMV = 'countryMV';
+  static const countryMW = 'countryMW';
+  static const countryMX = 'countryMX';
+  static const countryMY = 'countryMY';
+  static const countryMZ = 'countryMZ';
   static const countryNA = 'countryNA';
-  static const countryNP = 'countryNP';
-  static const countryNL = 'countryNL';
-  static const countryNZ = 'countryNZ';
-  static const countryNI = 'countryNI';
   static const countryNE = 'countryNE';
   static const countryNG = 'countryNG';
-  static const countryKP = 'countryKP';
-  static const countryMK = 'countryMK';
+  static const countryNI = 'countryNI';
+  static const countryNL = 'countryNL';
   static const countryNO = 'countryNO';
+  static const countryNP = 'countryNP';
+  static const countryNZ = 'countryNZ';
   static const countryOM = 'countryOM';
-  static const countryPK = 'countryPK';
-  static const countryPS = 'countryPS';
   static const countryPA = 'countryPA';
-  static const countryPG = 'countryPG';
-  static const countryPY = 'countryPY';
   static const countryPE = 'countryPE';
+  static const countryPG = 'countryPG';
   static const countryPH = 'countryPH';
   static const countryPickerCancel = 'countryPickerCancel';
   static const countryPickerSearchPlaceholder =
       'countryPickerSearchPlaceholder';
   static const countryPickerSelectCountryOrRegion =
       'countryPickerSelectCountryOrRegion';
+  static const countryPK = 'countryPK';
   static const countryPL = 'countryPL';
+  static const countryPS = 'countryPS';
   static const countryPT = 'countryPT';
+  static const countryPY = 'countryPY';
   static const countryQA = 'countryQA';
-  static const countryCG = 'countryCG';
   static const countryRO = 'countryRO';
+  static const countryRS = 'countryRS';
   static const countryRU = 'countryRU';
   static const countryRW = 'countryRW';
-  static const countryWS = 'countryWS';
-  static const countrySM = 'countrySM';
   static const countrySA = 'countrySA';
-  static const countrySN = 'countrySN';
-  static const countryRS = 'countryRS';
-  static const countrySG = 'countrySG';
-  static const countrySK = 'countrySK';
-  static const countrySI = 'countrySI';
   static const countrySB = 'countrySB';
-  static const countrySO = 'countrySO';
-  static const countryZA = 'countryZA';
-  static const countryKR = 'countryKR';
-  static const countrySS = 'countrySS';
-  static const countryES = 'countryES';
-  static const countryLK = 'countryLK';
   static const countrySD = 'countrySD';
-  static const countrySR = 'countrySR';
   static const countrySE = 'countrySE';
-  static const countryCH = 'countryCH';
+  static const countrySG = 'countrySG';
+  static const countrySI = 'countrySI';
+  static const countrySK = 'countrySK';
+  static const countrySM = 'countrySM';
+  static const countrySN = 'countrySN';
+  static const countrySO = 'countrySO';
+  static const countrySR = 'countrySR';
+  static const countrySS = 'countrySS';
+  static const countrySV = 'countrySV';
   static const countrySY = 'countrySY';
-  static const countryTW = 'countryTW';
-  static const countryTJ = 'countryTJ';
-  static const countryTZ = 'countryTZ';
-  static const countryTH = 'countryTH';
-  static const countryTL = 'countryTL';
+  static const countryTD = 'countryTD';
   static const countryTG = 'countryTG';
-  static const countryTO = 'countryTO';
-  static const countryTN = 'countryTN';
-  static const countryTR = 'countryTR';
+  static const countryTH = 'countryTH';
+  static const countryTJ = 'countryTJ';
+  static const countryTL = 'countryTL';
   static const countryTM = 'countryTM';
-  static const countryUG = 'countryUG';
+  static const countryTN = 'countryTN';
+  static const countryTO = 'countryTO';
+  static const countryTR = 'countryTR';
+  static const countryTW = 'countryTW';
+  static const countryTZ = 'countryTZ';
   static const countryUA = 'countryUA';
-  static const countryAE = 'countryAE';
-  static const countryGB = 'countryGB';
+  static const countryUG = 'countryUG';
   static const countryUS = 'countryUS';
   static const countryUY = 'countryUY';
   static const countryUZ = 'countryUZ';
-  static const countryVU = 'countryVU';
   static const countryVE = 'countryVE';
   static const countryVN = 'countryVN';
+  static const countryVU = 'countryVU';
+  static const countryWS = 'countryWS';
+  static const countryXK = 'countryXK';
   static const countryYE = 'countryYE';
+  static const countryZA = 'countryZA';
   static const countryZM = 'countryZM';
   static const countryZW = 'countryZW';
   static const createGroupFailed = 'createGroupFailed';
   static const createGroupOptionalLabel = 'createGroupOptionalLabel';
   static const createGroupStartGroupChat = 'createGroupStartGroupChat';
-  static const editProfileAvatarUpdateFailed = 'editProfileAvatarUpdateFailed';
   static const editProfileAvatarUpdated = 'editProfileAvatarUpdated';
+  static const editProfileAvatarUpdateFailed = 'editProfileAvatarUpdateFailed';
   static const editProfileBio = 'editProfileBio';
   static const editProfileBioPlaceholder = 'editProfileBioPlaceholder';
   static const editProfileBirthDay = 'editProfileBirthDay';
@@ -720,8 +722,8 @@ abstract final class AppStringKeys {
   static const groupManagementAdminApprovalRequired =
       'groupManagementAdminApprovalRequired';
   static const groupManagementBasicSection = 'groupManagementBasicSection';
-  static const groupManagementEditFailed = 'groupManagementEditFailed';
   static const groupManagementEditable = 'groupManagementEditable';
+  static const groupManagementEditFailed = 'groupManagementEditFailed';
   static const groupManagementGroupName = 'groupManagementGroupName';
   static const groupManagementInviteLinkQr = 'groupManagementInviteLinkQr';
   static const groupManagementJoinBeforePosting =
@@ -866,6 +868,7 @@ abstract final class AppStringKeys {
   static const loginBackToPreviousAccount = 'loginBackToPreviousAccount';
   static const loginCodeWillBeSentToNumber = 'loginCodeWillBeSentToNumber';
   static const loginCompleteRegistration = 'loginCompleteRegistration';
+  static const loginConfigureCustomApi = 'loginConfigureCustomApi';
   static const loginFirstName = 'loginFirstName';
   static const loginGetVerificationCode = 'loginGetVerificationCode';
   static const loginLastNameOptional = 'loginLastNameOptional';
@@ -893,13 +896,13 @@ abstract final class AppStringKeys {
   static const loginWithQrCode = 'loginWithQrCode';
   static const markdownLabel = 'markdownLabel';
   static const messageActionCopy = 'messageActionCopy';
-  static const messageActionSelectText = 'messageActionSelectText';
   static const messageActionEdit = 'messageActionEdit';
   static const messageActionFavorite = 'messageActionFavorite';
   static const messageActionForward = 'messageActionForward';
   static const messageActionMultiSelect = 'messageActionMultiSelect';
   static const messageActionPlayMuted = 'messageActionPlayMuted';
   static const messageActionQuote = 'messageActionQuote';
+  static const messageActionSelectText = 'messageActionSelectText';
   static const messageActionSetTodo = 'messageActionSetTodo';
   static const messageActionSticker = 'messageActionSticker';
   static const messageActionTranslate = 'messageActionTranslate';
@@ -919,10 +922,10 @@ abstract final class AppStringKeys {
   static const momentsCommentPlaceholder = 'momentsCommentPlaceholder';
   static const momentsCreatePostTitle = 'momentsCreatePostTitle';
   static const momentsDetails = 'momentsDetails';
-  static const momentsLikeFailed = 'momentsLikeFailed';
   static const momentsLiked = 'momentsLiked';
   static const momentsLikedByCount = 'momentsLikedByCount';
   static const momentsLikedByListWithOthers = 'momentsLikedByListWithOthers';
+  static const momentsLikeFailed = 'momentsLikeFailed';
   static const momentsLoadingPosts = 'momentsLoadingPosts';
   static const momentsMore = 'momentsMore';
   static const momentsNewPostsCount = 'momentsNewPostsCount';
@@ -936,8 +939,8 @@ abstract final class AppStringKeys {
   static const momentsOpenOriginalMessage = 'momentsOpenOriginalMessage';
   static const momentsPickPhotoFailed = 'momentsPickPhotoFailed';
   static const momentsPostAction = 'momentsPostAction';
-  static const momentsPostFailed = 'momentsPostFailed';
   static const momentsPostedTo = 'momentsPostedTo';
+  static const momentsPostFailed = 'momentsPostFailed';
   static const momentsPublishTo = 'momentsPublishTo';
   static const momentsReplied = 'momentsReplied';
   static const momentsReplyFailed = 'momentsReplyFailed';
@@ -947,9 +950,9 @@ abstract final class AppStringKeys {
   static const momentsReplyToUserPlaceholder = 'momentsReplyToUserPlaceholder';
   static const momentsReplyUnavailable = 'momentsReplyUnavailable';
   static const momentsSearchChannelPosts = 'momentsSearchChannelPosts';
+  static const momentsSearching = 'momentsSearching';
   static const momentsSearchJoinedChannelPosts =
       'momentsSearchJoinedChannelPosts';
-  static const momentsSearching = 'momentsSearching';
   static const momentsSelectChannel = 'momentsSelectChannel';
   static const momentsSending = 'momentsSending';
   static const momentsShareSomethingPlaceholder =
@@ -957,6 +960,26 @@ abstract final class AppStringKeys {
   static const momentsStories = 'momentsStories';
   static const momentsUnknown = 'momentsUnknown';
   static const momentsUserLiked = 'momentsUserLiked';
+  static const musicPlayerAdd = 'musicPlayerAdd';
+  static const musicPlayerAddedToPlaylist = 'musicPlayerAddedToPlaylist';
+  static const musicPlayerAddToPlaylist = 'musicPlayerAddToPlaylist';
+  static const musicPlayerAlreadyInPlaylist = 'musicPlayerAlreadyInPlaylist';
+  static const musicPlayerClear = 'musicPlayerClear';
+  static const musicPlayerClose = 'musicPlayerClose';
+  static const musicPlayerDownload = 'musicPlayerDownload';
+  static const musicPlayerEmptyPlaylist = 'musicPlayerEmptyPlaylist';
+  static const musicPlayerModeRepeatOne = 'musicPlayerModeRepeatOne';
+  static const musicPlayerModeSequence = 'musicPlayerModeSequence';
+  static const musicPlayerModeShuffle = 'musicPlayerModeShuffle';
+  static const musicPlayerNextTrack = 'musicPlayerNextTrack';
+  static const musicPlayerPause = 'musicPlayerPause';
+  static const musicPlayerPlay = 'musicPlayerPlay';
+  static const musicPlayerQueueTitleWithCount =
+      'musicPlayerQueueTitleWithCount';
+  static const musicPlayerRemovedFromPlaylist =
+      'musicPlayerRemovedFromPlaylist';
+  static const musicPlayerRemoveFromPlaylist = 'musicPlayerRemoveFromPlaylist';
+  static const musicPlayerShowPlaylist = 'musicPlayerShowPlaylist';
   static const myAlbumNoPhotos = 'myAlbumNoPhotos';
   static const netemoMusicLabel = 'netemoMusicLabel';
   static const notificationGroupMessages = 'notificationGroupMessages';
@@ -1033,11 +1056,26 @@ abstract final class AppStringKeys {
   static const richTextComposerPhotoVideo = 'richTextComposerPhotoVideo';
   static const settingsAboutMithka = 'settingsAboutMithka';
   static const settingsLogOut = 'settingsLogOut';
+  static const sharedMediaCacheDeleted = 'sharedMediaCacheDeleted';
+  static const sharedMediaCacheDeleteFailed = 'sharedMediaCacheDeleteFailed';
   static const sharedMediaChatFiles = 'sharedMediaChatFiles';
+  static const sharedMediaDeleteLocalCache = 'sharedMediaDeleteLocalCache';
+  static const sharedMediaDownloadedSize = 'sharedMediaDownloadedSize';
+  static const sharedMediaDownloadProgress = 'sharedMediaDownloadProgress';
   static const sharedMediaEmpty = 'sharedMediaEmpty';
+  static const sharedMediaFilterAll = 'sharedMediaFilterAll';
+  static const sharedMediaFilterDownloaded = 'sharedMediaFilterDownloaded';
+  static const sharedMediaFilterNotDownloaded =
+      'sharedMediaFilterNotDownloaded';
+  static const sharedMediaFromSource = 'sharedMediaFromSource';
   static const sharedMediaLinks = 'sharedMediaLinks';
+  static const sharedMediaNoMatches = 'sharedMediaNoMatches';
+  static const sharedMediaNotDownloadedSize = 'sharedMediaNotDownloadedSize';
   static const sharedMediaPhotosAndVideos = 'sharedMediaPhotosAndVideos';
+  static const sharedMediaSearchFilesHint = 'sharedMediaSearchFilesHint';
+  static const sharedMediaSearchVideosHint = 'sharedMediaSearchVideosHint';
   static const sharedMediaVideos = 'sharedMediaVideos';
+  static const sharedMediaVideoTitleWithDate = 'sharedMediaVideoTitleWithDate';
   static const sharedMediaVoice = 'sharedMediaVoice';
   static const sharedMediaVoiceMessages = 'sharedMediaVoiceMessages';
   static const startButton = 'startButton';
@@ -1104,9 +1142,9 @@ abstract final class AppStringKeys {
   static const tdMessagePaidContent = 'tdMessagePaidContent';
   static const tdMessagePaidMessagePriceChanged =
       'tdMessagePaidMessagePriceChanged';
+  static const tdMessagePaidMessagesDisabled = 'tdMessagePaidMessagesDisabled';
   static const tdMessagePaidMessageSettingsChanged =
       'tdMessagePaidMessageSettingsChanged';
-  static const tdMessagePaidMessagesDisabled = 'tdMessagePaidMessagesDisabled';
   static const tdMessagePhotoVideo = 'tdMessagePhotoVideo';
   static const tdMessagePoll = 'tdMessagePoll';
   static const tdMessageProduct = 'tdMessageProduct';
@@ -1166,8 +1204,8 @@ abstract final class AppStringKeys {
   static const topicChatMuteMessagesToggle = 'topicChatMuteMessagesToggle';
   static const topicChatMyProfile = 'topicChatMyProfile';
   static const topicChatNoMoreContent = 'topicChatNoMoreContent';
-  static const topicChatPinToggle = 'topicChatPinToggle';
   static const topicChatPinnedPrefix = 'topicChatPinnedPrefix';
+  static const topicChatPinToggle = 'topicChatPinToggle';
   static const topicChatPublish = 'topicChatPublish';
   static const topicChatReplyCount = 'topicChatReplyCount';
   static const topicChatSearch = 'topicChatSearch';
@@ -1228,16 +1266,24 @@ abstract final class AppStringKeys {
 }
 
 abstract final class AppStrings {
+  // t() runs for every localized string render; re-parsing the Intl tag each
+  // call is measurable in list scrolling, so the resolved locale key is cached
+  // until the tag changes.
+  static String? _cachedTag;
+  static String _cachedLocaleKey = 'en';
+
   static String t(String key, [Map<String, Object?> placeholders = const {}]) {
-    final locale =
-        AppLocalizations.localeFromTag(Intl.getCurrentLocale()) ??
-        AppLocalizations.fallbackLocale;
-    final resolved = AppLocalizations.resolve(locale);
-    return tForLocale(
-      AppLocalizations.localeKeyFor(resolved),
-      key,
-      placeholders,
-    );
+    final tag = Intl.getCurrentLocale();
+    if (tag != _cachedTag) {
+      final locale =
+          AppLocalizations.localeFromTag(tag) ??
+          AppLocalizations.fallbackLocale;
+      _cachedLocaleKey = AppLocalizations.localeKeyFor(
+        AppLocalizations.resolve(locale),
+      );
+      _cachedTag = tag;
+    }
+    return tForLocale(_cachedLocaleKey, key, placeholders);
   }
 
   static String tForLocale(

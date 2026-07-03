@@ -44,6 +44,8 @@ class _MediaTab {
 
 enum _SharedMediaFileFilter { all, downloaded, notDownloaded }
 
+enum _SharedMediaMenuAction { openOriginal, deleteCache }
+
 class _SharedFileState {
   const _SharedFileState({
     required this.fileId,
@@ -339,9 +341,14 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           total: previous?.total ?? _declaredSize(message),
         );
       });
-      showToast(context, '已删除本地缓存');
+      showToast(context, AppStrings.t(AppStringKeys.sharedMediaCacheDeleted));
     } catch (_) {
-      if (mounted) showToast(context, '删除缓存失败');
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.sharedMediaCacheDeleteFailed),
+        );
+      }
     }
   }
 
@@ -349,7 +356,12 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     final added = MusicPlayerController.shared.togglePlaylist(
       _musicPlayerMessage(message),
     );
-    showToast(context, added ? '已加入播放列表' : '已从播放列表移除');
+    showToast(
+      context,
+      added
+          ? AppStrings.t(AppStringKeys.musicPlayerAddedToPlaylist)
+          : AppStrings.t(AppStringKeys.musicPlayerRemovedFromPlaylist),
+    );
   }
 
   bool _isMusicInPlaylist(ChatMessage message) {
@@ -523,8 +535,12 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                     style: TextStyle(fontSize: 15, color: c.textPrimary),
                     decoration: InputDecoration(
                       hintText: _tabs[_tab].videoOnly
-                          ? '搜索视频、群组、名称或 #hashtag'
-                          : '搜索文件名、聊天或发送人',
+                          ? AppStrings.t(
+                              AppStringKeys.sharedMediaSearchVideosHint,
+                            )
+                          : AppStrings.t(
+                              AppStringKeys.sharedMediaSearchFilesHint,
+                            ),
                       border: InputBorder.none,
                       isCollapsed: true,
                     ),
@@ -551,11 +567,20 @@ class _SharedMediaViewState extends State<SharedMediaView> {
             const SizedBox(height: 8),
             Row(
               children: [
-                _filterChip('全部', _SharedMediaFileFilter.all),
+                _filterChip(
+                  AppStrings.t(AppStringKeys.sharedMediaFilterAll),
+                  _SharedMediaFileFilter.all,
+                ),
                 const SizedBox(width: 8),
-                _filterChip('已下载', _SharedMediaFileFilter.downloaded),
+                _filterChip(
+                  AppStrings.t(AppStringKeys.sharedMediaFilterDownloaded),
+                  _SharedMediaFileFilter.downloaded,
+                ),
                 const SizedBox(width: 8),
-                _filterChip('未下载', _SharedMediaFileFilter.notDownloaded),
+                _filterChip(
+                  AppStrings.t(AppStringKeys.sharedMediaFilterNotDownloaded),
+                  _SharedMediaFileFilter.notDownloaded,
+                ),
               ],
             ),
           ],
@@ -614,7 +639,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     if (filtered.isEmpty) {
       return Center(
         child: Text(
-          '没有匹配的内容',
+          AppStrings.t(AppStringKeys.sharedMediaNoMatches),
           style: TextStyle(fontSize: 14, color: c.textSecondary),
         ),
       );
@@ -902,7 +927,10 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         final subtitle = [
           durationText,
           DateText.listLabel(message.date),
-          if (source.isNotEmpty) '来自 $source',
+          if (source.isNotEmpty)
+            AppStrings.t(AppStringKeys.sharedMediaFromSource, {
+              'value1': source,
+            }),
         ].join(' · ');
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -999,7 +1027,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
             music.performer!.trim(),
           DateText.listLabel(message.date),
           if (_usesGlobalSearch(_tab) && _sourceTitleFor(message).isNotEmpty)
-            '来自 ${_sourceTitleFor(message)}',
+            AppStrings.t(AppStringKeys.sharedMediaFromSource, {
+              'value1': _sourceTitleFor(message),
+            }),
         ].join(' · ');
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -1081,7 +1111,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
       width: 32,
       height: 32,
       child: IconButton(
-        tooltip: inPlaylist ? '从播放列表移除' : '加入播放列表',
+        tooltip: inPlaylist
+            ? AppStrings.t(AppStringKeys.musicPlayerRemoveFromPlaylist)
+            : AppStrings.t(AppStringKeys.musicPlayerAddToPlaylist),
         padding: EdgeInsets.zero,
         onPressed: message.music?.file == null
             ? null
@@ -1209,7 +1241,10 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                   ],
                   const SizedBox(height: 3),
                   Text(
-                    '来自 ${_sourceTitleFor(message)}${(message.senderName ?? '').isEmpty ? '' : ' | ${message.senderName}'}',
+                    AppStrings.t(AppStringKeys.sharedMediaFromSource, {
+                      'value1':
+                          '${_sourceTitleFor(message)}${(message.senderName ?? '').isEmpty ? '' : ' | ${message.senderName}'}',
+                    }),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 12, color: c.textTertiary),
@@ -1284,9 +1319,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         color: const Color(0xFF1ABC7B).withValues(alpha: 0.16),
         borderRadius: BorderRadius.circular(5),
       ),
-      child: const Text(
-        '已下载',
-        style: TextStyle(
+      child: Text(
+        AppStrings.t(AppStringKeys.sharedMediaFilterDownloaded),
+        style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
           color: Color(0xFF1ABC7B),
@@ -1312,26 +1347,30 @@ class _SharedMediaViewState extends State<SharedMediaView> {
   Widget _rowMenu(ChatMessage message) {
     final c = context.colors;
     final state = _stateFor(message);
-    return PopupMenuButton<String>(
+    return PopupMenuButton<_SharedMediaMenuAction>(
       icon: Icon(Icons.more_vert, size: 18, color: c.textTertiary),
       color: c.background,
-      onSelected: (value) {
-        if (value == 'open-original') _openSourceMessage(message);
-        if (value == 'delete-cache') _deleteLocalCache(message);
+      onSelected: (action) {
+        switch (action) {
+          case _SharedMediaMenuAction.openOriginal:
+            _openSourceMessage(message);
+          case _SharedMediaMenuAction.deleteCache:
+            _deleteLocalCache(message);
+        }
       },
       itemBuilder: (context) => [
         PopupMenuItem(
           enabled: _canOpenSourceMessage(message),
-          value: 'open-original',
+          value: _SharedMediaMenuAction.openOriginal,
           child: Text(AppStrings.t(AppStringKeys.momentsOpenOriginalMessage)),
         ),
         if (_fileId(message) != null) ...[
           const PopupMenuDivider(),
           PopupMenuItem(
             enabled: state?.hasLocalBytes == true,
-            value: 'delete-cache',
+            value: _SharedMediaMenuAction.deleteCache,
             child: Text(
-              '删除本地缓存',
+              AppStrings.t(AppStringKeys.sharedMediaDeleteLocalCache),
               style: TextStyle(
                 color: state?.hasLocalBytes == true
                     ? Colors.redAccent
@@ -1352,17 +1391,19 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         color: Colors.black.withValues(alpha: 0.42),
         shape: BoxShape.circle,
       ),
-      child: PopupMenuButton<String>(
+      child: PopupMenuButton<_SharedMediaMenuAction>(
         padding: EdgeInsets.zero,
         icon: const Icon(Icons.more_horiz, size: 18, color: Colors.white),
         color: context.colors.background,
-        onSelected: (value) {
-          if (value == 'open-original') _openSourceMessage(message);
+        onSelected: (action) {
+          if (action == _SharedMediaMenuAction.openOriginal) {
+            _openSourceMessage(message);
+          }
         },
         itemBuilder: (context) => [
           PopupMenuItem(
             enabled: _canOpenSourceMessage(message),
-            value: 'open-original',
+            value: _SharedMediaMenuAction.openOriginal,
             child: Text(AppStrings.t(AppStringKeys.momentsOpenOriginalMessage)),
           ),
         ],
@@ -1376,9 +1417,12 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     return [
       DateText.listLabel(message.date),
       _downloadLabel(message, state),
-      if (_usesGlobalSearch(_tab) && source.isNotEmpty) '来自 $source',
+      if (_usesGlobalSearch(_tab) && source.isNotEmpty)
+        AppStrings.t(AppStringKeys.sharedMediaFromSource, {'value1': source}),
       if (!_usesGlobalSearch(_tab) && (message.senderName ?? '').isNotEmpty)
-        '来自 ${message.senderName}',
+        AppStrings.t(AppStringKeys.sharedMediaFromSource, {
+          'value1': message.senderName,
+        }),
     ].join(' · ');
   }
 
@@ -1407,9 +1451,13 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     final parts = [
       DateText.listLabel(message.date),
       if (_usesGlobalSearch(_tab) && _sourceTitleFor(message).isNotEmpty)
-        '来自 ${_sourceTitleFor(message)}',
+        AppStrings.t(AppStringKeys.sharedMediaFromSource, {
+          'value1': _sourceTitleFor(message),
+        }),
       if (!_usesGlobalSearch(_tab) && (message.senderName ?? '').isNotEmpty)
-        '来自 ${message.senderName}',
+        AppStrings.t(AppStringKeys.sharedMediaFromSource, {
+          'value1': message.senderName,
+        }),
     ].where((item) => item.isNotEmpty).toList();
     return parts.join(' · ');
   }
@@ -1428,18 +1476,27 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         ? total
         : (state?.downloaded ?? 0);
     if (state?.completed == true) {
-      return '已下载 ${_fileSize(total)}';
+      return AppStrings.t(AppStringKeys.sharedMediaDownloadedSize, {
+        'value1': _fileSize(total),
+      });
     }
     if (downloaded > 0) {
-      return '已下载 ${_fileSize(downloaded)} / ${_fileSize(total)}';
+      return AppStrings.t(AppStringKeys.sharedMediaDownloadProgress, {
+        'value1': _fileSize(downloaded),
+        'value2': _fileSize(total),
+      });
     }
-    return '未下载 · ${_fileSize(total)}';
+    return AppStrings.t(AppStringKeys.sharedMediaNotDownloadedSize, {
+      'value1': _fileSize(total),
+    });
   }
 
   String _videoTitle(ChatMessage message) {
     final text = message.text.trim().replaceAll('\n', ' ');
     if (text.isNotEmpty) return text;
-    return '${DateText.listLabel(message.date)} 视频';
+    return AppStrings.t(AppStringKeys.sharedMediaVideoTitleWithDate, {
+      'value1': DateText.listLabel(message.date),
+    });
   }
 
   String _musicName(MessageMusic music) {

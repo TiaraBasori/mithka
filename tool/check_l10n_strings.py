@@ -34,6 +34,7 @@ ALLOWED_VISIBLE_VALUES = {
     "Mithka",
     "github.com/iebb/mithka",
     "ieb",
+    "mithka.ieb.app",
     "t.me/mithka",
 }
 SUSPICIOUS_RENDER_FIELDS = {

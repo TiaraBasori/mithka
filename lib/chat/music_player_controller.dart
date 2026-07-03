@@ -630,7 +630,9 @@ class _ExpandedMusicPlayer extends StatelessWidget {
                 ),
               ),
               _MiniButton(
-                tooltip: controller.isPlaying ? '暂停' : '播放',
+                tooltip: controller.isPlaying
+                    ? AppStrings.t(AppStringKeys.musicPlayerPause)
+                    : AppStrings.t(AppStringKeys.musicPlayerPlay),
                 onTap: controller.toggleCurrent,
                 child: controller.isLoading
                     ? const SizedBox(
@@ -649,7 +651,7 @@ class _ExpandedMusicPlayer extends StatelessWidget {
                       ),
               ),
               _MiniButton(
-                tooltip: '下一首',
+                tooltip: AppStrings.t(AppStringKeys.musicPlayerNextTrack),
                 onTap: controller.next,
                 child: AppIcon(
                   const AppIconData(HeroiconsOutline.forward),
@@ -658,7 +660,7 @@ class _ExpandedMusicPlayer extends StatelessWidget {
                 ),
               ),
               _MiniButton(
-                tooltip: '播放列表',
+                tooltip: AppStrings.t(AppStringKeys.musicPlayerShowPlaylist),
                 onTap: () => _showMusicQueue(context, controller),
                 child: AppIcon(
                   HeroAppIcons.listCheck,
@@ -801,7 +803,10 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '当前播放列表 (${queue.length})',
+                        AppStrings.t(
+                          AppStringKeys.musicPlayerQueueTitleWithCount,
+                          {'value1': queue.length},
+                        ),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
@@ -844,17 +849,22 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                           ),
                           _SheetIcon(
                             icon: HeroAppIcons.download,
-                            tooltip: '下载',
+                            tooltip: AppStrings.t(
+                              AppStringKeys.musicPlayerDownload,
+                            ),
                           ),
                           _SheetIcon(
                             icon: HeroAppIcons.plus,
-                            tooltip: '添加',
+                            tooltip: AppStrings.t(AppStringKeys.musicPlayerAdd),
                             onTap: () =>
                                 _openMusicSearch(sheetContext, controller),
                           ),
                           _SheetIcon(
                             icon: HeroAppIcons.trash,
-                            tooltip: '清空',
+                            tooltip: AppStrings.t(
+                              AppStringKeys.musicPlayerClear,
+                            ),
+                            dimWhenDisabled: true,
                             onTap: queue.isEmpty
                                 ? null
                                 : () {
@@ -872,7 +882,9 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                       ? Padding(
                           padding: const EdgeInsets.fromLTRB(20, 40, 20, 42),
                           child: Text(
-                            '还没有加入的音乐',
+                            AppStrings.t(
+                              AppStringKeys.musicPlayerEmptyPlaylist,
+                            ),
                             style: TextStyle(
                               fontSize: 14,
                               color: c.textTertiary,
@@ -928,7 +940,7 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                       ),
                     ),
                     child: Text(
-                      '关闭',
+                      AppStrings.t(AppStringKeys.musicPlayerClose),
                       style: TextStyle(fontSize: 15, color: c.textPrimary),
                     ),
                   ),
@@ -967,7 +979,12 @@ Future<void> _openMusicSearch(
     ),
   );
   if (rootContext.mounted) {
-    showToast(rootContext, added ? '已加入播放列表' : '已在播放列表中');
+    showToast(
+      rootContext,
+      added
+          ? AppStrings.t(AppStringKeys.musicPlayerAddedToPlaylist)
+          : AppStrings.t(AppStringKeys.musicPlayerAlreadyInPlaylist),
+    );
   }
 }
 
@@ -1051,7 +1068,9 @@ class _QueueRow extends StatelessWidget {
               width: 30,
               height: 30,
               child: IconButton(
-                tooltip: '从播放列表移除',
+                tooltip: AppStrings.t(
+                  AppStringKeys.musicPlayerRemoveFromPlaylist,
+                ),
                 padding: EdgeInsets.zero,
                 onPressed: onRemove,
                 icon: AppIcon(
@@ -1069,11 +1088,17 @@ class _QueueRow extends StatelessWidget {
 }
 
 class _SheetIcon extends StatelessWidget {
-  const _SheetIcon({required this.icon, required this.tooltip, this.onTap});
+  const _SheetIcon({
+    required this.icon,
+    required this.tooltip,
+    this.onTap,
+    this.dimWhenDisabled = false,
+  });
 
   final AppIconData icon;
   final String tooltip;
   final VoidCallback? onTap;
+  final bool dimWhenDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -1088,7 +1113,7 @@ class _SheetIcon extends StatelessWidget {
         icon: AppIcon(
           icon,
           size: 17,
-          color: onTap == null && tooltip == '清空'
+          color: onTap == null && dimWhenDisabled
               ? c.textTertiary.withValues(alpha: 0.42)
               : c.textTertiary,
         ),
@@ -1281,9 +1306,9 @@ class _ShuffleGlyphPainter extends CustomPainter {
 }
 
 String _modeLabel(MusicPlaybackMode mode) {
-  return switch (mode) {
-    MusicPlaybackMode.sequence => '顺序播放',
-    MusicPlaybackMode.repeatOne => '单曲循环',
-    MusicPlaybackMode.shuffle => '随机播放',
-  };
+  return AppStrings.t(switch (mode) {
+    MusicPlaybackMode.sequence => AppStringKeys.musicPlayerModeSequence,
+    MusicPlaybackMode.repeatOne => AppStringKeys.musicPlayerModeRepeatOne,
+    MusicPlaybackMode.shuffle => AppStringKeys.musicPlayerModeShuffle,
+  });
 }
