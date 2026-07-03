@@ -2099,10 +2099,12 @@ abstract final class TDParse {
     });
   }
 
+  static final _nonDigitsRegExp = RegExp(r'\D');
+
   /// Formats a raw TDLib phone number (digits, no +) to international form via
   /// libphonenumber metadata (e.g. `+61 412 345 678`). Falls back to `+<digits>`.
   static String formatPhone(String? raw) {
-    final d = (raw ?? '').replaceAll(RegExp(r'\D'), '');
+    final d = (raw ?? '').replaceAll(_nonDigitsRegExp, '');
     if (d.isEmpty) return '';
     try {
       final util = PhoneNumberUtil.instance;

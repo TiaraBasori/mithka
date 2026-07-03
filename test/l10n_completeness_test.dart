@@ -143,6 +143,14 @@ void main() {
     }
   });
 
+  test('tForLocale resolves country keys through countryNames', () {
+    for (final localeKey in localeTables.keys) {
+      final value = AppStrings.tForLocale(localeKey, 'countryJP');
+      expect(value, countryNames[localeKey]!['countryJP']);
+      expect(value, isNot('countryJP'));
+    }
+  });
+
   test('locale tag round-trips through resolve for common device tags', () {
     for (final tag in [
       'zh-CN',

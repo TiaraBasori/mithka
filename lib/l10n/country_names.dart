@@ -1346,6 +1346,9 @@ const countryNames = <String, Map<String, String>>{
 };
 
 String? countryNameForLocale(String localeKey, String key) {
+  // Called from the l10n hot path for every unmatched key; skip the map
+  // lookups outright for the (overwhelmingly common) non-country keys.
+  if (!key.startsWith('country')) return null;
   final localeNames = countryNames[localeKey] ?? countryNames['en'];
   return localeNames?[key] ?? countryNames['en']?[key];
 }

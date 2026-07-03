@@ -1291,14 +1291,21 @@ abstract final class AppStrings {
     String key, [
     Map<String, Object?> placeholders = const {},
   ]) {
-    final countryValue = countryNameForLocale(localeKey, key);
+    // Message keys and country keys are disjoint (the checker forbids
+    // country* message keys), so the common message-table hit short-circuits
+    // before the country lookup.
     final localeMessages = _messages[localeKey] ?? _messages['en'];
-    var value =
-        countryValue ?? localeMessages?[key] ?? _messages['en']?[key] ?? key;
+    final value =
+        localeMessages?[key] ??
+        countryNameForLocale(localeKey, key) ??
+        _messages['en']?[key] ??
+        key;
+    if (placeholders.isEmpty) return value;
+    var result = value;
     placeholders.forEach((placeholder, replacement) {
-      value = value.replaceAll('{$placeholder}', '$replacement');
+      result = result.replaceAll('{$placeholder}', '$replacement');
     });
-    return value;
+    return result;
   }
 }
 
