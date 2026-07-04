@@ -288,9 +288,13 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                 constraints.maxWidth >= 760 &&
                 constraints.maxWidth > constraints.maxHeight;
             if (wide) {
-              final videoWidth = (constraints.maxWidth * _videoSplitFraction)
-                  .clamp(280.0, constraints.maxWidth - 320)
-                  .toDouble();
+              final videoWidth = _clampSplitExtent(
+                totalExtent: constraints.maxWidth,
+                fraction: _videoSplitFraction,
+                preferredMin: 280,
+                reservedExtent: 320,
+                fallbackMin: 180,
+              );
               return Row(
                 children: [
                   Expanded(child: root),
@@ -307,9 +311,13 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               );
             }
 
-            final videoHeight = (constraints.maxHeight * _videoSplitFraction)
-                .clamp(220.0, constraints.maxHeight - 260)
-                .toDouble();
+            final videoHeight = _clampSplitExtent(
+              totalExtent: constraints.maxHeight,
+              fraction: _videoSplitFraction,
+              preferredMin: 220,
+              reservedExtent: 260,
+              fallbackMin: 96,
+            );
             final topInset = MediaQuery.paddingOf(context).top;
             return Column(
               children: [
@@ -346,6 +354,19 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         );
       },
     );
+  }
+
+  double _clampSplitExtent({
+    required double totalExtent,
+    required double fraction,
+    required double preferredMin,
+    required double reservedExtent,
+    required double fallbackMin,
+  }) {
+    if (!totalExtent.isFinite || totalExtent <= 0) return fallbackMin;
+    final upper = math.max(fallbackMin, totalExtent - reservedExtent);
+    final lower = math.min(preferredMin, upper);
+    return (totalExtent * fraction).clamp(lower, upper).toDouble();
   }
 
   Widget _videoSibling(VideoSplitSession session) {

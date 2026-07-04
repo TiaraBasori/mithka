@@ -697,9 +697,9 @@ class TdClient {
         'use_secret_chats': false,
         'api_id': useCustomApi ? api.apiId : Secrets.apiId,
         'api_hash': useCustomApi ? api.apiHash.trim() : Secrets.apiHash,
-        'system_language_code': Platform.localeName.split('_').first,
+        'system_language_code': _safeSystemLanguageCode(),
         'device_model': Platform.isIOS ? 'iPhone' : 'Android',
-        'system_version': Platform.operatingSystemVersion,
+        'system_version': _safeSystemVersion(),
         'application_version': '1.0',
       }),
     );
@@ -858,6 +858,24 @@ class TdClient {
   /// list and badge UI can converge immediately while waiting for TDLib's
   /// eventual aggregate updates.
   void emitLocalUpdate(Map<String, dynamic> update) => _updates.add(update);
+
+  String _safeSystemLanguageCode() {
+    try {
+      final code = Platform.localeName.split('_').first.trim();
+      return code.isEmpty ? 'en' : code;
+    } catch (_) {
+      return 'en';
+    }
+  }
+
+  String _safeSystemVersion() {
+    try {
+      final version = Platform.operatingSystemVersion.trim();
+      return version.isEmpty ? Platform.operatingSystem : version;
+    } catch (_) {
+      return Platform.operatingSystem;
+    }
+  }
 }
 
 // MARK: - Receive isolate
