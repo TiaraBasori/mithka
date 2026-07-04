@@ -12,8 +12,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
-import '../app/app_navigator.dart';
-import '../chat/chat_view.dart';
+import '../app/chat_deep_link_controller.dart';
 import '../l10n/telegram_language_controller.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/json_helpers.dart';
@@ -174,13 +173,10 @@ class NotificationController with WidgetsBindingObserver {
     final chat = await _chat(chatId);
     final title = chat?.str('title') ?? 'Mithka';
 
-    final navigator = appNavigatorKey.currentState;
-    if (navigator == null) return;
-    navigator.push(
-      MaterialPageRoute(
-        builder: (_) =>
-            ChatView(chatId: chatId, title: title, initialMessageId: messageId),
-      ),
+    ChatDeepLinkController.shared.openChat(
+      chatId: chatId,
+      title: title,
+      messageId: messageId,
     );
   }
 

@@ -68,6 +68,7 @@ class ChatListSelection {
     required this.chatId,
     required this.title,
     this.chat,
+    this.initialMessageId,
   });
 
   ChatListSelection.fromChat(ChatSummary chat)
@@ -76,6 +77,7 @@ class ChatListSelection {
   final int chatId;
   final String title;
   final ChatSummary? chat;
+  final int? initialMessageId;
 
   bool get isForum => chat?.isForum ?? false;
 }

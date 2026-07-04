@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../components/app_icons.dart';
 import 'package:provider/provider.dart';
 
+import 'chat_deep_link_controller.dart';
 import '../call/call_manager.dart';
 import '../call/call_screen.dart';
 import '../chat/chat_view.dart';
@@ -110,6 +111,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   Widget? _selectedMomentDetail;
   double _videoSplitFraction = 0.42;
   OverlayEntry? _pictureInPictureVideo;
+  ChatDeepLinkController? _chatDeepLinks;
 
   @override
   void initState() {
@@ -123,7 +125,20 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final controller = context.read<ChatDeepLinkController>();
+    if (identical(_chatDeepLinks, controller)) return;
+    _chatDeepLinks?.removeListener(_handlePendingChatDeepLink);
+    _chatDeepLinks = controller..addListener(_handlePendingChatDeepLink);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _handlePendingChatDeepLink();
+    });
+  }
+
+  @override
   void dispose() {
+    _chatDeepLinks?.removeListener(_handlePendingChatDeepLink);
     _pictureInPictureVideo?.remove();
     if (_pictureInPictureVideo != null) {
       VideoPiPController.instance.close();
@@ -213,6 +228,51 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     _chatListController.toggleFirstUnreadOrTop(
       mayHaveUnread: _unread.countFor(theme.unreadBadgeMode) > 0,
     );
+  }
+
+  void _handlePendingChatDeepLink() {
+    if (!mounted) return;
+    final request = _chatDeepLinks?.consumePending();
+    if (request == null) return;
+    _openMessageDeepLink(request);
+  }
+
+  void _openMessageDeepLink(ChatDeepLinkRequest request) {
+    if (_usesTabletSplit(context)) {
+      setState(() {
+        _selection = 0;
+        _selectedMessageChat = ChatListSelection(
+          chatId: request.chatId,
+          title: request.title,
+          initialMessageId: request.messageId,
+        );
+      });
+      return;
+    }
+
+    setState(() => _selection = 0);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final navigator = _navKeys[0].currentState;
+      if (navigator == null) {
+        _chatDeepLinks?.openChat(
+          chatId: request.chatId,
+          title: request.title,
+          messageId: request.messageId,
+        );
+        return;
+      }
+      navigator.popUntil((route) => route.isFirst);
+      navigator.push(
+        MaterialPageRoute(
+          builder: (_) => ChatView(
+            chatId: request.chatId,
+            title: request.title,
+            initialMessageId: request.messageId,
+          ),
+        ),
+      );
+    });
   }
 
   void _clearTabletDetail(int tabIndex) {
@@ -818,8 +878,11 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         AppMetric.headerAvatarSize + (AppSpacing.md + AppSpacing.xxs) * 2;
     final headerColor = context.colors.chatBackground;
     return KeyedSubtree(
-      key: ValueKey('message-detail-${selected.chatId}-${selected.isForum}'),
-      child: selected.isForum && chat != null
+      key: ValueKey(
+        'message-detail-${selected.chatId}-${selected.isForum}-${selected.initialMessageId ?? 0}',
+      ),
+      child:
+          selected.isForum && chat != null && selected.initialMessageId == null
           ? TopicChatView(
               chat: chat,
               showBackButton: false,
@@ -830,6 +893,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               chatId: selected.chatId,
               title: selected.title,
               seedMessage: chat?.lastChatMessage,
+              initialMessageId: selected.initialMessageId,
               showBackButton: false,
               headerHeight: headerHeight,
               headerColor: headerColor,

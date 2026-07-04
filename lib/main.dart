@@ -25,6 +25,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'app/content_view.dart';
 import 'app/app_version.dart';
 import 'app/app_navigator.dart';
+import 'app/chat_deep_link_controller.dart';
 import 'auth/account_store.dart';
 import 'auth/auth_manager.dart';
 import 'chat/music_player_controller.dart';
@@ -193,6 +194,8 @@ class _MithkaAppState extends State<MithkaApp> {
       TelegramLanguageController.shared;
   late final AccountStore _accounts = AccountStore(widget.prefs);
   late final dc.DrawerController _drawer = dc.DrawerController();
+  late final ChatDeepLinkController _chatDeepLinks =
+      ChatDeepLinkController.shared;
 
   @override
   void initState() {
@@ -258,6 +261,7 @@ class _MithkaAppState extends State<MithkaApp> {
           },
         ),
         ChangeNotifierProvider.value(value: _accounts),
+        ChangeNotifierProvider.value(value: _chatDeepLinks),
         ChangeNotifierProvider<dc.DrawerController>.value(value: _drawer),
       ],
       child: Consumer3<ThemeController, AccountStore, AppLocaleController>(
