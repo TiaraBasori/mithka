@@ -841,9 +841,14 @@ class _ChatListViewState extends State<ChatListView> {
     final isGroup = chat.kind == ChatKind.group;
     final confirmed = await confirmDialog(
       context,
-      title: isGroup ? AppStringKeys.chatInfoLeaveGroup : 'Delete chat?',
+      title: isGroup
+          ? AppStringKeys.chatInfoLeaveGroup
+          : AppStringKeys.chatListDeleteChatQuestion,
       message: isGroup
-          ? 'Leave "${chat.title}" and delete its chat history from this device?'
+          ? AppStrings.t(
+              AppStringKeys.chatListLeaveAndDeleteGroupConfirmation,
+              {'value1': chat.title},
+            )
           : AppStrings.t(AppStringKeys.chatInfoClearHistoryDescription),
       confirmText: isGroup
           ? AppStringKeys.chatInfoLeaveGroup

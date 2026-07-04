@@ -12,6 +12,7 @@ import 'package:flutter/material.dart';
 
 import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -263,7 +264,7 @@ class _ChatSearchViewState extends State<ChatSearchView> {
                 const SizedBox(height: 2),
                 Text(
                   m.text.isEmpty
-                      ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
+                      ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
                       : m.text.replaceAll('\n', ' '),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,

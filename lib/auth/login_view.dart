@@ -7,6 +7,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:dlibphonenumber/dlibphonenumber.dart';
 import 'package:flutter/cupertino.dart';
@@ -14,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../components/app_icons.dart';
 import '../settings/api_credentials_view.dart';
@@ -37,6 +39,7 @@ class LoginView extends StatefulWidget {
 
 class _LoginViewState extends State<LoginView> {
   static const _resendCooldown = Duration(seconds: 60);
+  static const _termsAcceptedKey = 'mithka.terms.accepted.v1';
 
   final _phone = TextEditingController(text: '+');
   final _code = TextEditingController();
@@ -48,6 +51,8 @@ class _LoginViewState extends State<LoginView> {
   int _resendRemainingSeconds = 0;
   ProxyConfig? _proxy;
   int _restorableBackupCount = 0;
+  bool _termsLoaded = false;
+  bool _termsAccepted = false;
 
   // When true, show the phone-number step even though TDLib is still at a later
   // auth state — lets the user back out of QR / code / 2FA to fix the number.
@@ -59,6 +64,7 @@ class _LoginViewState extends State<LoginView> {
   @override
   void initState() {
     super.initState();
+    unawaited(_loadTermsAcceptance());
     _loadProxy();
     if (Platform.isIOS) unawaited(_loadRestorableBackupCount());
   }
@@ -75,6 +81,21 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _loadProxy() async {
     final proxy = await ProxyConfig.load();
     if (mounted) setState(() => _proxy = proxy);
+  }
+
+  Future<void> _loadTermsAcceptance() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _termsAccepted = prefs.getBool(_termsAcceptedKey) ?? false;
+      _termsLoaded = true;
+    });
+  }
+
+  Future<void> _acceptTerms() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_termsAcceptedKey, true);
+    if (mounted) setState(() => _termsAccepted = true);
   }
 
   Future<void> _loadRestorableBackupCount() async {
@@ -281,6 +302,8 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Widget _stepFor(AuthManager auth) {
+    if (!_termsLoaded) return _loadingStep();
+    if (!_termsAccepted) return _termsStep();
     if (_forcePhone) return _phoneStep(auth);
     return switch (auth.step) {
       AuthMissingCredentials() => _credentialsNotice(auth),
@@ -290,6 +313,64 @@ class _LoginViewState extends State<LoginView> {
       AuthWaitRegistration() => _registrationStep(auth),
       _ => _phoneStep(auth),
     };
+  }
+
+  Widget _loadingStep() {
+    return Center(
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: CircularProgressIndicator.adaptive(
+          strokeWidth: 2.4,
+          valueColor: AlwaysStoppedAnimation<Color>(AppTheme.brand),
+        ),
+      ),
+    );
+  }
+
+  Widget _termsStep() {
+    final c = context.colors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                AppStrings.t(AppStringKeys.loginTermsTitle),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: c.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                AppStrings.t(AppStringKeys.loginTermsBody),
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.45,
+                  color: c.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _primaryButton(
+          context.read<AuthManager>(),
+          AppStrings.t(AppStringKeys.loginTermsAccept),
+          true,
+          _acceptTerms,
+        ),
+      ],
+    );
   }
 
   Widget _header() {
@@ -427,14 +508,14 @@ class _LoginViewState extends State<LoginView> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showingPhone)
+        if (showingPhone && _termsAccepted)
           _loginIconButton(
             icon: HeroAppIcons.qrcode,
             tooltip: AppStrings.t(AppStringKeys.loginWithQrCode),
             enabled: !auth.isWorking,
             onTap: () => _requestQrLogin(auth),
           ),
-        if (showingPhone && Platform.isIOS)
+        if (showingPhone && _termsAccepted && Platform.isIOS)
           _loginIconButton(
             icon: HeroAppIcons.key,
             tooltip: AppStrings.t(AppStringKeys.accountBackupRestoreAccount),
@@ -682,8 +763,9 @@ class _LoginViewState extends State<LoginView> {
     );
   }
 
-  Widget _codeStep(AuthManager auth, String info) {
+  Widget _codeStep(AuthManager auth, AuthCodeInfo info) {
     final c = context.colors;
+    final prompt = _codePrompt(info);
     if (auth.isReviewCodePolling) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -691,7 +773,7 @@ class _LoginViewState extends State<LoginView> {
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
-              info,
+              prompt,
               style: TextStyle(fontSize: 13, color: c.textSecondary),
             ),
           ),
@@ -715,18 +797,17 @@ class _LoginViewState extends State<LoginView> {
         Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            info,
+            prompt,
             style: TextStyle(fontSize: 13, color: c.textSecondary),
           ),
         ),
         const SizedBox(height: 16),
-        InputField(
-          systemImage: HeroAppIcons.shieldHalved.data,
-          placeholder: AppStrings.t(AppStringKeys.loginVerificationCode),
+        _VerificationCodeInput(
           controller: _code,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onChanged: (_) => setState(() {}),
+          length: info.effectiveLength,
+          numericOnly: info.isNumeric,
+          enabled: !auth.isWorking,
+          onChanged: (value) => _handleCodeChanged(auth, info, value),
         ),
         const SizedBox(height: 16),
         _primaryButton(
@@ -739,6 +820,52 @@ class _LoginViewState extends State<LoginView> {
         _resendCodeAction(auth),
       ],
     );
+  }
+
+  void _handleCodeChanged(AuthManager auth, AuthCodeInfo info, String value) {
+    setState(() {});
+    final normalized = value.trim();
+    if (auth.isWorking || normalized.length != info.effectiveLength) return;
+    auth.submitCode(normalized);
+  }
+
+  String _codePrompt(AuthCodeInfo info) {
+    return switch (info.method) {
+      AuthCodeDeliveryMethod.telegramMessage => AppStrings.t(
+        AppStringKeys.loginCodeSentToTelegramDevices,
+      ),
+      AuthCodeDeliveryMethod.sms => AppStrings.t(
+        AppStringKeys.loginCodeSentBySms,
+        {'value1': info.phoneNumber ?? ''},
+      ),
+      AuthCodeDeliveryMethod.call => AppStrings.t(
+        AppStringKeys.loginCodeSentByPhoneCall,
+        {'value1': info.phoneNumber ?? ''},
+      ),
+      AuthCodeDeliveryMethod.flashCall => AppStrings.t(
+        AppStringKeys.loginCodeSentByFlashCall,
+        {'value1': info.pattern ?? ''},
+      ),
+      AuthCodeDeliveryMethod.missedCall => AppStrings.t(
+        AppStringKeys.loginCodeSentByMissedCall,
+        {
+          'value1': info.phoneNumberPrefix ?? '',
+          'value2': '${info.effectiveLength}',
+        },
+      ),
+      AuthCodeDeliveryMethod.fragment => AppStrings.t(
+        AppStringKeys.loginCodeSentByFragment,
+      ),
+      AuthCodeDeliveryMethod.firebase => AppStrings.t(
+        AppStringKeys.loginCodeSentByFirebase,
+      ),
+      AuthCodeDeliveryMethod.email => AppStrings.t(
+        AppStringKeys.loginCodeSentByEmail,
+      ),
+      AuthCodeDeliveryMethod.unknown => AppStrings.t(
+        AppStringKeys.loginCodeSentFallback,
+      ),
+    };
   }
 
   void _syncResendCountdown(AuthManager auth) {
@@ -989,6 +1116,209 @@ class ObscuringController extends TextEditingController {
       );
     }
     return TextSpan(style: style, text: '•' * value.text.length);
+  }
+}
+
+class _VerificationCodeInput extends StatefulWidget {
+  const _VerificationCodeInput({
+    required this.controller,
+    required this.length,
+    required this.numericOnly,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final TextEditingController controller;
+  final int length;
+  final bool numericOnly;
+  final bool enabled;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_VerificationCodeInput> createState() => _VerificationCodeInputState();
+}
+
+class _VerificationCodeInputState extends State<_VerificationCodeInput> {
+  final FocusNode _focusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_refresh);
+    _focusNode.addListener(_refresh);
+  }
+
+  @override
+  void didUpdateWidget(covariant _VerificationCodeInput oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller == widget.controller) return;
+    oldWidget.controller.removeListener(_refresh);
+    widget.controller.addListener(_refresh);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_refresh);
+    _focusNode.removeListener(_refresh);
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final boxCount = math.max(4, math.min(widget.length, 8));
+    final code = widget.controller.text;
+    return Semantics(
+      label: AppStrings.t(AppStringKeys.loginVerificationCode),
+      textField: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.enabled ? _focusNode.requestFocus : null,
+        child: SizedBox(
+          height: 58,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: TextField(
+                  focusNode: _focusNode,
+                  controller: widget.controller,
+                  enabled: widget.enabled,
+                  keyboardType: widget.numericOnly
+                      ? TextInputType.number
+                      : TextInputType.text,
+                  inputFormatters: [
+                    if (widget.numericOnly)
+                      FilteringTextInputFormatter.digitsOnly,
+                    LengthLimitingTextInputFormatter(widget.length),
+                  ],
+                  autofillHints: const [AutofillHints.oneTimeCode],
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  enableInteractiveSelection: false,
+                  showCursor: false,
+                  style: const TextStyle(
+                    color: Colors.transparent,
+                    fontSize: 1,
+                    height: 1,
+                  ),
+                  cursorColor: Colors.transparent,
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    isCollapsed: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onChanged: widget.onChanged,
+                ),
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      const gap = 8.0;
+                      final boxWidth = math.min(
+                        48.0,
+                        (constraints.maxWidth - gap * (boxCount - 1)) /
+                            boxCount,
+                      );
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (var i = 0; i < boxCount; i++) ...[
+                            _VerificationCodeBox(
+                              width: boxWidth,
+                              value: i < code.length ? code[i] : '',
+                              focused:
+                                  _focusNode.hasFocus &&
+                                  widget.enabled &&
+                                  i == math.min(code.length, boxCount - 1),
+                            ),
+                            if (i != boxCount - 1) const SizedBox(width: gap),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ),
+              if (widget.length > boxCount && code.length > boxCount)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Center(
+                    child: Text(
+                      '${code.length}/${widget.length}',
+                      style: TextStyle(
+                        color: c.textTertiary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _VerificationCodeBox extends StatelessWidget {
+  const _VerificationCodeBox({
+    required this.width,
+    required this.value,
+    required this.focused,
+  });
+
+  final double width;
+  final String value;
+  final bool focused;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      curve: Curves.easeOutCubic,
+      width: width,
+      height: 54,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(
+          color: focused ? AppTheme.brand : c.divider,
+          width: focused ? 1.8 : 1,
+        ),
+        boxShadow: focused
+            ? [
+                BoxShadow(
+                  color: AppTheme.brand.withValues(alpha: 0.16),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ]
+            : null,
+      ),
+      child: Text(
+        value,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: c.textPrimary,
+          fontSize: 24,
+          fontWeight: FontWeight.w700,
+          height: 1,
+          decoration: TextDecoration.none,
+        ),
+      ),
+    );
   }
 }
 

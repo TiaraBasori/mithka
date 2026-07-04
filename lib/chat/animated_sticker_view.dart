@@ -22,8 +22,10 @@ Uint8List _inflateTgsSticker(Uint8List bytes) {
   return Uint8List.fromList(GZipDecoder().decodeBytes(bytes));
 }
 
-const _maxInflatedTgsCacheEntries = 80;
 final Map<String, Future<Uint8List?>> _inflatedTgsCache = {};
+
+int get _maxInflatedTgsCacheEntries =>
+    defaultTargetPlatform == TargetPlatform.android ? 32 : 80;
 
 Future<Uint8List?> _loadInflatedTgsSticker(String cacheKey, String path) {
   final cached = _inflatedTgsCache.remove(cacheKey);

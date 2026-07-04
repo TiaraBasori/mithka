@@ -26,6 +26,7 @@ import '../components/photo_avatar.dart';
 import '../components/icon_grid.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../theme/app_theme.dart';
 import '../tdlib/td_models.dart';
 import 'audio_search_view.dart';
@@ -440,10 +441,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
       });
     }
     if (m.voice != null) {
-      return AppStrings.t(AppStringKeys.composerVoicePreview);
+      return telegramText(AppStringKeys.composerVoicePreview);
     }
     if (m.location != null) {
-      return AppStrings.t(AppStringKeys.composerLocationPreview);
+      return telegramText(AppStringKeys.composerLocationPreview);
     }
     if (m.isDice) {
       return m.diceEmoji ?? m.text;
@@ -452,11 +453,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
       return m.text;
     }
     if (m.animatedSticker != null) {
-      return AppStrings.t(AppStringKeys.composerAnimatedEmojiPreview);
+      return telegramText(AppStringKeys.composerAnimatedEmojiPreview);
     }
     if (m.image != null) {
       return m.text.isEmpty
-          ? AppStrings.t(AppStringKeys.composerImagePreview)
+          ? telegramText(AppStringKeys.composerImagePreview)
           : m.text;
     }
     return m.text;
@@ -872,7 +873,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           children: [
             _formatButton(
-              tooltip: AppStrings.t(AppStringKeys.messageActionQuote),
+              tooltip: telegramText(AppStringKeys.messageActionQuote),
               type: 'textEntityTypeBlockQuote',
               icon: HeroAppIcons.quoteLeft.data,
             ),
@@ -1194,7 +1195,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         }
       }
     } catch (_) {
-      _pickFailed(AppStrings.t(AppStringKeys.topicPostContentFile));
+      _pickFailed(telegramText(AppStringKeys.topicPostContentFile));
     }
   }
 
@@ -1253,7 +1254,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       final path = result?.files.single.path;
       if (path != null) widget.vm.sendAudio(path);
     } catch (_) {
-      _pickFailed(AppStrings.t(AppStringKeys.composerAudio));
+      _pickFailed(telegramText(AppStringKeys.composerAudio));
     }
   }
 
@@ -1301,7 +1302,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       ),
       (
         HeroAppIcons.solidFolder.data,
-        AppStrings.t(AppStringKeys.topicPostContentFile),
+        telegramText(AppStringKeys.topicPostContentFile),
         _pickFile,
       ),
       (
@@ -1311,7 +1312,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       ),
       (
         HeroAppIcons.music.data,
-        AppStrings.t(AppStringKeys.composerAudio),
+        telegramText(AppStringKeys.composerAudio),
         _pickAudio,
       ),
       (

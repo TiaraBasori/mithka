@@ -22,6 +22,7 @@ import '../profile/profile_detail_view.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
 import '../theme/theme_controller.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -67,6 +68,7 @@ class MessageBubble extends StatefulWidget {
     this.onButtonTap,
     this.onBotCommandTap,
     this.onToggleReaction,
+    this.onShowReactionUsers,
     this.onRedial,
     this.isRead = false,
   });
@@ -95,6 +97,8 @@ class MessageBubble extends StatefulWidget {
   final void Function(ChatMessage message, MessageButton button)? onButtonTap;
   final ValueChanged<String>? onBotCommandTap;
   final ValueChanged<MessageReaction>? onToggleReaction;
+  final void Function(ChatMessage message, MessageReaction reaction)?
+  onShowReactionUsers;
   final ValueChanged<bool>?
   onRedial; // tap a call log to redial (bool = isVideo)
   final bool isRead; // outgoing message read by the peer (✓✓)
@@ -382,6 +386,7 @@ class _MessageBubbleState extends State<MessageBubble>
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () => widget.onToggleReaction?.call(r),
+            onLongPress: () => widget.onShowReactionUsers?.call(message, r),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
@@ -1158,7 +1163,11 @@ class _MessageBubbleState extends State<MessageBubble>
               color: const Color(0xFFFF3B30),
               borderRadius: BorderRadius.circular(4),
             ),
-            child: const AppIcon(HeroAppIcons.music, color: Colors.white, size: 14),
+            child: const AppIcon(
+              HeroAppIcons.music,
+              color: Colors.white,
+              size: 14,
+            ),
           ),
           const SizedBox(width: 7),
           Text(
@@ -1387,7 +1396,7 @@ class _MessageBubbleState extends State<MessageBubble>
         const SizedBox(width: 4),
         Flexible(
           child: Text(
-            AppStrings.t(AppStringKeys.messageBubbleForwardedFrom, {
+            telegramText(AppStringKeys.messageBubbleForwardedFrom, {
               'value1': message.forwardOrigin,
             }),
             maxLines: 1,

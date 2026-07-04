@@ -31,6 +31,7 @@ import 'chat/music_player_controller.dart';
 import 'components/drawer_controller.dart' as dc;
 import 'l10n/app_locale_controller.dart';
 import 'l10n/app_localizations.dart';
+import 'l10n/telegram_language_controller.dart';
 import 'notifications/notification_controller.dart';
 import 'notifications/push_device_registrar.dart';
 import 'settings/keyword_blocker.dart';
@@ -47,12 +48,20 @@ const _gitCommit = String.fromEnvironment('GIT_COMMIT');
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _configureAndroidImageCache();
   if (_sentryDsn.isEmpty) {
     await _bootstrapAndRunApp();
     return;
   }
 
   await SentryFlutter.init(_configureSentry, appRunner: _bootstrapAndRunApp);
+}
+
+void _configureAndroidImageCache() {
+  if (defaultTargetPlatform != TargetPlatform.android) return;
+  final cache = PaintingBinding.instance.imageCache;
+  cache.maximumSize = 420;
+  cache.maximumSizeBytes = 80 << 20;
 }
 
 Future<void> _bootstrapAndRunApp() async {
@@ -179,6 +188,8 @@ class _MithkaAppState extends State<MithkaApp> {
     widget.prefs,
   );
   late final AppLocaleController _locale = AppLocaleController(widget.prefs);
+  late final TelegramLanguageController _telegramLanguage =
+      TelegramLanguageController.shared;
   late final AccountStore _accounts = AccountStore(widget.prefs);
   late final dc.DrawerController _drawer = dc.DrawerController();
 
@@ -187,6 +198,7 @@ class _MithkaAppState extends State<MithkaApp> {
     super.initState();
     _theme.loadSelectedEmojiFontIfAvailable();
     _auth.start();
+    unawaited(_telegramLanguage.initialize(widget.prefs));
     unawaited(_accounts.recoverPendingAddOnStartup(_auth));
     NotificationController.shared.start();
     PushDeviceRegistrar.shared.start();
@@ -233,6 +245,17 @@ class _MithkaAppState extends State<MithkaApp> {
         ChangeNotifierProvider.value(value: _theme),
         ChangeNotifierProvider.value(value: _translation),
         ChangeNotifierProvider.value(value: _locale),
+        ChangeNotifierProxyProvider<
+          AppLocaleController,
+          TelegramLanguageController
+        >(
+          create: (_) => _telegramLanguage,
+          update: (_, locale, telegramLanguage) {
+            final controller = telegramLanguage ?? _telegramLanguage;
+            unawaited(controller.syncAppLocale(locale.locale));
+            return controller;
+          },
+        ),
         ChangeNotifierProvider.value(value: _accounts),
         ChangeNotifierProvider<dc.DrawerController>.value(value: _drawer),
       ],

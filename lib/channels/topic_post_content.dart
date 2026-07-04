@@ -7,6 +7,7 @@ import '../chat/telegram_rich_text.dart';
 import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
 import '../components/toast.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -157,7 +158,7 @@ class _TopicFileCard extends StatelessWidget {
 
   String _byteString(int bytes) {
     if (bytes <= 0) {
-      return AppStrings.t(AppStringKeys.topicPostContentFile);
+      return telegramText(AppStringKeys.topicPostContentFile);
     }
     const units = ['B', 'KB', 'MB', 'GB'];
     var value = bytes.toDouble();

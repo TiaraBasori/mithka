@@ -11,7 +11,9 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
+import '../l10n/telegram_language_controller.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -61,6 +63,20 @@ class MessageSenderOption {
       _ => false,
     };
   }
+}
+
+class MessageReactionUser {
+  const MessageReactionUser({
+    required this.senderId,
+    required this.title,
+    this.photo,
+    this.date = 0,
+  });
+
+  final int senderId;
+  final String title;
+  final TdFileRef? photo;
+  final int date;
 }
 
 class BotCommandOption {
@@ -181,6 +197,7 @@ class ChatViewModel extends ChangeNotifier {
   int? _lastForcedReadMessageId;
   bool _markReadInFlight = false;
   final Set<int> _blockedReadIds = {};
+  final Set<int> _blockedSenderIds = {};
 
   // Typing: sender ids currently acting, auto-cleared after a few seconds.
   final Map<int, String> _typing = {};
@@ -1073,6 +1090,89 @@ class ChatViewModel extends ChangeNotifier {
       'revoke': true,
     });
     _removeMessages(ids);
+  }
+
+  Future<void> reportMessage(ChatMessage message) async {
+    await _reportTelegramContent(message);
+    unawaited(
+      _notifyDeveloperContentReport(
+        message,
+        action: 'report',
+      ).catchError((_) {}),
+    );
+  }
+
+  Future<void> blockAndReportSender(ChatMessage message) async {
+    final senderId = message.senderId;
+    final sender = _messageSenderFor(message);
+    if (senderId == null || sender == null) {
+      throw TdError({'message': 'Missing message sender'});
+    }
+    _blockedSenderIds.add(senderId);
+    _applyKeywordFilter();
+    try {
+      await _client.query({
+        '@type': 'setMessageSenderBlockList',
+        'sender_id': sender,
+        'block_list': {'@type': 'blockListMain'},
+      });
+    } catch (_) {
+      _blockedSenderIds.remove(senderId);
+      _applyKeywordFilter();
+      rethrow;
+    }
+    unawaited(_reportTelegramContent(message).catchError((_) {}));
+    unawaited(
+      _notifyDeveloperContentReport(
+        message,
+        action: 'block',
+      ).catchError((_) {}),
+    );
+  }
+
+  Map<String, dynamic>? _messageSenderFor(ChatMessage message) {
+    final senderId = message.senderId;
+    if (senderId == null) return null;
+    if (senderId > 0) {
+      return {'@type': 'messageSenderUser', 'user_id': senderId};
+    }
+    return {'@type': 'messageSenderChat', 'chat_id': senderId};
+  }
+
+  Future<void> _reportTelegramContent(ChatMessage message) async {
+    final sender = _messageSenderFor(message);
+    final base = <String, dynamic>{
+      '@type': 'reportChat',
+      'chat_id': chatId,
+      'message_ids': [message.id],
+      'sender_id': sender,
+      'option_id': '',
+      'text': 'Objectionable or abusive content reported from Mithka.',
+    };
+    final result = await _client.query(base);
+    if (result.type != 'reportChatResultOptionRequired') return;
+    final options = result.objects('options') ?? const <Map<String, dynamic>>[];
+    if (options.isEmpty) return;
+    await _client.query({...base, 'option_id': options.first['id'] ?? ''});
+  }
+
+  Future<void> _notifyDeveloperContentReport(
+    ChatMessage message, {
+    required String action,
+  }) async {
+    await Sentry.captureMessage(
+      'user_content_report',
+      level: SentryLevel.warning,
+      withScope: (scope) async {
+        await scope.setTag('content_report.action', action);
+        await scope.setTag('content_report.chat_id', '$chatId');
+        await scope.setTag('content_report.message_id', '${message.id}');
+        final senderId = message.senderId;
+        if (senderId != null) {
+          await scope.setTag('content_report.sender_id', '$senderId');
+        }
+      },
+    );
   }
 
   void editMessageText(int id, String text) {
@@ -2066,6 +2166,91 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  Future<List<MessageReactionUser>> reactionUsers(
+    ChatMessage message,
+    MessageReaction reaction,
+  ) async {
+    final res = await _client.query({
+      '@type': 'getMessageAddedReactions',
+      'chat_id': chatId,
+      'message_id': message.id,
+      'reaction_type': reaction.type,
+      'offset': '',
+      'limit': 100,
+    });
+    final added = res.objects('reactions') ?? const <Map<String, dynamic>>[];
+    final users = <MessageReactionUser>[];
+    for (final item in added) {
+      final senderId = _senderIdFromTd(item.obj('sender_id'));
+      if (senderId == null) continue;
+      final info = await _reactionSenderInfo(senderId);
+      users.add(
+        MessageReactionUser(
+          senderId: senderId,
+          title: info.name,
+          photo: info.photo,
+          date: item.integer('date') ?? 0,
+        ),
+      );
+    }
+    return users;
+  }
+
+  int? _senderIdFromTd(Map<String, dynamic>? sender) {
+    return switch (sender?.type) {
+      'messageSenderUser' => sender?.int64('user_id'),
+      'messageSenderChat' => sender?.int64('chat_id'),
+      _ => null,
+    };
+  }
+
+  Future<_SenderInfo> _reactionSenderInfo(int senderId) async {
+    final cached = _senderCache[senderId];
+    if (cached != null) return cached;
+    if (senderId > 0) {
+      try {
+        final user = await _client.query({
+          '@type': 'getUser',
+          'user_id': senderId,
+        });
+        return _SenderInfo(
+          TDParse.userName(user),
+          TDParse.smallPhoto(user.obj('profile_photo')),
+          MemberRole.member,
+          null,
+        );
+      } catch (_) {
+        return _SenderInfo(
+          AppStrings.t(AppStringKeys.chatUserFallbackName, {
+            'value1': senderId,
+          }),
+          null,
+          MemberRole.member,
+          null,
+        );
+      }
+    }
+    try {
+      final chat = await _client.query({
+        '@type': 'getChat',
+        'chat_id': senderId,
+      });
+      return _SenderInfo(
+        chat.str('title') ?? telegramText(AppStringKeys.chatInfoGroupMembers),
+        TDParse.smallPhoto(chat.obj('photo')),
+        MemberRole.member,
+        null,
+      );
+    } catch (_) {
+      return _SenderInfo(
+        telegramText(AppStringKeys.chatInfoGroupMembers),
+        null,
+        MemberRole.member,
+        null,
+      );
+    }
+  }
+
   void _restartTypingTimer() {
     _typingTimer?.cancel();
     _typingTimer = Timer(const Duration(seconds: 6), () {
@@ -2184,10 +2369,10 @@ class ChatViewModel extends ChangeNotifier {
       });
     }
     if (q.voice != null) {
-      return AppStrings.t(AppStringKeys.composerVoicePreview);
+      return telegramText(AppStringKeys.composerVoicePreview);
     }
     if (q.location != null) {
-      return AppStrings.t(AppStringKeys.composerLocationPreview);
+      return telegramText(AppStringKeys.composerLocationPreview);
     }
     if (q.isDice) {
       return q.diceEmoji ?? q.text;
@@ -2196,11 +2381,11 @@ class ChatViewModel extends ChangeNotifier {
       return q.text;
     }
     if (q.animatedSticker != null) {
-      return AppStrings.t(AppStringKeys.composerAnimatedEmojiPreview);
+      return telegramText(AppStringKeys.composerAnimatedEmojiPreview);
     }
     if (q.image != null) {
       return q.text.isEmpty
-          ? AppStrings.t(AppStringKeys.composerImagePreview)
+          ? telegramText(AppStringKeys.composerImagePreview)
           : q.text;
     }
     return q.text;
@@ -2210,6 +2395,8 @@ class ChatViewModel extends ChangeNotifier {
 
   bool _isBlockedMessage(ChatMessage message) {
     if (message.isOutgoing || message.isService) return false;
+    final senderId = message.senderId;
+    if (senderId != null && _blockedSenderIds.contains(senderId)) return true;
     return KeywordBlocker.shared.matches(message.text);
   }
 
@@ -2564,14 +2751,14 @@ class ChatViewModel extends ChangeNotifier {
           'chat_id': senderId,
         });
         info = _SenderInfo(
-          chat.str('title') ?? AppStrings.t(AppStringKeys.chatInfoGroupMembers),
+          chat.str('title') ?? telegramText(AppStringKeys.chatInfoGroupMembers),
           TDParse.smallPhoto(chat.obj('photo')),
           MemberRole.member,
           null,
         );
       } catch (_) {
         info = _SenderInfo(
-          AppStrings.t(AppStringKeys.chatInfoGroupMembers),
+          telegramText(AppStringKeys.chatInfoGroupMembers),
           null,
           MemberRole.member,
           null,

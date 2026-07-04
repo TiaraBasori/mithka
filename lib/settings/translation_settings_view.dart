@@ -12,6 +12,7 @@ import 'package:provider/provider.dart';
 
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../theme/app_theme.dart';
 import 'translation_api.dart';
 import 'translation_controller.dart';
@@ -38,7 +39,7 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
       body: Column(
         children: [
           NavHeader(
-            title: AppStrings.t(AppStringKeys.messageActionTranslate),
+            title: telegramText(AppStringKeys.messageActionTranslate),
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(

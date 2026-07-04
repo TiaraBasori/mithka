@@ -13,6 +13,7 @@ import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../tdlib/chat_membership.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -386,8 +387,10 @@ class _TopicPostRow extends StatelessWidget {
   String get _displayText {
     final text = post.message.text.trim();
     if (text.startsWith('[') && text.endsWith(']')) return '';
+    final localFile = AppStrings.t(AppStringKeys.channelsFileAttachment);
+    final telegramFile = telegramText(AppStringKeys.channelsFileAttachment);
     if (post.message.document != null &&
-        text.startsWith(AppStrings.t(AppStringKeys.channelsFileAttachment))) {
+        (text.startsWith(localFile) || text.startsWith(telegramFile))) {
       return '';
     }
     return text;

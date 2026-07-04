@@ -14,6 +14,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import '../app/app_navigator.dart';
 import '../chat/chat_view.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -157,7 +158,7 @@ class NotificationController with WidgetsBindingObserver {
   String _notificationText(Map<String, dynamic> content) {
     final text = TDParse.messageText(content).replaceAll('\n', ' ').trim();
     return text.isEmpty
-        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
+        ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
         : text;
   }
 

@@ -19,6 +19,7 @@ import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -278,7 +279,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
             child: Row(
               children: [
                 Text(
-                  AppStrings.t(AppStringKeys.chatInfoGroupMembers),
+                  telegramText(AppStringKeys.chatInfoGroupMembers),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
@@ -413,16 +414,14 @@ class _ChatInfoViewState extends State<ChatInfoView> {
           if (!_vm.isGroup) ...[
             const InsetDivider(leadingInset: 14),
             _infoRow(
-              AppStrings.t(AppStringKeys.topicPostContentFile),
+              telegramText(AppStringKeys.topicPostContentFile),
               () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => SharedMediaView(
                     chatId: widget.chatId,
                     title: widget.title,
                     initialTab: 1,
-                    displayTitle: AppStrings.t(
-                      AppStringKeys.topicPostContentFile,
-                    ),
+                    displayTitle: AppStringKeys.topicPostContentFile,
                     lockedTab: true,
                   ),
                 ),
@@ -437,9 +436,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                     chatId: widget.chatId,
                     title: widget.title,
                     initialTab: 4,
-                    displayTitle: AppStrings.t(
-                      AppStringKeys.chatInfoGroupVideos,
-                    ),
+                    displayTitle: AppStringKeys.chatInfoGroupVideos,
                     lockedTab: true,
                   ),
                 ),
@@ -522,16 +519,14 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                   _groupAppItem(
                     icon: HeroAppIcons.solidFolder.data,
                     color: const Color(0xFFFFB300),
-                    label: AppStrings.t(AppStringKeys.topicPostContentFile),
+                    label: telegramText(AppStringKeys.topicPostContentFile),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => SharedMediaView(
                           chatId: widget.chatId,
                           title: widget.title,
                           initialTab: 1,
-                          displayTitle: AppStrings.t(
-                            AppStringKeys.chatInfoGroupFiles,
-                          ),
+                          displayTitle: AppStringKeys.chatInfoGroupFiles,
                           lockedTab: true,
                         ),
                       ),
@@ -547,9 +542,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                           chatId: widget.chatId,
                           title: widget.title,
                           initialTab: 0,
-                          displayTitle: AppStrings.t(
-                            AppStringKeys.chatInfoGroupAlbum,
-                          ),
+                          displayTitle: AppStringKeys.chatInfoGroupAlbum,
                           lockedTab: true,
                         ),
                       ),
@@ -565,9 +558,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                           chatId: widget.chatId,
                           title: widget.title,
                           initialTab: 4,
-                          displayTitle: AppStrings.t(
-                            AppStringKeys.chatInfoGroupVideos,
-                          ),
+                          displayTitle: AppStringKeys.chatInfoGroupVideos,
                           lockedTab: true,
                         ),
                       ),

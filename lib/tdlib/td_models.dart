@@ -12,6 +12,7 @@ import 'package:flutter/foundation.dart';
 
 import 'json_helpers.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/l10n/telegram_language_controller.dart';
 
 /// Reference to a downloadable TDLib file (profile photo, thumbnail, …).
 class TdFileRef {
@@ -71,12 +72,12 @@ enum ChatMediaCategory {
   member; // 群成员
 
   String get title => switch (this) {
-    ChatMediaCategory.media => AppStrings.t(AppStringKeys.tdMessagePhotoVideo),
-    ChatMediaCategory.file => AppStrings.t(AppStringKeys.topicPostContentFile),
-    ChatMediaCategory.audio => AppStrings.t(AppStringKeys.composerAudio),
-    ChatMediaCategory.link => AppStrings.t(AppStringKeys.sharedMediaLinks),
-    ChatMediaCategory.sticker => AppStrings.t(AppStringKeys.tdMessageSticker),
-    ChatMediaCategory.voice => AppStrings.t(AppStringKeys.sharedMediaVoice),
+    ChatMediaCategory.media => telegramText(AppStringKeys.tdMessagePhotoVideo),
+    ChatMediaCategory.file => telegramText(AppStringKeys.topicPostContentFile),
+    ChatMediaCategory.audio => telegramText(AppStringKeys.composerAudio),
+    ChatMediaCategory.link => telegramText(AppStringKeys.sharedMediaLinks),
+    ChatMediaCategory.sticker => telegramText(AppStringKeys.tdMessageSticker),
+    ChatMediaCategory.voice => telegramText(AppStringKeys.sharedMediaVoice),
     ChatMediaCategory.member => AppStrings.t(
       AppStringKeys.chatInfoGroupMembers,
     ),
@@ -94,17 +95,17 @@ enum ChatMediaCategory {
   };
 
   String get emptyText => switch (this) {
-    ChatMediaCategory.media => AppStrings.t(
+    ChatMediaCategory.media => telegramText(
       AppStringKeys.tdMessageNoPhotoVideo,
     ),
-    ChatMediaCategory.file => AppStrings.t(AppStringKeys.tdMessageNoFiles),
-    ChatMediaCategory.audio => AppStrings.t(AppStringKeys.tdMessageNoAudio),
-    ChatMediaCategory.link => AppStrings.t(AppStringKeys.tdMessageNoLinks),
-    ChatMediaCategory.sticker => AppStrings.t(
+    ChatMediaCategory.file => telegramText(AppStringKeys.tdMessageNoFiles),
+    ChatMediaCategory.audio => telegramText(AppStringKeys.tdMessageNoAudio),
+    ChatMediaCategory.link => telegramText(AppStringKeys.tdMessageNoLinks),
+    ChatMediaCategory.sticker => telegramText(
       AppStringKeys.tdMessageNoStickers,
     ),
-    ChatMediaCategory.voice => AppStrings.t(AppStringKeys.tdMessageNoVoice),
-    ChatMediaCategory.member => AppStrings.t(AppStringKeys.tdMessageNoMembers),
+    ChatMediaCategory.voice => telegramText(AppStringKeys.tdMessageNoVoice),
+    ChatMediaCategory.member => telegramText(AppStringKeys.tdMessageNoMembers),
   };
 }
 
@@ -717,7 +718,7 @@ abstract final class TDParse {
         ? serviceText(content)
         : (content != null
               ? messageText(content)
-              : AppStrings.t(AppStringKeys.chatSearchMessageResultLabel));
+              : telegramText(AppStringKeys.chatSearchMessageResultLabel));
 
     int? senderId;
     final sender = message.obj('sender_id');
@@ -1168,7 +1169,7 @@ abstract final class TDParse {
         return;
       case 'richTextIcon':
       case 'textImage':
-        builder.write(AppStrings.t(AppStringKeys.composerImagePreview));
+        builder.write(telegramText(AppStringKeys.composerImagePreview));
         return;
       case 'richTextMathematicalExpression':
         final expression = value.str('expression') ?? '';
@@ -1685,7 +1686,7 @@ abstract final class TDParse {
           final f = doc.obj('document');
           final name =
               doc.str('file_name') ??
-              AppStrings.t(AppStringKeys.topicPostContentFile);
+              telegramText(AppStringKeys.topicPostContentFile);
           final dot = name.lastIndexOf('.');
           final ext = dot >= 0 ? name.substring(dot + 1).toUpperCase() : '';
           return MediaAttachment(
@@ -1708,85 +1709,85 @@ abstract final class TDParse {
         return content.obj('text')?.str('text') ?? '';
       case 'messageRichMessage':
         return _richMessageText(content.obj('message'))?.text ??
-            AppStrings.t(AppStringKeys.chatSearchMessageResultLabel);
+            telegramText(AppStringKeys.chatSearchMessageResultLabel);
       case 'messagePhoto':
         final caption = content.obj('caption')?.str('text') ?? '';
         return caption.isEmpty
-            ? AppStrings.t(AppStringKeys.composerImagePreview)
+            ? telegramText(AppStringKeys.composerImagePreview)
             : caption;
       case 'messageVideo':
         final caption = content.obj('caption')?.str('text') ?? '';
         return caption.isEmpty
-            ? AppStrings.t(AppStringKeys.chatVideoPlaceholder)
+            ? telegramText(AppStringKeys.chatVideoPlaceholder)
             : caption;
       case 'messageVideoNote':
-        return AppStrings.t(AppStringKeys.tdMessageVideoMessage);
+        return telegramText(AppStringKeys.tdMessageVideoMessage);
       case 'messageVoiceNote':
-        return AppStrings.t(AppStringKeys.composerVoicePreview);
+        return telegramText(AppStringKeys.composerVoicePreview);
       case 'messageAudio':
         final caption = content.obj('caption')?.str('text') ?? '';
         return caption.isEmpty
-            ? AppStrings.t(AppStringKeys.tdMessageMusic)
+            ? telegramText(AppStringKeys.tdMessageMusic)
             : caption;
       case 'messageDocument':
         final caption = content.obj('caption')?.str('text') ?? '';
         if (caption.isNotEmpty) return caption;
         final name = content.obj('document')?.str('file_name');
         return name != null
-            ? AppStrings.t(AppStringKeys.tdMessageFileWithName, {
+            ? telegramText(AppStringKeys.tdMessageFileWithName, {
                 'value1': name,
               })
-            : AppStrings.t(AppStringKeys.channelsFileAttachment);
+            : telegramText(AppStringKeys.channelsFileAttachment);
       case 'messageSticker':
         final emoji = content.obj('sticker')?.str('emoji') ?? '';
         return emoji.isEmpty
-            ? AppStrings.t(AppStringKeys.tdMessageStickerPreview)
-            : AppStrings.t(AppStringKeys.tdMessageStickerWithEmoji, {
+            ? telegramText(AppStringKeys.tdMessageStickerPreview)
+            : telegramText(AppStringKeys.tdMessageStickerWithEmoji, {
                 'value1': emoji,
               });
       case 'messageAnimation':
         final caption = content.obj('caption')?.str('text') ?? '';
         return caption.isEmpty
-            ? AppStrings.t(AppStringKeys.composerAnimatedEmojiPreview)
+            ? telegramText(AppStringKeys.composerAnimatedEmojiPreview)
             : caption;
       case 'messageAnimatedEmoji':
         return content.obj('animated_emoji')?.str('emoji') ??
-            AppStrings.t(AppStringKeys.composerAnimatedEmojiPreview);
+            telegramText(AppStringKeys.composerAnimatedEmojiPreview);
       case 'messageLocation':
-        return AppStrings.t(AppStringKeys.composerLocationPreview);
+        return telegramText(AppStringKeys.composerLocationPreview);
       case 'messageVenue':
-        return AppStrings.t(AppStringKeys.composerLocationPreview);
+        return telegramText(AppStringKeys.composerLocationPreview);
       case 'messageContact':
-        return AppStrings.t(AppStringKeys.tdMessageContactCard);
+        return telegramText(AppStringKeys.tdMessageContactCard);
       case 'messagePoll':
-        return AppStrings.t(AppStringKeys.tdMessagePoll);
+        return telegramText(AppStringKeys.tdMessagePoll);
       case 'messageChecklist':
         final title = content.obj('list')?.obj('title')?.str('text') ?? '';
         return title.isEmpty
-            ? AppStrings.t(AppStringKeys.tdMessageChecklist)
+            ? telegramText(AppStringKeys.tdMessageChecklist)
             : title;
       case 'messageCall':
         return (content.boolean('is_video') ?? false)
-            ? AppStrings.t(AppStringKeys.tdMessageVideoCall)
-            : AppStrings.t(AppStringKeys.tdMessageVoiceCall);
+            ? telegramText(AppStringKeys.tdMessageVideoCall)
+            : telegramText(AppStringKeys.tdMessageVoiceCall);
       case 'messageDice':
         return content.str('emoji') ??
-            AppStrings.t(AppStringKeys.tdMessageDice);
+            telegramText(AppStringKeys.tdMessageDice);
       case 'messageGame':
-        return AppStrings.t(AppStringKeys.tdMessageGame);
+        return telegramText(AppStringKeys.tdMessageGame);
       case 'messageInvoice':
-        return AppStrings.t(AppStringKeys.tdMessageProduct);
+        return telegramText(AppStringKeys.tdMessageProduct);
       case 'messageStory':
-        return AppStrings.t(AppStringKeys.tdMessageForwardedStory);
+        return telegramText(AppStringKeys.tdMessageForwardedStory);
       case 'messageGiveaway':
       case 'messageGiveawayWinners':
       case 'messageGiveawayCompleted':
-        return AppStrings.t(AppStringKeys.tdMessageGiveaway);
+        return telegramText(AppStringKeys.tdMessageGiveaway);
       case 'messagePaidMedia':
-        return AppStrings.t(AppStringKeys.tdMessagePaidContent);
+        return telegramText(AppStringKeys.tdMessagePaidContent);
       case 'messagePaidMessagePriceChanged':
       case 'messageDirectMessagePriceChanged':
-        return AppStrings.t(AppStringKeys.tdMessagePaidMessageSettingsChanged);
+        return telegramText(AppStringKeys.tdMessagePaidMessageSettingsChanged);
       case 'messageGift':
       case 'messagePremiumGiftCode':
       case 'messageGiftedPremium':
@@ -1794,27 +1795,27 @@ abstract final class TDParse {
       case 'messageGiftedTon':
       case 'messageUpgradedGift':
       case 'messageRefundedUpgradedGift':
-        return AppStrings.t(AppStringKeys.tdMessageGift);
+        return telegramText(AppStringKeys.tdMessageGift);
       case 'messageSuggestedPostInfo':
       case 'messageSuggestedPostApproved':
       case 'messageSuggestedPostApprovalFailed':
       case 'messageSuggestedPostDeclined':
       case 'messageSuggestedPostPaid':
       case 'messageSuggestedPostRefunded':
-        return AppStrings.t(AppStringKeys.tdMessageSubmission);
+        return telegramText(AppStringKeys.tdMessageSubmission);
       case 'messageExpiredPhoto':
-        return AppStrings.t(AppStringKeys.tdMessageExpiredPhoto);
+        return telegramText(AppStringKeys.tdMessageExpiredPhoto);
       case 'messageExpiredVideo':
-        return AppStrings.t(AppStringKeys.tdMessageExpiredVideo);
+        return telegramText(AppStringKeys.tdMessageExpiredVideo);
       case 'messageUnsupported':
-        return AppStrings.t(AppStringKeys.tdMessageUnsupportedCurrentVersion);
+        return telegramText(AppStringKeys.tdMessageUnsupportedCurrentVersion);
       default:
         final fallback = _nestedFormattedText(content);
         if (fallback.isNotEmpty) return fallback;
         if (kDebugMode) {
           debugPrint('Unsupported TDLib message content: ${content.type}');
         }
-        return AppStrings.t(AppStringKeys.chatSearchMessageResultLabel);
+        return telegramText(AppStringKeys.chatSearchMessageResultLabel);
     }
   }
 
@@ -1906,25 +1907,25 @@ abstract final class TDParse {
   static String serviceText(Map<String, dynamic>? content) {
     switch (content?.type) {
       case 'messageContactRegistered':
-        return AppStrings.t(AppStringKeys.tdMessageUserJoinedTelegram);
+        return telegramText(AppStringKeys.tdMessageUserJoinedTelegram);
       case 'messageChatChangeTitle':
-        return AppStrings.t(AppStringKeys.tdMessageGroupNameChanged, {
+        return telegramText(AppStringKeys.tdMessageGroupNameChanged, {
           'value1': content?.str('title') ?? '',
         });
       case 'messageChatChangePhoto':
-        return AppStrings.t(AppStringKeys.tdMessageGroupPhotoUpdated);
+        return telegramText(AppStringKeys.tdMessageGroupPhotoUpdated);
       case 'messageChatDeletePhoto':
-        return AppStrings.t(AppStringKeys.tdMessageGroupPhotoDeleted);
+        return telegramText(AppStringKeys.tdMessageGroupPhotoDeleted);
       case 'messageChatAddMembers':
-        return AppStrings.t(AppStringKeys.tdMessageNewMemberJoinedGroup);
+        return telegramText(AppStringKeys.tdMessageNewMemberJoinedGroup);
       case 'messageChatJoinByLink':
-        return AppStrings.t(AppStringKeys.tdMessageJoinedGroupByLink);
+        return telegramText(AppStringKeys.tdMessageJoinedGroupByLink);
       case 'messageChatJoinByRequest':
         return AppStrings.t(AppStringKeys.groupManagementLogJoinedGroup);
       case 'messageChatDeleteMember':
-        return AppStrings.t(AppStringKeys.tdMessageMemberLeftGroup);
+        return telegramText(AppStringKeys.tdMessageMemberLeftGroup);
       case 'messagePinMessage':
-        return AppStrings.t(AppStringKeys.tdMessageMessagePinned);
+        return telegramText(AppStringKeys.tdMessageMessagePinned);
       case 'messagePaidMessagePriceChanged':
       case 'messageDirectMessagePriceChanged':
         final stars =
@@ -1933,10 +1934,10 @@ abstract final class TDParse {
             content?.integer('price') ??
             0;
         return stars > 0
-            ? AppStrings.t(AppStringKeys.tdMessagePaidMessagePriceChanged, {
+            ? telegramText(AppStringKeys.tdMessagePaidMessagePriceChanged, {
                 'value1': stars,
               })
-            : AppStrings.t(AppStringKeys.tdMessagePaidMessagesDisabled);
+            : telegramText(AppStringKeys.tdMessagePaidMessagesDisabled);
       case 'messageChatSetMessageAutoDeleteTime':
         final seconds =
             content?.obj('message_auto_delete_time')?.integer('time') ??
@@ -1945,23 +1946,23 @@ abstract final class TDParse {
             content?.integer('auto_delete_time') ??
             0;
         return seconds > 0
-            ? AppStrings.t(AppStringKeys.tdMessageAutoDeleteTimerChanged, {
+            ? telegramText(AppStringKeys.tdMessageAutoDeleteTimerChanged, {
                 'value1': formatDuration(seconds),
               })
-            : AppStrings.t(AppStringKeys.tdMessageAutoDeleteTimerDisabled);
+            : telegramText(AppStringKeys.tdMessageAutoDeleteTimerDisabled);
       case 'messageBasicGroupChatCreate':
       case 'messageSupergroupChatCreate':
-        return AppStrings.t(AppStringKeys.tdMessageGroupCreated);
+        return telegramText(AppStringKeys.tdMessageGroupCreated);
       case 'messageVideoChatStarted':
-        return AppStrings.t(AppStringKeys.tdMessageGroupVideoChatStarted);
+        return telegramText(AppStringKeys.tdMessageGroupVideoChatStarted);
       case 'messageVideoChatEnded':
-        return AppStrings.t(AppStringKeys.tdMessageGroupVideoChatEnded);
+        return telegramText(AppStringKeys.tdMessageGroupVideoChatEnded);
       case 'messageForumTopicCreated':
         return AppStrings.t(AppStringKeys.groupManagementLogCreatedTopic);
       case 'messageChatBoost':
-        return AppStrings.t(AppStringKeys.tdMessageBoostedGroup);
+        return telegramText(AppStringKeys.tdMessageBoostedGroup);
       default:
-        return AppStrings.t(AppStringKeys.tdMessageSystemMessage);
+        return telegramText(AppStringKeys.tdMessageSystemMessage);
     }
   }
 
@@ -1993,21 +1994,21 @@ abstract final class TDParse {
       final days = seconds ~/ 86400;
       return days == 1
           ? AppStrings.t(AppStringKeys.chatInfoAutoDeleteOneDay)
-          : AppStrings.t(AppStringKeys.tdMessageDaysDuration, {'value1': days});
+          : telegramText(AppStringKeys.tdMessageDaysDuration, {'value1': days});
     }
     if (seconds % 3600 == 0) {
       final hours = seconds ~/ 3600;
-      return AppStrings.t(AppStringKeys.tdMessageHoursDuration, {
+      return telegramText(AppStringKeys.tdMessageHoursDuration, {
         'value1': hours,
       });
     }
     if (seconds % 60 == 0) {
       final minutes = seconds ~/ 60;
-      return AppStrings.t(AppStringKeys.tdMessageMinutesDuration, {
+      return telegramText(AppStringKeys.tdMessageMinutesDuration, {
         'value1': minutes,
       });
     }
-    return AppStrings.t(AppStringKeys.tdMessageSecondsDuration, {
+    return telegramText(AppStringKeys.tdMessageSecondsDuration, {
       'value1': seconds,
     });
   }
@@ -2137,7 +2138,7 @@ abstract final class TDParse {
 
   static String _lastOnlineText(int unixSeconds) {
     if (unixSeconds <= 0) {
-      return AppStrings.t(AppStringKeys.tdMessageLastSeenUnknown);
+      return telegramText(AppStringKeys.tdMessageLastSeenUnknown);
     }
     final time = DateTime.fromMillisecondsSinceEpoch(
       unixSeconds * 1000,
@@ -2148,24 +2149,24 @@ abstract final class TDParse {
     final hh = time.hour.toString().padLeft(2, '0');
     final mm = time.minute.toString().padLeft(2, '0');
     if (day == today) {
-      return AppStrings.t(AppStringKeys.tdMessageLastSeenTodayTime, {
+      return telegramText(AppStringKeys.tdMessageLastSeenTodayTime, {
         'value1': hh,
         'value2': mm,
       });
     }
     if (day == today.subtract(const Duration(days: 1))) {
-      return AppStrings.t(AppStringKeys.tdMessageLastSeenYesterdayTime, {
+      return telegramText(AppStringKeys.tdMessageLastSeenYesterdayTime, {
         'value1': hh,
         'value2': mm,
       });
     }
     if (time.year == now.year) {
-      return AppStrings.t(AppStringKeys.tdMessageLastSeenMonthDay, {
+      return telegramText(AppStringKeys.tdMessageLastSeenMonthDay, {
         'value1': time.month,
         'value2': time.day,
       });
     }
-    return AppStrings.t(AppStringKeys.tdMessageLastSeenYearMonthDay, {
+    return telegramText(AppStringKeys.tdMessageLastSeenYearMonthDay, {
       'value1': time.year,
       'value2': time.month,
       'value3': time.day,

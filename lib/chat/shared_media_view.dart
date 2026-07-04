@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
 import '../components/toast.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -450,7 +451,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
               ),
             ),
             Text(
-              widget.displayTitle.l10n(context),
+              telegramText(widget.displayTitle),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -488,7 +489,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                     ),
                   ),
                   child: Text(
-                    _tabs[i].label.l10n(context),
+                    telegramText(_tabs[i].label),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 14,
@@ -568,17 +569,17 @@ class _SharedMediaViewState extends State<SharedMediaView> {
             Row(
               children: [
                 _filterChip(
-                  AppStrings.t(AppStringKeys.sharedMediaFilterAll),
+                  telegramText(AppStringKeys.sharedMediaFilterAll),
                   _SharedMediaFileFilter.all,
                 ),
                 const SizedBox(width: 8),
                 _filterChip(
-                  AppStrings.t(AppStringKeys.sharedMediaFilterDownloaded),
+                  telegramText(AppStringKeys.sharedMediaFilterDownloaded),
                   _SharedMediaFileFilter.downloaded,
                 ),
                 const SizedBox(width: 8),
                 _filterChip(
-                  AppStrings.t(AppStringKeys.sharedMediaFilterNotDownloaded),
+                  telegramText(AppStringKeys.sharedMediaFilterNotDownloaded),
                   _SharedMediaFileFilter.notDownloaded,
                 ),
               ],
@@ -639,7 +640,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     if (filtered.isEmpty) {
       return Center(
         child: Text(
-          AppStrings.t(AppStringKeys.sharedMediaNoMatches),
+          telegramText(AppStringKeys.sharedMediaNoMatches),
           style: TextStyle(fontSize: 14, color: c.textSecondary),
         ),
       );
@@ -1320,7 +1321,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
-        AppStrings.t(AppStringKeys.sharedMediaFilterDownloaded),
+        telegramText(AppStringKeys.sharedMediaFilterDownloaded),
         style: const TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w600,
@@ -1433,7 +1434,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     final siteName = preview?.siteName.trim() ?? '';
     if (siteName.isNotEmpty) return siteName;
     final text = message.text.trim().replaceAll('\n', ' ');
-    return text.isEmpty ? AppStrings.t(AppStringKeys.sharedMediaLinks) : text;
+    return text.isEmpty ? telegramText(AppStringKeys.sharedMediaLinks) : text;
   }
 
   String _linkUrl(ChatMessage message) {
@@ -1466,7 +1467,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     final sender = message.senderName?.trim();
     if (sender != null && sender.isNotEmpty) return sender;
     if (message.isOutgoing) return AppStrings.t(AppStringKeys.chatMeLabel);
-    return AppStrings.t(AppStringKeys.sharedMediaVoiceMessages);
+    return telegramText(AppStringKeys.sharedMediaVoiceMessages);
   }
 
   String _downloadLabel(ChatMessage message, _SharedFileState? state) {

@@ -9,13 +9,16 @@
 
 import 'package:flutter/material.dart';
 
+import '../components/confirm_dialog.dart';
 import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
+import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import 'qr_login_scanner_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 // MARK: - Privacy rule chooser (所有人 / 我的联系人 / 没有人)
@@ -200,6 +203,7 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
   }
 
   Future<void> _load() async {
+    if (mounted) setState(() => _loading = true);
     try {
       final res = await _client.query({'@type': 'getActiveSessions'});
       final sessions =
@@ -213,24 +217,56 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
           _others.add(s);
         }
       }
-    } catch (_) {}
+    } catch (error) {
+      if (mounted) showToast(context, error.toString());
+    }
     if (mounted) setState(() => _loading = false);
   }
 
   Future<void> _terminate(Map<String, dynamic> session) async {
     final id = session.int64('id');
     if (id == null) return;
+    final ok = await confirmDialog(
+      context,
+      title: AppStringKeys.privacyTerminateSessionQuestion,
+      message: AppStrings.t(AppStringKeys.privacyTerminateSessionMessage, {
+        'value1': _sessionTitle(session),
+      }),
+      confirmText: AppStringKeys.privacyTerminateSession,
+      destructive: true,
+    );
+    if (!ok) return;
     try {
       await _client.query({'@type': 'terminateSession', 'session_id': id});
       setState(() => _others.removeWhere((s) => s.int64('id') == id));
-    } catch (_) {}
+    } catch (error) {
+      if (mounted) showToast(context, error.toString());
+    }
   }
 
   Future<void> _terminateAll() async {
+    final ok = await confirmDialog(
+      context,
+      title: AppStringKeys.privacyTerminateAllOtherSessions,
+      confirmText: AppStringKeys.privacyTerminateAllOtherSessions,
+      destructive: true,
+    );
+    if (!ok) return;
     try {
       await _client.query({'@type': 'terminateAllOtherSessions'});
       setState(() => _others = []);
-    } catch (_) {}
+    } catch (error) {
+      if (mounted) showToast(context, error.toString());
+    }
+  }
+
+  Future<void> _scanLoginQr() async {
+    final accepted = await Navigator.of(
+      context,
+    ).push<bool>(MaterialPageRoute(builder: (_) => const QrLoginScannerView()));
+    if (accepted == true && mounted) {
+      await _load();
+    }
   }
 
   @override
@@ -243,6 +279,18 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
           NavHeader(
             title: AppStrings.t(AppStringKeys.privacyLoggedInDevices),
             onBack: () => Navigator.of(context).pop(),
+            trailing: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _scanLoginQr,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: AppIcon(
+                  HeroAppIcons.qrcode,
+                  size: 24,
+                  color: c.textPrimary,
+                ),
+              ),
+            ),
           ),
           if (_loading)
             const Expanded(
@@ -259,6 +307,46 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
                 children: [
+                  _card([
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _scanLoginQr,
+                      child: SizedBox(
+                        height: 54,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            children: [
+                              AppIcon(
+                                HeroAppIcons.qrcode,
+                                size: 22,
+                                color: AppTheme.brand,
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  AppStrings.t(
+                                    AppStringKeys.privacyScanLoginQr,
+                                  ),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: c.textPrimary,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ),
+                              AppIcon(
+                                HeroAppIcons.chevronRight,
+                                size: 14,
+                                color: c.textTertiary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: 14),
                   if (_current != null) ...[
                     _sectionLabel(
                       AppStrings.t(AppStringKeys.privacyCurrentDevice),
@@ -298,6 +386,24 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                           const InsetDivider(leadingInset: 16),
                       ],
                     ]),
+                  ] else ...[
+                    _sectionLabel(
+                      AppStrings.t(AppStringKeys.privacyOtherDevices),
+                    ),
+                    _card([
+                      SizedBox(
+                        height: 74,
+                        child: Center(
+                          child: Text(
+                            AppStrings.t(AppStringKeys.privacyNoOtherDevices),
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: c.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ]),
                   ],
                 ],
               ),
@@ -326,7 +432,7 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
 
   Widget _sessionRow(Map<String, dynamic> s, {bool current = false}) {
     final c = context.colors;
-    final app = s.str('application_name') ?? '';
+    final app = _sessionTitle(s);
     final device = s.str('device_model') ?? '';
     final platform = s.str('platform') ?? '';
     final location = s.str('location') ?? '';
@@ -347,9 +453,7 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    app.isEmpty
-                        ? AppStrings.t(AppStringKeys.privacyDeviceApp)
-                        : app,
+                    app,
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w500,
@@ -377,6 +481,11 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
         ),
       ),
     );
+  }
+
+  String _sessionTitle(Map<String, dynamic> session) {
+    final app = session.str('application_name') ?? '';
+    return app.isEmpty ? AppStrings.t(AppStringKeys.privacyDeviceApp) : app;
   }
 }
 

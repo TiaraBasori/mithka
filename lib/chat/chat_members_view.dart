@@ -13,6 +13,7 @@ import '../components/toast.dart';
 
 import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -190,7 +191,7 @@ class _ChatMembersViewState extends State<ChatMembersView> {
                 ? AppStrings.t(AppStringKeys.chatMembersTitleWithCount, {
                     'value1': _total,
                   })
-                : AppStrings.t(AppStringKeys.chatInfoGroupMembers),
+                : telegramText(AppStringKeys.chatInfoGroupMembers),
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(

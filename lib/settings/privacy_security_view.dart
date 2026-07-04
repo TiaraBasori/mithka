@@ -7,8 +7,11 @@
 //
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../components/confirm_dialog.dart';
 import '../components/app_icons.dart';
+import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -84,6 +87,22 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
 
   void _open(Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
+
+  Future<void> _openDeleteAccountPage() async {
+    final ok = await confirmDialog(
+      context,
+      title: AppStringKeys.privacyDeleteTelegramAccount,
+      message: AppStringKeys.privacyDeleteTelegramAccountMessage,
+      confirmText: AppStringKeys.privacyDeleteTelegramAccountOpen,
+      destructive: true,
+    );
+    if (!ok) return;
+    final uri = Uri.parse('https://my.telegram.org/delete');
+    if (!await launchUrl(uri, mode: LaunchMode.externalApplication) &&
+        mounted) {
+      showToast(context, uri.toString());
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -174,6 +193,12 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                       AppStrings.t(AppStringKeys.keywordBlockerTitle),
                       '',
                       () => _open(const KeywordBlockerView()),
+                    ),
+                    _Row(
+                      HeroAppIcons.trash.data,
+                      AppStrings.t(AppStringKeys.privacyDeleteTelegramAccount),
+                      '',
+                      _openDeleteAccountPage,
                     ),
                     _Row(
                       HeroAppIcons.stopwatch.data,

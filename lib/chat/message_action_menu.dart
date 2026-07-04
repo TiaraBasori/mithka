@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../components/app_icons.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../settings/translation_controller.dart';
 import '../tdlib/td_models.dart';
 import 'emoji_store.dart';
@@ -23,6 +24,8 @@ enum MessageAction {
   translate(HeroAppIcons.language, AppStringKeys.messageActionTranslate),
   reply(HeroAppIcons.quoteLeft, AppStringKeys.messageActionQuote),
   forward(HeroAppIcons.share, AppStringKeys.messageActionForward),
+  report(HeroAppIcons.triangleExclamation, AppStringKeys.messageActionReport),
+  block(HeroAppIcons.ban, AppStringKeys.messageActionBlock),
   playMuted(HeroAppIcons.volumeXmark, AppStringKeys.messageActionPlayMuted),
   multiSelect(HeroAppIcons.circleCheck, AppStringKeys.messageActionMultiSelect),
   pinTodo(HeroAppIcons.thumbtack, AppStringKeys.messageActionSetTodo),
@@ -36,7 +39,10 @@ enum MessageAction {
   final AppIconData glyph;
   final String label;
 
-  bool get isDestructive => this == MessageAction.delete;
+  bool get isDestructive =>
+      this == MessageAction.delete ||
+      this == MessageAction.report ||
+      this == MessageAction.block;
 }
 
 enum MessageActionSource { normal, video }
@@ -76,6 +82,10 @@ class MessageActionMenu extends StatelessWidget {
     }
     result.add(MessageAction.reply);
     result.add(MessageAction.forward);
+    if (!message.isOutgoing && message.senderId != null) {
+      result.add(MessageAction.report);
+      result.add(MessageAction.block);
+    }
     if (message.video != null && source == MessageActionSource.video) {
       result.add(MessageAction.playMuted);
     }
@@ -141,7 +151,7 @@ class MessageActionMenu extends StatelessWidget {
                       ),
                       const SizedBox(height: 7),
                       Text(
-                        action.label.l10n(context),
+                        telegramText(action.label),
                         maxLines: 1,
                         style: TextStyle(
                           fontSize: 12,

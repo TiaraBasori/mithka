@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 
 import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -166,7 +167,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
     if (_items.isEmpty) {
       return Center(
         child: Text(
-          AppStrings.t(AppStringKeys.pinnedMessagesEmpty),
+          telegramText(AppStringKeys.pinnedMessagesEmpty),
           style: TextStyle(fontSize: 14, color: c.textSecondary),
         ),
       );
@@ -230,7 +231,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        AppStrings.t(AppStringKeys.pinnedMessagesSentBy, {
+                        telegramText(AppStringKeys.pinnedMessagesSentBy, {
                           'value1': DateText.listLabel(message.date),
                         }),
                         style: TextStyle(fontSize: 13, color: c.textTertiary),
@@ -303,7 +304,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
     }
 
     final text = message.text.trim().isEmpty
-        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
+        ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
         : message.text.replaceAll('\n', ' ');
     return Text(
       text,

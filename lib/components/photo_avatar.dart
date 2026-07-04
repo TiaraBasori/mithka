@@ -8,7 +8,9 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../theme/app_theme.dart';
@@ -353,12 +355,14 @@ class _TDImageState extends State<TDImage> {
       borderRadius: BorderRadius.circular(widget.cornerRadius),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final cacheWidth =
-              widget.cacheWidth ??
-              _cacheSizePxFromConstraint(context, constraints.maxWidth);
-          final cacheHeight =
-              widget.cacheHeight ??
-              _cacheSizePxFromConstraint(context, constraints.maxHeight);
+          final cacheSize = _boundedImageCacheSize(
+            widget.cacheWidth ??
+                _cacheSizePxFromConstraint(context, constraints.maxWidth),
+            widget.cacheHeight ??
+                _cacheSizePxFromConstraint(context, constraints.maxHeight),
+          );
+          final cacheWidth = cacheSize?.width;
+          final cacheHeight = cacheSize?.height;
           Widget child;
           if (_file != null) {
             child = Image.file(
@@ -410,6 +414,37 @@ class _TDImageState extends State<TDImage> {
 int? _cacheSizePxFromConstraint(BuildContext context, double logicalSize) {
   if (!logicalSize.isFinite || logicalSize <= 0) return null;
   return _cacheSizePx(context, logicalSize);
+}
+
+_DecodedImageSize? _boundedImageCacheSize(int? width, int? height) {
+  if (width == null && height == null) return null;
+  final maxSide = defaultTargetPlatform == TargetPlatform.android ? 1280 : 1920;
+  final maxPixels = defaultTargetPlatform == TargetPlatform.android
+      ? 1280 * 1280
+      : 1920 * 1920;
+  var boundedWidth = _boundedImageDimension(width, maxSide);
+  var boundedHeight = _boundedImageDimension(height, maxSide);
+  if (boundedWidth != null && boundedHeight != null) {
+    final pixels = boundedWidth * boundedHeight;
+    if (pixels > maxPixels) {
+      final scale = math.sqrt(maxPixels / pixels);
+      boundedWidth = math.max(1, (boundedWidth * scale).round());
+      boundedHeight = math.max(1, (boundedHeight * scale).round());
+    }
+  }
+  return _DecodedImageSize(width: boundedWidth, height: boundedHeight);
+}
+
+int? _boundedImageDimension(int? value, int maxSide) {
+  if (value == null || value <= 0) return null;
+  return value > maxSide ? maxSide : value;
+}
+
+class _DecodedImageSize {
+  const _DecodedImageSize({required this.width, required this.height});
+
+  final int? width;
+  final int? height;
 }
 
 class _MediaLoadingProgress extends StatelessWidget {

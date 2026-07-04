@@ -12,14 +12,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
-import '../l10n/app_locale_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'api_credentials_view.dart';
-import 'language_settings_view.dart';
 
 class GeneralSettingsView extends StatefulWidget {
   const GeneralSettingsView({super.key});
@@ -109,8 +107,6 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
               children: [
                 _storageCard(),
                 const SizedBox(height: 14),
-                _languageCard(),
-                const SizedBox(height: 14),
                 _accelerationCard(),
                 const SizedBox(height: 14),
                 _chatCard(),
@@ -132,21 +128,6 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
       ),
     ),
   );
-
-  Widget _languageCard() {
-    final locale = context.watch<AppLocaleController>();
-    return _card([
-      _navRow(
-        HeroAppIcons.globe.data,
-        const Color(0xFF34A2DF),
-        AppStrings.t(AppStringKeys.generalAppLanguage),
-        locale.selectedLabel(context),
-        () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const LanguageSettingsView())),
-      ),
-    ]);
-  }
 
   Widget _accelerationCard() {
     return _card([

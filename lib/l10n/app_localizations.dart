@@ -321,6 +321,11 @@ abstract final class AppStringKeys {
   static const chatDeleteSingleMessageQuestion =
       'chatDeleteSingleMessageQuestion';
   static const chatEditMessageTitle = 'chatEditMessageTitle';
+  static const chatBlockUserConfirm = 'chatBlockUserConfirm';
+  static const chatBlockUserDone = 'chatBlockUserDone';
+  static const chatBlockUserFailed = 'chatBlockUserFailed';
+  static const chatBlockUserMessage = 'chatBlockUserMessage';
+  static const chatBlockUserTitle = 'chatBlockUserTitle';
   static const chatForwardedToName = 'chatForwardedToName';
   static const chatForwardFailed = 'chatForwardFailed';
   static const chatForwardToTitle = 'chatForwardToTitle';
@@ -382,6 +387,9 @@ abstract final class AppStringKeys {
   static const chatListCreateChannel = 'chatListCreateChannel';
   static const chatListCreateChannelFailed = 'chatListCreateChannelFailed';
   static const chatListCreateGroup = 'chatListCreateGroup';
+  static const chatListDeleteChatQuestion = 'chatListDeleteChatQuestion';
+  static const chatListLeaveAndDeleteGroupConfirmation =
+      'chatListLeaveAndDeleteGroupConfirmation';
   static const chatListMarkUnread = 'chatListMarkUnread';
   static const chatListNoChats = 'chatListNoChats';
   static const chatListUnpin = 'chatListUnpin';
@@ -400,6 +408,11 @@ abstract final class AppStringKeys {
   static const chatMessagesForwardedCount = 'chatMessagesForwardedCount';
   static const chatMessagesSavedCount = 'chatMessagesSavedCount';
   static const chatMoreActionsUnsupported = 'chatMoreActionsUnsupported';
+  static const chatReportConfirm = 'chatReportConfirm';
+  static const chatReportFailed = 'chatReportFailed';
+  static const chatReportMessage = 'chatReportMessage';
+  static const chatReportSent = 'chatReportSent';
+  static const chatReportTitle = 'chatReportTitle';
   static const chatNewMessagesCount = 'chatNewMessagesCount';
   static const chatNewMessagesDivider = 'chatNewMessagesDivider';
   static const chatNoTopics = 'chatNoTopics';
@@ -731,7 +744,6 @@ abstract final class AppStringKeys {
   static const fileDetailDownloadProgress = 'fileDetailDownloadProgress';
   static const fileDetailNoAppCanOpenFile = 'fileDetailNoAppCanOpenFile';
   static const fileDetailOpen = 'fileDetailOpen';
-  static const generalAppLanguage = 'generalAppLanguage';
   static const generalCacheSize = 'generalCacheSize';
   static const generalClearCache = 'generalClearCache';
   static const generalClearingCache = 'generalClearingCache';
@@ -872,6 +884,13 @@ abstract final class AppStringKeys {
   static const keywordBlockerRulesUpToDate = 'keywordBlockerRulesUpToDate';
   static const keywordBlockerTitle = 'keywordBlockerTitle';
   static const languageTitle = 'languageTitle';
+  static const languageMithkaLanguage = 'languageMithkaLanguage';
+  static const languageTelegramFollowMithka = 'languageTelegramFollowMithka';
+  static const languageTelegramLanguage = 'languageTelegramLanguage';
+  static const languageTelegramLoadFailed = 'languageTelegramLoadFailed';
+  static const languageTelegramLoading = 'languageTelegramLoading';
+  static const languageTelegramOfficial = 'languageTelegramOfficial';
+  static const languageTelegramUsing = 'languageTelegramUsing';
   static const linkHandlerGroupLabel = 'linkHandlerGroupLabel';
   static const linkHandlerJoin = 'linkHandlerJoin';
   static const linkHandlerJoinNamedGroupQuestion =
@@ -887,6 +906,16 @@ abstract final class AppStringKeys {
   static const locationPickerDragMapToChoose = 'locationPickerDragMapToChoose';
   static const loginBackToAccount = 'loginBackToAccount';
   static const loginBackToPreviousAccount = 'loginBackToPreviousAccount';
+  static const loginCodeSentByEmail = 'loginCodeSentByEmail';
+  static const loginCodeSentByFirebase = 'loginCodeSentByFirebase';
+  static const loginCodeSentByFlashCall = 'loginCodeSentByFlashCall';
+  static const loginCodeSentByFragment = 'loginCodeSentByFragment';
+  static const loginCodeSentByMissedCall = 'loginCodeSentByMissedCall';
+  static const loginCodeSentByPhoneCall = 'loginCodeSentByPhoneCall';
+  static const loginCodeSentBySms = 'loginCodeSentBySms';
+  static const loginCodeSentFallback = 'loginCodeSentFallback';
+  static const loginCodeSentToTelegramDevices =
+      'loginCodeSentToTelegramDevices';
   static const loginCodeWillBeSentToNumber = 'loginCodeWillBeSentToNumber';
   static const loginCompleteRegistration = 'loginCompleteRegistration';
   static const loginConfigureCustomApi = 'loginConfigureCustomApi';
@@ -911,11 +940,15 @@ abstract final class AppStringKeys {
       'loginTelegramApiPortalInstructions';
   static const loginTelegramApiSecretsInstructions =
       'loginTelegramApiSecretsInstructions';
+  static const loginTermsAccept = 'loginTermsAccept';
+  static const loginTermsBody = 'loginTermsBody';
+  static const loginTermsTitle = 'loginTermsTitle';
   static const loginTwoStepPassword = 'loginTwoStepPassword';
   static const loginVerificationCode = 'loginVerificationCode';
   static const loginVerify = 'loginVerify';
   static const loginWithQrCode = 'loginWithQrCode';
   static const markdownLabel = 'markdownLabel';
+  static const messageActionBlock = 'messageActionBlock';
   static const messageActionCopy = 'messageActionCopy';
   static const messageActionEdit = 'messageActionEdit';
   static const messageActionFavorite = 'messageActionFavorite';
@@ -923,6 +956,7 @@ abstract final class AppStringKeys {
   static const messageActionMultiSelect = 'messageActionMultiSelect';
   static const messageActionPlayMuted = 'messageActionPlayMuted';
   static const messageActionQuote = 'messageActionQuote';
+  static const messageActionReport = 'messageActionReport';
   static const messageActionSelectText = 'messageActionSelectText';
   static const messageActionSetTodo = 'messageActionSetTodo';
   static const messageActionSticker = 'messageActionSticker';
@@ -1020,6 +1054,11 @@ abstract final class AppStringKeys {
   static const privacyBlockedUsers = 'privacyBlockedUsers';
   static const privacyBlockedUsersEmpty = 'privacyBlockedUsersEmpty';
   static const privacyCurrentDevice = 'privacyCurrentDevice';
+  static const privacyDeleteTelegramAccount = 'privacyDeleteTelegramAccount';
+  static const privacyDeleteTelegramAccountMessage =
+      'privacyDeleteTelegramAccountMessage';
+  static const privacyDeleteTelegramAccountOpen =
+      'privacyDeleteTelegramAccountOpen';
   static const privacyDeviceApp = 'privacyDeviceApp';
   static const privacyDisabled = 'privacyDisabled';
   static const privacyEnabled = 'privacyEnabled';
@@ -1027,12 +1066,22 @@ abstract final class AppStringKeys {
   static const privacyLoggedInDevices = 'privacyLoggedInDevices';
   static const privacyOtherDevices = 'privacyOtherDevices';
   static const privacyProfilePhoto = 'privacyProfilePhoto';
+  static const privacyLoginQrAcceptFailed = 'privacyLoginQrAcceptFailed';
+  static const privacyLoginQrAccepted = 'privacyLoginQrAccepted';
+  static const privacyLoginQrInvalid = 'privacyLoginQrInvalid';
+  static const privacyNoOtherDevices = 'privacyNoOtherDevices';
+  static const privacyScanLoginQr = 'privacyScanLoginQr';
+  static const privacyScanLoginQrSubtitle = 'privacyScanLoginQrSubtitle';
   static const privacySectionTitle = 'privacySectionTitle';
   static const privacySecuritySectionTitle = 'privacySecuritySectionTitle';
   static const privacySecurityTitle = 'privacySecurityTitle';
   static const privacyTerminateAllOtherSessions =
       'privacyTerminateAllOtherSessions';
   static const privacyTerminateSession = 'privacyTerminateSession';
+  static const privacyTerminateSessionMessage =
+      'privacyTerminateSessionMessage';
+  static const privacyTerminateSessionQuestion =
+      'privacyTerminateSessionQuestion';
   static const privacyTwoStepVerification = 'privacyTwoStepVerification';
   static const privacyUnblock = 'privacyUnblock';
   static const privacyVisibilityContacts = 'privacyVisibilityContacts';

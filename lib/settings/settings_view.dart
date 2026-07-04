@@ -17,12 +17,14 @@ import '../auth/auth_manager.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../theme/app_theme.dart';
 import 'about_view.dart';
 import 'appearance_view.dart';
 import 'edit_profile_view.dart';
 import 'feature_settings_view.dart';
 import 'general_settings_view.dart';
+import 'language_settings_view.dart';
 import 'notification_settings_view.dart';
 import 'privacy_security_view.dart';
 import 'proxy_view.dart';
@@ -92,6 +94,14 @@ class _SettingsViewState extends State<SettingsView> {
                   const InsetDivider(leadingInset: 56),
                   _navRow(
                     context,
+                    HeroAppIcons.language.data,
+                    AppStrings.t(AppStringKeys.languageTitle),
+                    const Color(0xFF34A2DF),
+                    () => const LanguageSettingsView(),
+                  ),
+                  const InsetDivider(leadingInset: 56),
+                  _navRow(
+                    context,
                     HeroAppIcons.grip.data,
                     AppStrings.t(AppStringKeys.featureTitle),
                     const Color(0xFF3C8CF0),
@@ -117,7 +127,7 @@ class _SettingsViewState extends State<SettingsView> {
                   _navRow(
                     context,
                     HeroAppIcons.language.data,
-                    AppStrings.t(AppStringKeys.messageActionTranslate),
+                    telegramText(AppStringKeys.messageActionTranslate),
                     const Color(0xFF34A2DF),
                     () => const TranslationSettingsView(),
                   ),

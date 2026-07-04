@@ -23,6 +23,7 @@ import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../chat/shared_media_view.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../settings/edit_profile_view.dart';
 import '../settings/settings_view.dart';
 import 'my_album_view.dart';
@@ -428,17 +429,15 @@ class _ProfileViewState extends State<ProfileView> {
           _row(
             HeroAppIcons.folder,
             const Color(0xFF3C8CF0),
-            AppStrings.t(AppStringKeys.topicPostContentFile),
+            telegramText(AppStringKeys.topicPostContentFile),
             () {
               _root.push(
                 MaterialPageRoute(
                   builder: (_) => SharedMediaView(
                     chatId: 0,
-                    title: AppStrings.t(AppStringKeys.topicPostContentFile),
+                    title: telegramText(AppStringKeys.topicPostContentFile),
                     initialTab: 1,
-                    displayTitle: AppStrings.t(
-                      AppStringKeys.topicPostContentFile,
-                    ),
+                    displayTitle: AppStringKeys.topicPostContentFile,
                   ),
                 ),
               );
@@ -447,15 +446,15 @@ class _ProfileViewState extends State<ProfileView> {
           _row(
             HeroAppIcons.video,
             const Color(0xFF7B61FF),
-            AppStrings.t(AppStringKeys.sharedMediaVideos),
+            telegramText(AppStringKeys.sharedMediaVideos),
             () {
               _root.push(
                 MaterialPageRoute(
                   builder: (_) => SharedMediaView(
                     chatId: 0,
-                    title: AppStrings.t(AppStringKeys.sharedMediaVideos),
+                    title: telegramText(AppStringKeys.sharedMediaVideos),
                     initialTab: 4,
-                    displayTitle: AppStrings.t(AppStringKeys.sharedMediaVideos),
+                    displayTitle: AppStringKeys.sharedMediaVideos,
                     lockedTab: true,
                   ),
                 ),

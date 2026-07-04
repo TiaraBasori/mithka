@@ -25,8 +25,10 @@ import '../components/drawer_controller.dart' as dc;
 import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../profile/profile_detail_view.dart';
 import '../theme/app_theme.dart';
+import '../theme/date_text.dart';
 import '../theme/theme_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_models.dart';
@@ -584,7 +586,10 @@ class _ChatViewState extends State<ChatView> {
       before += _estimatedUnreadDividerExtent;
     }
     final viewport = _scroll.position.viewportDimension;
-    final estimatedScrollable = math.max(1.0, estimatedContentExtent - viewport);
+    final estimatedScrollable = math.max(
+      1.0,
+      estimatedContentExtent - viewport,
+    );
     final actualScrollable = math.max(1.0, _scroll.position.maxScrollExtent);
     final scale = actualScrollable / estimatedScrollable;
     final raw = (before - viewport * alignment) * scale;
@@ -1419,6 +1424,46 @@ class _ChatViewState extends State<ChatView> {
         _vm.setReply(message);
       case MessageAction.forward:
         _forwardMessage(message);
+      case MessageAction.report:
+        final confirmed = await confirmDialog(
+          context,
+          title: AppStringKeys.chatReportTitle,
+          message: AppStringKeys.chatReportMessage,
+          confirmText: AppStringKeys.chatReportConfirm,
+          destructive: true,
+        );
+        if (!mounted || !confirmed) return;
+        try {
+          await _vm.reportMessage(message);
+          if (!mounted) return;
+          showToast(context, AppStringKeys.chatReportSent);
+        } catch (e) {
+          if (!mounted) return;
+          showToast(
+            context,
+            AppStrings.t(AppStringKeys.chatReportFailed, {'value1': e}),
+          );
+        }
+      case MessageAction.block:
+        final confirmed = await confirmDialog(
+          context,
+          title: AppStringKeys.chatBlockUserTitle,
+          message: AppStringKeys.chatBlockUserMessage,
+          confirmText: AppStringKeys.chatBlockUserConfirm,
+          destructive: true,
+        );
+        if (!mounted || !confirmed) return;
+        try {
+          await _vm.blockAndReportSender(message);
+          if (!mounted) return;
+          showToast(context, AppStringKeys.chatBlockUserDone);
+        } catch (e) {
+          if (!mounted) return;
+          showToast(
+            context,
+            AppStrings.t(AppStringKeys.chatBlockUserFailed, {'value1': e}),
+          );
+        }
       case MessageAction.playMuted:
         _playVideo(message, muted: true);
       case MessageAction.multiSelect:
@@ -1493,6 +1538,32 @@ class _ChatViewState extends State<ChatView> {
       useSafeArea: true,
       backgroundColor: Colors.transparent,
       builder: (context) => _MessageTextSelectionSheet(text: message.text),
+    );
+  }
+
+  Future<void> _showReactionUsers(
+    ChatMessage message,
+    MessageReaction reaction,
+  ) async {
+    if (!mounted || message.reactions.isEmpty) return;
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: AppStrings.t(AppStringKeys.musicPlayerClose),
+      barrierColor: Colors.black.withValues(alpha: 0.46),
+      transitionDuration: const Duration(milliseconds: 220),
+      pageBuilder: (context, _, _) => _ReactionUsersSheet(
+        viewModel: _vm,
+        message: message,
+        initialReaction: reaction,
+      ),
+      transitionBuilder: (context, animation, _, child) {
+        final offset =
+            Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            );
+        return SlideTransition(position: offset, child: child);
+      },
     );
   }
 
@@ -2077,7 +2148,7 @@ class _ChatViewState extends State<ChatView> {
             borderRadius: BorderRadius.circular(23),
           ),
           child: Text(
-            label.l10n(context),
+            telegramText(label),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -2175,7 +2246,7 @@ class _ChatViewState extends State<ChatView> {
                         borderRadius: BorderRadius.circular(23),
                       ),
                       child: Text(
-                        label.l10n(context),
+                        telegramText(label),
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -2775,7 +2846,9 @@ class _ChatViewState extends State<ChatView> {
         physics: const ClampingScrollPhysics(
           parent: AlwaysScrollableScrollPhysics(),
         ),
-        scrollCacheExtent: const ScrollCacheExtent.pixels(420),
+        scrollCacheExtent: ScrollCacheExtent.pixels(
+          defaultTargetPlatform == TargetPlatform.android ? 260 : 420,
+        ),
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: entries.length,
         // Lets keyed children be reused when history pages shift indices
@@ -2835,6 +2908,7 @@ class _ChatViewState extends State<ChatView> {
                     onBotCommandTap: _vm.sendCommand,
                     isRead: _vm.isRead(message),
                     onToggleReaction: (r) => _vm.toggleReaction(message, r),
+                    onShowReactionUsers: _showReactionUsers,
                     onRedial: _startCall,
                   ),
                 ),
@@ -3577,6 +3651,206 @@ class _MessageTextSelectionSheet extends StatefulWidget {
   @override
   State<_MessageTextSelectionSheet> createState() =>
       _MessageTextSelectionSheetState();
+}
+
+class _ReactionUsersSheet extends StatefulWidget {
+  const _ReactionUsersSheet({
+    required this.viewModel,
+    required this.message,
+    required this.initialReaction,
+  });
+
+  final ChatViewModel viewModel;
+  final ChatMessage message;
+  final MessageReaction initialReaction;
+
+  @override
+  State<_ReactionUsersSheet> createState() => _ReactionUsersSheetState();
+}
+
+class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
+  late MessageReaction _selected;
+  final Map<String, Future<List<MessageReactionUser>>> _loads = {};
+
+  @override
+  void initState() {
+    super.initState();
+    final initialKey = _reactionKey(widget.initialReaction);
+    _selected = widget.message.reactions.firstWhere(
+      (reaction) => _reactionKey(reaction) == initialKey,
+      orElse: () => widget.message.reactions.first,
+    );
+  }
+
+  Future<List<MessageReactionUser>> _load(MessageReaction reaction) {
+    final key = _reactionKey(reaction);
+    return _loads.putIfAbsent(
+      key,
+      () => widget.viewModel.reactionUsers(widget.message, reaction),
+    );
+  }
+
+  String _reactionKey(MessageReaction reaction) => reaction.customEmojiId != 0
+      ? 'custom:${reaction.customEmojiId}'
+      : 'emoji:${reaction.emoji ?? ''}';
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final height = math.min(MediaQuery.sizeOf(context).height * 0.62, 560.0);
+    return SafeArea(
+      top: false,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+          child: ColoredBox(
+            color: c.card,
+            child: SizedBox(
+              height: height,
+              width: double.infinity,
+              child: Column(
+                children: [
+                  const SizedBox(height: 10),
+                  Container(
+                    width: 42,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: c.divider,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _reactionTabs(c),
+                  Divider(height: 1, thickness: 0.5, color: c.divider),
+                  Expanded(child: _reactionUsers(c)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _reactionTabs(AppColors c) {
+    return SizedBox(
+      height: 52,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final reaction in widget.message.reactions)
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _reactionTab(c, reaction),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _reactionTab(AppColors c, MessageReaction reaction) {
+    final selected = _reactionKey(reaction) == _reactionKey(_selected);
+    final foreground = selected ? Colors.white : c.textSecondary;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => setState(() => _selected = reaction),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOutCubic,
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.brand : c.searchFill,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _reactionGlyph(reaction, selected ? Colors.white : c.textSecondary),
+            const SizedBox(width: 7),
+            Text(
+              '${reaction.count}',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: foreground,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _reactionUsers(AppColors c) {
+    return FutureBuilder<List<MessageReactionUser>>(
+      future: _load(_selected),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return Center(
+            child: Text(
+              AppStrings.t(AppStringKeys.contactsLoading),
+              style: TextStyle(fontSize: 14, color: c.textSecondary),
+            ),
+          );
+        }
+        final users = snapshot.data ?? const <MessageReactionUser>[];
+        if (users.isEmpty) {
+          return Center(
+            child: Text(
+              AppStrings.t(AppStringKeys.sharedMediaEmpty),
+              style: TextStyle(fontSize: 14, color: c.textSecondary),
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          itemCount: users.length,
+          itemBuilder: (context, index) => _reactionUserRow(c, users[index]),
+        );
+      },
+    );
+  }
+
+  Widget _reactionUserRow(AppColors c, MessageReactionUser user) {
+    final time = DateText.listLabel(user.date);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 9),
+      child: Row(
+        children: [
+          PhotoAvatar(title: user.title, photo: user.photo, size: 44),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              user.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 17, color: c.textPrimary),
+            ),
+          ),
+          if (time.isNotEmpty) ...[
+            const SizedBox(width: 10),
+            Text(time, style: TextStyle(fontSize: 12, color: c.textTertiary)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _reactionGlyph(MessageReaction reaction, Color color) {
+    if (reaction.customEmojiId != 0) {
+      return CustomEmojiView(
+        id: reaction.customEmojiId,
+        size: 18,
+        color: color,
+      );
+    }
+    return Text(reaction.emoji ?? '', style: const TextStyle(fontSize: 16));
+  }
 }
 
 class _MessageTextSelectionSheetState

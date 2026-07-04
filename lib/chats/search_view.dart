@@ -14,6 +14,7 @@ import '../chat/chat_view.dart';
 import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -435,14 +436,14 @@ enum _SearchTab {
 
   String get label => switch (this) {
     _SearchTab.chats => AppStrings.t(AppStringKeys.audioSearchChatTab),
-    _SearchTab.posts => AppStrings.t(
+    _SearchTab.posts => telegramText(
       AppStringKeys.chatSearchMessageResultLabel,
     ).replaceAll('[', '').replaceAll(']', ''),
-    _SearchTab.media => AppStrings.t(AppStringKeys.sharedMediaPhotosAndVideos),
-    _SearchTab.links => AppStrings.t(AppStringKeys.sharedMediaLinks),
-    _SearchTab.files => AppStrings.t(AppStringKeys.topicPostContentFile),
+    _SearchTab.media => telegramText(AppStringKeys.sharedMediaPhotosAndVideos),
+    _SearchTab.links => telegramText(AppStringKeys.sharedMediaLinks),
+    _SearchTab.files => telegramText(AppStringKeys.topicPostContentFile),
     _SearchTab.music => AppStrings.t(AppStringKeys.profileDetailMusic),
-    _SearchTab.voice => AppStrings.t(AppStringKeys.sharedMediaVoice),
+    _SearchTab.voice => telegramText(AppStringKeys.sharedMediaVoice),
   };
 
   String? get filter => switch (this) {
@@ -755,24 +756,24 @@ class _SearchHit {
   static String _messageTitle(ChatMessage message) {
     if (message.music != null) return message.music!.title;
     if (message.voice != null) {
-      return AppStrings.t(AppStringKeys.sharedMediaVoiceMessages);
+      return telegramText(AppStringKeys.sharedMediaVoiceMessages);
     }
     if (message.video != null) {
       final text = message.text.trim();
       return text.isEmpty ||
-              text == AppStrings.t(AppStringKeys.chatVideoPlaceholder)
-          ? AppStrings.t(AppStringKeys.chatVideoPlaceholder)
+              text == telegramText(AppStringKeys.chatVideoPlaceholder)
+          ? telegramText(AppStringKeys.chatVideoPlaceholder)
           : text;
     }
     if (message.image != null) {
       final text = message.text.trim();
       return text.isEmpty ||
-              text == AppStrings.t(AppStringKeys.composerImagePreview)
-          ? AppStrings.t(AppStringKeys.composerImagePreview)
+              text == telegramText(AppStringKeys.composerImagePreview)
+          ? telegramText(AppStringKeys.composerImagePreview)
           : text;
     }
     return message.text.trim().isEmpty
-        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
+        ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
         : message.text.trim();
   }
 
@@ -793,8 +794,8 @@ class _SearchHit {
         document == null &&
         music == null &&
         message.voice == null &&
-        text != AppStrings.t(AppStringKeys.composerImagePreview) &&
-        text != AppStrings.t(AppStringKeys.chatVideoPlaceholder)) {
+        text != telegramText(AppStringKeys.composerImagePreview) &&
+        text != telegramText(AppStringKeys.chatVideoPlaceholder)) {
       pieces.add(text.replaceAll('\n', ' '));
     }
     return pieces.join(' · ');

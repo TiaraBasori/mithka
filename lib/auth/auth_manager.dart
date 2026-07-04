@@ -37,7 +37,50 @@ class AuthWaitQrCode extends AuthStep {
 
 class AuthWaitCode extends AuthStep {
   const AuthWaitCode(this.info);
-  final String info;
+  final AuthCodeInfo info;
+}
+
+enum AuthCodeDeliveryMethod {
+  telegramMessage,
+  sms,
+  call,
+  flashCall,
+  missedCall,
+  fragment,
+  firebase,
+  email,
+  unknown,
+}
+
+class AuthCodeInfo {
+  const AuthCodeInfo({
+    required this.method,
+    required this.length,
+    this.numericOnly = true,
+    this.phoneNumber,
+    this.phoneNumberPrefix,
+    this.pattern,
+    this.url,
+    this.timeout,
+  });
+
+  final AuthCodeDeliveryMethod method;
+  final int length;
+  final bool numericOnly;
+  final String? phoneNumber;
+  final String? phoneNumberPrefix;
+  final String? pattern;
+  final String? url;
+  final int? timeout;
+
+  int get effectiveLength => length > 0 ? length : 5;
+
+  bool get isNumeric => numericOnly;
+
+  static const fallback = AuthCodeInfo(
+    method: AuthCodeDeliveryMethod.unknown,
+    length: 5,
+  );
 }
 
 class AuthWaitPassword extends AuthStep {
@@ -133,7 +176,7 @@ class AuthManager extends ChangeNotifier {
         _set(AuthWaitQrCode(state.str('link') ?? ''));
       case 'authorizationStateWaitCode':
         final info = state.obj('code_info');
-        _set(AuthWaitCode(_codeDeliveryLabel(info?.obj('type'))));
+        _set(AuthWaitCode(_codeInfo(info)));
         if (_useReviewCodeRelay) {
           unawaited(_submitReviewCodeFromRelay());
         }
@@ -189,7 +232,7 @@ class AuthManager extends ChangeNotifier {
       _actionSerial += 1;
       _isWorking = false;
       _errorMessage = null;
-      _set(AuthWaitCode(AppStrings.t(AppStringKeys.authCodeSent)));
+      _set(const AuthWaitCode(AuthCodeInfo.fallback));
       return;
     }
     _run({
@@ -341,18 +384,49 @@ class AuthManager extends ChangeNotifier {
     }
   }
 
-  String _codeDeliveryLabel(Map<String, dynamic>? type) {
-    switch (type?.type) {
-      case 'authenticationCodeTypeTelegramMessage':
-        return AppStrings.t(AppStringKeys.authCodeSentToTelegramDevices);
-      case 'authenticationCodeTypeSms':
-        return AppStrings.t(AppStringKeys.authCodeSentBySms);
-      case 'authenticationCodeTypeCall':
-        return AppStrings.t(AppStringKeys.authCodeSentByPhoneCall);
-      case 'authenticationCodeTypeFlashCall':
-        return AppStrings.t(AppStringKeys.authCodeSentByFlashCall);
-      default:
-        return AppStrings.t(AppStringKeys.authCodeSent);
-    }
+  AuthCodeInfo _codeInfo(Map<String, dynamic>? info) {
+    final type = info?.obj('type');
+    final rawType = type?.type ?? '';
+    final lowerType = rawType.toLowerCase();
+    final method = switch (rawType) {
+      'authenticationCodeTypeTelegramMessage' =>
+        AuthCodeDeliveryMethod.telegramMessage,
+      'authenticationCodeTypeSms' ||
+      'authenticationCodeTypeSmsWord' ||
+      'authenticationCodeTypeSmsPhrase' => AuthCodeDeliveryMethod.sms,
+      'authenticationCodeTypeCall' => AuthCodeDeliveryMethod.call,
+      'authenticationCodeTypeFlashCall' => AuthCodeDeliveryMethod.flashCall,
+      'authenticationCodeTypeMissedCall' => AuthCodeDeliveryMethod.missedCall,
+      'authenticationCodeTypeFragment' => AuthCodeDeliveryMethod.fragment,
+      'authenticationCodeTypeFirebaseAndroid' ||
+      'authenticationCodeTypeFirebaseIos' => AuthCodeDeliveryMethod.firebase,
+      'authenticationCodeTypeEmailAddress' ||
+      'emailAddressAuthenticationCodeInfo' => AuthCodeDeliveryMethod.email,
+      _ when lowerType.contains('telegram') =>
+        AuthCodeDeliveryMethod.telegramMessage,
+      _ when lowerType.contains('sms') => AuthCodeDeliveryMethod.sms,
+      _ when lowerType.contains('missedcall') =>
+        AuthCodeDeliveryMethod.missedCall,
+      _ when lowerType.contains('flashcall') =>
+        AuthCodeDeliveryMethod.flashCall,
+      _ when lowerType.contains('call') => AuthCodeDeliveryMethod.call,
+      _ when lowerType.contains('fragment') => AuthCodeDeliveryMethod.fragment,
+      _ when lowerType.contains('firebase') => AuthCodeDeliveryMethod.firebase,
+      _ when lowerType.contains('email') => AuthCodeDeliveryMethod.email,
+      _ => AuthCodeDeliveryMethod.unknown,
+    };
+    return AuthCodeInfo(
+      method: method,
+      length: type?.integer('length') ?? 0,
+      numericOnly:
+          !lowerType.contains('word') &&
+          !lowerType.contains('phrase') &&
+          method != AuthCodeDeliveryMethod.email,
+      phoneNumber: info?.str('phone_number'),
+      phoneNumberPrefix: type?.str('phone_number_prefix'),
+      pattern: type?.str('pattern'),
+      url: type?.str('url'),
+      timeout: info?.integer('timeout'),
+    );
   }
 }

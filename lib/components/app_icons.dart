@@ -64,8 +64,9 @@ class HeroAppIcons {
   static const eyeSlash = AppIconData(HeroiconsOutline.eyeSlash);
   static const file = AppIconData(HeroiconsOutline.document);
   static const filter = AppIconData(HeroiconsOutline.funnel);
+  static const flash = AppIconData(HeroiconsOutline.bolt);
   static const folder = AppIconData(HeroiconsOutline.folder);
-  static const font = AppIconData(HeroiconsOutline.language);
+  static const font = AppIconData(HeroiconsOutline.documentText);
   static const gear = AppIconData(HeroiconsOutline.cog6Tooth);
   static const globe = AppIconData(HeroiconsOutline.globeAlt);
   static const grip = AppIconData(HeroiconsOutline.squares2x2);

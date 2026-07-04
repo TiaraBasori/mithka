@@ -72,6 +72,13 @@ class _TdSessionStringInfo {
   final bool isBot;
 }
 
+class _TemporaryRestoreClient {
+  const _TemporaryRestoreClient({required this.slot, required this.clientId});
+
+  final int slot;
+  final int clientId;
+}
+
 class TdClient {
   TdClient._();
   static final TdClient shared = TdClient._();
@@ -98,6 +105,7 @@ class TdClient {
   final Set<int> _proxyAppliedClients = {};
   int _activeClientId = 0;
   int _activeSlot = 0;
+  int _temporarySlotCursor = -1;
   List<int> _slots = [0];
 
   late SharedPreferences _prefs;
@@ -108,6 +116,7 @@ class TdClient {
   static const _liveClientIdsKey = 'drachma.debugLiveClientIds';
 
   int get activeSlot => _activeSlot;
+  bool get hasActiveClient => _activeClientId != 0;
   List<int> get configuredSlots => List.unmodifiable(_slots);
   int? clientId(int slot) => _clientForSlot[slot];
   Map<String, dynamic>? get latestChatFoldersUpdate =>
@@ -211,14 +220,35 @@ class TdClient {
         return existingSlot;
       }
     }
+    final source = await _createTemporaryRestoreClient(
+      trimmedSessionString,
+      info.userId,
+    );
+    try {
+      return await _restoreSessionSlotWithQrLogin(source, info.userId);
+    } finally {
+      await _closeTemporaryRestoreClient(source);
+    }
+  }
+
+  Future<void> acceptLoginQrLink(String link) async {
+    final token = _qrLoginTokenForTdJson(link);
+    await query({
+      '@type': 'acceptLoginToken',
+      'token': token,
+    }).timeout(const Duration(seconds: 20));
+  }
+
+  Future<int> _restoreSessionSlotWithQrLogin(
+    _TemporaryRestoreClient source,
+    int expectedUserId,
+  ) async {
     final newSlot = _nextSlot();
     final dbDir = Directory(_databaseDirectory(newSlot));
     if (await dbDir.exists()) {
       await dbDir.delete(recursive: true);
     }
     await dbDir.create(recursive: true);
-    final sessionFile = File('${dbDir.path}/td.binlog');
-    _bindings.importSessionString(trimmedSessionString, sessionFile.path);
 
     final cid = _bindings.createClientId();
     if (!_slots.contains(newSlot)) _slots.add(newSlot);
@@ -227,7 +257,18 @@ class TdClient {
     if (kDebugMode) unawaited(_persistDebugLiveClientIds());
     _bindings.send(cid, jsonEncode({'@type': 'getOption', 'name': 'version'}));
     try {
-      await _waitForRestoredSessionReady(newSlot, cid, info.userId);
+      await _waitForQrLoginReady(cid);
+      await queryTo({
+        '@type': 'requestQrCodeAuthentication',
+        'other_user_ids': const <int>[],
+      }, cid).timeout(const Duration(seconds: 10));
+      final link = await _waitForQrLoginLink(cid);
+      final token = _qrLoginTokenForTdJson(link);
+      await queryTo({
+        '@type': 'acceptLoginToken',
+        'token': token,
+      }, source.clientId).timeout(const Duration(seconds: 20));
+      await _waitForRestoredSessionReady(newSlot, cid, expectedUserId);
       setActive(newSlot);
       _persist();
       return newSlot;
@@ -239,11 +280,111 @@ class TdClient {
       if (kDebugMode) unawaited(_persistDebugLiveClientIds());
       if (_isRequestAborted(error)) {
         throw const TdSessionRestoreException(
-          'Restored account session is invalid or has been revoked',
+          'Saved account session is invalid or has been revoked',
         );
       }
       rethrow;
     }
+  }
+
+  Future<_TemporaryRestoreClient> _createTemporaryRestoreClient(
+    String sessionString,
+    int expectedUserId,
+  ) async {
+    final slot = _nextTemporarySlot();
+    final dbDir = Directory(_databaseDirectory(slot));
+    if (await dbDir.exists()) {
+      await dbDir.delete(recursive: true);
+    }
+    await dbDir.create(recursive: true);
+    final sessionFile = File('${dbDir.path}/td.binlog');
+    _bindings.importSessionString(sessionString, sessionFile.path);
+
+    final cid = _bindings.createClientId();
+    _clientForSlot[slot] = cid;
+    _slotForClient[cid] = slot;
+    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+    _bindings.send(cid, jsonEncode({'@type': 'getOption', 'name': 'version'}));
+    try {
+      await _waitForRestoredSessionReady(slot, cid, expectedUserId);
+      return _TemporaryRestoreClient(slot: slot, clientId: cid);
+    } catch (error) {
+      await _closeTemporaryRestoreClient(
+        _TemporaryRestoreClient(slot: slot, clientId: cid),
+      );
+      if (_isRequestAborted(error)) {
+        throw const TdSessionRestoreException(
+          'Saved account session is invalid or has been revoked',
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _closeTemporaryRestoreClient(
+    _TemporaryRestoreClient source,
+  ) async {
+    _closeClientForSlot(source.slot);
+    await _deleteDirectoryIfPresent(Directory(_databaseDirectory(source.slot)));
+    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+  }
+
+  Future<void> _waitForQrLoginReady(int clientId) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 20));
+    while (DateTime.now().isBefore(deadline)) {
+      final state = await queryTo({
+        '@type': 'getAuthorizationState',
+      }, clientId).timeout(const Duration(seconds: 3));
+      switch (state.type) {
+        case 'authorizationStateWaitTdlibParameters':
+          _sendParameters(clientId);
+        case 'authorizationStateWaitPhoneNumber':
+        case 'authorizationStateWaitOtherDeviceConfirmation':
+          return;
+        case 'authorizationStateReady':
+          throw StateError('New account slot is already authorized');
+        case 'authorizationStateWaitCode':
+        case 'authorizationStateWaitPassword':
+        case 'authorizationStateWaitRegistration':
+          throw StateError(
+            'New account slot is already in an interactive login state: ${state.type}',
+          );
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    throw TimeoutException('Timed out preparing QR login client');
+  }
+
+  Future<String> _waitForQrLoginLink(int clientId) async {
+    final deadline = DateTime.now().add(const Duration(seconds: 20));
+    while (DateTime.now().isBefore(deadline)) {
+      final state = await queryTo({
+        '@type': 'getAuthorizationState',
+      }, clientId).timeout(const Duration(seconds: 3));
+      switch (state.type) {
+        case 'authorizationStateWaitTdlibParameters':
+          _sendParameters(clientId);
+        case 'authorizationStateWaitOtherDeviceConfirmation':
+          final link = state.str('link') ?? '';
+          if (link.isNotEmpty) return link;
+        case 'authorizationStateReady':
+          throw StateError('QR login target became ready before token relay');
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 250));
+    }
+    throw TimeoutException('Timed out waiting for QR login token');
+  }
+
+  String _qrLoginTokenForTdJson(String link) {
+    final uri = Uri.tryParse(link);
+    final token =
+        uri?.queryParameters['token'] ??
+        RegExp(r'(?:^|[?&])token=([^&]+)').firstMatch(link)?.group(1);
+    if (token == null || token.isEmpty) {
+      throw FormatException('QR login link does not contain a token', link);
+    }
+    final decoded = base64Url.decode(base64Url.normalize(token));
+    return base64.encode(decoded);
   }
 
   Future<void> _waitForRestoredSessionReady(
@@ -600,6 +741,8 @@ class TdClient {
 
   int _nextSlot() =>
       (_slots.isEmpty ? -1 : _slots.reduce((a, b) => a > b ? a : b)) + 1;
+
+  int _nextTemporarySlot() => _temporarySlotCursor--;
 
   /// The database directory for a slot. Slot 0 keeps the legacy path so an
   /// existing single-account login is preserved.

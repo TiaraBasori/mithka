@@ -27,6 +27,7 @@ import '../components/photo_avatar.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../settings/accent_color_picker_view.dart';
 import '../tdlib/chat_membership.dart';
 import '../tdlib/json_helpers.dart';
@@ -261,9 +262,7 @@ class _MomentsViewState extends State<MomentsView> {
                               AppStringKeys.profileDetailMusic,
                             ),
                             initialTab: 5,
-                            displayTitle: AppStrings.t(
-                              AppStringKeys.profileDetailMusic,
-                            ),
+                            displayTitle: AppStringKeys.profileDetailMusic,
                             lockedTab: true,
                           ),
                         ),
@@ -271,17 +270,15 @@ class _MomentsViewState extends State<MomentsView> {
                       _menuRow(
                         icon: HeroAppIcons.video.data,
                         iconColor: const Color(0xFF7B61FF),
-                        title: AppStrings.t(AppStringKeys.sharedMediaVideos),
+                        title: telegramText(AppStringKeys.sharedMediaVideos),
                         onTap: () => _openDetail(
                           SharedMediaView(
                             chatId: 0,
-                            title: AppStrings.t(
+                            title: telegramText(
                               AppStringKeys.sharedMediaVideos,
                             ),
                             initialTab: 4,
-                            displayTitle: AppStrings.t(
-                              AppStringKeys.sharedMediaVideos,
-                            ),
+                            displayTitle: AppStringKeys.sharedMediaVideos,
                             lockedTab: true,
                           ),
                         ),
@@ -993,27 +990,27 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       });
     }
     if (message.voice != null) {
-      return AppStrings.t(AppStringKeys.composerVoicePreview);
+      return telegramText(AppStringKeys.composerVoicePreview);
     }
     if (message.location != null) {
-      return AppStrings.t(AppStringKeys.composerLocationPreview);
+      return telegramText(AppStringKeys.composerLocationPreview);
     }
     if (message.animatedSticker != null) {
-      return AppStrings.t(AppStringKeys.composerAnimatedEmojiPreview);
+      return telegramText(AppStringKeys.composerAnimatedEmojiPreview);
     }
     if (message.video != null) {
       return message.text.isEmpty
-          ? AppStrings.t(AppStringKeys.chatVideoPlaceholder)
+          ? telegramText(AppStringKeys.chatVideoPlaceholder)
           : message.text;
     }
     if (message.image != null) {
       return message.text.isEmpty
-          ? AppStrings.t(AppStringKeys.composerImagePreview)
+          ? telegramText(AppStringKeys.composerImagePreview)
           : message.text;
     }
     final text = message.text.trim();
     return text.isEmpty
-        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
+        ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
         : text;
   }
 
