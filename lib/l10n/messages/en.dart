@@ -12,9 +12,15 @@ const enMessages = <String, String>{
   'accountBackupCreate': "Back up current account to Keychain",
   'accountBackupDeleteMessage':
       "This removes the saved session from Keychain. The Telegram session is not revoked.",
+  'accountBackupDeleteInvalidSession': "Delete Saved Session",
   'accountBackupDeleteTitle': "Delete saved session?",
   'accountBackupEmpty': "No account sessions are backed up yet.",
   'accountBackupEnabled': "Back up accounts",
+  'accountBackupInvalidImportedMessage':
+      "This session string is no longer valid or may have been revoked. Please export a fresh session from a logged-in device.",
+  'accountBackupInvalidMessage':
+      "The saved session for {value1} is no longer valid or may have been revoked. Delete this saved session from Keychain?",
+  'accountBackupInvalidTitle': "Session no longer valid",
   'accountBackupImported': "Imported to account slot {value1}",
   'accountBackupIOSOnly': "Account backup is available on iOS only.",
   'accountBackupLoadPyrogramConfirm': "Load Session",
@@ -35,6 +41,7 @@ const enMessages = <String, String>{
   'accountBackupSaved': "Session saved ({value1})",
   'accountBackupSessions': "Saved Sessions",
   'accountBackupTitle': "Account Backup",
+  'accountBackupUserId': "User ID: {value1}",
   'addMembersDone': "Done",
   'addMembersDoneWithCount': "Done ({value1})",
   'addMembersInviteMembersTitle': "Invite Members",

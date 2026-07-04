@@ -12,9 +12,15 @@ const frMessages = <String, String>{
   'accountBackupCreate': "Sauvegarder le compte actuel dans Keychain",
   'accountBackupDeleteMessage':
       "Cette action supprime la session enregistrée dans Keychain. La session Telegram n’est pas révoquée.",
+  'accountBackupDeleteInvalidSession': "Supprimer la session enregistrée",
   'accountBackupDeleteTitle': "Supprimer la session enregistrée ?",
   'accountBackupEmpty': "Aucune session de compte n’est encore sauvegardée.",
   'accountBackupEnabled': "Sauvegarder les comptes",
+  'accountBackupInvalidImportedMessage':
+      "Cette chaîne de session n’est plus valide ou a peut-être été révoquée. Exportez une nouvelle session depuis un appareil encore connecté.",
+  'accountBackupInvalidMessage':
+      "La session enregistrée pour {value1} n’est plus valide ou a peut-être été révoquée. Supprimer cette session enregistrée du Keychain ?",
+  'accountBackupInvalidTitle': "Session non valide",
   'accountBackupImported': "Importé dans l’emplacement de compte {value1}",
   'accountBackupIOSOnly':
       "La sauvegarde des comptes est disponible uniquement sur iOS.",
@@ -36,6 +42,7 @@ const frMessages = <String, String>{
   'accountBackupSaved': "Session enregistrée ({value1})",
   'accountBackupSessions': "Sessions enregistrées",
   'accountBackupTitle': "Sauvegarde des comptes",
+  'accountBackupUserId': "ID utilisateur : {value1}",
   'addMembersDone': "Terminé",
   'addMembersDoneWithCount': "Terminé ({value1})",
   'addMembersInviteMembersTitle': "Inviter des membres",

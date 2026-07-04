@@ -12,9 +12,15 @@ const deMessages = <String, String>{
   'accountBackupCreate': "Aktuelles Konto im Keychain sichern",
   'accountBackupDeleteMessage':
       "Dadurch wird die gespeicherte Sitzung aus dem Keychain entfernt. Die Telegram-Sitzung wird nicht widerrufen.",
+  'accountBackupDeleteInvalidSession': "Gespeicherte Sitzung löschen",
   'accountBackupDeleteTitle': "Gespeicherte Sitzung löschen?",
   'accountBackupEmpty': "Es wurden noch keine Kontositzungen gesichert.",
   'accountBackupEnabled': "Konten sichern",
+  'accountBackupInvalidImportedMessage':
+      "Diese Sitzungszeichenfolge ist nicht mehr gültig oder wurde möglicherweise widerrufen. Exportiere eine neue Sitzung von einem noch angemeldeten Gerät.",
+  'accountBackupInvalidMessage':
+      "Die gespeicherte Sitzung für {value1} ist nicht mehr gültig oder wurde möglicherweise widerrufen. Diese gespeicherte Sitzung aus dem Keychain löschen?",
+  'accountBackupInvalidTitle': "Sitzung nicht mehr gültig",
   'accountBackupImported': "In Kontoplatz {value1} importiert",
   'accountBackupIOSOnly': "Kontosicherung ist nur unter iOS verfügbar.",
   'accountBackupLoadPyrogramConfirm': "Sitzung laden",
@@ -35,6 +41,7 @@ const deMessages = <String, String>{
   'accountBackupSaved': "Sitzung gespeichert ({value1})",
   'accountBackupSessions': "Gespeicherte Sitzungen",
   'accountBackupTitle': "Kontosicherung",
+  'accountBackupUserId': "Benutzer-ID: {value1}",
   'addMembersDone': "Fertig",
   'addMembersDoneWithCount': "Fertig ({value1})",
   'addMembersInviteMembersTitle': "Mitglieder einladen",

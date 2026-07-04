@@ -12,9 +12,15 @@ const jaMessages = <String, String>{
   'accountBackupCreate': "現在のアカウントを Keychain にバックアップ",
   'accountBackupDeleteMessage':
       "Keychain から保存済みセッションを削除します。Telegram のセッションは無効化されません。",
+  'accountBackupDeleteInvalidSession': "保存済みセッションを削除",
   'accountBackupDeleteTitle': "保存済みセッションを削除しますか？",
   'accountBackupEmpty': "バックアップ済みのアカウントセッションはまだありません。",
   'accountBackupEnabled': "アカウントをバックアップ",
+  'accountBackupInvalidImportedMessage':
+      "このセッション文字列は無効になったか、取り消された可能性があります。ログイン済みの端末から新しいセッションをエクスポートしてください。",
+  'accountBackupInvalidMessage':
+      "{value1} の保存済みセッションは無効になったか、取り消された可能性があります。この保存済みセッションを Keychain から削除しますか？",
+  'accountBackupInvalidTitle': "セッションが無効です",
   'accountBackupImported': "アカウントスロット {value1} にインポートしました",
   'accountBackupIOSOnly': "アカウントバックアップは iOS でのみ利用できます。",
   'accountBackupLoadPyrogramConfirm': "セッションを読み込む",
@@ -35,6 +41,7 @@ const jaMessages = <String, String>{
   'accountBackupSaved': "セッションを保存しました（{value1}）",
   'accountBackupSessions': "保存済みセッション",
   'accountBackupTitle': "アカウントバックアップ",
+  'accountBackupUserId': "ユーザー ID: {value1}",
   'addMembersDone': "完了",
   'addMembersDoneWithCount': "完了（{value1}）",
   'addMembersInviteMembersTitle': "メンバーを招待",

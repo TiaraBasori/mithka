@@ -12,9 +12,15 @@ const esMessages = <String, String>{
   'accountBackupCreate': "Guardar cuenta actual en Keychain",
   'accountBackupDeleteMessage':
       "Esto elimina la sesión guardada de Keychain. La sesión de Telegram no se revocará.",
+  'accountBackupDeleteInvalidSession': "Eliminar sesión guardada",
   'accountBackupDeleteTitle': "¿Eliminar sesión guardada?",
   'accountBackupEmpty': "Aún no hay sesiones de cuenta guardadas.",
   'accountBackupEnabled': "Guardar cuentas",
+  'accountBackupInvalidImportedMessage':
+      "Esta cadena de sesión ya no es válida o puede haber sido revocada. Exporta una sesión nueva desde un dispositivo que siga conectado.",
+  'accountBackupInvalidMessage':
+      "La sesión guardada de {value1} ya no es válida o puede haber sido revocada. ¿Eliminar esta sesión guardada de Keychain?",
+  'accountBackupInvalidTitle': "La sesión ya no es válida",
   'accountBackupImported': "Importada en la ranura de cuenta {value1}",
   'accountBackupIOSOnly':
       "La copia de seguridad de cuentas solo está disponible en iOS.",
@@ -36,6 +42,7 @@ const esMessages = <String, String>{
   'accountBackupSaved': "Sesión guardada ({value1})",
   'accountBackupSessions': "Sesiones guardadas",
   'accountBackupTitle': "Copia de seguridad de cuentas",
+  'accountBackupUserId': "ID de usuario: {value1}",
   'addMembersDone': "Listo",
   'addMembersDoneWithCount': "Listo ({value1})",
   'addMembersInviteMembersTitle': "Invitar miembros",

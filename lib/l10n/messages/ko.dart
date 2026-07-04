@@ -12,9 +12,15 @@ const koMessages = <String, String>{
   'accountBackupCreate': "현재 계정을 Keychain에 백업",
   'accountBackupDeleteMessage':
       "Keychain에 저장된 세션이 삭제됩니다. Telegram 세션은 해지되지 않습니다.",
+  'accountBackupDeleteInvalidSession': "저장된 세션 삭제",
   'accountBackupDeleteTitle': "저장된 세션을 삭제할까요?",
   'accountBackupEmpty': "아직 백업된 계정 세션이 없습니다.",
   'accountBackupEnabled': "계정 백업",
+  'accountBackupInvalidImportedMessage':
+      "이 세션 문자열은 더 이상 유효하지 않거나 해지되었을 수 있습니다. 로그인된 기기에서 새 세션을 내보내세요.",
+  'accountBackupInvalidMessage':
+      "{value1}의 저장된 세션이 더 이상 유효하지 않거나 해지되었을 수 있습니다. Keychain에서 이 저장된 세션을 삭제할까요?",
+  'accountBackupInvalidTitle': "세션이 더 이상 유효하지 않음",
   'accountBackupImported': "계정 슬롯 {value1}에 가져왔습니다",
   'accountBackupIOSOnly': "계정 백업은 iOS에서만 사용할 수 있습니다.",
   'accountBackupLoadPyrogramConfirm': "세션 불러오기",
@@ -35,6 +41,7 @@ const koMessages = <String, String>{
   'accountBackupSaved': "세션 저장됨({value1})",
   'accountBackupSessions': "저장된 세션",
   'accountBackupTitle': "계정 백업",
+  'accountBackupUserId': "사용자 ID: {value1}",
   'addMembersDone': "완료",
   'addMembersDoneWithCount': "완료({value1})",
   'addMembersInviteMembersTitle': "멤버 초대",

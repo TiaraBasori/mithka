@@ -138,8 +138,14 @@ abstract final class AppStringKeys {
   static const accountBackupCreate = 'accountBackupCreate';
   static const accountBackupDeleteMessage = 'accountBackupDeleteMessage';
   static const accountBackupDeleteTitle = 'accountBackupDeleteTitle';
+  static const accountBackupDeleteInvalidSession =
+      'accountBackupDeleteInvalidSession';
   static const accountBackupEmpty = 'accountBackupEmpty';
   static const accountBackupEnabled = 'accountBackupEnabled';
+  static const accountBackupInvalidImportedMessage =
+      'accountBackupInvalidImportedMessage';
+  static const accountBackupInvalidMessage = 'accountBackupInvalidMessage';
+  static const accountBackupInvalidTitle = 'accountBackupInvalidTitle';
   static const accountBackupImported = 'accountBackupImported';
   static const accountBackupIOSOnly = 'accountBackupIOSOnly';
   static const accountBackupLoadPyrogramConfirm =
@@ -163,6 +169,7 @@ abstract final class AppStringKeys {
   static const accountBackupSaved = 'accountBackupSaved';
   static const accountBackupSessions = 'accountBackupSessions';
   static const accountBackupTitle = 'accountBackupTitle';
+  static const accountBackupUserId = 'accountBackupUserId';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';

@@ -14,6 +14,7 @@ import '../components/confirm_dialog.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import '../tdlib/td_client.dart';
 import '../theme/app_theme.dart';
 
 class AccountBackupView extends StatefulWidget {
@@ -109,6 +110,59 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     }
   }
 
+  bool _isInvalidSessionError(Object error) {
+    if (error is TdSessionRestoreException) return true;
+    final text = error.toString().toLowerCase();
+    return text.contains('session is invalid') ||
+        text.contains('has been revoked') ||
+        text.contains('not authorized') ||
+        text.contains('request aborted') ||
+        text.contains('authorizationstatewaitphonenumber');
+  }
+
+  Future<bool> _handleInvalidSavedSession(
+    AccountSessionBackup backup,
+    Object error,
+  ) async {
+    if (!_isInvalidSessionError(error)) return false;
+    final delete = await confirmDialog(
+      context,
+      title: AppStringKeys.accountBackupInvalidTitle,
+      message: AppStrings.t(AppStringKeys.accountBackupInvalidMessage, {
+        'value1': backup.displayName,
+      }),
+      confirmText: AppStringKeys.accountBackupDeleteInvalidSession,
+      destructive: true,
+    );
+    if (!mounted) return true;
+    if (delete) {
+      await _service.delete(backup);
+      await _load();
+    }
+    return true;
+  }
+
+  Future<void> _showInvalidImportedSessionAlert() async {
+    await showCupertinoDialog<void>(
+      context: context,
+      builder: (dialogContext) => CupertinoAlertDialog(
+        title: Text(
+          AppStringKeys.accountBackupInvalidTitle.l10n(dialogContext),
+        ),
+        content: Text(
+          AppStringKeys.accountBackupInvalidImportedMessage.l10n(dialogContext),
+        ),
+        actions: [
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: Text(AppStringKeys.confirmOk.l10n(dialogContext)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _copyPyrogramSession() async {
     final ok = await confirmDialog(
       context,
@@ -158,7 +212,11 @@ class _AccountBackupViewState extends State<AccountBackupView> {
         }
       }
     } catch (error) {
-      if (mounted) showToast(context, error.toString());
+      final handled = await _handleInvalidSavedSession(backup, error);
+      if (!mounted) return;
+      if (!handled) {
+        showToast(context, error.toString());
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -194,7 +252,11 @@ class _AccountBackupViewState extends State<AccountBackupView> {
         }
       }
     } catch (error) {
-      if (mounted) showToast(context, error.toString());
+      if (mounted && _isInvalidSessionError(error)) {
+        await _showInvalidImportedSessionAlert();
+      } else if (mounted) {
+        showToast(context, error.toString());
+      }
     } finally {
       if (mounted) setState(() => _working = false);
     }
@@ -456,6 +518,11 @@ class _AccountBackupViewState extends State<AccountBackupView> {
               backup: backup,
               subtitle:
                   '${_dateFormat.format(backup.createdAt.toLocal())} · ${_formatBytes(backup.sizeBytes)}',
+              userIdLabel: backup.userId == null
+                  ? null
+                  : AppStrings.t(AppStringKeys.accountBackupUserId, {
+                      'value1': backup.userId,
+                    }),
               onRestore: () => _restore(backup),
               onDelete: () => _delete(backup),
             ),
@@ -627,12 +694,14 @@ class _BackupRow extends StatelessWidget {
   const _BackupRow({
     required this.backup,
     required this.subtitle,
+    required this.userIdLabel,
     required this.onRestore,
     required this.onDelete,
   });
 
   final AccountSessionBackup backup;
   final String subtitle;
+  final String? userIdLabel;
   final VoidCallback onRestore;
   final VoidCallback onDelete;
 
@@ -640,7 +709,7 @@ class _BackupRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     return SizedBox(
-      height: 68,
+      height: userIdLabel == null ? 68 : 86,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
@@ -659,6 +728,15 @@ class _BackupRow extends StatelessWidget {
                     style: TextStyle(fontSize: 16, color: c.textPrimary),
                   ),
                   const SizedBox(height: 3),
+                  if (userIdLabel != null) ...[
+                    Text(
+                      userIdLabel!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: c.textTertiary),
+                    ),
+                    const SizedBox(height: 2),
+                  ],
                   Text(
                     subtitle,
                     maxLines: 1,

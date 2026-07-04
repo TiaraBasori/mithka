@@ -14,6 +14,47 @@ class RichTextComposerResult {
   final List<XFile> media;
 }
 
+Future<RichTextComposerResult?> showRichTextComposerSheet(
+  BuildContext context, {
+  required String initialText,
+  String title = AppStringKeys.topicChatShare,
+  String submitText = AppStringKeys.topicChatPublish,
+  String hintText = AppStringKeys.richTextComposerContentPlaceholder,
+  bool allowMedia = true,
+}) {
+  return showGeneralDialog<RichTextComposerResult>(
+    context: context,
+    barrierDismissible: true,
+    barrierLabel: title.l10n(context),
+    barrierColor: Colors.black.withValues(alpha: 0.36),
+    transitionDuration: const Duration(milliseconds: 240),
+    pageBuilder: (dialogContext, _, _) {
+      return RichTextComposerView(
+        initialText: initialText,
+        title: title,
+        submitText: submitText,
+        hintText: hintText,
+        allowMedia: allowMedia,
+        asSheet: true,
+      );
+    },
+    transitionBuilder: (context, animation, secondaryAnimation, child) {
+      final curved = CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      );
+      return SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(curved),
+        child: child,
+      );
+    },
+  );
+}
+
 class RichTextComposerView extends StatefulWidget {
   const RichTextComposerView({
     super.key,
@@ -22,6 +63,7 @@ class RichTextComposerView extends StatefulWidget {
     this.submitText = AppStringKeys.topicChatPublish,
     this.hintText = AppStringKeys.richTextComposerContentPlaceholder,
     this.allowMedia = true,
+    this.asSheet = false,
   });
 
   final String initialText;
@@ -29,6 +71,7 @@ class RichTextComposerView extends StatefulWidget {
   final String submitText;
   final String hintText;
   final bool allowMedia;
+  final bool asSheet;
 
   @override
   State<RichTextComposerView> createState() => _RichTextComposerViewState();
@@ -92,64 +135,96 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Scaffold(
-      backgroundColor: c.background,
-      body: SafeArea(
-        child: Column(
-          children: [
-            SizedBox(
-              height: 54,
-              child: Row(
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
+    final content = SafeArea(
+      top: !widget.asSheet,
+      child: Column(
+        children: [
+          SizedBox(
+            height: 54,
+            child: Row(
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       AppStringKeys.countryPickerCancel.l10n(context),
-                      style: TextStyle(color: c.textPrimary),
+                      style: TextStyle(fontSize: 16, color: c.textPrimary),
                     ),
                   ),
-                  Expanded(
+                ),
+                Expanded(
+                  child: Text(
+                    widget.title.l10n(context),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: c.textPrimary,
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _submit,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
-                      widget.title.l10n(context),
-                      textAlign: TextAlign.center,
+                      widget.submitText.l10n(context),
                       style: TextStyle(
-                        fontSize: 17,
+                        fontSize: 16,
+                        color: AppTheme.brand,
                         fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
                       ),
                     ),
                   ),
-                  TextButton(
-                    onPressed: _submit,
-                    child: Text(widget.submitText.l10n(context)),
-                  ),
-                ],
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: c.divider),
+          _toolbar(c),
+          if (widget.allowMedia) _mediaStrip(c),
+          Expanded(
+            child: TextField(
+              controller: _controller,
+              autofocus: true,
+              maxLines: null,
+              expands: true,
+              textAlignVertical: TextAlignVertical.top,
+              contextMenuBuilder: (context, editableTextState) {
+                return AdaptiveTextSelectionToolbar.editableText(
+                  editableTextState: editableTextState,
+                );
+              },
+              style: TextStyle(fontSize: 16, height: 1.4, color: c.textPrimary),
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.all(16),
+                border: InputBorder.none,
+                hintText: widget.hintText.l10n(context),
+                hintStyle: TextStyle(color: c.textTertiary),
               ),
             ),
-            Divider(height: 1, color: c.divider),
-            _toolbar(c),
-            if (widget.allowMedia) _mediaStrip(c),
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                autofocus: true,
-                maxLines: null,
-                expands: true,
-                textAlignVertical: TextAlignVertical.top,
-                style: TextStyle(
-                  fontSize: 16,
-                  height: 1.4,
-                  color: c.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  contentPadding: const EdgeInsets.all(16),
-                  border: InputBorder.none,
-                  hintText: widget.hintText.l10n(context),
-                  hintStyle: TextStyle(color: c.textTertiary),
-                ),
-              ),
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+    if (!widget.asSheet) {
+      return Scaffold(backgroundColor: c.background, body: content);
+    }
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Material(
+        color: Colors.transparent,
+        child: FractionallySizedBox(
+          heightFactor: 0.86,
+          widthFactor: 1,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            child: ColoredBox(color: c.background, child: content),
+          ),
         ),
       ),
     );
@@ -239,10 +314,8 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
               width: 84,
               height: 84,
               color: c.searchFill,
-              child: Icon(
-                isVideo
-                    ? HeroAppIcons.solidFileVideo.data
-                    : HeroAppIcons.image.data,
+              child: AppIcon(
+                isVideo ? HeroAppIcons.solidFileVideo : HeroAppIcons.image,
                 color: c.textTertiary,
               ),
             ),
@@ -268,7 +341,11 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                 color: Colors.black.withValues(alpha: 0.55),
                 shape: BoxShape.circle,
               ),
-              child: const AppIcon(HeroAppIcons.xmark, size: 12, color: Colors.white),
+              child: const AppIcon(
+                HeroAppIcons.xmark,
+                size: 12,
+                color: Colors.white,
+              ),
             ),
           ),
         ),

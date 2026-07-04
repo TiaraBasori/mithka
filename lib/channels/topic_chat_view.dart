@@ -300,16 +300,12 @@ class _TopicChatViewState extends State<TopicChatView> {
   }
 
   Future<void> _openComposer() async {
-    final result = await Navigator.of(context).push<RichTextComposerResult>(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) => RichTextComposerView(
-          initialText: _input.text,
-          title: AppStringKeys.topicChatShare,
-          submitText: AppStringKeys.topicChatPublish,
-          hintText: AppStringKeys.topicChatComposerPlaceholder,
-        ),
-      ),
+    final result = await showRichTextComposerSheet(
+      context,
+      initialText: _input.text,
+      title: AppStringKeys.topicChatShare,
+      submitText: AppStringKeys.topicChatPublish,
+      hintText: AppStringKeys.topicChatComposerPlaceholder,
     );
     if (result == null) return;
     _input.text = result.text;

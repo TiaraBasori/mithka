@@ -17,6 +17,7 @@ import '../chat/chat_picker_view.dart';
 import '../chat/full_image_viewer.dart';
 import '../chat/chat_view.dart';
 import '../chat/media_album_layout.dart';
+import '../chat/rich_text_composer_view.dart';
 import '../chat/rich_text_format.dart';
 import '../chat/shared_media_view.dart';
 import '../chat/telegram_rich_text.dart';
@@ -2926,6 +2927,11 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
             minLines: 9,
             maxLines: 16,
             textInputAction: TextInputAction.newline,
+            contextMenuBuilder: (context, editableTextState) {
+              return AdaptiveTextSelectionToolbar.editableText(
+                editableTextState: editableTextState,
+              );
+            },
             style: AppTextStyle.bodyLarge(c.textPrimary).copyWith(height: 1.4),
             decoration: InputDecoration(
               border: InputBorder.none,
@@ -3042,15 +3048,37 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
     final c = context.colors;
     return Row(
       children: [
-        _formatButton('B', () => _wrapSelection('**')),
-        const SizedBox(width: AppSpacing.md),
-        _formatButton('I', () => _wrapSelection('_'), italic: true),
-        const SizedBox(width: AppSpacing.md),
-        _formatButton('`', () => _wrapSelection('`')),
-        const SizedBox(width: AppSpacing.md),
-        _formatButton('H', () => _prefixLine('## ')),
-        const SizedBox(width: AppSpacing.md),
-        _formatButton('•', () => _prefixLine('- ')),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => unawaited(_openRichTextComposer()),
+          child: Container(
+            height: AppMetric.composerFormatButtonHeight,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.searchFill,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppIcon(
+                  HeroAppIcons.penToSquare,
+                  size: AppIconSize.sm,
+                  color: c.textSecondary,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  AppStringKeys.composerRichText.l10n(context),
+                  style: AppTextStyle.body(
+                    c.textPrimary,
+                    weight: AppTextWeight.semibold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
         const Spacer(),
         Text(
           AppStringKeys.markdownLabel.l10n(context),
@@ -3060,32 +3088,22 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
     );
   }
 
-  Widget _formatButton(
-    String label,
-    VoidCallback onTap, {
-    bool italic = false,
-  }) {
-    final c = context.colors;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        width: AppMetric.composerFormatButtonWidth,
-        height: AppMetric.composerFormatButtonHeight,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: c.searchFill,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: Text(
-          label,
-          style: AppTextStyle.body(
-            c.textPrimary,
-            weight: AppTextWeight.semibold,
-          ).copyWith(fontStyle: italic ? FontStyle.italic : null),
-        ),
-      ),
+  Future<void> _openRichTextComposer() async {
+    final result = await showRichTextComposerSheet(
+      context,
+      initialText: _controller.text,
+      title: AppStringKeys.momentsCreatePostTitle,
+      submitText: AppStringKeys.addMembersDone,
+      hintText: AppStringKeys.momentsShareSomethingPlaceholder,
+      allowMedia: false,
     );
+    if (result == null || !mounted) return;
+    setState(() {
+      _controller.text = result.text;
+      _controller.selection = TextSelection.collapsed(
+        offset: _controller.text.length,
+      );
+    });
   }
 
   Widget _publishSettingsCard() {
@@ -3134,44 +3152,6 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
     } catch (_) {
       if (mounted) showToast(context, AppStringKeys.momentsPickPhotoFailed);
     }
-  }
-
-  void _wrapSelection(String marker) {
-    final selection = _controller.selection;
-    final text = _controller.text;
-    if (!selection.isValid) {
-      _controller.text = '$text$marker$marker';
-      _controller.selection = TextSelection.collapsed(
-        offset: _controller.text.length - marker.length,
-      );
-      _focus.requestFocus();
-      return;
-    }
-    final selected = text.substring(selection.start, selection.end);
-    final next = text.replaceRange(
-      selection.start,
-      selection.end,
-      '$marker$selected$marker',
-    );
-    _controller.text = next;
-    _controller.selection = TextSelection(
-      baseOffset: selection.start + marker.length,
-      extentOffset: selection.end + marker.length,
-    );
-    _focus.requestFocus();
-  }
-
-  void _prefixLine(String prefix) {
-    final selection = _controller.selection;
-    final text = _controller.text;
-    final cursor = selection.isValid ? selection.start : text.length;
-    final previousBreak = cursor <= 0 ? -1 : text.lastIndexOf('\n', cursor - 1);
-    final lineStart = previousBreak + 1;
-    _controller.text = text.replaceRange(lineStart, lineStart, prefix);
-    _controller.selection = TextSelection.collapsed(
-      offset: cursor + prefix.length,
-    );
-    _focus.requestFocus();
   }
 
   Future<void> _selectChannel() async {
