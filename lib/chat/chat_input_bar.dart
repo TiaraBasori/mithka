@@ -41,7 +41,6 @@ import 'link_handler.dart';
 import 'location_picker_view.dart';
 import 'poll_composer_view.dart';
 import 'rich_text_composer_view.dart';
-import 'rich_text_format.dart';
 import 'sticker_preview.dart';
 import 'sticker_store.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -312,12 +311,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
       initialText: _controller.text,
       title: AppStringKeys.composerRichTextMessageTitle,
       submitText: AppStringKeys.composerSend,
-      hintText: AppStringKeys.composerMarkdownSupportHint,
+      hintText: AppStringKeys.richTextComposerContentPlaceholder,
       allowMedia: false,
     );
     if (result == null || !mounted) return;
-    final parsed = parseTelegramMarkdown(result.text.trim());
-    if (parsed.text.trim().isEmpty) return;
+    if (result.text.trim().isEmpty) return;
     if (vm.requiresPaidMessage) {
       final ok = await confirmDialog(
         context,
@@ -329,7 +327,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       );
       if (!mounted || !ok) return;
     }
-    vm.sendFormatted(parsed.text, parsed.entities);
+    vm.sendFormatted(result.text, result.entities);
     _controller.clear();
     _focus.requestFocus();
   }

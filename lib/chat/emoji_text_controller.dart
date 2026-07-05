@@ -79,14 +79,28 @@ class EmojiTextEditingController extends TextEditingController {
 
   /// Inserts plain text (e.g. a standard unicode emoji) at the selection.
   void insertText(String s) {
+    insertFormattedText(s);
+  }
+
+  /// Inserts text at the selection and optionally applies one entity over it.
+  void insertFormattedText(String s, {String? type}) {
     final sel = selection;
     final start = sel.isValid ? sel.start : text.length;
     final end = sel.isValid ? sel.end : text.length;
     final newText = text.replaceRange(start, end, s);
-    value = TextEditingValue(
+    _replaceEntityRange(start, end, s.length);
+    _lastText = newText;
+    super.value = TextEditingValue(
       text: newText,
       selection: TextSelection.collapsed(offset: start + s.length),
     );
+    if (type != null && s.isNotEmpty) {
+      _entities.add(
+        _ComposerTextEntity(offset: start, length: s.length, type: type),
+      );
+      _mergeEntities(type);
+    }
+    notifyListeners();
   }
 
   bool get hasContent => text.trim().isNotEmpty;
@@ -119,6 +133,15 @@ class EmojiTextEditingController extends TextEditingController {
       );
       _mergeEntities(type);
     }
+    notifyListeners();
+  }
+
+  void formatRange(int start, int end, String type) {
+    if (start < 0 || end > text.length || start >= end) return;
+    _entities.add(
+      _ComposerTextEntity(offset: start, length: end - start, type: type),
+    );
+    _mergeEntities(type);
     notifyListeners();
   }
 
@@ -328,6 +351,31 @@ class EmojiTextEditingController extends TextEditingController {
       }
       if (entity.end > end) {
         next.add(entity.copyWith(offset: end, length: entity.end - end));
+      }
+    }
+    _entities
+      ..clear()
+      ..addAll(next);
+  }
+
+  void _replaceEntityRange(int start, int end, int insertedLength) {
+    final delta = insertedLength - (end - start);
+    final insertedEnd = start + insertedLength;
+    final next = <_ComposerTextEntity>[];
+    for (final entity in _entities) {
+      if (entity.end <= start) {
+        next.add(entity);
+      } else if (entity.offset >= end) {
+        next.add(entity.copyWith(offset: entity.offset + delta));
+      } else {
+        if (entity.offset < start) {
+          next.add(entity.copyWith(length: start - entity.offset));
+        }
+        if (entity.end > end) {
+          next.add(
+            entity.copyWith(offset: insertedEnd, length: entity.end - end),
+          );
+        }
       }
     }
     _entities

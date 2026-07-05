@@ -11,6 +11,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../chat/chat_members_view.dart';
+import '../chat/chat_picker_view.dart';
+import '../chat/custom_emoji.dart';
 import '../chat/rich_text_composer_view.dart';
 import '../components/confirm_dialog.dart';
 import '../components/drawer_controller.dart' as dc;
@@ -56,6 +58,9 @@ class _ForumTopic {
     required this.lastMessage,
     required this.isPinned,
     required this.isMuted,
+    required this.unreadCount,
+    required this.iconCustomEmojiId,
+    required this.iconColor,
   });
 
   final int id;
@@ -63,6 +68,9 @@ class _ForumTopic {
   final ChatMessage lastMessage;
   final bool isPinned;
   final bool isMuted;
+  final int unreadCount;
+  final int iconCustomEmojiId;
+  final Color? iconColor;
 }
 
 class _TopicPost {
@@ -70,6 +78,14 @@ class _TopicPost {
 
   final _ForumTopic topic;
   final ChatMessage message;
+}
+
+const _topicHeartReactions = {'❤️', '❤'};
+const _topicLikeReactionCandidates = ['❤️', '❤', '👍'];
+
+bool _isTopicLikeReaction(MessageReaction reaction) {
+  final emoji = reaction.emoji;
+  return emoji != null && _topicLikeReactionCandidates.contains(emoji);
 }
 
 class _SenderInfo {
@@ -157,6 +173,9 @@ class _TopicChatViewState extends State<TopicChatView> {
             isMuted:
                 (topic.obj('notification_settings')?.integer('mute_for') ?? 0) >
                 0,
+            unreadCount: _topicUnreadCount(topic, info),
+            iconCustomEmojiId: _topicCustomEmojiId(topic, info),
+            iconColor: _topicIconColor(topic, info),
           ),
         );
       }
@@ -230,6 +249,40 @@ class _TopicChatViewState extends State<TopicChatView> {
     }
   }
 
+  int _topicUnreadCount(Map<String, dynamic> topic, Map<String, dynamic> info) {
+    final count =
+        topic.integer('unread_count') ??
+        info.integer('unread_count') ??
+        topic.integer('unread_mention_count') ??
+        info.integer('unread_mention_count') ??
+        0;
+    return count < 0 ? 0 : count;
+  }
+
+  int _topicCustomEmojiId(
+    Map<String, dynamic> topic,
+    Map<String, dynamic> info,
+  ) {
+    return info.obj('icon')?.int64('custom_emoji_id') ??
+        topic.obj('icon')?.int64('custom_emoji_id') ??
+        info.int64('icon_custom_emoji_id') ??
+        topic.int64('icon_custom_emoji_id') ??
+        0;
+  }
+
+  Color? _topicIconColor(
+    Map<String, dynamic> topic,
+    Map<String, dynamic> info,
+  ) {
+    final raw =
+        info.obj('icon')?.integer('color') ??
+        topic.obj('icon')?.integer('color') ??
+        info.integer('icon_color') ??
+        topic.integer('icon_color');
+    if (raw == null || raw == 0) return null;
+    return Color(0xFF000000 | (raw & 0xFFFFFF));
+  }
+
   List<_TopicPost> get _posts {
     final selected = _selectedThreadId;
     final posts = <_TopicPost>[];
@@ -273,10 +326,8 @@ class _TopicChatViewState extends State<TopicChatView> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _sendPostText(String rawText) async {
-    final parsed = parseTelegramMarkdown(rawText.trim());
-    final text = parsed.text;
-    if (text.isEmpty) return;
+  Future<void> _sendPostText(FormattedTextPayload formatted) async {
+    if (formatted.text.trim().isEmpty) return;
     final threadId = _selectedThreadId;
     try {
       final request = {
@@ -284,11 +335,7 @@ class _TopicChatViewState extends State<TopicChatView> {
         'chat_id': widget.chat.id,
         'input_message_content': {
           '@type': 'inputMessageText',
-          'text': {
-            '@type': 'formattedText',
-            'text': text,
-            if (parsed.entities.isNotEmpty) 'entities': parsed.entities,
-          },
+          'text': formatted.toTdJson(),
         },
       };
       if (threadId != null) request['message_thread_id'] = threadId;
@@ -310,7 +357,7 @@ class _TopicChatViewState extends State<TopicChatView> {
     if (result == null) return;
     _input.text = result.text;
     if (result.media.isEmpty) {
-      await _sendPostText(result.text);
+      await _sendPostText(result.formattedText);
     } else {
       await _sendPostMedia(result);
     }
@@ -320,9 +367,7 @@ class _TopicChatViewState extends State<TopicChatView> {
     final threadId = _selectedThreadId;
     for (var i = 0; i < result.media.length; i++) {
       final file = result.media[i];
-      final caption = i == 0
-          ? parseTelegramMarkdown(result.text.trim()).toTdJson()
-          : null;
+      final caption = i == 0 ? result.formattedText.toTdJson() : null;
       final isVideo = _isVideoPath(file.path);
       final request = {
         '@type': 'sendMessage',
@@ -405,23 +450,134 @@ class _TopicChatViewState extends State<TopicChatView> {
         post: post,
         sender: sender,
         loadSender: _loadSender,
+        onSent: () {
+          post.message.commentCount += 1;
+          if (mounted) setState(() {});
+        },
       ),
     );
   }
 
-  Future<void> _addReaction(_TopicPost post, String emoji) async {
+  Future<void> _sharePost(_TopicPost post) async {
+    final target = await Navigator.of(context).push<ChatSummary>(
+      MaterialPageRoute(
+        builder: (_) =>
+            const ChatPickerView(title: AppStringKeys.chatForwardToTitle),
+      ),
+    );
+    if (target == null || !mounted) return;
     try {
       await TdClient.shared.query({
-        '@type': 'addMessageReaction',
-        'chat_id': widget.chat.id,
-        'message_id': post.message.id,
-        'reaction_type': {'@type': 'reactionTypeEmoji', 'emoji': emoji},
-        'is_big': false,
-        'update_recent_reactions': true,
+        '@type': 'forwardMessages',
+        'chat_id': target.id,
+        'from_chat_id': widget.chat.id,
+        'message_ids': [post.message.id],
+        'options': {'@type': 'messageSendOptions'},
+        'send_copy': false,
+        'remove_caption': false,
       });
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.chatForwardedToName, {
+          'value1': target.title,
+        }),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.chatForwardFailed, {'value1': e}),
+      );
+    }
+  }
+
+  Future<void> _addReaction(_TopicPost post, String emoji) async {
+    try {
+      final reactionEmoji = await _resolveReactionEmoji(post, emoji);
+      try {
+        await _sendReaction(post, reactionEmoji);
+      } catch (_) {
+        final retry = _alternateHeartReaction(reactionEmoji);
+        if (retry == null) rethrow;
+        await _sendReaction(post, retry);
+      }
       _topicMessages.clear();
       await _loadTopics();
-    } catch (_) {}
+      if (mounted) showToast(context, AppStringKeys.momentsLiked);
+    } catch (e) {
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.momentsLikeFailed, {'value1': e}),
+      );
+    }
+  }
+
+  Future<String> _resolveReactionEmoji(
+    _TopicPost post,
+    String preferred,
+  ) async {
+    final candidates = _topicHeartReactions.contains(preferred)
+        ? _topicLikeReactionCandidates
+        : <String>[preferred];
+    Set<String> emojis;
+    try {
+      final available = await TdClient.shared.query({
+        '@type': 'getMessageAvailableReactions',
+        'chat_id': widget.chat.id,
+        'message_id': post.message.id,
+        'row_size': 25,
+      });
+      emojis = _availableReactionEmojis(available);
+    } catch (_) {
+      // Older or constrained TDLib builds can fail this query; the send path
+      // still has a heart-variant retry below.
+      emojis = const {};
+    }
+    for (final candidate in candidates) {
+      if (emojis.contains(candidate)) return candidate;
+    }
+    if (emojis.isNotEmpty) {
+      throw StateError('Reaction is not available for this message');
+    }
+    return _topicHeartReactions.contains(preferred) ? '❤' : preferred;
+  }
+
+  Set<String> _availableReactionEmojis(Map<String, dynamic> available) {
+    final emojis = <String>{};
+    void collect(String key) {
+      for (final reaction
+          in available.objects(key) ?? const <Map<String, dynamic>>[]) {
+        if (reaction.boolean('needs_premium') == true) continue;
+        final type = reaction.obj('type');
+        if (type?.type != 'reactionTypeEmoji') continue;
+        final emoji = type?.str('emoji');
+        if (emoji != null && emoji.isNotEmpty) emojis.add(emoji);
+      }
+    }
+
+    collect('top_reactions');
+    collect('recent_reactions');
+    collect('popular_reactions');
+    return emojis;
+  }
+
+  Future<void> _sendReaction(_TopicPost post, String emoji) {
+    return TdClient.shared.query({
+      '@type': 'addMessageReaction',
+      'chat_id': widget.chat.id,
+      'message_id': post.message.id,
+      'reaction_type': {'@type': 'reactionTypeEmoji', 'emoji': emoji},
+      'is_big': false,
+      'update_recent_reactions': true,
+    });
+  }
+
+  String? _alternateHeartReaction(String emoji) {
+    if (emoji == '❤️') return '❤';
+    if (emoji == '❤') return '❤️';
+    return null;
   }
 
   void _showReactionPicker(_TopicPost post) {
@@ -602,10 +758,7 @@ class _TopicChatViewState extends State<TopicChatView> {
 
   Widget _topicTabs() {
     final c = context.colors;
-    final tabs = [
-      (id: null, title: AppStringKeys.topicChatAllFilter),
-      ..._topics.take(8).map((topic) => (id: topic.id, title: topic.name)),
-    ];
+    final visibleTopics = _topics.take(8).toList();
     return Container(
       height: 52,
       decoration: BoxDecoration(
@@ -616,25 +769,38 @@ class _TopicChatViewState extends State<TopicChatView> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         itemBuilder: (context, index) {
-          final tab = tabs[index];
-          final selected = tab.id == _selectedThreadId;
+          final all = index == 0;
+          final topic = all ? null : visibleTopics[index - 1];
+          final id = topic?.id;
+          final selected = id == _selectedThreadId;
           return GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => _selectTopic(tab.id),
+            onTap: () => _selectTopic(id),
             child: SizedBox(
               height: 52,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    tab.title.l10n(context),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: c.textPrimary,
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _TopicTabIcon(topic: topic, selected: selected),
+                      const SizedBox(width: 5),
+                      Text(
+                        all
+                            ? AppStringKeys.topicChatAllFilter.l10n(context)
+                            : topic!.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: selected
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: c.textPrimary,
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 9),
                   Container(
@@ -651,7 +817,7 @@ class _TopicChatViewState extends State<TopicChatView> {
           );
         },
         separatorBuilder: (_, _) => const SizedBox(width: 28),
-        itemCount: tabs.length,
+        itemCount: visibleTopics.length + 1,
       ),
     );
   }
@@ -716,6 +882,7 @@ class _TopicChatViewState extends State<TopicChatView> {
           posts[index],
           _senderCache[posts[index].message.senderId],
         ),
+        onShare: () => _sharePost(posts[index]),
       ),
     );
   }
@@ -778,6 +945,34 @@ class _TopicChatViewState extends State<TopicChatView> {
   }
 }
 
+class _TopicTabIcon extends StatelessWidget {
+  const _TopicTabIcon({required this.topic, required this.selected});
+
+  final _ForumTopic? topic;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final topic = this.topic;
+    if (topic == null) {
+      return AppIcon(
+        HeroAppIcons.hashtag,
+        size: 17,
+        color: selected ? AppTheme.brand : c.textSecondary,
+      );
+    }
+    if (topic.iconCustomEmojiId != 0) {
+      return CustomEmojiView(id: topic.iconCustomEmojiId, size: 18);
+    }
+    return AppIcon(
+      HeroAppIcons.solidMessage,
+      size: 17,
+      color: topic.iconColor ?? (selected ? AppTheme.brand : c.textSecondary),
+    );
+  }
+}
+
 class _TopicPostRow extends StatelessWidget {
   const _TopicPostRow({
     required this.chatId,
@@ -785,6 +980,7 @@ class _TopicPostRow extends StatelessWidget {
     required this.onLike,
     required this.onPickReaction,
     required this.onComments,
+    required this.onShare,
     this.sender,
   });
 
@@ -794,6 +990,7 @@ class _TopicPostRow extends StatelessWidget {
   final VoidCallback onLike;
   final VoidCallback onPickReaction;
   final VoidCallback onComments;
+  final VoidCallback onShare;
 
   @override
   Widget build(BuildContext context) {
@@ -856,6 +1053,7 @@ class _TopicPostRow extends StatelessWidget {
             onLike: onLike,
             onPickReaction: onPickReaction,
             onComments: onComments,
+            onShare: onShare,
           ),
         ],
       ),
@@ -885,54 +1083,77 @@ class _PostActions extends StatelessWidget {
     required this.onLike,
     required this.onPickReaction,
     required this.onComments,
+    required this.onShare,
   });
 
   final ChatMessage message;
   final VoidCallback onLike;
   final VoidCallback onPickReaction;
   final VoidCallback onComments;
+  final VoidCallback onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    final likeCount = message.reactions.fold<int>(
+      0,
+      (sum, reaction) =>
+          _isTopicLikeReaction(reaction) ? sum + reaction.count : sum,
+    );
+    return Row(
+      children: [
+        const Spacer(),
+        _PostActionButton(
+          icon: HeroAppIcons.heart,
+          label: '$likeCount',
+          onTap: onLike,
+          onLongPress: onPickReaction,
+        ),
+        const SizedBox(width: 18),
+        _PostActionButton(
+          icon: HeroAppIcons.comment,
+          label: message.commentCount == 0 ? '' : '${message.commentCount}',
+          onTap: onComments,
+        ),
+        const SizedBox(width: 18),
+        _PostActionButton(icon: HeroAppIcons.share, onTap: onShare),
+      ],
+    );
+  }
+}
+
+class _PostActionButton extends StatelessWidget {
+  const _PostActionButton({
+    required this.icon,
+    required this.onTap,
+    this.label = '',
+    this.onLongPress,
+  });
+
+  final AppIconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final likeCount = message.reactions.fold<int>(
-      0,
-      (sum, reaction) => reaction.emoji == '❤️' ? sum + reaction.count : sum,
-    );
-    return Row(
-      children: [
-        Text(
-          AppStrings.t(AppStringKeys.topicChatBrowseCount, {
-            'value1': message.id.abs() % 900 + 10,
-          }),
-          style: TextStyle(fontSize: 14, color: c.textTertiary),
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      onLongPress: onLongPress,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AppIcon(icon, size: 24, color: c.textPrimary),
+            if (label.isNotEmpty) ...[
+              const SizedBox(width: 5),
+              Text(label, style: TextStyle(fontSize: 14, color: c.textPrimary)),
+            ],
+          ],
         ),
-        const Spacer(),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onLike,
-          onLongPress: onPickReaction,
-          child: AppIcon(HeroAppIcons.heart, size: 24, color: c.textPrimary),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          '$likeCount',
-          style: TextStyle(fontSize: 14, color: c.textPrimary),
-        ),
-        const SizedBox(width: 24),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onComments,
-          child: AppIcon(HeroAppIcons.comment, size: 24, color: c.textPrimary),
-        ),
-        const SizedBox(width: 5),
-        Text(
-          message.commentCount == 0 ? '' : '${message.commentCount}',
-          style: TextStyle(fontSize: 14, color: c.textPrimary),
-        ),
-        const SizedBox(width: 24),
-        AppIcon(HeroAppIcons.share, size: 25, color: c.textPrimary),
-      ],
+      ),
     );
   }
 }
@@ -946,7 +1167,9 @@ class _ExtraReactions extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final extra = message.reactions
-        .where((reaction) => reaction.count > 0 && reaction.emoji != '❤️')
+        .where(
+          (reaction) => reaction.count > 0 && !_isTopicLikeReaction(reaction),
+        )
         .toList();
     if (extra.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -979,26 +1202,38 @@ class _TopicCommentsSheet extends StatefulWidget {
     required this.post,
     required this.sender,
     required this.loadSender,
+    required this.onSent,
   });
 
   final int chatId;
   final _TopicPost post;
   final _SenderInfo? sender;
   final Future<_SenderInfo?> Function(int? id) loadSender;
+  final VoidCallback onSent;
 
   @override
   State<_TopicCommentsSheet> createState() => _TopicCommentsSheetState();
 }
 
 class _TopicCommentsSheetState extends State<_TopicCommentsSheet> {
+  final _replyController = TextEditingController();
+  final _replyFocus = FocusNode();
   final _comments = <ChatMessage>[];
   final _senders = <int, _SenderInfo>{};
   bool _loading = true;
+  bool _sending = false;
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _replyController.dispose();
+    _replyFocus.dispose();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -1047,99 +1282,240 @@ class _TopicCommentsSheetState extends State<_TopicCommentsSheet> {
     return text;
   }
 
+  int get _displayCommentCount {
+    final reported = widget.post.message.commentCount;
+    return reported > _comments.length ? reported : _comments.length;
+  }
+
+  Future<void> _openRichReply() async {
+    final result = await showRichTextComposerSheet(
+      context,
+      initialText: _replyController.text,
+      title: AppStringKeys.topicChatShare,
+      submitText: AppStringKeys.composerSend,
+      hintText: AppStringKeys.topicChatBeKindPrompt,
+      allowMedia: false,
+    );
+    if (result == null) return;
+    if (!mounted) return;
+    await _sendReply(result.formattedText);
+  }
+
+  Future<void> _sendPlainReply() async {
+    final text = _replyController.text.trim();
+    if (text.isEmpty) return;
+    await _sendReply(FormattedTextPayload(text, const []));
+  }
+
+  Future<void> _sendReply(FormattedTextPayload formatted) async {
+    final text = formatted.text.trim();
+    if (text.isEmpty || _sending) return;
+    if (!mounted) return;
+    setState(() => _sending = true);
+    final content = {'@type': 'inputMessageText', 'text': formatted.toTdJson()};
+    final request = {
+      '@type': 'sendMessage',
+      'chat_id': widget.chatId,
+      'message_thread_id': widget.post.topic.id,
+      'reply_to': {
+        '@type': 'inputMessageReplyToMessage',
+        'message_id': widget.post.message.id,
+      },
+      'input_message_content': content,
+    };
+    Object? error;
+    try {
+      await TdClient.shared.query(request);
+    } catch (_) {
+      final fallback = Map<String, dynamic>.from(request)
+        ..remove('message_thread_id');
+      try {
+        await TdClient.shared.query(fallback);
+      } catch (e) {
+        error = e;
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+    if (error != null) {
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.momentsReplyFailed, {'value1': error}),
+        );
+      }
+      return;
+    }
+    if (!mounted) {
+      widget.onSent();
+      return;
+    }
+    _replyController.clear();
+    widget.onSent();
+    await _load();
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final height = MediaQuery.of(context).size.height * 0.72;
-    return Container(
-      height: height,
-      decoration: BoxDecoration(
-        color: c.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          const SizedBox(height: 10),
           Container(
-            width: 54,
-            height: 6,
+            height: height,
             decoration: BoxDecoration(
-              color: c.divider,
-              borderRadius: BorderRadius.circular(6),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                AppStrings.t(AppStringKeys.topicChatCommentCount, {
-                  'value1': widget.post.message.commentCount,
-                }),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
-                ),
+              color: c.background,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(24),
               ),
             ),
-          ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: _comments.length,
-                    itemBuilder: (context, index) {
-                      final message = _comments[index];
-                      final sender = _senders[message.senderId];
-                      return _CommentRow(
-                        message: message,
-                        sender: sender,
-                        fallbackName:
-                            widget.sender?.name ??
-                            AppStrings.t(AppStringKeys.topicChatUsers),
-                      );
-                    },
+            child: Column(
+              children: [
+                const SizedBox(height: 10),
+                Container(
+                  width: 54,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: c.divider,
+                    borderRadius: BorderRadius.circular(6),
                   ),
-          ),
-          SafeArea(
-            top: false,
-            child: Container(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
-              decoration: BoxDecoration(
-                color: c.navBar,
-                border: Border(top: BorderSide(color: c.divider, width: 0.5)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      height: 44,
-                      alignment: Alignment.centerLeft,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      decoration: BoxDecoration(
-                        color: c.searchFill,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        AppStrings.t(AppStringKeys.topicChatBeKindPrompt),
-                        style: TextStyle(fontSize: 15, color: c.textTertiary),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      AppStrings.t(AppStringKeys.topicChatCommentCount, {
+                        'value1': _displayCommentCount,
+                      }),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: c.textPrimary,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 14),
-                  AppIcon(HeroAppIcons.at, size: 25, color: c.textPrimary),
-                  const SizedBox(width: 14),
-                  AppIcon(
-                    HeroAppIcons.solidFaceSmile,
-                    size: 25,
-                    color: c.textPrimary,
+                ),
+                Expanded(
+                  child: _loading
+                      ? const Center(child: CircularProgressIndicator())
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _comments.length,
+                          itemBuilder: (context, index) {
+                            final message = _comments[index];
+                            final sender = _senders[message.senderId];
+                            return _CommentRow(
+                              message: message,
+                              sender: sender,
+                              fallbackName:
+                                  widget.sender?.name ??
+                                  AppStrings.t(AppStringKeys.topicChatUsers),
+                            );
+                          },
+                        ),
+                ),
+                SafeArea(
+                  top: false,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+                    decoration: BoxDecoration(
+                      color: c.navBar,
+                      border: Border(
+                        top: BorderSide(color: c.divider, width: 0.5),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _replyController,
+                            focusNode: _replyFocus,
+                            minLines: 1,
+                            maxLines: 4,
+                            onSubmitted: (_) => _sendPlainReply(),
+                            onChanged: (_) => setState(() {}),
+                            style: TextStyle(
+                              fontSize: 15,
+                              color: c.textPrimary,
+                            ),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              filled: true,
+                              fillColor: c.searchFill,
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide.none,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              hintText: AppStrings.t(
+                                AppStringKeys.topicChatBeKindPrompt,
+                              ),
+                              hintStyle: TextStyle(
+                                fontSize: 15,
+                                color: c.textTertiary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () {
+                            final selection = _replyController.selection;
+                            final offset = selection.isValid
+                                ? selection.baseOffset
+                                : _replyController.text.length;
+                            _replyController.text =
+                                '${_replyController.text.substring(0, offset)}@${_replyController.text.substring(offset)}';
+                            _replyController.selection =
+                                TextSelection.collapsed(offset: offset + 1);
+                            _replyFocus.requestFocus();
+                          },
+                          child: AppIcon(
+                            HeroAppIcons.at,
+                            size: 25,
+                            color: c.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: _openRichReply,
+                          child: AppIcon(
+                            HeroAppIcons.penToSquare,
+                            size: 25,
+                            color: c.textPrimary,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap:
+                              _sending || _replyController.text.trim().isEmpty
+                              ? null
+                              : _sendPlainReply,
+                          child: AppIcon(
+                            HeroAppIcons.solidPaperPlane,
+                            size: 25,
+                            color: _replyController.text.trim().isEmpty
+                                ? c.textTertiary
+                                : AppTheme.brand,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(width: 14),
-                  AppIcon(HeroAppIcons.image, size: 25, color: c.textPrimary),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ],

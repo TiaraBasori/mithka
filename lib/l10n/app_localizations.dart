@@ -721,12 +721,16 @@ abstract final class AppStringKeys {
   static const createGroupStartGroupChat = 'createGroupStartGroupChat';
   static const editProfileAvatarUpdated = 'editProfileAvatarUpdated';
   static const editProfileAvatarUpdateFailed = 'editProfileAvatarUpdateFailed';
+  static const editProfileAnimatedAvatar = 'editProfileAnimatedAvatar';
+  static const editProfileAnimatedAvatarDescription =
+      'editProfileAnimatedAvatarDescription';
   static const editProfileBio = 'editProfileBio';
   static const editProfileBioPlaceholder = 'editProfileBioPlaceholder';
   static const editProfileBirthDay = 'editProfileBirthDay';
   static const editProfileBirthMonth = 'editProfileBirthMonth';
   static const editProfileBirthYear = 'editProfileBirthYear';
   static const editProfileChangeAvatar = 'editProfileChangeAvatar';
+  static const editProfileChooseAvatarType = 'editProfileChooseAvatarType';
   static const editProfileChangeBio = 'editProfileChangeBio';
   static const editProfileChangeName = 'editProfileChangeName';
   static const editProfileChangeUsername = 'editProfileChangeUsername';
@@ -744,6 +748,9 @@ abstract final class AppStringKeys {
       'editProfileProfileColorDescription';
   static const editProfileSaveFailed = 'editProfileSaveFailed';
   static const editProfileSetUsername = 'editProfileSetUsername';
+  static const editProfileStaticAvatar = 'editProfileStaticAvatar';
+  static const editProfileStaticAvatarDescription =
+      'editProfileStaticAvatarDescription';
   static const editProfileTapToFillBio = 'editProfileTapToFillBio';
   static const editProfileTapToSet = 'editProfileTapToSet';
   static const editProfileTitle = 'editProfileTitle';
@@ -1175,6 +1182,7 @@ abstract final class AppStringKeys {
       'richTextComposerFormatUnderline';
   static const richTextComposerFormatUnderlineMark =
       'richTextComposerFormatUnderlineMark';
+  static const richTextComposerInsertTable = 'richTextComposerInsertTable';
   static const richTextComposerPhotoVideo = 'richTextComposerPhotoVideo';
   static const settingsAboutMithka = 'settingsAboutMithka';
   static const settingsLogOut = 'settingsLogOut';

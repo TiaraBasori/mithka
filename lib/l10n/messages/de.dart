@@ -417,6 +417,9 @@ const deMessages = <String, String>{
   'createGroupFailed': "Gruppe konnte nicht erstellt werden",
   'createGroupOptionalLabel': "Optional",
   'createGroupStartGroupChat': "Gruppenchat starten",
+  'editProfileAnimatedAvatar': "Animierter Avatar",
+  'editProfileAnimatedAvatarDescription':
+      "Ein kurzes Video als Avatar verwenden",
   'editProfileAvatarUpdated': "Profilbild aktualisiert",
   'editProfileAvatarUpdateFailed':
       "Profilbild konnte nicht geändert werden: {value1}",
@@ -426,6 +429,7 @@ const deMessages = <String, String>{
   'editProfileBirthMonth': "{value1}",
   'editProfileBirthYear': "{value1}",
   'editProfileChangeAvatar': "Profilbild ändern",
+  'editProfileChooseAvatarType': "Avatartyp auswählen",
   'editProfileChangeBio': "Bio ändern",
   'editProfileChangeName': "Namen ändern",
   'editProfileChangeUsername': "Benutzernamen ändern",
@@ -443,6 +447,9 @@ const deMessages = <String, String>{
       "Farbe für den Hintergrund deines Profils.",
   'editProfileSaveFailed': "Speichern fehlgeschlagen",
   'editProfileSetUsername': "Benutzernamen festlegen",
+  'editProfileStaticAvatar': "Fotoavatar",
+  'editProfileStaticAvatarDescription':
+      "Ein Standbild zuschneiden und hochladen",
   'editProfileTapToFillBio': "Tippen, um Bio auszufüllen",
   'editProfileTapToSet': "Tippen zum Festlegen",
   'editProfileTitle': "Profil bearbeiten",
@@ -816,7 +823,7 @@ const deMessages = <String, String>{
   'qrCodeScanToAddFriend':
       "Scanne den QR-Code oben, um mich als Freund hinzuzufügen",
   'qrCodeScanToJoinGroup': "Scanne den QR-Code oben, um der Gruppe beizutreten",
-  'richTextComposerContentPlaceholder': "Markdown oder Rich-Text eingeben",
+  'richTextComposerContentPlaceholder': "Rich-Text eingeben",
   'richTextComposerFormatBold': "Fett",
   'richTextComposerFormatBoldMark': "B",
   'richTextComposerFormatCode': "Code",
@@ -827,6 +834,7 @@ const deMessages = <String, String>{
   'richTextComposerFormatStrikethroughMark': "S",
   'richTextComposerFormatUnderline': "Unterstrichen",
   'richTextComposerFormatUnderlineMark': "U",
+  'richTextComposerInsertTable': "Tabelle",
   'richTextComposerPhotoVideo': "Foto/Video",
   'settingsAboutMithka': "Über Mithka",
   'settingsLogOut': "Abmelden",

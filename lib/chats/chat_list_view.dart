@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import '../components/toast.dart';
 import 'package:provider/provider.dart';
 
+import '../channels/forum_topic_browser_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
 import '../components/confirm_dialog.dart';
@@ -206,6 +207,21 @@ class _ChatListViewState extends State<ChatListView> {
     final onChatSelected = widget.onChatSelected;
     if (onChatSelected != null) {
       onChatSelected(ChatListSelection.fromChat(chat));
+      return;
+    }
+    if (chat.isForum) {
+      final forumChats = <int, ChatSummary>{};
+      for (final summary in [..._model.chats, ..._model.archived]) {
+        if (summary.isForum) forumChats[summary.id] = summary;
+      }
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ForumTopicBrowserView(
+            chats: forumChats.values.toList(),
+            initialChat: chat,
+          ),
+        ),
+      );
       return;
     }
     Navigator.of(context).push(

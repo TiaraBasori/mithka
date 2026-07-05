@@ -10,7 +10,9 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/keyword_blocker.dart';
 import 'package:mithka/settings/translation_controller.dart';
 import 'package:mithka/chat/emoji_catalog.dart';
+import 'package:mithka/chat/emoji_text_controller.dart';
 import 'package:mithka/chat/media_album_layout.dart';
+import 'package:mithka/chat/rich_text_composer_view.dart';
 import 'package:mithka/theme/date_text.dart';
 import 'package:mithka/theme/emoji_font_catalog.dart';
 import 'package:mithka/theme/theme_controller.dart';
@@ -76,6 +78,58 @@ void main() {
         expect(localized, isNot(category.name));
         expect(localized, isNot(contains('emojiCategory')));
       }
+    });
+  });
+
+  group('EmojiTextEditingController', () {
+    test('inserts preformatted table without corrupting existing entities', () {
+      final controller = EmojiTextEditingController();
+      addTearDown(controller.dispose);
+
+      controller.text = 'hello world';
+      controller.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 5,
+      );
+      controller.toggleFormat('textEntityTypeBold');
+      controller.selection = const TextSelection.collapsed(offset: 5);
+      controller.insertFormattedText(
+        '\n| A | B |\n|---|---|\n|   |   |\n',
+        type: 'textEntityTypePre',
+      );
+
+      final (text, entities) = controller.toFormatted();
+      expect(text, startsWith('hello\n| A | B |'));
+      expect(entities.map((e) => e['type']['@type']), [
+        'textEntityTypeBold',
+        'textEntityTypePre',
+      ]);
+      expect(entities[0]['offset'], 0);
+      expect(entities[0]['length'], 5);
+      expect(entities[1]['offset'], 5);
+    });
+  });
+
+  group('RichTextComposerView', () {
+    testWidgets('renders toolbar with semantics enabled', (tester) async {
+      final semantics = tester.ensureSemantics();
+
+      await tester.pumpWidget(
+        const MaterialApp(
+          localizationsDelegates: [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: RichTextComposerView(initialText: '', allowMedia: false),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(RichTextComposerView), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      semantics.dispose();
     });
   });
 

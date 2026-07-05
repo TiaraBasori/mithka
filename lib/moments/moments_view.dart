@@ -2802,6 +2802,7 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
   final _focus = FocusNode();
   final _imagePicker = ImagePicker();
   final List<XFile> _pickedImages = [];
+  FormattedTextPayload? _richTextPayload;
   ChatSummary? _channel;
   bool _notifySubscribers = true;
   bool _sending = false;
@@ -3100,6 +3101,7 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
     if (result == null || !mounted) return;
     setState(() {
       _controller.text = result.text;
+      _richTextPayload = result.formattedText;
       _controller.selection = TextSelection.collapsed(
         offset: _controller.text.length,
       );
@@ -3200,6 +3202,9 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
   Future<void> _send() async {
     final channel = _channel;
     final text = _controller.text.trim();
+    final formatted = _richTextPayload?.text.trim() == text
+        ? _richTextPayload!
+        : parseTelegramMarkdown(text);
     if (channel == null ||
         (text.isEmpty && _pickedImages.isEmpty) ||
         _sending) {
@@ -3208,13 +3213,13 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
     setState(() => _sending = true);
     try {
       if (_pickedImages.isEmpty) {
-        await _sendTextPost(channel, text);
+        await _sendTextPost(channel, formatted);
       } else {
         for (var i = 0; i < _pickedImages.length; i++) {
           await _sendPhotoPost(
             channel,
             _pickedImages[i].path,
-            caption: i == 0 ? text : '',
+            caption: i == 0 ? formatted : null,
           );
         }
       }
@@ -3236,8 +3241,10 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
     }
   }
 
-  Future<void> _sendTextPost(ChatSummary channel, String text) {
-    final formatted = parseTelegramMarkdown(text);
+  Future<void> _sendTextPost(
+    ChatSummary channel,
+    FormattedTextPayload formatted,
+  ) {
     return TdClient.shared.query({
       '@type': 'sendMessage',
       'chat_id': channel.id,
@@ -3255,9 +3262,8 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
   Future<void> _sendPhotoPost(
     ChatSummary channel,
     String path, {
-    String caption = '',
+    FormattedTextPayload? caption,
   }) {
-    final formatted = parseTelegramMarkdown(caption.trim());
     return TdClient.shared.query({
       '@type': 'sendMessage',
       'chat_id': channel.id,
@@ -3271,7 +3277,8 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
           '@type': 'inputPhoto',
           'photo': {'@type': 'inputFileLocal', 'path': path},
         },
-        if (formatted.text.isNotEmpty) 'caption': formatted.toTdJson(),
+        if (caption != null && caption.text.isNotEmpty)
+          'caption': caption.toTdJson(),
       },
     });
   }

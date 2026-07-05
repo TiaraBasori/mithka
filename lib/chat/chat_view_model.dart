@@ -99,10 +99,17 @@ class BotMenuInfo {
 }
 
 class ForumTopicOption {
-  const ForumTopicOption({required this.id, required this.name});
+  const ForumTopicOption({
+    required this.id,
+    required this.name,
+    this.iconCustomEmojiId = 0,
+    this.iconColor = 0,
+  });
 
   final int id;
   final String name;
+  final int iconCustomEmojiId;
+  final int iconColor;
 }
 
 class _DraftMention {
@@ -1383,7 +1390,23 @@ class ChatViewModel extends ChangeNotifier {
             info.str('name') ??
             topic.str('name') ??
             AppStrings.t(AppStringKeys.topicChatTopicTitle);
-        topics.add(ForumTopicOption(id: id, name: name));
+        final icon = info.obj('icon') ?? topic.obj('icon');
+        topics.add(
+          ForumTopicOption(
+            id: id,
+            name: name,
+            iconCustomEmojiId:
+                icon?.int64('custom_emoji_id') ??
+                info.int64('icon_custom_emoji_id') ??
+                topic.int64('icon_custom_emoji_id') ??
+                0,
+            iconColor:
+                icon?.integer('color') ??
+                info.integer('icon_color') ??
+                topic.integer('icon_color') ??
+                0,
+          ),
+        );
       }
       forumTopics = topics;
     } catch (_) {

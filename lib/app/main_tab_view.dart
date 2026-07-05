@@ -29,6 +29,7 @@ import '../moments/moments_view.dart';
 import '../profile/profile_view.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
+import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../update/update_checker.dart';
@@ -883,9 +884,8 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       ),
       child:
           selected.isForum && chat != null && selected.initialMessageId == null
-          ? TopicChatView(
+          ? _ForumSplitDetailPane(
               chat: chat,
-              showBackButton: false,
               headerHeight: headerHeight,
               headerColor: headerColor,
             )
@@ -943,6 +943,134 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           ),
         );
       },
+    );
+  }
+}
+
+class _ForumSplitDetailPane extends StatefulWidget {
+  const _ForumSplitDetailPane({
+    required this.chat,
+    required this.headerHeight,
+    required this.headerColor,
+  });
+
+  final ChatSummary chat;
+  final double headerHeight;
+  final Color headerColor;
+
+  @override
+  State<_ForumSplitDetailPane> createState() => _ForumSplitDetailPaneState();
+}
+
+class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
+  var _index = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Column(
+      children: [
+        Container(
+          height: 44,
+          color: c.navBar,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Container(
+              height: 32,
+              decoration: BoxDecoration(
+                color: c.searchFill,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ForumDetailTabButton(
+                    selected: _index == 0,
+                    icon: HeroAppIcons.solidMessage,
+                    label: AppStringKeys.tabMessages,
+                    onTap: () => setState(() => _index = 0),
+                  ),
+                  _ForumDetailTabButton(
+                    selected: _index == 1,
+                    icon: HeroAppIcons.hashtag,
+                    label: AppStringKeys.topicChatAllTopics,
+                    onTap: () => setState(() => _index = 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: _index == 0
+              ? ChatView(
+                  chatId: widget.chat.id,
+                  title: widget.chat.title,
+                  seedMessage: widget.chat.lastChatMessage,
+                  showBackButton: false,
+                  headerHeight: widget.headerHeight,
+                  headerColor: widget.headerColor,
+                  showHeaderDivider: false,
+                )
+              : TopicChatView(
+                  chat: widget.chat,
+                  showBackButton: false,
+                  headerHeight: widget.headerHeight,
+                  headerColor: widget.headerColor,
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ForumDetailTabButton extends StatelessWidget {
+  const _ForumDetailTabButton({
+    required this.selected,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final AppIconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 32,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: selected ? AppTheme.brand : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            AppIcon(
+              icon,
+              size: 17,
+              color: selected ? Colors.white : c.textSecondary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label.l10n(context),
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : c.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

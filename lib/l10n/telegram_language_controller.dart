@@ -5,9 +5,36 @@ import 'dart:ui' show Locale, PlatformDispatcher;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import 'app_localizations.dart';
+
+String? _tdType(Map<String, dynamic>? object) => _tdString(object, '@type');
+
+String? _tdString(Map<String, dynamic>? object, String key) {
+  final value = object?[key];
+  return value is String ? value : null;
+}
+
+bool? _tdBool(Map<String, dynamic>? object, String key) {
+  final value = object?[key];
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  return null;
+}
+
+Map<String, dynamic>? _tdObject(Map<String, dynamic>? object, String key) {
+  final value = object?[key];
+  return value is Map<String, dynamic> ? value : null;
+}
+
+List<Map<String, dynamic>>? _tdObjects(
+  Map<String, dynamic>? object,
+  String key,
+) {
+  final value = object?[key];
+  if (value is! List) return null;
+  return value.whereType<Map<String, dynamic>>().toList();
+}
 
 String telegramText(
   String appFallbackKey, [
@@ -34,15 +61,15 @@ class TelegramLanguagePackOption {
 
   factory TelegramLanguagePackOption.fromJson(Map<String, dynamic> json) {
     return TelegramLanguagePackOption(
-      id: json.str('id') ?? '',
-      baseLanguagePackId: json.str('base_language_pack_id') ?? '',
-      name: json.str('name') ?? '',
-      nativeName: json.str('native_name') ?? '',
-      pluralCode: json.str('plural_code') ?? '',
-      isOfficial: json.boolean('is_official') ?? false,
-      isRtl: json.boolean('is_rtl') ?? false,
-      isBeta: json.boolean('is_beta') ?? false,
-      isInstalled: json.boolean('is_installed') ?? false,
+      id: _tdString(json, 'id') ?? '',
+      baseLanguagePackId: _tdString(json, 'base_language_pack_id') ?? '',
+      name: _tdString(json, 'name') ?? '',
+      nativeName: _tdString(json, 'native_name') ?? '',
+      pluralCode: _tdString(json, 'plural_code') ?? '',
+      isOfficial: _tdBool(json, 'is_official') ?? false,
+      isRtl: _tdBool(json, 'is_rtl') ?? false,
+      isBeta: _tdBool(json, 'is_beta') ?? false,
+      isInstalled: _tdBool(json, 'is_installed') ?? false,
     );
   }
 
@@ -70,6 +97,12 @@ class TelegramLanguageController extends ChangeNotifier {
   static const _selectedPackKey = 'telegram.language_pack_id';
   static const _targetOption = 'localization_target';
   static const _packOption = 'language_pack_id';
+  static const _queryTimeout = Duration(seconds: 20);
+  static const _retryDelays = <Duration>[
+    Duration(seconds: 15),
+    Duration(seconds: 45),
+    Duration(minutes: 2),
+  ];
 
   SharedPreferences? _prefs;
   Locale? _appLocale;
@@ -79,6 +112,8 @@ class TelegramLanguageController extends ChangeNotifier {
   String? _activePackId;
   String? _errorText;
   bool _refreshAgain = false;
+  int _retryAttempt = 0;
+  Timer? _retryTimer;
   StreamSubscription<Map<String, dynamic>>? _languageUpdates;
   List<TelegramLanguagePackOption> _packs = const [];
   final Map<String, String> _strings = {};
@@ -142,9 +177,16 @@ class TelegramLanguageController extends ChangeNotifier {
         await _applyPack(packId);
         await _loadStringsForPack(packId);
         _activePackId = packId;
+        _retryAttempt = 0;
+        _retryTimer?.cancel();
+        _retryTimer = null;
       } catch (error) {
-        _errorText = error.toString();
-        if (kDebugMode) debugPrint('Telegram language pack failed: $error');
+        if (error is TimeoutException) {
+          _scheduleRetry();
+        } else {
+          _errorText = error.toString();
+          if (kDebugMode) debugPrint('Telegram language pack failed: $error');
+        }
       } finally {
         _loading = false;
         notifyListeners();
@@ -169,8 +211,8 @@ class TelegramLanguageController extends ChangeNotifier {
   }
 
   void _handleTdUpdate(Map<String, dynamic> update) {
-    if (update.type != 'updateLanguagePackStrings') return;
-    final packId = update.str('language_pack_id');
+    if (_tdType(update) != 'updateLanguagePackStrings') return;
+    final packId = _tdString(update, 'language_pack_id');
     final activePack = _packs
         .where((pack) => pack.id == _activePackId)
         .firstOrNull;
@@ -180,7 +222,7 @@ class TelegramLanguageController extends ChangeNotifier {
             packId == activePack?.baseLanguagePackId);
     if (!isActivePack) return;
 
-    final changed = update.objects('strings');
+    final changed = _tdObjects(update, 'strings');
     if (changed == null || changed.isEmpty) {
       unawaited(refresh());
       return;
@@ -188,9 +230,9 @@ class TelegramLanguageController extends ChangeNotifier {
     final allowedKeys = _telegramKeyForAppKey.values.toSet();
     var touched = false;
     for (final item in changed) {
-      final key = item.str('key');
+      final key = _tdString(item, 'key');
       if (key == null || !allowedKeys.contains(key)) continue;
-      final value = _languagePackStringValue(item.obj('value'));
+      final value = _languagePackStringValue(_tdObject(item, 'value'));
       if (value == null) {
         _strings.remove(key);
       } else {
@@ -206,7 +248,7 @@ class TelegramLanguageController extends ChangeNotifier {
       '@type': 'setOption',
       'name': _targetOption,
       'value': {'@type': 'optionValueString', 'value': _localizationTarget()},
-    });
+    }).ignoreTimeout();
   }
 
   Future<void> _loadAvailablePacks() async {
@@ -214,8 +256,7 @@ class TelegramLanguageController extends ChangeNotifier {
       '@type': 'getLocalizationTargetInfo',
       'only_local': false,
     });
-    final packs = response
-        .objects('language_packs')
+    final packs = _tdObjects(response, 'language_packs')
         ?.map(TelegramLanguagePackOption.fromJson)
         .where((pack) => pack.id.isNotEmpty && !pack.isBeta)
         .toList();
@@ -233,7 +274,7 @@ class TelegramLanguageController extends ChangeNotifier {
       '@type': 'setOption',
       'name': _packOption,
       'value': {'@type': 'optionValueString', 'value': packId},
-    });
+    }).ignoreTimeout();
   }
 
   Future<void> _loadStringsForPack(String packId) async {
@@ -256,9 +297,9 @@ class TelegramLanguageController extends ChangeNotifier {
       'keys': _telegramKeyForAppKey.values.toSet().toList(),
     });
     final result = <String, String>{};
-    for (final item in response.objects('strings') ?? const []) {
-      final key = item.str('key');
-      final value = _languagePackStringValue(item.obj('value'));
+    for (final item in _tdObjects(response, 'strings') ?? const []) {
+      final key = _tdString(item, 'key');
+      final value = _languagePackStringValue(_tdObject(item, 'value'));
       if (key != null && value != null) result[key] = value;
     }
     return result;
@@ -266,8 +307,20 @@ class TelegramLanguageController extends ChangeNotifier {
 
   Future<Map<String, dynamic>> _query(Map<String, dynamic> request) {
     return _waitForTdClient().then(
-      (_) => TdClient.shared.query(request).timeout(const Duration(seconds: 8)),
+      (_) => TdClient.shared.query(request).timeout(_queryTimeout),
     );
+  }
+
+  void _scheduleRetry() {
+    if (_retryTimer?.isActive == true) return;
+    final index = _retryAttempt < _retryDelays.length
+        ? _retryAttempt
+        : _retryDelays.length - 1;
+    _retryAttempt += 1;
+    _retryTimer = Timer(_retryDelays[index], () {
+      _retryTimer = null;
+      unawaited(refresh());
+    });
   }
 
   Future<void> _waitForTdClient() async {
@@ -311,16 +364,16 @@ class TelegramLanguageController extends ChangeNotifier {
   }
 
   static String? _languagePackStringValue(Map<String, dynamic>? value) {
-    switch (value?.type) {
+    switch (_tdType(value)) {
       case 'languagePackStringValueOrdinary':
-        return value?.str('value');
+        return _tdString(value, 'value');
       case 'languagePackStringValuePluralized':
-        return value?.str('other_value') ??
-            value?.str('many_value') ??
-            value?.str('few_value') ??
-            value?.str('two_value') ??
-            value?.str('one_value') ??
-            value?.str('zero_value');
+        return _tdString(value, 'other_value') ??
+            _tdString(value, 'many_value') ??
+            _tdString(value, 'few_value') ??
+            _tdString(value, 'two_value') ??
+            _tdString(value, 'one_value') ??
+            _tdString(value, 'zero_value');
       default:
         return null;
     }
@@ -360,6 +413,24 @@ class TelegramLanguageController extends ChangeNotifier {
       a?.languageCode == b?.languageCode &&
       a?.scriptCode == b?.scriptCode &&
       a?.countryCode == b?.countryCode;
+
+  @override
+  void dispose() {
+    _retryTimer?.cancel();
+    _languageUpdates?.cancel();
+    super.dispose();
+  }
+}
+
+extension _IgnoreTimeout<T> on Future<T> {
+  Future<void> ignoreTimeout() async {
+    try {
+      await this;
+    } on TimeoutException {
+      // Language-pack options are best-effort. The app can still localize with
+      // Mithka strings and retry fetching Telegram pack strings later.
+    }
+  }
 }
 
 extension _FirstOrNull<T> on Iterable<T> {

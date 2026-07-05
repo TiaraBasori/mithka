@@ -2713,12 +2713,7 @@ class _ChatViewState extends State<ChatView> {
             final all = index == 0;
             final topic = all ? null : topics[index - 1];
             return ListTile(
-              leading: Icon(
-                all
-                    ? HeroAppIcons.hashtag.data
-                    : HeroAppIcons.solidMessage.data,
-                color: all ? AppTheme.brand : c.textSecondary,
-              ),
+              leading: _forumTopicIcon(topic, all, c),
               title: Text(
                 (all ? AppStringKeys.topicChatAllTopics : topic!.name).l10n(
                   context,
@@ -2736,6 +2731,19 @@ class _ChatViewState extends State<ChatView> {
         ),
       ),
     );
+  }
+
+  Widget _forumTopicIcon(ForumTopicOption? topic, bool all, AppColors c) {
+    if (all) {
+      return AppIcon(HeroAppIcons.hashtag, color: AppTheme.brand, size: 24);
+    }
+    final iconId = topic?.iconCustomEmojiId ?? 0;
+    if (iconId != 0) return CustomEmojiView(id: iconId, size: 24);
+    final rawColor = topic?.iconColor ?? 0;
+    final color = rawColor == 0
+        ? c.textSecondary
+        : Color(0xFF000000 | (rawColor & 0xFFFFFF));
+    return AppIcon(HeroAppIcons.solidMessage, color: color, size: 24);
   }
 
   Widget _selectionHeader() {

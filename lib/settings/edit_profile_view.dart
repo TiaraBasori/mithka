@@ -34,6 +34,8 @@ class EditProfileView extends StatefulWidget {
   State<EditProfileView> createState() => _EditProfileViewState();
 }
 
+enum _AvatarKind { static, animated }
+
 class _EditProfileViewState extends State<EditProfileView> {
   final TdClient _client = TdClient.shared;
   String _firstName = '';
@@ -275,6 +277,122 @@ class _EditProfileViewState extends State<EditProfileView> {
   }
 
   Future<void> _changeAvatar() async {
+    final kind = await _chooseAvatarKind();
+    if (kind == null) return;
+    switch (kind) {
+      case _AvatarKind.static:
+        await _changeStaticAvatar();
+      case _AvatarKind.animated:
+        await _changeAnimatedAvatar();
+    }
+  }
+
+  Future<_AvatarKind?> _chooseAvatarKind() {
+    final c = context.colors;
+    return showModalBottomSheet<_AvatarKind>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      builder: (context) {
+        return SafeArea(
+          top: false,
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: c.card,
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 10, 18, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      AppStrings.t(AppStringKeys.editProfileChooseAvatarType),
+                      style: AppTextStyle.title(
+                        c.textPrimary,
+                      ).copyWith(fontSize: 17),
+                    ),
+                  ),
+                ),
+                _avatarKindTile(
+                  context,
+                  icon: HeroAppIcons.image,
+                  title: AppStringKeys.editProfileStaticAvatar,
+                  subtitle: AppStringKeys.editProfileStaticAvatarDescription,
+                  onTap: () => Navigator.of(context).pop(_AvatarKind.static),
+                ),
+                _avatarKindTile(
+                  context,
+                  icon: HeroAppIcons.video,
+                  title: AppStringKeys.editProfileAnimatedAvatar,
+                  subtitle: AppStringKeys.editProfileAnimatedAvatarDescription,
+                  onTap: () => Navigator.of(context).pop(_AvatarKind.animated),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _avatarKindTile(
+    BuildContext context, {
+    required AppIconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    final c = context.colors;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppTheme.brand.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Center(
+                child: AppIcon(icon, size: 21, color: AppTheme.brand),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppStrings.t(title),
+                    style: AppTextStyle.body(
+                      c.textPrimary,
+                    ).copyWith(fontWeight: AppTextWeight.semibold),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    AppStrings.t(subtitle),
+                    style: AppTextStyle.caption(c.textSecondary),
+                  ),
+                ],
+              ),
+            ),
+            AppIcon(HeroAppIcons.chevronRight, size: 18, color: c.textTertiary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _changeStaticAvatar() async {
     try {
       final img = await ImagePicker().pickImage(
         source: ImageSource.gallery,
@@ -302,20 +420,55 @@ class _EditProfileViewState extends State<EditProfileView> {
         },
         'is_public': false,
       });
-      if (!mounted) return;
-      _toast(AppStrings.t(AppStringKeys.editProfileAvatarUpdated));
-      // The new photo propagates via updateUser after upload; re-read shortly.
-      await Future<void>.delayed(const Duration(milliseconds: 800));
-      final me = await _client.query({'@type': 'getMe'});
-      if (mounted) {
-        setState(() => _photo = TDParse.smallPhoto(me.obj('profile_photo')));
-      }
+      await _finishAvatarUpdate();
     } catch (e) {
       _toast(
         AppStrings.t(AppStringKeys.editProfileAvatarUpdateFailed, {
           'value1': e,
         }),
       );
+    }
+  }
+
+  Future<void> _changeAnimatedAvatar() async {
+    try {
+      final video = await ImagePicker().pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(seconds: 10),
+      );
+      if (video == null) return;
+      final file = File(video.path);
+      if (!await file.exists() || await file.length() == 0) {
+        _toast(AppStrings.t(AppStringKeys.editProfileInvalidAvatarFile));
+        return;
+      }
+      await _client.query({
+        '@type': 'setProfilePhoto',
+        'photo': {
+          '@type': 'inputChatPhotoAnimation',
+          'animation': {'@type': 'inputFileLocal', 'path': video.path},
+          'main_frame_timestamp': 0.0,
+        },
+        'is_public': false,
+      });
+      await _finishAvatarUpdate();
+    } catch (e) {
+      _toast(
+        AppStrings.t(AppStringKeys.editProfileAvatarUpdateFailed, {
+          'value1': e,
+        }),
+      );
+    }
+  }
+
+  Future<void> _finishAvatarUpdate() async {
+    if (!mounted) return;
+    _toast(AppStrings.t(AppStringKeys.editProfileAvatarUpdated));
+    // The new photo propagates via updateUser after upload; re-read shortly.
+    await Future<void>.delayed(const Duration(milliseconds: 800));
+    final me = await _client.query({'@type': 'getMe'});
+    if (mounted) {
+      setState(() => _photo = TDParse.smallPhoto(me.obj('profile_photo')));
     }
   }
 

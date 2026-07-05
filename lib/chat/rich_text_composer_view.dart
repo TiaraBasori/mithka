@@ -5,13 +5,23 @@ import 'package:image_picker/image_picker.dart';
 
 import '../components/app_icons.dart';
 import '../theme/app_theme.dart';
+import 'emoji_text_controller.dart';
+import 'rich_text_format.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 class RichTextComposerResult {
-  const RichTextComposerResult({required this.text, required this.media});
+  const RichTextComposerResult({
+    required this.text,
+    required this.entities,
+    required this.media,
+  });
 
   final String text;
+  final List<Map<String, dynamic>> entities;
   final List<XFile> media;
+
+  FormattedTextPayload get formattedText =>
+      FormattedTextPayload(text, entities);
 }
 
 Future<RichTextComposerResult?> showRichTextComposerSheet(
@@ -78,58 +88,132 @@ class RichTextComposerView extends StatefulWidget {
 }
 
 class _RichTextComposerViewState extends State<RichTextComposerView> {
-  late final TextEditingController _controller;
+  static const _obsidianAccent = Color(0xFF7C3AED);
+
+  late final EmojiTextEditingController _controller;
   final _picker = ImagePicker();
   final _media = <XFile>[];
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.initialText);
+    _controller = EmojiTextEditingController()
+      ..text = widget.initialText
+      ..addListener(_onEditorChanged);
   }
 
   @override
   void dispose() {
+    _controller.removeListener(_onEditorChanged);
     _controller.dispose();
     super.dispose();
   }
 
-  void _wrap(String left, [String? right]) {
-    right ??= left;
-    final value = _controller.value;
-    final selection = value.selection;
-    final start = selection.isValid ? selection.start : value.text.length;
-    final end = selection.isValid ? selection.end : value.text.length;
-    final selected = value.text.substring(start, end);
-    final next = value.text.replaceRange(start, end, '$left$selected$right');
-    _controller.value = TextEditingValue(
-      text: next,
-      selection: TextSelection.collapsed(
-        offset: start + left.length + selected.length,
-      ),
-    );
-  }
-
-  void _prefixLine(String prefix) {
-    final value = _controller.value;
-    final offset = value.selection.isValid
-        ? value.selection.start
-        : value.text.length;
-    final lineStart = value.text.lastIndexOf('\n', offset - 1) + 1;
-    final next = value.text.replaceRange(lineStart, lineStart, prefix);
-    _controller.value = TextEditingValue(
-      text: next,
-      selection: TextSelection.collapsed(offset: offset + prefix.length),
-    );
+  void _onEditorChanged() {
+    if (mounted) setState(() {});
   }
 
   void _submit() {
+    final (text, entities) = _controller.toFormatted();
     Navigator.of(context).pop(
       RichTextComposerResult(
-        text: _controller.text,
+        text: text,
+        entities: entities,
         media: List<XFile>.of(_media),
       ),
     );
+  }
+
+  void _toggleFormat(String type, String placeholder) {
+    if (_controller.hasSelection) {
+      _controller.toggleFormat(type);
+      return;
+    }
+    _insertPlaceholder(placeholder, type: type);
+  }
+
+  void _insertPlaceholder(String placeholder, {String? type}) {
+    final selection = _controller.selection;
+    final start = selection.isValid ? selection.start : _controller.text.length;
+    _controller.insertFormattedText(placeholder, type: type);
+    _controller.selection = TextSelection(
+      baseOffset: start,
+      extentOffset: start + placeholder.length,
+    );
+  }
+
+  void _insertHeading() {
+    final selection = _controller.selection;
+    if (selection.isValid && !selection.isCollapsed) {
+      final start = selection.start < selection.end
+          ? selection.start
+          : selection.end;
+      final end = selection.start < selection.end
+          ? selection.end
+          : selection.start;
+      _controller.formatRange(start, end, 'textEntityTypeBold');
+      return;
+    }
+    final range = _currentLineRange();
+    if (range.end > range.start) {
+      _controller.formatRange(range.start, range.end, 'textEntityTypeBold');
+      return;
+    }
+    _insertPlaceholder('Heading', type: 'textEntityTypeBold');
+  }
+
+  void _insertList(String marker) {
+    final selection = _controller.selection;
+    final text = _controller.text;
+    final low = selection.isValid
+        ? (selection.start < selection.end ? selection.start : selection.end)
+        : text.length;
+    final high = selection.isValid
+        ? (selection.start < selection.end ? selection.end : selection.start)
+        : low;
+    final lineStart = text.lastIndexOf('\n', low > 0 ? low - 1 : 0) + 1;
+    final nextBreak = text.indexOf('\n', high);
+    final lineEnd = nextBreak < 0 ? text.length : nextBreak;
+    final selected = text.substring(lineStart, lineEnd);
+    final lines = selected.isEmpty ? [''] : selected.split('\n');
+    final replacement = [
+      for (var i = 0; i < lines.length; i++)
+        '${marker == '1. ' ? '${i + 1}. ' : marker}${lines[i].trimLeft()}',
+    ].join('\n');
+    _controller.value = TextEditingValue(
+      text: text.replaceRange(lineStart, lineEnd, replacement),
+      selection: TextSelection.collapsed(
+        offset: lineStart + replacement.length,
+      ),
+    );
+  }
+
+  ({int start, int end}) _currentLineRange() {
+    final text = _controller.text;
+    final selection = _controller.selection;
+    final offset = selection.isValid
+        ? selection.start.clamp(0, text.length)
+        : text.length;
+    final start = text.lastIndexOf('\n', offset > 0 ? offset - 1 : 0) + 1;
+    final nextBreak = text.indexOf('\n', offset);
+    return (start: start, end: nextBreak < 0 ? text.length : nextBreak);
+  }
+
+  void _insertTable() {
+    const table =
+        '\n| Column 1 | Column 2 | Column 3 |\n'
+        '|----------|----------|----------|\n'
+        '|          |          |          |\n'
+        '|          |          |          |\n';
+    _controller.insertFormattedText(table, type: 'textEntityTypePre');
+  }
+
+  void _insertCodeBlock() {
+    _controller.insertFormattedText('\ncode\n', type: 'textEntityTypePre');
+  }
+
+  void _insertLink() {
+    _insertPlaceholder('https://example.com');
   }
 
   @override
@@ -232,24 +316,90 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
 
   Widget _toolbar(AppColors c) {
     return Container(
-      height: 44,
-      color: c.navBar,
+      height: 54,
+      decoration: BoxDecoration(
+        color: c.background,
+        border: Border(bottom: BorderSide(color: c.divider)),
+      ),
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
         children: [
-          _formatButton(c, 'B', () => _wrap('**')),
-          _formatButton(c, 'I', () => _wrap('*')),
-          _formatButton(c, 'U', () => _wrap('__')),
-          _formatButton(c, 'S', () => _wrap('~~')),
-          _formatButton(c, '</>', () => _wrap('`')),
-          _formatButton(c, 'H', () => _prefixLine('## ')),
-          _formatButton(c, '•', () => _prefixLine('- ')),
-          _formatButton(
-            c,
-            AppStringKeys.messageActionQuote,
-            () => _wrap('> ', ''),
-          ),
+          _toolbarGroup(c, [
+            _formatChip(
+              c,
+              AppStringKeys.richTextComposerFormatBoldMark.l10n(context),
+              'textEntityTypeBold',
+              AppStringKeys.richTextComposerFormatBold.l10n(context),
+            ),
+            _formatChip(
+              c,
+              AppStringKeys.richTextComposerFormatItalicMark.l10n(context),
+              'textEntityTypeItalic',
+              AppStringKeys.richTextComposerFormatItalic.l10n(context),
+            ),
+            _formatChip(
+              c,
+              AppStringKeys.richTextComposerFormatUnderlineMark.l10n(context),
+              'textEntityTypeUnderline',
+              AppStringKeys.richTextComposerFormatUnderline.l10n(context),
+            ),
+            _formatChip(
+              c,
+              AppStringKeys.richTextComposerFormatStrikethroughMark.l10n(
+                context,
+              ),
+              'textEntityTypeStrikethrough',
+              AppStringKeys.richTextComposerFormatStrikethrough.l10n(context),
+            ),
+          ]),
+          _toolbarGroup(c, [
+            _formatChip(
+              c,
+              '</>',
+              'textEntityTypeCode',
+              AppStringKeys.richTextComposerFormatCode.l10n(context),
+            ),
+            _formatChip(
+              c,
+              AppStringKeys.richTextComposerFormatSpoiler.l10n(context),
+              'textEntityTypeSpoiler',
+              AppStringKeys.richTextComposerFormatSpoiler.l10n(context),
+            ),
+            _iconButton(
+              c,
+              icon: HeroAppIcons.quoteLeft,
+              label: AppStringKeys.messageActionQuote.l10n(context),
+              onTap: () => _toggleFormat(
+                'textEntityTypeBlockQuote',
+                AppStringKeys.messageActionQuote.l10n(context),
+              ),
+            ),
+            _iconButton(
+              c,
+              icon: HeroAppIcons.link,
+              label: AppStringKeys.sharedMediaLinks.l10n(context),
+              onTap: _insertLink,
+            ),
+          ]),
+          _toolbarGroup(c, [
+            _actionChip(c, 'H1', _insertHeading),
+            _actionChip(c, '•', () => _insertList('- ')),
+            _actionChip(c, '1.', () => _insertList('1. ')),
+            _actionChip(c, '☑', () => _insertList('- [ ] ')),
+            _iconButton(
+              c,
+              icon: HeroAppIcons.code,
+              label: AppStringKeys.richTextComposerFormatCode.l10n(context),
+              onTap: _insertCodeBlock,
+            ),
+            _iconButton(
+              c,
+              icon: HeroAppIcons.tableCells,
+              label: AppStringKeys.richTextComposerInsertTable.l10n(context),
+              onTap: _insertTable,
+            ),
+          ]),
         ],
       ),
     );
@@ -362,12 +512,93 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     } catch (_) {}
   }
 
-  Widget _formatButton(AppColors c, String label, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: TextButton(
-        onPressed: onTap,
-        child: Text(label, style: TextStyle(color: c.textPrimary)),
+  Widget _toolbarGroup(AppColors c, List<Widget> children) {
+    return Container(
+      margin: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: c.searchFill.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: c.divider),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: children),
+    );
+  }
+
+  Widget _formatChip(
+    AppColors c,
+    String label,
+    String type,
+    String placeholder,
+  ) {
+    final active = _controller.selectionHasFormat(type);
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _toggleFormat(type, placeholder),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active
+              ? _obsidianAccent.withValues(alpha: 0.16)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: active
+              ? Border.all(color: _obsidianAccent.withValues(alpha: 0.65))
+              : null,
+        ),
+        child: Text(
+          label,
+          style: AppTextStyle.callout(
+            active ? _obsidianAccent : c.textPrimary,
+            weight: AppTextWeight.semibold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _actionChip(AppColors c, String label, VoidCallback onTap) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(6)),
+        child: Text(
+          label,
+          style: AppTextStyle.callout(
+            c.textPrimary,
+            weight: AppTextWeight.semibold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _iconButton(
+    AppColors c, {
+    required AppIconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Tooltip(
+      message: label,
+      excludeFromSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          width: 34,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(6)),
+          child: AppIcon(icon, size: 18, color: c.textPrimary),
+        ),
       ),
     );
   }
