@@ -323,6 +323,143 @@ void main() {
       expect(entities[1].url, 'https://example.com');
     });
 
+    test('supports Bot API rich text class names', () {
+      Map<String, dynamic> plain(String text) => {
+        '@type': 'RichTextPlain',
+        'text': text,
+      };
+      Map<String, dynamic> wrap(String type, String text) => {
+        '@type': type,
+        'text': plain(text),
+      };
+
+      final rich = <String, dynamic>{
+        '@type': 'RichText',
+        'texts': [
+          wrap('RichTextBold', 'bold'),
+          plain(' '),
+          wrap('RichTextItalic', 'italic'),
+          plain(' '),
+          wrap('RichTextUnderline', 'underline'),
+          plain(' '),
+          wrap('RichTextStrikethrough', 'strike'),
+          plain(' '),
+          wrap('RichTextSpoiler', 'spoiler'),
+          plain(' '),
+          wrap('RichTextDateTime', 'tomorrow'),
+          plain(' '),
+          {
+            '@type': 'RichTextTextMention',
+            'text': plain('Alice'),
+            'user_id': 42,
+          },
+          plain(' '),
+          wrap('RichTextSubscript', 'sub'),
+          plain(' '),
+          wrap('RichTextSuperscript', 'super'),
+          plain(' '),
+          wrap('RichTextMarked', 'marked'),
+          plain(' '),
+          wrap('RichTextCode', 'code'),
+          plain(' '),
+          {
+            '@type': 'RichTextCustomEmoji',
+            'text': '🙂',
+            'custom_emoji_id': '123456',
+          },
+          plain(' '),
+          {'@type': 'RichTextMathematicalExpression', 'expression': r'x^2'},
+          plain(' '),
+          {
+            '@type': 'RichTextUrl',
+            'text': plain('site'),
+            'url': 'https://example.com',
+          },
+          plain(' '),
+          {'@type': 'RichTextEmailAddress', 'email_address': 'a@example.com'},
+          plain(' '),
+          {'@type': 'RichTextPhoneNumber', 'phone_number': '+123456789'},
+          plain(' '),
+          {
+            '@type': 'RichTextBankCardNumber',
+            'bank_card_number': '4242 4242 4242 4242',
+          },
+          plain(' '),
+          {'@type': 'RichTextMention', 'username': 'telegram'},
+          plain(' '),
+          {'@type': 'RichTextHashtag', 'hashtag': 'topic'},
+          plain(' '),
+          {'@type': 'RichTextCashtag', 'cashtag': 'USD'},
+          plain(' '),
+          {'@type': 'RichTextBotCommand', 'command': 'start'},
+          plain(' '),
+          {'@type': 'RichTextAnchor', 'name': 'chapter-1'},
+          {
+            '@type': 'RichTextAnchorLink',
+            'text': plain('chapter'),
+            'name': 'chapter-1',
+          },
+          plain(' '),
+          {'@type': 'RichTextReference', 'name': 'note-1'},
+          plain(' '),
+          {
+            '@type': 'RichTextReferenceLink',
+            'text': plain('note'),
+            'name': 'note-1',
+          },
+        ],
+      };
+
+      expect(
+        TDParse.richTextText(rich),
+        contains(
+          'bold italic underline strike spoiler tomorrow Alice sub super marked '
+          'code 🙂 x^2 site a@example.com +123456789 '
+          '4242 4242 4242 4242 @telegram #topic \$USD /start chapter note-1 note',
+        ),
+      );
+      final entities = TDParse.richTextEntities(rich);
+      expect(entities.map((e) => e.type), [
+        'textEntityTypeBold',
+        'textEntityTypeItalic',
+        'textEntityTypeUnderline',
+        'textEntityTypeStrikethrough',
+        'textEntityTypeSpoiler',
+        'textEntityTypeDateTime',
+        'textEntityTypeMentionName',
+        'textEntityTypeSubscript',
+        'textEntityTypeSuperscript',
+        'textEntityTypeMarked',
+        'textEntityTypeCode',
+        'textEntityTypeCustomEmoji',
+        'textEntityTypeCode',
+        'textEntityTypeTextUrl',
+        'textEntityTypeEmailAddress',
+        'textEntityTypePhoneNumber',
+        'textEntityTypeBankCardNumber',
+        'textEntityTypeTextUrl',
+        'textEntityTypeHashtag',
+        'textEntityTypeCashtag',
+        'textEntityTypeBotCommand',
+        'textEntityTypeTextUrl',
+        'textEntityTypeTextUrl',
+      ]);
+      expect(
+        entities
+            .firstWhere((e) => e.type == 'textEntityTypeMentionName')
+            .userId,
+        42,
+      );
+      expect(
+        entities
+            .firstWhere((e) => e.type == 'textEntityTypeCustomEmoji')
+            .customEmojiId,
+        123456,
+      );
+      expect(entities.where((e) => e.url == '#chapter-1'), hasLength(1));
+      expect(entities.where((e) => e.url == '#note-1'), hasLength(1));
+    });
+
     test('parses TDLib messageRichMessage in chat messages', () {
       final message = TDParse.message({
         '@type': 'message',

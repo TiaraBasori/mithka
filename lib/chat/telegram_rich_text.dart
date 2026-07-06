@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import '../profile/profile_detail_view.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import 'custom_emoji.dart';
 import 'link_handler.dart';
 
 class TelegramRichText extends StatefulWidget {
@@ -250,6 +251,19 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     Color linkColor,
   ) {
     final style = _entityStyle(active, baseStyle, linkColor);
+    final customEmojiId = _customEmojiId(active);
+    if (customEmojiId != null) {
+      return [
+        WidgetSpan(
+          alignment: PlaceholderAlignment.middle,
+          child: CustomEmojiView(
+            id: customEmojiId,
+            size: (style.fontSize ?? baseStyle.fontSize ?? 16) * 1.25,
+            color: style.color,
+          ),
+        ),
+      ];
+    }
     if (_hasCode(active)) return [_codeSpan(segment, style)];
 
     final mentionUserId = _mentionUserId(active);
@@ -322,6 +336,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
   ) {
     var style = baseStyle;
     final decorations = <TextDecoration>[];
+    var fontFeatures = const <FontFeature>[];
     for (final entity in active) {
       switch (entity.type) {
         case 'textEntityTypeBold':
@@ -346,6 +361,10 @@ class _TelegramRichTextState extends State<TelegramRichText> {
           style = style.copyWith(
             backgroundColor: Colors.amber.withValues(alpha: 0.32),
           );
+        case 'textEntityTypeSubscript':
+          fontFeatures = const [FontFeature.subscripts()];
+        case 'textEntityTypeSuperscript':
+          fontFeatures = const [FontFeature.superscripts()];
         case 'textEntityTypeTextUrl':
         case 'textEntityTypeUrl':
         case 'textEntityTypeMention':
@@ -367,7 +386,19 @@ class _TelegramRichTextState extends State<TelegramRichText> {
         decorationColor: style.color,
       );
     }
+    if (fontFeatures.isNotEmpty) {
+      style = style.copyWith(fontFeatures: fontFeatures);
+    }
     return style;
+  }
+
+  int? _customEmojiId(List<MessageTextEntity> active) {
+    for (final entity in active.reversed) {
+      if (entity.isCustomEmoji && entity.customEmojiId != null) {
+        return entity.customEmojiId;
+      }
+    }
+    return null;
   }
 
   bool _hasCode(List<MessageTextEntity> active) {

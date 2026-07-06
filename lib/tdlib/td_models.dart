@@ -1102,23 +1102,33 @@ abstract final class TDParse {
     if (value is! Map<String, dynamic>) return;
 
     final type = value.type;
+    final normalizedType = _normalizedRichTextType(type);
     switch (type) {
       case 'textEmpty':
       case 'richTextAnchor':
+      case 'RichTextAnchor':
       case 'textAnchor':
         return;
       case 'richTextPlain':
+      case 'RichTextPlain':
       case 'textPlain':
         builder.write(value.str('text') ?? '');
         return;
       case 'richTexts':
+      case 'RichTexts':
+      case 'RichText':
       case 'textConcat':
         for (final item in value.objects('texts') ?? const []) {
           _appendRichText(builder, item);
         }
         return;
       case 'richTextCustomEmoji':
-        final alt = value.str('alternative_text') ?? '';
+      case 'RichTextCustomEmoji':
+        final alt =
+            value.str('alternative_text') ??
+            value.str('text') ??
+            value.str('emoji') ??
+            '';
         if (alt.isEmpty) return;
         final start = builder.length;
         builder.write(alt);
@@ -1129,11 +1139,17 @@ abstract final class TDParse {
         );
         return;
       case 'richTextIcon':
+      case 'RichTextIcon':
       case 'textImage':
         builder.write(telegramText(AppStringKeys.composerImagePreview));
         return;
       case 'richTextMathematicalExpression':
-        final expression = value.str('expression') ?? '';
+      case 'RichTextMathematicalExpression':
+        final expression =
+            value.str('expression') ??
+            value.str('formula') ??
+            value.str('source') ??
+            '';
         final start = builder.length;
         builder.write(expression);
         builder.entity(start, 'textEntityTypeCode');
@@ -1144,10 +1160,8 @@ abstract final class TDParse {
     final start = builder.length;
     if (child != null) {
       _appendRichText(builder, child);
-    } else if (type == 'richTextEmailAddress') {
-      builder.write(value.str('email_address') ?? '');
-    } else if (type == 'richTextPhoneNumber') {
-      builder.write(value.str('phone_number') ?? '');
+    } else {
+      builder.write(_richTextFallbackText(normalizedType, value));
     }
     final entityType = _richTextEntityType(type);
     if (entityType == null) return;
@@ -1155,12 +1169,67 @@ abstract final class TDParse {
       start,
       entityType,
       url: _richTextEntityUrl(type, value),
-      userId: value.int64('user_id'),
+      userId: _richTextUserId(value),
     );
   }
 
+  static String _normalizedRichTextType(String? type) {
+    if (type == null || type.isEmpty) return '';
+    if (type.startsWith('RichText')) {
+      return 'richText${type.substring('RichText'.length)}';
+    }
+    return type;
+  }
+
+  static String _richTextFallbackText(
+    String normalizedType,
+    Map<String, dynamic> value,
+  ) {
+    final direct = value.str('text') ?? value.str('alternative_text');
+    if (direct != null) return direct;
+    switch (normalizedType) {
+      case 'richTextDateTime':
+        return value.str('time_text') ??
+            value.str('datetime') ??
+            value.str('format') ??
+            '';
+      case 'richTextEmailAddress':
+        return value.str('email_address') ?? '';
+      case 'richTextPhoneNumber':
+        return value.str('phone_number') ?? '';
+      case 'richTextBankCardNumber':
+        return value.str('bank_card_number') ?? value.str('number') ?? '';
+      case 'richTextMention':
+        final username = value.str('username');
+        return username == null || username.isEmpty ? '' : '@$username';
+      case 'richTextHashtag':
+        final hashtag = value.str('hashtag');
+        return hashtag == null || hashtag.isEmpty ? '' : '#$hashtag';
+      case 'richTextCashtag':
+        final cashtag = value.str('cashtag');
+        return cashtag == null || cashtag.isEmpty ? '' : '\$$cashtag';
+      case 'richTextBotCommand':
+        final command = value.str('command');
+        return command == null || command.isEmpty ? '' : '/$command';
+      case 'richTextAnchorLink':
+      case 'richTextReferenceLink':
+        return value.str('name') ?? value.str('url') ?? '';
+      case 'richTextReference':
+        return value.str('name') ?? '';
+      default:
+        return '';
+    }
+  }
+
+  static int? _richTextUserId(Map<String, dynamic> value) {
+    return value.int64('user_id') ??
+        value.obj('user')?.int64('id') ??
+        value.obj('text_mention')?.int64('user_id') ??
+        value.obj('text_mention')?.obj('user')?.int64('id');
+  }
+
   static String? _richTextEntityType(String? type) {
-    switch (type) {
+    switch (_normalizedRichTextType(type)) {
       case 'richTextBold':
       case 'textBold':
         return 'textEntityTypeBold';
@@ -1175,9 +1244,11 @@ abstract final class TDParse {
         return 'textEntityTypeStrikethrough';
       case 'richTextSpoiler':
         return 'textEntityTypeSpoiler';
+      case 'richTextCode':
       case 'richTextFixed':
       case 'textFixed':
         return 'textEntityTypeCode';
+      case 'richTextTextMention':
       case 'richTextMentionName':
         return 'textEntityTypeMentionName';
       case 'richTextUrl':
@@ -1218,12 +1289,15 @@ abstract final class TDParse {
   }
 
   static String? _richTextEntityUrl(String? type, Map<String, dynamic> value) {
-    switch (type) {
+    switch (_normalizedRichTextType(type)) {
       case 'richTextUrl':
       case 'textUrl':
       case 'richTextReferenceLink':
       case 'richTextAnchorLink':
-        return value.str('url');
+        final url = value.str('url') ?? value.str('href');
+        if (url != null && url.isNotEmpty) return url;
+        final name = value.str('name');
+        return name == null || name.isEmpty ? null : '#$name';
       case 'richTextMention':
         final username = value.str('username');
         return username == null || username.isEmpty
