@@ -11,7 +11,7 @@ enum AppIconVariant {
     key: 'default',
     labelKey: AppStringKeys.appIconDefault,
     asset: 'assets/app_icons/default.png',
-    colors: [Color(0xFFDDDDDD), Color(0xFFCFCFCF)],
+    colors: [Color(0xFFFF8F6E), Color(0xFF7C76F7)],
   ),
   white(
     key: 'white',
