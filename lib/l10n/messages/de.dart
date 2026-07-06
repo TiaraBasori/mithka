@@ -826,6 +826,8 @@ const deMessages = <String, String>{
   'qrCodeScanToAddFriend':
       "Scanne den QR-Code oben, um mich als Freund hinzuzufügen",
   'qrCodeScanToJoinGroup': "Scanne den QR-Code oben, um der Gruppe beizutreten",
+  'richTextComposerAddColumn': "Spalte hinzufügen",
+  'richTextComposerAddRow': "Zeile hinzufügen",
   'richTextComposerContentPlaceholder': "Rich-Text eingeben",
   'richTextComposerFormatBold': "Fett",
   'richTextComposerFormatBoldMark': "B",
@@ -839,6 +841,9 @@ const deMessages = <String, String>{
   'richTextComposerFormatUnderlineMark': "U",
   'richTextComposerInsertTable': "Tabelle",
   'richTextComposerPhotoVideo': "Foto/Video",
+  'richTextComposerRemoveColumn': "Spalte entfernen",
+  'richTextComposerRemoveRow': "Zeile entfernen",
+  'richTextComposerRemoveTable': "Tabelle entfernen",
   'settingsAboutMithka': "Über Mithka",
   'settingsLogOut': "Abmelden",
   'sharedMediaCacheDeleted': "Lokaler Cache gelöscht",

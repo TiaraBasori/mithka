@@ -1168,6 +1168,8 @@ abstract final class AppStringKeys {
   static const qrCodeNoGroupQrCode = 'qrCodeNoGroupQrCode';
   static const qrCodeScanToAddFriend = 'qrCodeScanToAddFriend';
   static const qrCodeScanToJoinGroup = 'qrCodeScanToJoinGroup';
+  static const richTextComposerAddColumn = 'richTextComposerAddColumn';
+  static const richTextComposerAddRow = 'richTextComposerAddRow';
   static const richTextComposerContentPlaceholder =
       'richTextComposerContentPlaceholder';
   static const richTextComposerFormatBold = 'richTextComposerFormatBold';
@@ -1188,6 +1190,9 @@ abstract final class AppStringKeys {
       'richTextComposerFormatUnderlineMark';
   static const richTextComposerInsertTable = 'richTextComposerInsertTable';
   static const richTextComposerPhotoVideo = 'richTextComposerPhotoVideo';
+  static const richTextComposerRemoveColumn = 'richTextComposerRemoveColumn';
+  static const richTextComposerRemoveRow = 'richTextComposerRemoveRow';
+  static const richTextComposerRemoveTable = 'richTextComposerRemoveTable';
   static const settingsAboutMithka = 'settingsAboutMithka';
   static const settingsLogOut = 'settingsLogOut';
   static const sharedMediaCacheDeleted = 'sharedMediaCacheDeleted';

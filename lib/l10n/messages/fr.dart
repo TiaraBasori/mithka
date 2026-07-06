@@ -828,6 +828,8 @@ const frMessages = <String, String>{
   'qrCodeScanToAddFriend': "Scannez le QR code ci-dessus pour m’ajouter en ami",
   'qrCodeScanToJoinGroup':
       "Scannez le QR code ci-dessus pour rejoindre le groupe",
+  'richTextComposerAddColumn': "Ajouter une colonne",
+  'richTextComposerAddRow': "Ajouter une ligne",
   'richTextComposerContentPlaceholder': "Saisissez du texte enrichi",
   'richTextComposerFormatBold': "Gras",
   'richTextComposerFormatBoldMark': "B",
@@ -841,6 +843,9 @@ const frMessages = <String, String>{
   'richTextComposerFormatUnderlineMark': "U",
   'richTextComposerInsertTable': "Tableau",
   'richTextComposerPhotoVideo': "Photo/vidéo",
+  'richTextComposerRemoveColumn': "Supprimer la colonne",
+  'richTextComposerRemoveRow': "Supprimer la ligne",
+  'richTextComposerRemoveTable': "Supprimer le tableau",
   'settingsAboutMithka': "À propos de Mithka",
   'settingsLogOut': "Se déconnecter",
   'sharedMediaCacheDeleted': "Cache local supprimé",

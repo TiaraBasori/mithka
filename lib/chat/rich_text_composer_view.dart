@@ -87,12 +87,111 @@ class RichTextComposerView extends StatefulWidget {
   State<RichTextComposerView> createState() => _RichTextComposerViewState();
 }
 
+class _RichTableDraft {
+  _RichTableDraft({int rows = 3, int columns = 3})
+    : cells = List.generate(
+        rows,
+        (row) => List.generate(
+          columns,
+          (column) => TextEditingController(
+            text: row == 0 ? 'Column ${column + 1}' : '',
+          ),
+        ),
+      );
+
+  static const maxColumns = 20;
+
+  final List<List<TextEditingController>> cells;
+
+  int get rowCount => cells.length;
+  int get columnCount => cells.isEmpty ? 0 : cells.first.length;
+
+  void dispose() {
+    for (final row in cells) {
+      for (final cell in row) {
+        cell.dispose();
+      }
+    }
+  }
+
+  void addRow() {
+    cells.add(List.generate(columnCount, (_) => TextEditingController()));
+  }
+
+  void removeRow() {
+    if (rowCount <= 2) return;
+    final removed = cells.removeLast();
+    for (final cell in removed) {
+      cell.dispose();
+    }
+  }
+
+  void addColumn() {
+    if (columnCount >= maxColumns) return;
+    for (var row = 0; row < cells.length; row++) {
+      cells[row].add(
+        TextEditingController(
+          text: row == 0 ? 'Column ${columnCount + 1}' : '',
+        ),
+      );
+    }
+  }
+
+  void removeColumn() {
+    if (columnCount <= 2) return;
+    for (final row in cells) {
+      row.removeLast().dispose();
+    }
+  }
+
+  String toMarkdown() {
+    final rows = cells
+        .map((row) => row.map((cell) => _escapeCell(cell.text)).toList())
+        .toList();
+    if (rows.isEmpty || rows.first.isEmpty) return '';
+    final widths = List<int>.generate(rows.first.length, (column) {
+      var width = 3;
+      for (final row in rows) {
+        if (column < row.length && row[column].length > width) {
+          width = row[column].length;
+        }
+      }
+      return width;
+    });
+    final buffer = StringBuffer();
+    buffer.writeln(_markdownRow(rows.first, widths));
+    buffer.writeln(_markdownRow(widths.map((w) => '-' * w).toList(), widths));
+    for (final row in rows.skip(1)) {
+      buffer.writeln(_markdownRow(row, widths));
+    }
+    return buffer.toString().trimRight();
+  }
+
+  static String _escapeCell(String value) {
+    return value
+        .replaceAll('\n', ' ')
+        .replaceAll('\r', ' ')
+        .replaceAll('|', r'\|')
+        .trim();
+  }
+
+  static String _markdownRow(List<String> row, List<int> widths) {
+    final cells = <String>[];
+    for (var i = 0; i < widths.length; i++) {
+      final value = i < row.length ? row[i] : '';
+      cells.add(' ${value.padRight(widths[i])} ');
+    }
+    return '|${cells.join('|')}|';
+  }
+}
+
 class _RichTextComposerViewState extends State<RichTextComposerView> {
   static const _obsidianAccent = Color(0xFF7C3AED);
 
   late final EmojiTextEditingController _controller;
   final _picker = ImagePicker();
   final _media = <XFile>[];
+  final _tables = <_RichTableDraft>[];
 
   @override
   void initState() {
@@ -106,6 +205,9 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
   void dispose() {
     _controller.removeListener(_onEditorChanged);
     _controller.dispose();
+    for (final table in _tables) {
+      table.dispose();
+    }
     super.dispose();
   }
 
@@ -115,9 +217,17 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
 
   void _submit() {
     final (text, entities) = _controller.toFormatted();
+    final tableText = _tables
+        .map((table) => table.toMarkdown())
+        .where((table) => table.trim().isNotEmpty)
+        .join('\n\n');
+    final composedText = [
+      if (text.trim().isNotEmpty) text,
+      if (tableText.isNotEmpty) tableText,
+    ].join('\n\n');
     Navigator.of(context).pop(
       RichTextComposerResult(
-        text: text,
+        text: composedText,
         entities: entities,
         media: List<XFile>.of(_media),
       ),
@@ -200,12 +310,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
   }
 
   void _insertTable() {
-    const table =
-        '\n| Column 1 | Column 2 | Column 3 |\n'
-        '|----------|----------|----------|\n'
-        '|          |          |          |\n'
-        '|          |          |          |\n';
-    _controller.insertFormattedText(table, type: 'textEntityTypePre');
+    setState(() => _tables.add(_RichTableDraft()));
   }
 
   void _insertCodeBlock() {
@@ -272,24 +377,35 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
           _toolbar(c),
           if (widget.allowMedia) _mediaStrip(c),
           Expanded(
-            child: TextField(
-              controller: _controller,
-              autofocus: true,
-              maxLines: null,
-              expands: true,
-              textAlignVertical: TextAlignVertical.top,
-              contextMenuBuilder: (context, editableTextState) {
-                return AdaptiveTextSelectionToolbar.editableText(
-                  editableTextState: editableTextState,
-                );
-              },
-              style: TextStyle(fontSize: 16, height: 1.4, color: c.textPrimary),
-              decoration: InputDecoration(
-                contentPadding: const EdgeInsets.all(16),
-                border: InputBorder.none,
-                hintText: widget.hintText.l10n(context),
-                hintStyle: TextStyle(color: c.textTertiary),
-              ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    autofocus: true,
+                    maxLines: null,
+                    expands: true,
+                    textAlignVertical: TextAlignVertical.top,
+                    contextMenuBuilder: (context, editableTextState) {
+                      return AdaptiveTextSelectionToolbar.editableText(
+                        editableTextState: editableTextState,
+                      );
+                    },
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.4,
+                      color: c.textPrimary,
+                    ),
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.all(16),
+                      border: InputBorder.none,
+                      hintText: widget.hintText.l10n(context),
+                      hintStyle: TextStyle(color: c.textTertiary),
+                    ),
+                  ),
+                ),
+                if (_tables.isNotEmpty) _tableStrip(c),
+              ],
             ),
           ),
         ],
@@ -309,6 +425,191 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
             borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
             child: ColoredBox(color: c.background, child: content),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _tableStrip(AppColors c) {
+    final height = MediaQuery.sizeOf(context).height * 0.34;
+    return Container(
+      constraints: BoxConstraints(maxHeight: height.clamp(220, 320)),
+      decoration: BoxDecoration(
+        color: c.searchFill.withValues(alpha: 0.42),
+        border: Border(top: BorderSide(color: c.divider)),
+      ),
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
+        itemCount: _tables.length,
+        separatorBuilder: (_, _) => const SizedBox(height: 10),
+        itemBuilder: (context, index) => _tableEditor(c, index),
+      ),
+    );
+  }
+
+  Widget _tableEditor(AppColors c, int index) {
+    final table = _tables[index];
+    return Container(
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.divider),
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 8),
+            child: Row(
+              children: [
+                AppIcon(
+                  HeroAppIcons.tableCells,
+                  size: 18,
+                  color: c.textPrimary,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${AppStringKeys.richTextComposerInsertTable.l10n(context)} ${index + 1}',
+                    style: AppTextStyle.callout(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
+                    ),
+                  ),
+                ),
+                _miniIconButton(
+                  c,
+                  icon: HeroAppIcons.plus,
+                  label: AppStringKeys.richTextComposerAddRow.l10n(context),
+                  onTap: () => setState(table.addRow),
+                ),
+                _miniIconButton(
+                  c,
+                  icon: HeroAppIcons.tableColumns,
+                  label: AppStringKeys.richTextComposerAddColumn.l10n(context),
+                  onTap: table.columnCount >= _RichTableDraft.maxColumns
+                      ? null
+                      : () => setState(table.addColumn),
+                ),
+                _miniIconButton(
+                  c,
+                  icon: HeroAppIcons.minus,
+                  label: AppStringKeys.richTextComposerRemoveRow.l10n(context),
+                  onTap: table.rowCount <= 2
+                      ? null
+                      : () => setState(table.removeRow),
+                ),
+                _miniIconButton(
+                  c,
+                  icon: HeroAppIcons.circleMinus,
+                  label: AppStringKeys.richTextComposerRemoveColumn.l10n(
+                    context,
+                  ),
+                  onTap: table.columnCount <= 2
+                      ? null
+                      : () => setState(table.removeColumn),
+                ),
+                _miniIconButton(
+                  c,
+                  icon: HeroAppIcons.trash,
+                  label: AppStringKeys.richTextComposerRemoveTable.l10n(
+                    context,
+                  ),
+                  destructive: true,
+                  onTap: () {
+                    setState(() {
+                      _tables.removeAt(index).dispose();
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 128,
+            child: Scrollbar(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+                child: Column(
+                  children: [
+                    for (var row = 0; row < table.rowCount; row++)
+                      Row(
+                        children: [
+                          for (
+                            var column = 0;
+                            column < table.columnCount;
+                            column++
+                          )
+                            _tableCell(c, table, row, column),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tableCell(AppColors c, _RichTableDraft table, int row, int column) {
+    final isHeader = row == 0;
+    return Container(
+      width: 132,
+      height: 42,
+      decoration: BoxDecoration(
+        color: isHeader
+            ? _obsidianAccent.withValues(alpha: 0.12)
+            : c.background,
+        border: Border(
+          right: BorderSide(color: c.divider),
+          bottom: BorderSide(color: c.divider),
+          left: column == 0 ? BorderSide(color: c.divider) : BorderSide.none,
+          top: row == 0 ? BorderSide(color: c.divider) : BorderSide.none,
+        ),
+      ),
+      child: TextField(
+        controller: table.cells[row][column],
+        textInputAction: TextInputAction.next,
+        style: AppTextStyle.callout(
+          c.textPrimary,
+          weight: isHeader ? AppTextWeight.semibold : AppTextWeight.regular,
+        ),
+        decoration: const InputDecoration(
+          isCollapsed: true,
+          border: InputBorder.none,
+          contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+        ),
+      ),
+    );
+  }
+
+  Widget _miniIconButton(
+    AppColors c, {
+    required AppIconData icon,
+    required String label,
+    required VoidCallback? onTap,
+    bool destructive = false,
+  }) {
+    final enabled = onTap != null;
+    final color = destructive
+        ? const Color(0xFFFF5A52)
+        : enabled
+        ? c.textPrimary
+        : c.textTertiary.withValues(alpha: 0.48);
+    return Tooltip(
+      message: label,
+      excludeFromSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(6)),
+          child: AppIcon(icon, size: 17, color: color),
         ),
       ),
     );

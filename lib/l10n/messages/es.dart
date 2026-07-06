@@ -822,6 +822,8 @@ const esMessages = <String, String>{
       "Escanea el código QR de arriba para añadirme como amigo",
   'qrCodeScanToJoinGroup':
       "Escanea el código QR de arriba para unirte al grupo",
+  'richTextComposerAddColumn': "Añadir columna",
+  'richTextComposerAddRow': "Añadir fila",
   'richTextComposerContentPlaceholder': "Introduce texto enriquecido",
   'richTextComposerFormatBold': "Negrita",
   'richTextComposerFormatBoldMark': "B",
@@ -835,6 +837,9 @@ const esMessages = <String, String>{
   'richTextComposerFormatUnderlineMark': "U",
   'richTextComposerInsertTable': "Tabla",
   'richTextComposerPhotoVideo': "Foto/video",
+  'richTextComposerRemoveColumn': "Eliminar columna",
+  'richTextComposerRemoveRow': "Eliminar fila",
+  'richTextComposerRemoveTable': "Eliminar tabla",
   'settingsAboutMithka': "Acerca de Mithka",
   'settingsLogOut': "Cerrar sesión",
   'sharedMediaCacheDeleted': "Caché local eliminada",
