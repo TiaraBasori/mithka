@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 
 import '../profile/profile_detail_view.dart';
 import '../tdlib/td_models.dart';
@@ -264,6 +265,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
         ),
       ];
     }
+    if (_hasMath(active)) return [_mathSpan(segment, style)];
     if (_hasCode(active)) return [_codeSpan(segment, style)];
 
     final mentionUserId = _mentionUserId(active);
@@ -314,6 +316,14 @@ class _TelegramRichTextState extends State<TelegramRichText> {
           child: Text(segment, style: style),
         ),
       ),
+    );
+  }
+
+  InlineSpan _mathSpan(String segment, TextStyle style) {
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: _LatexInline(expression: segment, style: style),
     );
   }
 
@@ -410,6 +420,10 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     );
   }
 
+  bool _hasMath(List<MessageTextEntity> active) {
+    return active.any((entity) => entity.isMathematicalExpression);
+  }
+
   int? _mentionUserId(List<MessageTextEntity> active) {
     for (final entity in active.reversed) {
       if (entity.type == 'textEntityTypeMentionName' && entity.userId != null) {
@@ -478,5 +492,26 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     }
     if (last < text.length) spans.add(TextSpan(text: text.substring(last)));
     return spans;
+  }
+}
+
+class _LatexInline extends StatelessWidget {
+  const _LatexInline({required this.expression, required this.style});
+
+  final String expression;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      return Math.tex(
+        expression,
+        textStyle: style,
+        mathStyle: MathStyle.text,
+        onErrorFallback: (error) => Text(expression, style: style),
+      );
+    } catch (_) {
+      return Text(expression, style: style);
+    }
   }
 }

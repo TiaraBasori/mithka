@@ -432,7 +432,7 @@ void main() {
         'textEntityTypeMarked',
         'textEntityTypeCode',
         'textEntityTypeCustomEmoji',
-        'textEntityTypeCode',
+        'textEntityTypeMathematicalExpression',
         'textEntityTypeTextUrl',
         'textEntityTypeEmailAddress',
         'textEntityTypePhoneNumber',
@@ -498,6 +498,44 @@ void main() {
                 'language': 'dart',
                 'text': {'@type': 'richTextPlain', 'text': 'final x = 1;'},
               },
+              {
+                '@type': 'pageBlockMathematicalExpression',
+                'expression': r'x^2',
+              },
+              {
+                '@type': 'pageBlockTable',
+                'caption': {
+                  '@type': 'pageBlockCaption',
+                  'text': {'@type': 'richTextPlain', 'text': 'Metrics'},
+                },
+                'cells': [
+                  [
+                    {
+                      '@type': 'richBlockTableCell',
+                      'is_header': true,
+                      'text': {'@type': 'richTextPlain', 'text': 'Name'},
+                    },
+                    {
+                      '@type': 'richBlockTableCell',
+                      'is_header': true,
+                      'text': {'@type': 'richTextPlain', 'text': 'Value'},
+                    },
+                  ],
+                  [
+                    {
+                      '@type': 'richBlockTableCell',
+                      'text': {'@type': 'richTextPlain', 'text': 'Speed'},
+                    },
+                    {
+                      '@type': 'richBlockTableCell',
+                      'text': {
+                        '@type': 'richTextBold',
+                        'text': {'@type': 'richTextPlain', 'text': '42'},
+                      },
+                    },
+                  ],
+                ],
+              },
             ],
           },
         },
@@ -512,6 +550,41 @@ void main() {
       ]);
       expect(message.textEntities[1].url, 'https://example.com');
       expect(message.textEntities[2].language, 'dart');
+      expect(message.richBlocks, hasLength(2));
+      expect(message.richBlocks.first.mathExpression, r'x^2');
+      final table = message.richBlocks.last;
+      expect(table.caption, 'Metrics');
+      expect(table.tableRows, hasLength(2));
+      expect(table.tableRows.first.first.text, 'Name');
+      expect(table.tableRows.first.first.isHeader, isTrue);
+      expect(table.tableRows[1][1].text, '42');
+      expect(table.tableRows[1][1].entities.single.type, 'textEntityTypeBold');
+    });
+
+    test('extracts markdown pipe tables into rich table blocks', () {
+      final message = TDParse.message({
+        '@type': 'message',
+        'id': 101,
+        'date': 1,
+        'is_outgoing': true,
+        'content': {
+          '@type': 'messageText',
+          'text': {
+            '@type': 'formattedText',
+            'text':
+                'Before\n\n| Name | Value |\n| ---- | ----- |\n| Speed | 42 |\n\nAfter',
+          },
+        },
+      });
+
+      expect(message, isNotNull);
+      expect(message!.text, 'Before\n\nAfter');
+      expect(message.richBlocks, hasLength(1));
+      final table = message.richBlocks.single;
+      expect(table.tableRows, hasLength(2));
+      expect(table.tableRows.first.first.text, 'Name');
+      expect(table.tableRows.first.first.isHeader, isTrue);
+      expect(table.tableRows[1][1].text, '42');
     });
   });
 

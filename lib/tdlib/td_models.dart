@@ -111,6 +111,46 @@ class MessageTextEntity {
       type == 'textEntityTypeExpandableBlockQuote';
   bool get isPreBlock =>
       type == 'textEntityTypePre' || type == 'textEntityTypePreCode';
+  bool get isMathematicalExpression =>
+      type == 'textEntityTypeMathematicalExpression';
+}
+
+class RichMessageTableCell {
+  const RichMessageTableCell({
+    required this.text,
+    this.entities = const [],
+    this.isHeader = false,
+  });
+
+  final String text;
+  final List<MessageTextEntity> entities;
+  final bool isHeader;
+}
+
+class RichMessageBlock {
+  const RichMessageBlock.table(this.tableRows)
+    : mathExpression = null,
+      caption = '',
+      captionEntities = const [];
+
+  const RichMessageBlock.math(this.mathExpression)
+    : tableRows = const [],
+      caption = '',
+      captionEntities = const [];
+
+  const RichMessageBlock.captionedTable({
+    required this.tableRows,
+    this.caption = '',
+    this.captionEntities = const [],
+  }) : mathExpression = null;
+
+  final List<List<RichMessageTableCell>> tableRows;
+  final String? mathExpression;
+  final String caption;
+  final List<MessageTextEntity> captionEntities;
+
+  bool get isTable => tableRows.isNotEmpty;
+  bool get isMath => mathExpression != null && mathExpression!.isNotEmpty;
 }
 
 class _ParsedMarkdownText {
@@ -309,6 +349,7 @@ class ChatMessage {
     this.translationLanguageCode,
     this.isTranslating = false,
     this.buttonRows = const [],
+    this.richBlocks = const [],
     this.isEdited = false,
     this.hasCommentThread = false,
     this.commentCount = 0,
@@ -376,6 +417,7 @@ class ChatMessage {
   String? translationLanguageCode;
   bool isTranslating;
   List<List<MessageButton>> buttonRows;
+  List<RichMessageBlock> richBlocks;
 
   bool isEdited; // shows a "已编辑" tag
   bool hasCommentThread;
@@ -719,9 +761,16 @@ abstract final class TDParse {
     final markdown = !service && parsedEntities.isEmpty
         ? _markdownText(text)
         : null;
-    final displayText = markdown?.text ?? text;
-    final displayEntities = markdown?.entities ?? parsedEntities;
     final replyInfo = message.obj('interaction_info')?.obj('reply_info');
+    var displayText = markdown?.text ?? text;
+    var displayEntities = markdown?.entities ?? parsedEntities;
+    final richBlocks = <RichMessageBlock>[...richMessageBlocks(content)];
+    if (content?.type != 'messageRichMessage') {
+      final extracted = _extractMarkdownTables(displayText, displayEntities);
+      displayText = extracted.text;
+      displayEntities = extracted.entities;
+      richBlocks.addAll(extracted.blocks);
+    }
 
     return ChatMessage(
         id: id,
@@ -766,6 +815,7 @@ abstract final class TDParse {
         textEntities: displayEntities,
         linkPreview: linkPreview(content?.obj('link_preview')),
         buttonRows: messageButtonRows(message.obj('reply_markup')),
+        richBlocks: richBlocks,
         isEdited: (message.integer('edit_date') ?? 0) > 0,
         hasCommentThread: replyInfo != null,
         commentCount:
@@ -1081,6 +1131,241 @@ abstract final class TDParse {
     return _richText(value).entities;
   }
 
+  static List<RichMessageBlock> richMessageBlocks(
+    Map<String, dynamic>? content,
+  ) {
+    if (content?.type != 'messageRichMessage') return const [];
+    final blocks = content?.obj('message')?.objects('blocks');
+    if (blocks == null || blocks.isEmpty) return const [];
+    final out = <RichMessageBlock>[];
+    for (final block in blocks) {
+      _appendRichBlocks(out, block);
+    }
+    return out;
+  }
+
+  static void _appendRichBlocks(
+    List<RichMessageBlock> out,
+    Map<String, dynamic> block,
+  ) {
+    switch (block.type) {
+      case 'pageBlockTable':
+      case 'RichBlockTable':
+        final rows = _richTableRows(block['cells'] ?? block['rows']);
+        if (rows.isEmpty) return;
+        final caption = _richBlockCaption(block.obj('caption'));
+        out.add(
+          RichMessageBlock.captionedTable(
+            tableRows: rows,
+            caption: caption.text,
+            captionEntities: caption.entities,
+          ),
+        );
+      case 'pageBlockMathematicalExpression':
+      case 'RichBlockMathematicalExpression':
+        final expression =
+            block.str('expression') ??
+            block.str('formula') ??
+            block.str('source') ??
+            '';
+        if (expression.trim().isNotEmpty) {
+          out.add(RichMessageBlock.math(expression));
+        }
+      case 'pageBlockCover':
+      case 'RichBlockCover':
+        final cover = block.obj('cover');
+        if (cover != null) _appendRichBlocks(out, cover);
+      case 'pageBlockEmbeddedPost':
+      case 'pageBlockCollage':
+      case 'pageBlockSlideshow':
+      case 'pageBlockDetails':
+      case 'RichBlockEmbeddedPost':
+      case 'RichBlockCollage':
+      case 'RichBlockSlideshow':
+      case 'RichBlockDetails':
+        final nested = block.objects('blocks');
+        if (nested == null) return;
+        for (final child in nested) {
+          _appendRichBlocks(out, child);
+        }
+    }
+  }
+
+  static _ParsedMarkdownText _richBlockCaption(Map<String, dynamic>? caption) {
+    if (caption == null) return const _ParsedMarkdownText('', []);
+    final builder = _RichTextBuilder();
+    _appendRichText(builder, caption.obj('text') ?? caption);
+    _appendCredit(builder, caption.obj('credit'));
+    return _ParsedMarkdownText(builder.buffer.toString(), builder.entities);
+  }
+
+  static List<List<RichMessageTableCell>> _richTableRows(Object? rows) {
+    if (rows is! List) return const [];
+    final out = <List<RichMessageTableCell>>[];
+    for (final rawRow in rows) {
+      final rawCells = rawRow is Map<String, dynamic>
+          ? (rawRow['cells'] as Object?)
+          : rawRow;
+      if (rawCells is! List) continue;
+      final row = <RichMessageTableCell>[];
+      for (final rawCell in rawCells) {
+        if (rawCell is! Map<String, dynamic>) continue;
+        final parsed = _richText(rawCell.obj('text') ?? rawCell['content']);
+        row.add(
+          RichMessageTableCell(
+            text: parsed.text,
+            entities: parsed.entities,
+            isHeader:
+                rawCell.boolean('is_header') ??
+                rawCell.boolean('isHeader') ??
+                false,
+          ),
+        );
+      }
+      if (row.isNotEmpty) out.add(row);
+    }
+    return out;
+  }
+
+  static ({
+    String text,
+    List<MessageTextEntity> entities,
+    List<RichMessageBlock> blocks,
+  })
+  _extractMarkdownTables(String text, List<MessageTextEntity> entities) {
+    final lines = text.split('\n');
+    final starts = <int>[];
+    var offset = 0;
+    for (final line in lines) {
+      starts.add(offset);
+      offset += line.length + 1;
+    }
+    final removals = <({int start, int end})>[];
+    final blocks = <RichMessageBlock>[];
+    var i = 0;
+    while (i < lines.length - 1) {
+      if (!_looksLikeMarkdownTableRow(lines[i]) ||
+          !_looksLikeMarkdownSeparatorRow(lines[i + 1])) {
+        i++;
+        continue;
+      }
+      final rows = <List<RichMessageTableCell>>[
+        _markdownTableCells(lines[i], isHeader: true),
+      ];
+      var endLine = i + 2;
+      while (endLine < lines.length &&
+          _looksLikeMarkdownTableRow(lines[endLine])) {
+        rows.add(_markdownTableCells(lines[endLine]));
+        endLine++;
+      }
+      if (rows.length > 1) {
+        blocks.add(RichMessageBlock.table(rows));
+        if (endLine < lines.length && lines[endLine].trim().isEmpty) {
+          endLine++;
+        }
+        final start = starts[i];
+        final end = endLine >= lines.length ? text.length : starts[endLine];
+        removals.add((start: start, end: end));
+        i = endLine;
+      } else {
+        i++;
+      }
+    }
+    if (removals.isEmpty) {
+      return (text: text, entities: entities, blocks: const []);
+    }
+    final buffer = StringBuffer();
+    var cursor = 0;
+    for (final removal in removals) {
+      buffer.write(text.substring(cursor, removal.start));
+      cursor = removal.end;
+    }
+    buffer.write(text.substring(cursor));
+    final stripped = buffer.toString().trimRight();
+    final adjusted = <MessageTextEntity>[];
+    for (final entity in entities) {
+      var removedBefore = 0;
+      var overlaps = false;
+      for (final removal in removals) {
+        if (entity.end <= removal.start) continue;
+        if (entity.offset >= removal.end) {
+          removedBefore += removal.end - removal.start;
+          continue;
+        }
+        overlaps = true;
+        break;
+      }
+      if (overlaps) continue;
+      adjusted.add(
+        MessageTextEntity(
+          offset: entity.offset - removedBefore,
+          length: entity.length,
+          type: entity.type,
+          url: entity.url,
+          userId: entity.userId,
+          customEmojiId: entity.customEmojiId,
+          language: entity.language,
+        ),
+      );
+    }
+    return (text: stripped, entities: adjusted, blocks: blocks);
+  }
+
+  static bool _looksLikeMarkdownTableRow(String line) {
+    final trimmed = line.trim();
+    return trimmed.startsWith('|') &&
+        trimmed.endsWith('|') &&
+        _splitMarkdownTableRow(trimmed).length >= 2;
+  }
+
+  static bool _looksLikeMarkdownSeparatorRow(String line) {
+    final cells = _splitMarkdownTableRow(line);
+    if (cells.length < 2) return false;
+    return cells.every((cell) => RegExp(r'^:?-{3,}:?$').hasMatch(cell.trim()));
+  }
+
+  static List<RichMessageTableCell> _markdownTableCells(
+    String line, {
+    bool isHeader = false,
+  }) {
+    return _splitMarkdownTableRow(line)
+        .map(
+          (cell) => RichMessageTableCell(
+            text: cell.replaceAll(r'\|', '|').trim(),
+            isHeader: isHeader,
+          ),
+        )
+        .toList();
+  }
+
+  static List<String> _splitMarkdownTableRow(String line) {
+    final trimmed = line.trim();
+    final content = trimmed.substring(
+      trimmed.startsWith('|') ? 1 : 0,
+      trimmed.endsWith('|') ? trimmed.length - 1 : trimmed.length,
+    );
+    final cells = <String>[];
+    final buffer = StringBuffer();
+    var escaped = false;
+    for (final codeUnit in content.codeUnits) {
+      final char = String.fromCharCode(codeUnit);
+      if (escaped) {
+        buffer.write(char);
+        escaped = false;
+      } else if (char == '\\') {
+        buffer.write(char);
+        escaped = true;
+      } else if (char == '|') {
+        cells.add(buffer.toString());
+        buffer.clear();
+      } else {
+        buffer.write(char);
+      }
+    }
+    cells.add(buffer.toString());
+    return cells;
+  }
+
   static _ParsedMarkdownText _richText(Object? value) {
     final builder = _RichTextBuilder();
     _appendRichText(builder, value);
@@ -1152,7 +1437,7 @@ abstract final class TDParse {
             '';
         final start = builder.length;
         builder.write(expression);
-        builder.entity(start, 'textEntityTypeCode');
+        builder.entity(start, 'textEntityTypeMathematicalExpression');
         return;
     }
 
@@ -1370,8 +1655,7 @@ abstract final class TDParse {
           language: block.str('language'),
         );
       case 'pageBlockMathematicalExpression':
-        builder.write(block.str('expression') ?? '');
-        builder.entity(start, 'textEntityTypeCode');
+        return;
       case 'pageBlockList':
         _appendPageBlockList(builder, block.objects('items'));
       case 'pageBlockBlockQuote':
@@ -1399,8 +1683,7 @@ abstract final class TDParse {
         _appendPageBlocks(builder, block.objects('blocks'));
         _appendCaption(builder, block.obj('caption'));
       case 'pageBlockTable':
-        _appendRichText(builder, block.obj('caption'));
-        _appendTable(builder, block['cells']);
+        return;
       case 'pageBlockDetails':
         _appendRichText(builder, block.obj('header'));
         builder.lineBreak();
@@ -1464,21 +1747,6 @@ abstract final class TDParse {
     if (richTextText(credit).trim().isEmpty) return;
     builder.lineBreak();
     _appendRichText(builder, credit);
-  }
-
-  static void _appendTable(_RichTextBuilder builder, Object? rows) {
-    if (rows is! List) return;
-    for (final row in rows) {
-      if (row is! List) continue;
-      var first = true;
-      for (final rawCell in row) {
-        if (rawCell is! Map<String, dynamic>) continue;
-        if (!first) builder.write('\t');
-        _appendRichText(builder, rawCell.obj('text'));
-        first = false;
-      }
-      builder.lineBreak();
-    }
   }
 
   static void _appendRelatedArticles(

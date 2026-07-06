@@ -13,6 +13,7 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
@@ -759,9 +760,14 @@ class _MessageBubbleState extends State<MessageBubble>
             null,
             textFontSize,
           ),
+          if (message.richBlocks.isNotEmpty) ...[
+            if (text.isNotEmpty) const SizedBox(height: 8),
+            ..._richBlockWidgets(message.richBlocks, outgoing),
+          ],
           if (message.linkPreview != null &&
               !message.linkPreview!.showAboveText) ...[
-            if (text.isNotEmpty) const SizedBox(height: 7),
+            if (text.isNotEmpty || message.richBlocks.isNotEmpty)
+              const SizedBox(height: 7),
             _linkPreviewCard(message.linkPreview!, outgoing),
           ],
           if (message.isTranslating ||
@@ -822,6 +828,153 @@ class _MessageBubbleState extends State<MessageBubble>
       (rune >= 0x2600 && rune <= 0x27BF) ||
       (rune >= 0x2934 && rune <= 0x2935) ||
       (rune >= 0x1F000 && rune <= 0x1FAFF);
+
+  List<Widget> _richBlockWidgets(List<RichMessageBlock> blocks, bool outgoing) {
+    final widgets = <Widget>[];
+    for (final block in blocks) {
+      if (widgets.isNotEmpty) widgets.add(const SizedBox(height: 8));
+      if (block.isTable) {
+        widgets.add(_richTableBlock(block, outgoing));
+      } else if (block.isMath) {
+        widgets.add(_richMathBlock(block.mathExpression!, outgoing));
+      }
+    }
+    return widgets;
+  }
+
+  Widget _richMathBlock(String expression, bool outgoing) {
+    final c = context.colors;
+    final base = outgoing ? Colors.white : c.textPrimary;
+    final fill = outgoing
+        ? Colors.white.withValues(alpha: 0.14)
+        : c.searchFill.withValues(alpha: 0.72);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: outgoing
+              ? Colors.white.withValues(alpha: 0.14)
+              : c.divider.withValues(alpha: 0.8),
+        ),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: _LatexView(
+          expression: expression,
+          style: TextStyle(fontSize: 15, color: base),
+          display: true,
+        ),
+      ),
+    );
+  }
+
+  Widget _richTableBlock(RichMessageBlock block, bool outgoing) {
+    final c = context.colors;
+    final base = outgoing ? Colors.white : c.textPrimary;
+    final secondary = outgoing
+        ? Colors.white.withValues(alpha: 0.72)
+        : c.textSecondary;
+    final link = outgoing ? Colors.white : c.linkBlue;
+    final border = outgoing
+        ? Colors.white.withValues(alpha: 0.22)
+        : c.divider.withValues(alpha: 0.9);
+    final headerFill = outgoing
+        ? Colors.white.withValues(alpha: 0.16)
+        : c.searchFill.withValues(alpha: 0.9);
+    final cellFill = outgoing
+        ? Colors.white.withValues(alpha: 0.07)
+        : c.card.withValues(alpha: 0.88);
+    final maxColumns = block.tableRows.fold<int>(
+      0,
+      (max, row) => row.length > max ? row.length : max,
+    );
+    if (maxColumns == 0) return const SizedBox.shrink();
+    final rows = <TableRow>[];
+    for (var rowIndex = 0; rowIndex < block.tableRows.length; rowIndex++) {
+      final row = block.tableRows[rowIndex];
+      rows.add(
+        TableRow(
+          children: [
+            for (var column = 0; column < maxColumns; column++)
+              _richTableCell(
+                column < row.length ? row[column] : null,
+                isFallbackHeader: rowIndex == 0,
+                base: base,
+                link: link,
+                secondary: secondary,
+                fill:
+                    column < row.length &&
+                        (row[column].isHeader || rowIndex == 0)
+                    ? headerFill
+                    : cellFill,
+              ),
+          ],
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (block.caption.isNotEmpty) ...[
+          ..._richTextWidgets(
+            block.caption,
+            base,
+            link,
+            outgoing,
+            false,
+            block.captionEntities,
+          ),
+          const SizedBox(height: 6),
+        ],
+        ClipRRect(
+          borderRadius: BorderRadius.circular(7),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Table(
+              defaultColumnWidth: const IntrinsicColumnWidth(),
+              border: TableBorder.all(color: border, width: 0.8),
+              children: rows,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _richTableCell(
+    RichMessageTableCell? cell, {
+    required bool isFallbackHeader,
+    required Color base,
+    required Color link,
+    required Color secondary,
+    required Color fill,
+  }) {
+    final isHeader = cell?.isHeader ?? isFallbackHeader;
+    final text = cell?.text ?? '';
+    return Container(
+      constraints: const BoxConstraints(minWidth: 72, maxWidth: 180),
+      color: fill,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      child: text.isEmpty
+          ? Text('', style: TextStyle(fontSize: 13, color: secondary))
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: _richTextWidgets(
+                text,
+                base,
+                link,
+                false,
+                false,
+                cell?.entities ?? const [],
+                isHeader ? 13.5 : 13,
+              ),
+            ),
+    );
+  }
 
   Widget _translationBlock(bool outgoing) {
     final c = context.colors;
@@ -1873,6 +2026,9 @@ class _MessageBubbleState extends State<MessageBubble>
               .where((e) => e.type != 'textEntityTypeSpoiler')
               .toList(growable: false);
     final style = _entityStyle(effectiveActive, base, link);
+    if (_hasMath(effectiveActive)) {
+      return [_inlineMathSpan(segment, style, fontSize)];
+    }
     if (_hasInlineCode(effectiveActive)) {
       return [_inlineCodeSpan(segment, style, fontSize)];
     }
@@ -1925,8 +2081,23 @@ class _MessageBubbleState extends State<MessageBubble>
     );
   }
 
+  InlineSpan _inlineMathSpan(String segment, TextStyle style, double fontSize) {
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.baseline,
+      baseline: TextBaseline.alphabetic,
+      child: _LatexView(
+        expression: segment,
+        style: style.copyWith(fontSize: fontSize),
+      ),
+    );
+  }
+
   bool _hasInlineCode(List<MessageTextEntity> active) {
     return active.any((e) => e.type == 'textEntityTypeCode');
+  }
+
+  bool _hasMath(List<MessageTextEntity> active) {
+    return active.any((e) => e.isMathematicalExpression);
   }
 
   bool _hasPreCode(List<MessageTextEntity> active) {
@@ -2737,5 +2908,31 @@ class _MapThumbnailState extends State<_MapThumbnail> {
         ],
       ),
     );
+  }
+}
+
+class _LatexView extends StatelessWidget {
+  const _LatexView({
+    required this.expression,
+    required this.style,
+    this.display = false,
+  });
+
+  final String expression;
+  final TextStyle style;
+  final bool display;
+
+  @override
+  Widget build(BuildContext context) {
+    try {
+      return Math.tex(
+        expression,
+        textStyle: style,
+        mathStyle: display ? MathStyle.display : MathStyle.text,
+        onErrorFallback: (error) => Text(expression, style: style),
+      );
+    } catch (_) {
+      return Text(expression, style: style);
+    }
   }
 }
