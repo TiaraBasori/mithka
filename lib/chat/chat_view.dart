@@ -1691,7 +1691,10 @@ class _ChatViewState extends State<ChatView> {
         try {
           await _vm.pinTodo(message);
           if (!mounted) return;
-          showToast(context, AppStringKeys.chatTodoSetSuccess);
+          showToastOverlay(
+            Overlay.of(context),
+            telegramText(AppStringKeys.chatTodoSetSuccess),
+          );
         } catch (e) {
           if (!mounted) return;
           showToast(
@@ -1703,7 +1706,10 @@ class _ChatViewState extends State<ChatView> {
         try {
           await _vm.unpinTodo(message);
           if (!mounted) return;
-          showToast(context, AppStringKeys.chatTodoUnsetSuccess);
+          showToastOverlay(
+            Overlay.of(context),
+            telegramText(AppStringKeys.chatTodoUnsetSuccess),
+          );
         } catch (e) {
           if (!mounted) return;
           showToast(

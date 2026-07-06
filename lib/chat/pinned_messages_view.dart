@@ -140,7 +140,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
               ),
             ),
             Text(
-              AppStrings.t(AppStringKeys.chatInfoPinnedHighlights),
+              telegramText(AppStringKeys.chatInfoPinnedHighlights),
               style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,

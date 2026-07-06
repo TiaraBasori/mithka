@@ -198,6 +198,10 @@ class TelegramLanguageController extends ChangeNotifier {
     String appFallbackKey, {
     Map<String, Object?> placeholders = const {},
   }) {
+    final localOverride = _localPackOverrides[_activePackId]?[appFallbackKey];
+    if (localOverride != null && localOverride.trim().isNotEmpty) {
+      return _interpolate(localOverride, placeholders);
+    }
     final telegramKey = _telegramKeyForAppKey[appFallbackKey];
     final template = telegramKey == null ? null : _strings[telegramKey];
     final fallback = AppStrings.t(appFallbackKey, placeholders);
@@ -252,24 +256,31 @@ class TelegramLanguageController extends ChangeNotifier {
   }
 
   Future<void> _loadAvailablePacks() async {
+    _packs = _localPacks;
     final response = await _query({
       '@type': 'getLocalizationTargetInfo',
       'only_local': false,
     });
-    final packs = _tdObjects(response, 'language_packs')
-        ?.map(TelegramLanguagePackOption.fromJson)
-        .where((pack) => pack.id.isNotEmpty && !pack.isBeta)
-        .toList();
-    if (packs == null || packs.isEmpty) return;
+    final packs =
+        _tdObjects(response, 'language_packs')
+            ?.map(TelegramLanguagePackOption.fromJson)
+            .where((pack) => pack.id.isNotEmpty && !pack.isBeta)
+            .toList() ??
+        <TelegramLanguagePackOption>[];
+    if (packs.isEmpty) {
+      _packs = _localPacks;
+      return;
+    }
     packs.sort((a, b) {
       final official = (b.isOfficial ? 1 : 0) - (a.isOfficial ? 1 : 0);
       if (official != 0) return official;
       return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
     });
-    _packs = packs;
+    _packs = [..._localPacks, ...packs];
   }
 
   Future<void> _applyPack(String packId) async {
+    if (_localPackOverrides.containsKey(packId)) return;
     await _query({
       '@type': 'setOption',
       'name': _packOption,
@@ -278,6 +289,21 @@ class TelegramLanguageController extends ChangeNotifier {
   }
 
   Future<void> _loadStringsForPack(String packId) async {
+    final localPack = _localPacks
+        .where((pack) => pack.id == packId)
+        .firstOrNull;
+    if (localPack != null) {
+      final baseId = localPack.baseLanguagePackId.trim();
+      final baseStrings = baseId.isEmpty
+          ? const <String, String>{}
+          : await _fetchPackStrings(
+              baseId,
+            ).catchError((_) => const <String, String>{});
+      _strings
+        ..clear()
+        ..addAll(baseStrings);
+      return;
+    }
     final merged = <String, String>{};
     final pack = _packs.where((pack) => pack.id == packId).firstOrNull;
     final baseId = pack?.baseLanguagePackId.trim();
@@ -440,6 +466,52 @@ extension _FirstOrNull<T> on Iterable<T> {
     return iterator.current;
   }
 }
+
+const _localPacks = <TelegramLanguagePackOption>[
+  TelegramLanguagePackOption(
+    id: 'mithka-zh-hans-glossary',
+    baseLanguagePackId: 'zh-hans',
+    name: 'Mithka Glossary',
+    nativeName: '简体中文（Mithka 术语）',
+    pluralCode: 'zh',
+    isOfficial: false,
+    isRtl: false,
+    isBeta: false,
+    isInstalled: true,
+  ),
+  TelegramLanguagePackOption(
+    id: 'mithka-zh-hant-glossary',
+    baseLanguagePackId: 'zh-hant',
+    name: 'Mithka Glossary',
+    nativeName: '繁體中文（Mithka 術語）',
+    pluralCode: 'zh',
+    isOfficial: false,
+    isRtl: false,
+    isBeta: false,
+    isInstalled: true,
+  ),
+];
+
+const _localPackOverrides = <String, Map<String, String>>{
+  'mithka-zh-hans-glossary': {
+    AppStringKeys.messageActionSetTodo: '群待办',
+    AppStringKeys.messageActionUnsetTodo: '撤回群待办',
+    AppStringKeys.chatTodoSetSuccess: '已设为群待办',
+    AppStringKeys.chatTodoUnsetSuccess: '已撤回群待办',
+    AppStringKeys.chatInfoPinnedHighlights: '群待办',
+    AppStringKeys.pinnedMessagesEmpty: '暂无群待办',
+    AppStringKeys.topicChatPinnedPrefix: '群待办 | ',
+  },
+  'mithka-zh-hant-glossary': {
+    AppStringKeys.messageActionSetTodo: '群組待辦',
+    AppStringKeys.messageActionUnsetTodo: '撤回群組待辦',
+    AppStringKeys.chatTodoSetSuccess: '已設為群組待辦',
+    AppStringKeys.chatTodoUnsetSuccess: '已撤回群組待辦',
+    AppStringKeys.chatInfoPinnedHighlights: '群組待辦',
+    AppStringKeys.pinnedMessagesEmpty: '暫無群組待辦',
+    AppStringKeys.topicChatPinnedPrefix: '群組待辦 | ',
+  },
+};
 
 const _telegramKeyForAppKey = <String, String>{
   AppStringKeys.channelsFileAttachment: 'AttachDocument',

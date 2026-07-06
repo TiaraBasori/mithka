@@ -567,7 +567,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                   _groupAppItem(
                     icon: HeroAppIcons.solidStar.data,
                     color: const Color(0xFF18C26E),
-                    label: AppStrings.t(AppStringKeys.chatInfoPinnedHighlights),
+                    label: telegramText(AppStringKeys.chatInfoPinnedHighlights),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => PinnedMessagesView(
