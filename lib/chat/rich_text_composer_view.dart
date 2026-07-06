@@ -185,30 +185,69 @@ class _RichTableDraft {
   }
 }
 
+class _RichTextBlock {
+  _RichTextBlock(this.controller, this.focusNode);
+
+  final EmojiTextEditingController controller;
+  final FocusNode focusNode;
+}
+
+class _RichContentBlock {
+  const _RichContentBlock.text(this.text) : table = null;
+  const _RichContentBlock.table(this.table) : text = null;
+
+  final _RichTextBlock? text;
+  final _RichTableDraft? table;
+}
+
 class _RichTextComposerViewState extends State<RichTextComposerView> {
   static const _obsidianAccent = Color(0xFF7C3AED);
 
-  late final EmojiTextEditingController _controller;
   final _picker = ImagePicker();
   final _media = <XFile>[];
-  final _tables = <_RichTableDraft>[];
+  late final List<_RichContentBlock> _blocks;
+  late _RichTextBlock _activeTextBlock;
+
+  EmojiTextEditingController get _controller => _activeTextBlock.controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = EmojiTextEditingController()
-      ..text = widget.initialText
-      ..addListener(_onEditorChanged);
+    final first = _createTextBlock(widget.initialText);
+    _blocks = [_RichContentBlock.text(first)];
+    _activeTextBlock = first;
   }
 
   @override
   void dispose() {
-    _controller.removeListener(_onEditorChanged);
-    _controller.dispose();
-    for (final table in _tables) {
-      table.dispose();
+    for (final block in _blocks) {
+      _disposeBlock(block);
     }
     super.dispose();
+  }
+
+  _RichTextBlock _createTextBlock(String text) {
+    final controller = EmojiTextEditingController()
+      ..text = text
+      ..addListener(_onEditorChanged);
+    final focusNode = FocusNode();
+    final block = _RichTextBlock(controller, focusNode);
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) _activeTextBlock = block;
+    });
+    return block;
+  }
+
+  void _disposeTextBlock(_RichTextBlock block) {
+    block.controller.removeListener(_onEditorChanged);
+    block.controller.dispose();
+    block.focusNode.dispose();
+  }
+
+  void _disposeBlock(_RichContentBlock block) {
+    final text = block.text;
+    if (text != null) _disposeTextBlock(text);
+    block.table?.dispose();
   }
 
   void _onEditorChanged() {
@@ -216,22 +255,44 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
   }
 
   void _submit() {
-    final (text, entities) = _controller.toFormatted();
-    final tableText = _tables
-        .map((table) => table.toMarkdown())
-        .where((table) => table.trim().isNotEmpty)
-        .join('\n\n');
-    final composedText = [
-      if (text.trim().isNotEmpty) text,
-      if (tableText.isNotEmpty) tableText,
-    ].join('\n\n');
+    final buffer = StringBuffer();
+    final entities = <Map<String, dynamic>>[];
+    var hasContent = false;
+    for (final block in _blocks) {
+      String text;
+      List<Map<String, dynamic>> blockEntities = const [];
+      if (block.text != null) {
+        final formatted = block.text!.controller.toFormatted();
+        text = formatted.$1;
+        blockEntities = formatted.$2;
+      } else {
+        text = block.table?.toMarkdown() ?? '';
+      }
+      if (text.trim().isEmpty) continue;
+      if (hasContent) buffer.write('\n\n');
+      final offset = buffer.length;
+      buffer.write(text);
+      for (final entity in blockEntities) {
+        entities.add(_shiftTextEntity(entity, offset));
+      }
+      hasContent = true;
+    }
     Navigator.of(context).pop(
       RichTextComposerResult(
-        text: composedText,
+        text: buffer.toString(),
         entities: entities,
         media: List<XFile>.of(_media),
       ),
     );
+  }
+
+  Map<String, dynamic> _shiftTextEntity(Map<String, dynamic> entity, int by) {
+    return {
+      ...entity,
+      'offset': ((entity['offset'] as int?) ?? 0) + by,
+      if (entity['type'] is Map<String, dynamic>)
+        'type': Map<String, dynamic>.of(entity['type'] as Map<String, dynamic>),
+    };
   }
 
   void _toggleFormat(String type, String placeholder) {
@@ -310,7 +371,35 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
   }
 
   void _insertTable() {
-    setState(() => _tables.add(_RichTableDraft()));
+    final textBlock = _activeTextBlock;
+    final index = _blocks.indexWhere((block) => block.text == textBlock);
+    final controller = textBlock.controller;
+    final text = controller.text;
+    final selection = controller.selection;
+    final start = selection.isValid
+        ? (selection.start < selection.end ? selection.start : selection.end)
+        : text.length;
+    final end = selection.isValid
+        ? (selection.start < selection.end ? selection.end : selection.start)
+        : text.length;
+    final before = text.substring(0, start);
+    final after = text.substring(end);
+    final nextText = _createTextBlock(after);
+    controller.value = TextEditingValue(
+      text: before,
+      selection: TextSelection.collapsed(offset: before.length),
+    );
+    setState(() {
+      final insertIndex = index < 0 ? _blocks.length : index + 1;
+      _blocks.insertAll(insertIndex, [
+        _RichContentBlock.table(_RichTableDraft()),
+        _RichContentBlock.text(nextText),
+      ]);
+      _activeTextBlock = nextText;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) nextText.focusNode.requestFocus();
+    });
   }
 
   void _insertCodeBlock() {
@@ -391,33 +480,8 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        SizedBox(
-                          height: _editorHeight(constraints.maxHeight),
-                          child: TextField(
-                            controller: _controller,
-                            autofocus: true,
-                            maxLines: null,
-                            expands: true,
-                            textAlignVertical: TextAlignVertical.top,
-                            contextMenuBuilder: (context, editableTextState) {
-                              return AdaptiveTextSelectionToolbar.editableText(
-                                editableTextState: editableTextState,
-                              );
-                            },
-                            style: TextStyle(
-                              fontSize: 16,
-                              height: 1.4,
-                              color: c.textPrimary,
-                            ),
-                            decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.all(16),
-                              border: InputBorder.none,
-                              hintText: widget.hintText.l10n(context),
-                              hintStyle: TextStyle(color: c.textTertiary),
-                            ),
-                          ),
-                        ),
-                        if (_tables.isNotEmpty) _inlineTables(c),
+                        for (var index = 0; index < _blocks.length; index++)
+                          _contentBlock(c, constraints.maxHeight, index),
                       ],
                     ),
                   ),
@@ -447,33 +511,80 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     );
   }
 
-  double _editorHeight(double availableHeight) {
-    if (_tables.isEmpty) return availableHeight;
-    return (availableHeight * 0.52).clamp(180.0, 360.0);
+  Widget _contentBlock(AppColors c, double availableHeight, int index) {
+    final block = _blocks[index];
+    final text = block.text;
+    if (text != null) {
+      return _textEditor(c, availableHeight, text);
+    }
+    final table = block.table;
+    if (table == null) return const SizedBox.shrink();
+    final tableNumber = _blocks
+        .take(index + 1)
+        .where((block) => block.table != null)
+        .length;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: _tableEditor(c, table, tableNumber),
+    );
   }
 
-  Widget _inlineTables(AppColors c) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: c.searchFill.withValues(alpha: 0.24),
-        border: Border(top: BorderSide(color: c.divider)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 0),
-        child: Column(
-          children: [
-            for (var index = 0; index < _tables.length; index++) ...[
-              if (index > 0) const SizedBox(height: 10),
-              _tableEditor(c, index),
-            ],
-          ],
+  Widget _textEditor(
+    AppColors c,
+    double availableHeight,
+    _RichTextBlock block,
+  ) {
+    return SizedBox(
+      height: _textBlockHeight(block, availableHeight),
+      child: TextField(
+        controller: block.controller,
+        focusNode: block.focusNode,
+        autofocus: block == _blocks.first.text,
+        maxLines: null,
+        expands: true,
+        textAlignVertical: TextAlignVertical.top,
+        contextMenuBuilder: (context, editableTextState) {
+          return AdaptiveTextSelectionToolbar.editableText(
+            editableTextState: editableTextState,
+          );
+        },
+        style: TextStyle(fontSize: 16, height: 1.4, color: c.textPrimary),
+        decoration: InputDecoration(
+          contentPadding: const EdgeInsets.all(16),
+          border: InputBorder.none,
+          hintText: _hasAnyText ? null : widget.hintText.l10n(context),
+          hintStyle: TextStyle(color: c.textTertiary),
         ),
       ),
     );
   }
 
-  Widget _tableEditor(AppColors c, int index) {
-    final table = _tables[index];
+  bool get _hasAnyText => _blocks.any(
+    (block) => block.text?.controller.text.trim().isNotEmpty ?? false,
+  );
+
+  double _textBlockHeight(_RichTextBlock block, double availableHeight) {
+    final hasTables = _blocks.any((block) => block.table != null);
+    if (!hasTables && _blocks.length == 1) return availableHeight;
+    final lineCount = block.controller.text.split('\n').length;
+    return (86.0 + lineCount * 23.0).clamp(120.0, 260.0);
+  }
+
+  void _removeTable(_RichTableDraft table) {
+    final index = _blocks.indexWhere((block) => block.table == table);
+    if (index < 0) return;
+    setState(() {
+      _blocks.removeAt(index).table?.dispose();
+      if (!_blocks.any((block) => block.text != null)) {
+        final text = _createTextBlock('');
+        _blocks.add(_RichContentBlock.text(text));
+        _activeTextBlock = text;
+      }
+    });
+  }
+
+  Widget _tableEditor(AppColors c, _RichTableDraft table, int tableNumber) {
+    final tableHeight = (table.rowCount * 42.0 + 18).clamp(102.0, 260.0);
     return Container(
       decoration: BoxDecoration(
         color: c.card,
@@ -494,7 +605,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${AppStringKeys.richTextComposerInsertTable.l10n(context)} ${index + 1}',
+                    '${AppStringKeys.richTextComposerInsertTable.l10n(context)} $tableNumber',
                     style: AppTextStyle.callout(
                       c.textPrimary,
                       weight: AppTextWeight.semibold,
@@ -540,35 +651,33 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                     context,
                   ),
                   destructive: true,
-                  onTap: () {
-                    setState(() {
-                      _tables.removeAt(index).dispose();
-                    });
-                  },
+                  onTap: () => _removeTable(table),
                 ),
               ],
             ),
           ),
-          SizedBox(
-            height: 128,
-            child: Scrollbar(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
-                child: Column(
-                  children: [
-                    for (var row = 0; row < table.rowCount; row++)
-                      Row(
-                        children: [
-                          for (
-                            var column = 0;
-                            column < table.columnCount;
-                            column++
-                          )
-                            _tableCell(c, table, row, column),
-                        ],
-                      ),
-                  ],
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: tableHeight),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
+              child: Scrollbar(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Column(
+                    children: [
+                      for (var row = 0; row < table.rowCount; row++)
+                        Row(
+                          children: [
+                            for (
+                              var column = 0;
+                              column < table.columnCount;
+                              column++
+                            )
+                              _tableCell(c, table, row, column),
+                          ],
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),
