@@ -19,6 +19,7 @@ import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import 'privacy_rule_options.dart';
 import 'qr_login_scanner_view.dart';
 
 // MARK: - Privacy rule chooser (所有人 / 我的联系人 / 没有人)
@@ -67,26 +68,14 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
   }
 
   int _decode(List<Map<String, dynamic>> rules) {
-    for (final r in rules) {
-      switch (r.type) {
-        case 'userPrivacySettingRuleAllowAll':
-          return 0;
-        case 'userPrivacySettingRuleAllowContacts':
-          return 1;
-        case 'userPrivacySettingRuleRestrictAll':
-          return 2;
-      }
-    }
-    return 0;
+    return PrivacyVisibilityOption.values.indexOf(
+      privacyVisibilityFromRules(rules),
+    );
   }
 
   Future<void> _select(int v) async {
     setState(() => _value = v);
-    final ruleType = switch (v) {
-      0 => 'userPrivacySettingRuleAllowAll',
-      1 => 'userPrivacySettingRuleAllowContacts',
-      _ => 'userPrivacySettingRuleRestrictAll',
-    };
+    final ruleType = PrivacyVisibilityOption.values[v].ruleType;
     try {
       await _client.query({
         '@type': 'setUserPrivacySettingRules',
@@ -148,7 +137,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                                 child: Row(
                                   children: [
                                     Text(
-                                      _labels[i],
+                                      AppStrings.t(_labels[i]),
                                       style: TextStyle(
                                         fontSize: 16,
                                         color: c.textPrimary,

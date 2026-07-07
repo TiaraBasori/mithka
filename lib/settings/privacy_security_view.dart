@@ -23,6 +23,7 @@ import 'account_backup_view.dart';
 import 'auto_delete_view.dart';
 import 'keyword_blocker_view.dart';
 import 'privacy_detail_views.dart';
+import 'privacy_rule_options.dart';
 
 class PrivacySecurityView extends StatefulWidget {
   const PrivacySecurityView({super.key});
@@ -69,25 +70,12 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
         'setting': {'@type': setting},
       });
       final rules = res.objects('rules') ?? const <Map<String, dynamic>>[];
-      var value = AppStrings.t(AppStringKeys.privacyVisibilityEveryone);
-      for (final r in rules) {
-        final t = r.type;
-        if (t == 'userPrivacySettingRuleAllowAll') {
-          value = AppStrings.t(AppStringKeys.privacyVisibilityEveryone);
-          break;
-        } else if (t == 'userPrivacySettingRuleAllowContacts') {
-          value = AppStrings.t(AppStringKeys.privacyVisibilityContacts);
-          break;
-        } else if (t == 'userPrivacySettingRuleRestrictAll') {
-          value = AppStrings.t(AppStringKeys.privacyVisibilityNobody);
-          break;
-        }
-      }
+      final value = privacyVisibilityFromRules(rules).labelKey;
       if (mounted) setState(() => _ruleValue[setting] = value);
     } catch (_) {}
   }
 
-  void _open(Widget screen) =>
+  Future<void> _open(Widget screen) =>
       Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
   Future<void> _openDeleteAccountPage() async {
@@ -127,10 +115,14 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                     AppStrings.t(AppStringKeys.privacyLastSeen),
                     _ruleValue['userPrivacySettingShowStatus'] ?? '',
                     () {
-                      _open(
-                        const PrivacyRuleView(
-                          title: AppStringKeys.privacyLastSeen,
-                          setting: 'userPrivacySettingShowStatus',
+                      unawaited(
+                        _open(
+                          const PrivacyRuleView(
+                            title: AppStringKeys.privacyLastSeen,
+                            setting: 'userPrivacySettingShowStatus',
+                          ),
+                        ).then(
+                          (_) => _loadRule('userPrivacySettingShowStatus'),
                         ),
                       );
                     },
@@ -140,10 +132,15 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                     AppStrings.t(AppStringKeys.privacyProfilePhoto),
                     _ruleValue['userPrivacySettingShowProfilePhoto'] ?? '',
                     () {
-                      _open(
-                        const PrivacyRuleView(
-                          title: AppStringKeys.privacyProfilePhoto,
-                          setting: 'userPrivacySettingShowProfilePhoto',
+                      unawaited(
+                        _open(
+                          const PrivacyRuleView(
+                            title: AppStringKeys.privacyProfilePhoto,
+                            setting: 'userPrivacySettingShowProfilePhoto',
+                          ),
+                        ).then(
+                          (_) =>
+                              _loadRule('userPrivacySettingShowProfilePhoto'),
                         ),
                       );
                     },
@@ -153,10 +150,14 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                     AppStringKeys.composerVoiceCall,
                     _ruleValue['userPrivacySettingAllowCalls'] ?? '',
                     () {
-                      _open(
-                        const PrivacyRuleView(
-                          title: AppStringKeys.composerVoiceCall,
-                          setting: 'userPrivacySettingAllowCalls',
+                      unawaited(
+                        _open(
+                          const PrivacyRuleView(
+                            title: AppStringKeys.composerVoiceCall,
+                            setting: 'userPrivacySettingAllowCalls',
+                          ),
+                        ).then(
+                          (_) => _loadRule('userPrivacySettingAllowCalls'),
                         ),
                       );
                     },
