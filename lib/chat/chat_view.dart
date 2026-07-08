@@ -33,6 +33,7 @@ import '../settings/topic_group_display_mode.dart';
 import '../settings/translation_api.dart';
 import '../settings/translation_controller.dart';
 import '../tdlib/json_helpers.dart';
+import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
@@ -69,6 +70,10 @@ class _MessageDeleteOptions {
 
   bool get hasAny =>
       deleteMessage || reportSpam || blockSender || deleteAllFromSender;
+}
+
+class _MessageThreadUnavailable implements Exception {
+  const _MessageThreadUnavailable();
 }
 
 class _MessageDeleteOptionsDialog extends StatefulWidget {
@@ -1670,6 +1675,55 @@ class _ChatViewState extends State<ChatView> {
         builder: (_) => StickerViewer(message: message),
       ),
     );
+  }
+
+  Future<void> _openMessageComments(ChatMessage message) async {
+    try {
+      try {
+        final properties = await TdClient.shared.query({
+          '@type': 'getMessageProperties',
+          'chat_id': widget.chatId,
+          'message_id': message.id,
+        });
+        if (properties.boolean('can_get_message_thread') == false) {
+          throw const _MessageThreadUnavailable();
+        }
+      } on _MessageThreadUnavailable {
+        rethrow;
+      } catch (_) {}
+      final thread = await TdClient.shared.query({
+        '@type': 'getMessageThread',
+        'chat_id': widget.chatId,
+        'message_id': message.id,
+      });
+      final targetChatId = thread.int64('chat_id') ?? widget.chatId;
+      final targetMessageId =
+          thread.int64('message_thread_id') ??
+          message.lastCommentMessageId ??
+          message.id;
+      var title = _vm.peerTitle;
+      try {
+        final chat = await TdClient.shared.query({
+          '@type': 'getChat',
+          'chat_id': targetChatId,
+        });
+        title = chat.str('title') ?? title;
+      } catch (_) {}
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ChatView(
+            chatId: targetChatId,
+            title: title,
+            initialMessageId: targetMessageId,
+          ),
+        ),
+      );
+    } catch (_) {
+      if (mounted) {
+        showToast(context, AppStringKeys.topicPostContentActionFailed);
+      }
+    }
   }
 
   Future<void> _pressMessageButton(
@@ -3318,6 +3372,7 @@ class _ChatViewState extends State<ChatView> {
                       }
                     },
                     onOpenReply: _scrollToMessage,
+                    onOpenComments: _openMessageComments,
                     onOpenImage: _openImage,
                     onOpenSticker: _openSticker,
                     onPlayVideo: _playVideo,

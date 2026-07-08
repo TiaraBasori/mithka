@@ -37,7 +37,8 @@ class TopicPostContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final children = <Widget>[];
-    if (text.isNotEmpty) {
+    final documentCaption = message.document == null ? '' : text.trim();
+    if (text.isNotEmpty && message.document == null) {
       children.add(
         TelegramRichText(
           text: text,
@@ -54,7 +55,13 @@ class TopicPostContent extends StatelessWidget {
       if (reactions != null) children.add(reactions);
     }
     if (message.document != null) {
-      children.add(_TopicFileCard(document: message.document!));
+      children.add(
+        _TopicFileCard(
+          document: message.document!,
+          caption: documentCaption,
+          captionEntities: message.textEntities,
+        ),
+      );
     }
     if (message.buttonRows.isNotEmpty) {
       children.add(_TopicButtonRows(chatId: chatId, message: message));
@@ -107,9 +114,15 @@ class _TopicContentImage extends StatelessWidget {
 }
 
 class _TopicFileCard extends StatelessWidget {
-  const _TopicFileCard({required this.document});
+  const _TopicFileCard({
+    required this.document,
+    required this.caption,
+    required this.captionEntities,
+  });
 
   final MessageDocument document;
+  final String caption;
+  final List<MessageTextEntity> captionEntities;
 
   @override
   Widget build(BuildContext context) {
@@ -127,28 +140,48 @@ class _TopicFileCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: c.divider, width: 0.5),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    document.fileName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 15, color: c.textPrimary),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        document.fileName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 15, color: c.textPrimary),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        _byteString(document.size),
+                        style: TextStyle(fontSize: 12, color: c.textSecondary),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 5),
-                  Text(
-                    _byteString(document.size),
-                    style: TextStyle(fontSize: 12, color: c.textSecondary),
-                  ),
-                ],
-              ),
+                ),
+                const SizedBox(width: 10),
+                _FileGlyph(ext: document.ext),
+              ],
             ),
-            const SizedBox(width: 10),
-            _FileGlyph(ext: document.ext),
+            if (caption.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(height: 0.5, color: c.divider),
+              const SizedBox(height: 8),
+              TelegramRichText(
+                text: caption,
+                entities: captionEntities,
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.35,
+                  color: c.textPrimary,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
           ],
         ),
       ),

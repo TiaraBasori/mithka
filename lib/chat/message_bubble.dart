@@ -68,6 +68,7 @@ class MessageBubble extends StatefulWidget {
     this.onPlayVideo,
     this.onButtonTap,
     this.onBotCommandTap,
+    this.onOpenComments,
     this.onToggleReaction,
     this.onShowReactionUsers,
     this.onRedial,
@@ -97,6 +98,7 @@ class MessageBubble extends StatefulWidget {
   final ValueChanged<ChatMessage>? onPlayVideo;
   final void Function(ChatMessage message, MessageButton button)? onButtonTap;
   final ValueChanged<String>? onBotCommandTap;
+  final ValueChanged<ChatMessage>? onOpenComments;
   final ValueChanged<MessageReaction>? onToggleReaction;
   final void Function(ChatMessage message, MessageReaction reaction)?
   onShowReactionUsers;
@@ -524,7 +526,7 @@ class _MessageBubbleState extends State<MessageBubble>
     } else if (message.voice != null) {
       body = _voiceBubble(message.voice!, outgoing);
     } else if (message.document != null) {
-      body = _fileCard(message.document!);
+      body = _fileCard(message.document!, outgoing);
     } else {
       body = _textBubble(message.text, outgoing);
     }
@@ -588,13 +590,72 @@ class _MessageBubbleState extends State<MessageBubble>
   );
 
   Widget _withButtonRows(Widget body, bool outgoing) {
-    if (message.buttonRows.isEmpty) return body;
+    final showComments = message.commentCount > 0;
+    if (message.buttonRows.isEmpty && !showComments) return body;
+    final extras = <Widget>[
+      if (showComments) _commentThreadRow(outgoing),
+      if (message.buttonRows.isNotEmpty) _buttonRows(outgoing),
+    ];
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: outgoing
           ? CrossAxisAlignment.end
           : CrossAxisAlignment.start,
-      children: [body, const SizedBox(height: 6), _buttonRows(outgoing)],
+      children: [
+        body,
+        for (final extra in extras) ...[const SizedBox(height: 6), extra],
+      ],
+    );
+  }
+
+  Widget _commentThreadRow(bool outgoing) {
+    final c = context.colors;
+    final count = message.commentCount;
+    final label = AppStrings.t(AppStringKeys.momentsCommentCount, {
+      'value1': count,
+    });
+    final bg = outgoing
+        ? Colors.white.withValues(alpha: 0.16)
+        : c.card.withValues(alpha: 0.92);
+    final fg = outgoing ? Colors.white : c.textPrimary;
+    final sub = outgoing ? Colors.white.withValues(alpha: 0.72) : c.linkBlue;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => widget.onOpenComments?.call(message),
+      child: Container(
+        width: _bubbleMaxWidth(),
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: outgoing
+                ? Colors.white.withValues(alpha: 0.12)
+                : c.divider.withValues(alpha: 0.7),
+            width: 0.5,
+          ),
+        ),
+        child: Row(
+          children: [
+            AppIcon(HeroAppIcons.comments, size: 18, color: sub),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: fg,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ),
+            AppIcon(HeroAppIcons.chevronRight, size: 17, color: sub),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2702,8 +2763,9 @@ class _MessageBubbleState extends State<MessageBubble>
 
   // MARK: - File card
 
-  Widget _fileCard(MessageDocument doc) {
+  Widget _fileCard(MessageDocument doc, bool outgoing) {
     final c = context.colors;
+    final caption = _fileCaptionText;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => Navigator.of(
@@ -2717,32 +2779,69 @@ class _MessageBubbleState extends State<MessageBubble>
           borderRadius: BorderRadius.circular(6),
           border: Border.all(color: c.divider, width: 0.5),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Column(
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        doc.fileName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: c.bubbleIncomingText,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _byteString(doc.size),
+                        style: TextStyle(fontSize: 12, color: c.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                _fileGlyph(doc.ext),
+              ],
+            ),
+            if (caption.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(height: 0.5, color: c.divider),
+              const SizedBox(height: 8),
+              Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    doc.fileName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 15, color: c.bubbleIncomingText),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _byteString(doc.size),
-                    style: TextStyle(fontSize: 12, color: c.textSecondary),
+                  ..._richTextWidgets(
+                    caption,
+                    c.textPrimary,
+                    c.linkBlue,
+                    outgoing,
+                    false,
                   ),
                 ],
               ),
-            ),
-            const SizedBox(width: 8),
-            _fileGlyph(doc.ext),
+            ],
           ],
         ),
       ),
     );
+  }
+
+  String get _fileCaptionText {
+    final text = message.text.trim();
+    if (text.isEmpty ||
+        text == AppStringKeys.channelsFileAttachment ||
+        text == AppStringKeys.composerImagePreview ||
+        text == AppStringKeys.chatVideoPlaceholder ||
+        (text.startsWith('[') && text.endsWith(']'))) {
+      return '';
+    }
+    return text;
   }
 
   Widget _fileGlyph(String ext) {
