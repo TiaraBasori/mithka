@@ -369,7 +369,7 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
       self.stop(notifyFlutter: false)
     }
     startTimeout = timeout
-    DispatchQueue.main.asyncAfter(deadline: .now() + 3.0, execute: timeout)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: timeout)
 
     DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
       guard let self, self.pictureInPictureController === pipController else { return }
@@ -379,8 +379,9 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
 
   private func attach(player: AVPlayer) -> (AVPlayerLayer, AVPictureInPictureController, UIView)? {
     guard let root = Self.rootViewController() else { return nil }
-    let hostView = UIView(frame: CGRect(x: 1, y: 1, width: 2, height: 2))
-    hostView.alpha = 0.02
+    let hostView = UIView(frame: root.view.bounds)
+    hostView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    hostView.alpha = 0.01
     hostView.isUserInteractionEnabled = false
     let layer = AVPlayerLayer(player: player)
     layer.frame = hostView.bounds

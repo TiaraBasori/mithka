@@ -329,7 +329,8 @@ class VideoPlayerView extends StatefulWidget {
   State<VideoPlayerView> createState() => _VideoPlayerViewState();
 }
 
-class _VideoPlayerViewState extends State<VideoPlayerView> {
+class _VideoPlayerViewState extends State<VideoPlayerView>
+    with WidgetsBindingObserver {
   VideoPlayerController? _controller;
   bool _failed = false;
   bool _controlsVisible = true;
@@ -346,6 +347,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   _TdVideoStreamServer? _streamServer;
   bool _openedCompletedLocalFile = false;
   bool _systemPiPHandoff = false;
+  bool _autoSystemPiPStarting = false;
+  bool _autoSystemPiPAttempted = false;
 
   static const _speeds = <double>[0.5, 0.75, 1, 1.25, 1.5, 2];
   static const _resumePrefix = 'mithka.video.resume.';
@@ -356,6 +359,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     if (widget.initialMuted) _volume = 0;
     _load();
   }
@@ -641,7 +645,37 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _autoSystemPiPAttempted = false;
+      return;
+    }
+    if (state != AppLifecycleState.inactive &&
+        state != AppLifecycleState.hidden &&
+        state != AppLifecycleState.paused) {
+      return;
+    }
+    final c = _controller;
+    if (widget.presentation != VideoPlayerPresentation.fullscreen ||
+        _autoSystemPiPStarting ||
+        _autoSystemPiPAttempted ||
+        _systemPiPHandoff ||
+        c == null ||
+        !c.value.isInitialized) {
+      return;
+    }
+    _autoSystemPiPAttempted = true;
+    _autoSystemPiPStarting = true;
+    unawaited(
+      _startSystemPictureInPicture().whenComplete(() {
+        _autoSystemPiPStarting = false;
+      }),
+    );
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _hideTimer?.cancel();
     _progressSub?.cancel();
     unawaited(_storePlaybackPosition(force: true));
@@ -668,9 +702,16 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         children: [
           if (ready) _videoFrame(c) else _loadingState(),
           if (ready && _controlsVisible) ..._controlChromeBlocks(visible: true),
-          if (ready && _controlsVisible) _topTechnicalInfo(_debugText(c)),
+          if (ready &&
+              _controlsVisible &&
+              widget.presentation != VideoPlayerPresentation.pictureInPicture)
+            _topTechnicalInfo(_debugText(c)),
           if (ready && _controlsVisible) ..._controls(c),
-          if (!ready || _controlsVisible) _closeButton(),
+          if (!ready || _controlsVisible)
+            widget.presentation == VideoPlayerPresentation.pictureInPicture &&
+                    ready
+                ? _pipTopBar(c)
+                : _closeButton(),
         ],
       ),
     );
@@ -887,6 +928,44 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     );
   }
 
+  Widget _pipTopBar(VideoPlayerController c) {
+    return Positioned(
+      top: 3,
+      left: 8,
+      right: 4,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Flexible(
+            child: Text(
+              _pipStatusLine(c),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: Color(0xFF8E8E93),
+                fontSize: 9,
+                height: 1.1,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 4),
+          _plainIconButton(HeroAppIcons.xmark.data, _close, size: 28),
+        ],
+      ),
+    );
+  }
+
+  String _pipStatusLine(VideoPlayerController c) {
+    final size = c.value.size;
+    final dimensions =
+        '${size.width.round()}x${size.height.round()} · ${_speedText(_speed)}';
+    final p = _progress;
+    if (p == null) return dimensions;
+    return '$dimensions · ${_byteString(p.downloaded)} / ${_byteString(p.total)}';
+  }
+
   Widget _loadingState() {
     final aspect =
         (widget.width != null &&
@@ -948,7 +1027,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
           )
         else ...[
           ..._controlChromeBlocks(visible: true),
-          _topTechnicalInfo(_loadingDebugText()),
+          if (widget.presentation != VideoPlayerPresentation.pictureInPicture)
+            _topTechnicalInfo(_loadingDebugText()),
           ..._pendingControls(),
         ],
       ],
