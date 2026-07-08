@@ -793,25 +793,15 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                   builder: (tab) => _tabletSidebarRoot(tab.index),
                 ),
               ),
-              Consumer<dc.TabBarVisibility>(
-                builder: (context, vis, _) {
-                  return AnimatedSize(
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeInOut,
-                    child: vis.isChatSuppressed
-                        ? const SizedBox(width: double.infinity)
-                        : AnimatedBuilder(
-                            animation: _unread,
-                            builder: (context, _) => _ClassicTabBar(
-                              selection: selection,
-                              onSelect: _select,
-                              items: tabs,
-                              onClearUnread: _chatListController.markAllRead,
-                              unread: _unread.countFor(theme.unreadBadgeMode),
-                            ),
-                          ),
-                  );
-                },
+              AnimatedBuilder(
+                animation: _unread,
+                builder: (context, _) => _ClassicTabBar(
+                  selection: selection,
+                  onSelect: _select,
+                  items: tabs,
+                  onClearUnread: _chatListController.markAllRead,
+                  unread: _unread.countFor(theme.unreadBadgeMode),
+                ),
               ),
             ],
           ),
