@@ -287,6 +287,7 @@ class ChatView extends StatefulWidget {
     this.showHeaderDivider = true,
     this.headerBottom,
     this.headerBottomHeight = 44,
+    this.onOpenTopicMode,
     this.onBack,
   });
   final int chatId;
@@ -299,6 +300,7 @@ class ChatView extends StatefulWidget {
   final bool showHeaderDivider;
   final Widget? headerBottom;
   final double headerBottomHeight;
+  final ValueChanged<int?>? onOpenTopicMode;
   final VoidCallback? onBack;
 
   @override
@@ -2831,6 +2833,11 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _openTopicMode([int? threadId]) async {
     await TopicGroupDisplayPreference.set(TopicGroupDisplayMode.channel);
     if (!mounted) return;
+    final onOpenTopicMode = widget.onOpenTopicMode;
+    if (onOpenTopicMode != null) {
+      onOpenTopicMode(threadId);
+      return;
+    }
     unawaited(
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(

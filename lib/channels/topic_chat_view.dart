@@ -44,6 +44,7 @@ class TopicChatView extends StatefulWidget {
     this.headerHeight = 48,
     this.headerColor,
     this.chatRouteBelow = false,
+    this.onOpenChatView,
   });
 
   final ChatSummary chat;
@@ -53,6 +54,7 @@ class TopicChatView extends StatefulWidget {
   final double headerHeight;
   final Color? headerColor;
   final bool chatRouteBelow;
+  final VoidCallback? onOpenChatView;
 
   @override
   State<TopicChatView> createState() => _TopicChatViewState();
@@ -523,6 +525,11 @@ class _TopicChatViewState extends State<TopicChatView> {
   Future<void> _openChatView() async {
     await TopicGroupDisplayPreference.set(TopicGroupDisplayMode.chat);
     if (!mounted) return;
+    final onOpenChatView = widget.onOpenChatView;
+    if (onOpenChatView != null) {
+      onOpenChatView();
+      return;
+    }
     if (widget.chatRouteBelow) {
       Navigator.of(context).pop();
       return;

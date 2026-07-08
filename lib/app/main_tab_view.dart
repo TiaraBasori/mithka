@@ -7,6 +7,7 @@
 //  the Swift `MainTabView`.
 //
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -26,6 +27,7 @@ import '../contacts/contacts_view.dart';
 import '../l10n/app_localizations.dart';
 import '../moments/moments_view.dart';
 import '../profile/profile_view.dart';
+import '../settings/topic_group_display_mode.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -962,6 +964,22 @@ class _ForumSplitDetailPane extends StatefulWidget {
 
 class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
   var _index = 0;
+  int? _topicThreadId;
+
+  Future<void> _showChatMode() async {
+    await TopicGroupDisplayPreference.set(TopicGroupDisplayMode.chat);
+    if (!mounted) return;
+    setState(() => _index = 0);
+  }
+
+  Future<void> _showChannelMode([int? threadId]) async {
+    await TopicGroupDisplayPreference.set(TopicGroupDisplayMode.channel);
+    if (!mounted) return;
+    setState(() {
+      _index = 1;
+      _topicThreadId = threadId;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -975,12 +993,17 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
             headerHeight: widget.headerHeight,
             headerColor: widget.headerColor,
             headerBottom: _tabSwitcher(c),
+            onOpenTopicMode: (threadId) =>
+                unawaited(_showChannelMode(threadId)),
           )
         : TopicChatView(
+            key: ValueKey('${widget.chat.id}:${_topicThreadId ?? 0}'),
             chat: widget.chat,
+            initialThreadId: _topicThreadId,
             showBackButton: false,
             headerHeight: widget.headerHeight,
             headerColor: widget.headerColor,
+            onOpenChatView: () => unawaited(_showChatMode()),
           );
   }
 
@@ -1003,13 +1026,13 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
                 selected: _index == 0,
                 icon: HeroAppIcons.solidMessage,
                 label: AppStringKeys.tabMessages,
-                onTap: () => setState(() => _index = 0),
+                onTap: () => unawaited(_showChatMode()),
               ),
               _ForumDetailTabButton(
                 selected: _index == 1,
                 icon: HeroAppIcons.hashtag,
                 label: AppStringKeys.topicChatAllTopics,
-                onTap: () => setState(() => _index = 1),
+                onTap: () => unawaited(_showChannelMode()),
               ),
             ],
           ),
