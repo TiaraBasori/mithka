@@ -279,6 +279,9 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
   private var activeId: String?
   private var pendingStartResult: FlutterResult?
   private var startTimeout: DispatchWorkItem?
+  private var possibleObservation: NSKeyValueObservation?
+  private var statusObservation: NSKeyValueObservation?
+  private var preferredRate: Float = 1.0
 
   init(messenger: FlutterBinaryMessenger) {
     channel = FlutterMethodChannel(
@@ -297,6 +300,20 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
     switch call.method {
     case "isSupported":
       result(AVPictureInPictureController.isPictureInPictureSupported())
+    case "prepare":
+      result(prepare(call: call))
+    case "startPrepared":
+      startPrepared(call: call, result: result)
+    case "update":
+      update(call: call)
+      result(nil)
+    case "cancel":
+      let args = call.arguments as? [String: Any]
+      let id = args?["id"] as? String
+      if id == nil || id == activeId {
+        stop(notifyFlutter: false)
+      }
+      result(nil)
     case "start":
       start(call: call, result: result)
     case "stop":
@@ -308,9 +325,16 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
   }
 
   private func start(call: FlutterMethodCall, result: @escaping FlutterResult) {
-    guard AVPictureInPictureController.isPictureInPictureSupported() else {
+    guard prepare(call: call) else {
       result(false)
       return
+    }
+    startPrepared(call: call, result: result)
+  }
+
+  private func prepare(call: FlutterMethodCall) -> Bool {
+    guard AVPictureInPictureController.isPictureInPictureSupported() else {
+      return false
     }
     guard
       let args = call.arguments as? [String: Any],
@@ -318,8 +342,7 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
       let rawURL = args["url"] as? String,
       let url = URL(string: rawURL)
     else {
-      result(false)
-      return
+      return false
     }
 
     stop(notifyFlutter: false)
@@ -334,20 +357,10 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
 
     let item = AVPlayerItem(url: url)
     let player = AVPlayer(playerItem: item)
-    player.isMuted = args["muted"] as? Bool ?? false
-    let speed = (args["speed"] as? NSNumber)?.floatValue ?? 1.0
-    let positionMs = (args["positionMs"] as? NSNumber)?.doubleValue ?? 0
-    if positionMs > 0 {
-      player.seek(
-        to: CMTime(seconds: positionMs / 1000.0, preferredTimescale: 600),
-        toleranceBefore: .zero,
-        toleranceAfter: .zero
-      )
-    }
+    applyPlaybackArguments(args, to: player, shouldSeek: true)
 
     guard let (layer, pipController, hostView) = attach(player: player) else {
-      result(false)
-      return
+      return false
     }
 
     self.activeId = id
@@ -355,9 +368,74 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
     self.playerLayer = layer
     self.pictureInPictureController = pipController
     self.hostView = hostView
+    return true
+  }
+
+  private func startPrepared(call: FlutterMethodCall, result: @escaping FlutterResult) {
+    guard
+      let args = call.arguments as? [String: Any],
+      let id = args["id"] as? String,
+      id == activeId,
+      let player,
+      let pipController = pictureInPictureController
+    else {
+      result(false)
+      return
+    }
+
+    applyPlaybackArguments(args, to: player, shouldSeek: true)
+    beginPictureInPictureStart(player: player, pipController: pipController, result: result)
+  }
+
+  private func update(call: FlutterMethodCall) {
+    guard
+      let args = call.arguments as? [String: Any],
+      let id = args["id"] as? String,
+      id == activeId,
+      let player
+    else {
+      return
+    }
+    applyPlaybackArguments(args, to: player, shouldSeek: true)
+  }
+
+  private func applyPlaybackArguments(
+    _ args: [String: Any],
+    to player: AVPlayer,
+    shouldSeek: Bool
+  ) {
+    player.isMuted = args["muted"] as? Bool ?? false
+    preferredRate = (args["speed"] as? NSNumber)?.floatValue ?? 1.0
+    if shouldSeek {
+      let positionMs = (args["positionMs"] as? NSNumber)?.doubleValue ?? 0
+      if positionMs > 0 {
+        let currentMs = player.currentTime().seconds * 1000
+        if currentMs.isNaN || abs(currentMs - positionMs) > 750 {
+          player.seek(
+            to: CMTime(seconds: positionMs / 1000.0, preferredTimescale: 600),
+            toleranceBefore: .zero,
+            toleranceAfter: .zero
+          )
+        }
+      }
+    }
+  }
+
+  private func beginPictureInPictureStart(
+    player: AVPlayer,
+    pipController: AVPictureInPictureController,
+    result: @escaping FlutterResult
+  ) {
+    startTimeout?.cancel()
+    startTimeout = nil
+    possibleObservation?.invalidate()
+    possibleObservation = nil
+    statusObservation?.invalidate()
+    statusObservation = nil
     self.pendingStartResult = result
 
     player.play()
+    let speed = preferredRate
     if speed > 0, speed != 1.0 {
       player.rate = speed
     }
@@ -366,22 +444,69 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
       guard let self, self.pendingStartResult != nil else { return }
       self.pendingStartResult?(false)
       self.pendingStartResult = nil
+      self.possibleObservation?.invalidate()
+      self.possibleObservation = nil
+      self.statusObservation?.invalidate()
+      self.statusObservation = nil
       self.stop(notifyFlutter: false)
     }
     startTimeout = timeout
-    DispatchQueue.main.asyncAfter(deadline: .now() + 1.5, execute: timeout)
+    DispatchQueue.main.asyncAfter(deadline: .now() + 6.0, execute: timeout)
 
-    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-      guard let self, self.pictureInPictureController === pipController else { return }
-      pipController.startPictureInPicture()
+    possibleObservation = pipController.observe(
+      \.isPictureInPicturePossible,
+      options: [.initial, .new]
+    ) { [weak self, weak pipController] _, _ in
+      Task { @MainActor in
+        guard let self, let pipController else { return }
+        self.startPictureInPictureIfPossible(pipController)
+      }
     }
+
+    statusObservation = player.currentItem?.observe(
+      \.status,
+      options: [.initial, .new]
+    ) { [weak self] item, _ in
+      Task { @MainActor in
+        if item.status == .failed {
+          self?.pendingStartResult?(false)
+          self?.pendingStartResult = nil
+          self?.stop(notifyFlutter: false)
+        }
+      }
+    }
+  }
+
+  private func startPictureInPictureIfPossible(_ pipController: AVPictureInPictureController) {
+    guard
+      pendingStartResult != nil,
+      pictureInPictureController === pipController,
+      pipController.isPictureInPicturePossible
+    else {
+      return
+    }
+    possibleObservation?.invalidate()
+    possibleObservation = nil
+    statusObservation?.invalidate()
+    statusObservation = nil
+    pipController.startPictureInPicture()
   }
 
   private func attach(player: AVPlayer) -> (AVPlayerLayer, AVPictureInPictureController, UIView)? {
     guard let root = Self.rootViewController() else { return nil }
-    let hostView = UIView(frame: root.view.bounds)
-    hostView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-    hostView.alpha = 0.01
+    let hostSize: CGFloat = 2
+    let hostView = UIView(
+      frame: CGRect(
+        x: max(0, root.view.bounds.maxX - hostSize),
+        y: max(0, root.view.bounds.maxY - hostSize),
+        width: hostSize,
+        height: hostSize
+      )
+    )
+    hostView.autoresizingMask = [.flexibleLeftMargin, .flexibleTopMargin]
+    hostView.alpha = 0.02
+    hostView.backgroundColor = .clear
+    hostView.clipsToBounds = true
     hostView.isUserInteractionEnabled = false
     let layer = AVPlayerLayer(player: player)
     layer.frame = hostView.bounds
@@ -395,7 +520,7 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
     }
     pipController.delegate = self
     if #available(iOS 14.2, *) {
-      pipController.canStartPictureInPictureAutomaticallyFromInline = true
+      pipController.canStartPictureInPictureAutomaticallyFromInline = false
     }
     return (layer, pipController, hostView)
   }
@@ -403,6 +528,10 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
   private func stop(notifyFlutter: Bool = true) {
     startTimeout?.cancel()
     startTimeout = nil
+    possibleObservation?.invalidate()
+    possibleObservation = nil
+    statusObservation?.invalidate()
+    statusObservation = nil
     pendingStartResult?(false)
     pendingStartResult = nil
 
@@ -420,6 +549,7 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
     hostView = nil
     player = nil
     activeId = nil
+    preferredRate = 1.0
 
     if notifyFlutter, let stoppedId {
       channel.invokeMethod("didStop", arguments: ["id": stoppedId])

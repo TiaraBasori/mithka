@@ -317,8 +317,19 @@ class _TranscriptEntry {
   );
 }
 
+class _ChatScrollSnapshot {
+  const _ChatScrollSnapshot({
+    required this.pixels,
+    required this.wasAtLoadedBottom,
+  });
+
+  final double pixels;
+  final bool wasAtLoadedBottom;
+}
+
 class _ChatViewState extends State<ChatView> {
   late final bool _openAtLatest;
+  late final _ChatScrollSnapshot? _sessionScrollSnapshot;
   late final ChatViewModel _vm;
   late final ScrollController _scroll;
   final _pinnedKey = GlobalKey(); // the pinned message's row, for scroll-to
@@ -359,6 +370,7 @@ class _ChatViewState extends State<ChatView> {
   static const _initialTargetAlignment = 0.30;
   static const _initialUnreadAlignment = 0.12;
   static OverlayEntry? _globalPictureInPictureVideo;
+  static final Map<int, _ChatScrollSnapshot> _sessionScrollSnapshots = {};
 
   double _messageMediaMaxWidth([double? chatWidth]) {
     final width = chatWidth ?? MediaQuery.sizeOf(context).width;
@@ -369,8 +381,13 @@ class _ChatViewState extends State<ChatView> {
   void initState() {
     super.initState();
     _openAtLatest = context.read<ThemeController>().openChatsAtLatest;
+    _sessionScrollSnapshot = widget.initialMessageId == null
+        ? _sessionScrollSnapshots[widget.chatId]
+        : null;
     _scroll = ScrollController(
-      initialScrollOffset: _openAtLatest ? _initialBottomScrollOffset : 0,
+      initialScrollOffset: _shouldRestoreSessionScroll
+          ? _sessionScrollSnapshot!.pixels
+          : (_openAtLatest ? _initialBottomScrollOffset : 0),
     )..addListener(_onScroll);
     _vm = ChatViewModel(
       chatId: widget.chatId,
@@ -388,6 +405,13 @@ class _ChatViewState extends State<ChatView> {
     // Load premium status early so the message menu can correctly hide the
     // emoji add/表情包 actions for non-premium users (the menu reads it).
     EmojiStore.shared.loadIfNeeded();
+  }
+
+  bool get _shouldRestoreSessionScroll {
+    final snapshot = _sessionScrollSnapshot;
+    if (snapshot == null || widget.initialMessageId != null) return false;
+    if (snapshot.wasAtLoadedBottom && _openAtLatest) return false;
+    return true;
   }
 
   void _retainTabBarSuppression() {
@@ -409,6 +433,7 @@ class _ChatViewState extends State<ChatView> {
     final pos = _scroll.position;
     final scrollingUp = pos.pixels < _lastScrollPixels;
     _lastScrollPixels = pos.pixels;
+    _saveSessionScrollSnapshot();
     if (_selectionAnchorId != null && scrollingUp != _selectionScrollingUp) {
       setState(() => _selectionScrollingUp = scrollingUp);
     }
@@ -436,6 +461,20 @@ class _ChatViewState extends State<ChatView> {
         !_isAtLoadedBottom() &&
         (_vm.anchoredHistory || pos.maxScrollExtent - pos.pixels > 120);
     if (show != _showJumpDown) setState(() => _showJumpDown = show);
+  }
+
+  void _saveSessionScrollSnapshot() {
+    if (!_didInitialScroll ||
+        !_scroll.hasClients ||
+        widget.initialMessageId != null) {
+      return;
+    }
+    final pos = _scroll.position;
+    if (!pos.hasContentDimensions) return;
+    _sessionScrollSnapshots[widget.chatId] = _ChatScrollSnapshot(
+      pixels: pos.pixels.clamp(pos.minScrollExtent, pos.maxScrollExtent),
+      wasAtLoadedBottom: _isAtLoadedBottom(),
+    );
   }
 
   bool _isNearBottom([double threshold = 160]) {
@@ -692,8 +731,49 @@ class _ChatViewState extends State<ChatView> {
   /// deterministic estimate immediately and then do one zero-duration correction
   /// after layout, without waiting to reveal the UI.
   Future<void> _completeInitialScroll() async {
-    unawaited(_positionInitialTranscript());
-    _scheduleShortTranscriptFill();
+    if (_shouldRestoreSessionScroll) {
+      unawaited(_restoreSessionScrollPosition());
+    } else {
+      unawaited(_positionInitialTranscript());
+      _scheduleShortTranscriptFill();
+    }
+  }
+
+  Future<void> _restoreSessionScrollPosition() async {
+    final snapshot = _sessionScrollSnapshot;
+    if (snapshot == null || !_scroll.hasClients) return;
+    _jumpToSessionScrollSnapshot(snapshot);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !_scroll.hasClients) return;
+
+    var guard = 0;
+    while (mounted &&
+        _scroll.hasClients &&
+        _vm.canLoadOlder &&
+        _scroll.position.maxScrollExtent + 24 < snapshot.pixels &&
+        guard < 6) {
+      final loaded = await _vm.loadOlderLocal(restorePosition: false);
+      if (!loaded) break;
+      await WidgetsBinding.instance.endOfFrame;
+      guard++;
+    }
+
+    if (!mounted || !_scroll.hasClients) return;
+    _jumpToSessionScrollSnapshot(snapshot);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !_scroll.hasClients) return;
+    _jumpToSessionScrollSnapshot(snapshot);
+    _saveSessionScrollSnapshot();
+  }
+
+  void _jumpToSessionScrollSnapshot(_ChatScrollSnapshot snapshot) {
+    if (!_scroll.hasClients) return;
+    final pos = _scroll.position;
+    final target = snapshot.pixels.clamp(
+      pos.minScrollExtent,
+      pos.maxScrollExtent,
+    );
+    _scroll.jumpTo(target);
   }
 
   Future<void> _positionInitialTranscript() async {
@@ -760,7 +840,7 @@ class _ChatViewState extends State<ChatView> {
     }
     if (_vm.anchoredHistory) return true;
     if (_openAtLatest) {
-      _scrollToBottom();
+      _scrollToBottom(settle: true, forceSettle: true);
       unawaited(_vm.markLoadedMessagesRead());
       return true;
     }
@@ -1216,6 +1296,7 @@ class _ChatViewState extends State<ChatView> {
 
   @override
   void dispose() {
+    _saveSessionScrollSnapshot();
     _tabBarVisibility?.releaseChatSuppression();
     _bannerTimer?.cancel();
     _vm.removeListener(_onModel);
@@ -2581,7 +2662,7 @@ class _ChatViewState extends State<ChatView> {
   Widget _header() {
     final c = context.colors;
     final subtitle = _vm.subtitle;
-    final typing = subtitle.endsWith(AppStringKeys.chatTyping);
+    final actionActive = _vm.hasActiveChatAction;
     return Container(
       padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
       decoration: BoxDecoration(
@@ -2611,7 +2692,7 @@ class _ChatViewState extends State<ChatView> {
                 )
               else
                 const SizedBox(width: 4),
-              Expanded(child: _headerTitleBlock(subtitle, typing)),
+              Expanded(child: _headerTitleBlock(subtitle, actionActive)),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => Navigator.of(context).push(
@@ -2647,7 +2728,7 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _headerTitleBlock(String subtitle, bool typing) {
+  Widget _headerTitleBlock(String subtitle, bool actionActive) {
     final c = context.colors;
     final title = Text(
       _vm.headerTitle,
@@ -2684,7 +2765,7 @@ class _ChatViewState extends State<ChatView> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 12,
-              color: typing ? AppTheme.brand : c.textSecondary,
+              color: actionActive ? AppTheme.brand : c.textSecondary,
             ),
           ),
       ],

@@ -102,6 +102,7 @@ class HeroAppIcons {
   static const penToSquare = AppIconData(HeroiconsOutline.pencilSquare);
   static const phone = AppIconData(HeroiconsOutline.phone);
   static const phoneSlash = AppIconData(HeroiconsOutline.phoneXMark);
+  static const pictureInPicture = AppIconData(HeroiconsOutline.rectangleStack);
   static const play = AppIconData(HeroiconsOutline.play);
   static const plus = AppIconData(HeroiconsOutline.plus);
   static const qrcode = AppIconData(HeroiconsOutline.qrCode);

@@ -329,8 +329,7 @@ class VideoPlayerView extends StatefulWidget {
   State<VideoPlayerView> createState() => _VideoPlayerViewState();
 }
 
-class _VideoPlayerViewState extends State<VideoPlayerView>
-    with WidgetsBindingObserver {
+class _VideoPlayerViewState extends State<VideoPlayerView> {
   VideoPlayerController? _controller;
   bool _failed = false;
   bool _controlsVisible = true;
@@ -347,8 +346,10 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   _TdVideoStreamServer? _streamServer;
   bool _openedCompletedLocalFile = false;
   bool _systemPiPHandoff = false;
-  bool _autoSystemPiPStarting = false;
-  bool _autoSystemPiPAttempted = false;
+  bool _systemPiPSupported = false;
+  bool _systemPiPPrepared = false;
+  String? _systemPiPId;
+  int _lastSystemPiPSyncMs = -1;
 
   static const _speeds = <double>[0.5, 0.75, 1, 1.25, 1.5, 2];
   static const _resumePrefix = 'mithka.video.resume.';
@@ -359,7 +360,6 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     if (widget.initialMuted) _volume = 0;
     _load();
   }
@@ -472,6 +472,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     }
     c.addListener(_onTick);
     setState(() => _controller = c);
+    unawaited(_refreshSystemPictureInPictureSupport());
     _scheduleHide();
     return true;
   }
@@ -479,7 +480,33 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   // Rebuild for play/pause + scrubber position changes.
   void _onTick() {
     _storePlaybackPositionIfNeeded();
+    _syncSystemPictureInPictureIfNeeded();
     if (mounted) setState(() {});
+  }
+
+  void _syncSystemPictureInPictureIfNeeded() {
+    final id = _systemPiPId;
+    final c = _controller;
+    if (id == null ||
+        !_systemPiPPrepared ||
+        c == null ||
+        !c.value.isInitialized) {
+      return;
+    }
+    final positionMs = c.value.position.inMilliseconds;
+    if ((positionMs - _lastSystemPiPSyncMs).abs() < 900 && c.value.isPlaying) {
+      return;
+    }
+    _lastSystemPiPSyncMs = positionMs;
+    unawaited(
+      SystemPictureInPicture.updatePrepared(
+        id: id,
+        position: c.value.position,
+        speed: _speed,
+        muted: _volume <= 0.01,
+        playing: c.value.isPlaying,
+      ),
+    );
   }
 
   void _scheduleHide() {
@@ -602,18 +629,77 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
 
   Future<bool> _startSystemPictureInPicture() async {
     final c = _controller;
-    final source = _localPath;
-    if (c == null || !c.value.isInitialized || source == null) return false;
-    if (!await SystemPictureInPicture.isSupported()) return false;
+    final uri = _systemPiPSourceUri();
+    if (c == null || !c.value.isInitialized || uri == null) return false;
+    if (!await _isSystemPictureInPictureSupported()) return false;
 
-    final uri = source.startsWith('http://') || source.startsWith('https://')
+    var id = _systemPiPId;
+    var started = false;
+    if (id != null && _systemPiPPrepared) {
+      started = await SystemPictureInPicture.startPrepared(
+        id: id,
+        position: c.value.position,
+        speed: _speed,
+        muted: _volume <= 0.01,
+      );
+    }
+    if (!started) {
+      if (id != null) {
+        await SystemPictureInPicture.cancelPrepared(id);
+        _systemPiPPrepared = false;
+        _systemPiPId = null;
+      }
+      id = '${widget.video.id}-${DateTime.now().microsecondsSinceEpoch}';
+      _systemPiPId = id;
+      final server = _streamServer;
+      final shouldCancelOnStop =
+          !_openedCompletedLocalFile && _progress?.isCompleted != true;
+      started = await SystemPictureInPicture.start(
+        id: id,
+        uri: uri,
+        position: c.value.position,
+        speed: _speed,
+        muted: _volume <= 0.01,
+        onStop: () async {
+          await server?.close();
+          if (shouldCancelOnStop) {
+            TdFileCenter.shared.cancelDownload(widget.video.id);
+          }
+        },
+      );
+    }
+    if (!started) return false;
+    _systemPiPHandoff = true;
+    _systemPiPPrepared = false;
+    _streamServer = null;
+    unawaited(c.pause());
+    _close();
+    return true;
+  }
+
+  Uri? _systemPiPSourceUri() {
+    final source = _localPath;
+    if (source == null || source.isEmpty) return null;
+    return source.startsWith('http://') || source.startsWith('https://')
         ? Uri.parse(source)
         : Uri.file(source);
+  }
+
+  Future<void> _prepareSystemPictureInPicture() async {
+    if (_systemPiPPrepared || _systemPiPId != null) {
+      return;
+    }
+    final c = _controller;
+    final uri = _systemPiPSourceUri();
+    if (c == null || !c.value.isInitialized || uri == null) return;
+    if (!await _isSystemPictureInPictureSupported()) return;
+
     final server = _streamServer;
     final shouldCancelOnStop =
         !_openedCompletedLocalFile && _progress?.isCompleted != true;
     final id = '${widget.video.id}-${DateTime.now().microsecondsSinceEpoch}';
-    final started = await SystemPictureInPicture.start(
+    _systemPiPId = id;
+    final prepared = await SystemPictureInPicture.prepare(
       id: id,
       uri: uri,
       position: c.value.position,
@@ -626,12 +712,32 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         }
       },
     );
-    if (!started) return false;
-    _systemPiPHandoff = true;
-    _streamServer = null;
-    unawaited(c.pause());
-    _close();
-    return true;
+    if (!mounted || _systemPiPId != id) {
+      if (prepared) unawaited(SystemPictureInPicture.cancelPrepared(id));
+      return;
+    }
+    if (prepared) {
+      _systemPiPPrepared = true;
+      _syncSystemPictureInPictureIfNeeded();
+    } else {
+      _systemPiPId = null;
+    }
+  }
+
+  Future<void> _refreshSystemPictureInPictureSupport() async {
+    final supported = await _isSystemPictureInPictureSupported();
+    if (supported) {
+      unawaited(_prepareSystemPictureInPicture());
+    }
+  }
+
+  Future<bool> _isSystemPictureInPictureSupported() async {
+    if (_systemPiPSupported) return true;
+    final supported = await SystemPictureInPicture.isSupported();
+    if (mounted && _systemPiPSupported != supported) {
+      setState(() => _systemPiPSupported = supported);
+    }
+    return supported;
   }
 
   void _close() {
@@ -645,42 +751,16 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _autoSystemPiPAttempted = false;
-      return;
-    }
-    if (state != AppLifecycleState.inactive &&
-        state != AppLifecycleState.hidden &&
-        state != AppLifecycleState.paused) {
-      return;
-    }
-    final c = _controller;
-    if (widget.presentation != VideoPlayerPresentation.fullscreen ||
-        _autoSystemPiPStarting ||
-        _autoSystemPiPAttempted ||
-        _systemPiPHandoff ||
-        c == null ||
-        !c.value.isInitialized) {
-      return;
-    }
-    _autoSystemPiPAttempted = true;
-    _autoSystemPiPStarting = true;
-    unawaited(
-      _startSystemPictureInPicture().whenComplete(() {
-        _autoSystemPiPStarting = false;
-      }),
-    );
-  }
-
-  @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _hideTimer?.cancel();
     _progressSub?.cancel();
     unawaited(_storePlaybackPosition(force: true));
     _controller?.removeListener(_onTick);
     _controller?.dispose();
+    final preparedPiPId = _systemPiPId;
+    if (!_systemPiPHandoff && preparedPiPId != null) {
+      unawaited(SystemPictureInPicture.cancelPrepared(preparedPiPId));
+    }
     unawaited(_streamServer?.close());
     if (!_systemPiPHandoff &&
         !_openedCompletedLocalFile &&
@@ -1097,6 +1177,10 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
           SizedBox(width: layout.actionGap),
           _modeSwitchButton(size: layout.actionButtonSize),
         ],
+        if (_showsSystemPictureInPictureButton) ...[
+          SizedBox(width: layout.actionGap),
+          _systemPictureInPictureButton(size: layout.actionButtonSize),
+        ],
         SizedBox(width: layout.actionGap),
         _roundIconButton(
           HeroAppIcons.share.data,
@@ -1127,37 +1211,44 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         left: 12,
         right: 12,
         bottom: 10,
-        child: Row(
-          children: [
-            const Text(
-              '00:00',
-              style: TextStyle(color: Colors.white70, fontSize: 11),
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: _loadingScrubber(compact: true)),
-            const SizedBox(width: 8),
-            if (pip)
-              _muteButton(size: 34)
-            else
-              SizedBox(width: 104, child: _volumeSlider(compact: true)),
-            const SizedBox(width: 8),
-            Text(
-              _speedText(_speed),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (!pip && widget.onSwitchMode != null) ...[
-              const SizedBox(width: 8),
-              _modeSwitchButton(size: 34),
-            ],
-            if (pip && widget.onSwitchMode != null) ...[
-              const SizedBox(width: 8),
-              _fullscreenButton(size: 34),
-            ],
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 220) {
+              return _loadingScrubber(compact: true);
+            }
+            return Row(
+              children: [
+                const Text(
+                  '00:00',
+                  style: TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: _loadingScrubber(compact: true)),
+                const SizedBox(width: 8),
+                if (pip)
+                  _muteButton(size: 34)
+                else
+                  SizedBox(width: 104, child: _volumeSlider(compact: true)),
+                const SizedBox(width: 8),
+                Text(
+                  _speedText(_speed),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                if (!pip && widget.onSwitchMode != null) ...[
+                  const SizedBox(width: 8),
+                  _modeSwitchButton(size: 34),
+                ],
+                if (pip && widget.onSwitchMode != null) ...[
+                  const SizedBox(width: 8),
+                  _fullscreenButton(size: 34),
+                ],
+              ],
+            );
+          },
         ),
       ),
     ];
@@ -1284,6 +1375,10 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
           SizedBox(width: layout.actionGap),
           _modeSwitchButton(size: layout.actionButtonSize),
         ],
+        if (_showsSystemPictureInPictureButton) ...[
+          SizedBox(width: layout.actionGap),
+          _systemPictureInPictureButton(size: layout.actionButtonSize),
+        ],
         SizedBox(width: layout.actionGap),
         _roundIconButton(
           HeroAppIcons.share.data,
@@ -1324,37 +1419,53 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         left: 12,
         right: 12,
         bottom: 10,
-        child: Row(
-          children: [
-            if (!pip && widget.onSwitchMode != null) ...[
-              _modeSwitchButton(size: 34),
-              const SizedBox(width: 8),
-            ],
-            Text(
-              _fmt(value.position),
-              style: const TextStyle(color: Colors.white70, fontSize: 11),
-            ),
-            const SizedBox(width: 8),
-            Expanded(child: _scrubber(c)),
-            const SizedBox(width: 8),
-            if (pip)
-              _muteButton(size: 34)
-            else
-              SizedBox(width: 104, child: _volumeSlider(compact: true)),
-            const SizedBox(width: 8),
-            Text(
-              _speedText(_speed),
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            if (pip && widget.onSwitchMode != null) ...[
-              const SizedBox(width: 8),
-              _fullscreenButton(size: 34),
-            ],
-          ],
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth < 220) {
+              return _scrubber(c);
+            }
+            final showSystemPiP =
+                !pip &&
+                _showsSystemPictureInPictureButton &&
+                constraints.maxWidth >= 360;
+            return Row(
+              children: [
+                if (!pip && widget.onSwitchMode != null) ...[
+                  _modeSwitchButton(size: 34),
+                  const SizedBox(width: 8),
+                ],
+                if (showSystemPiP) ...[
+                  _systemPictureInPictureButton(size: 34),
+                  const SizedBox(width: 8),
+                ],
+                Text(
+                  _fmt(value.position),
+                  style: const TextStyle(color: Colors.white70, fontSize: 11),
+                ),
+                const SizedBox(width: 8),
+                Expanded(child: _scrubber(c)),
+                const SizedBox(width: 8),
+                if (pip)
+                  _muteButton(size: 34)
+                else if (constraints.maxWidth >= 320)
+                  SizedBox(width: 104, child: _volumeSlider(compact: true)),
+                if (constraints.maxWidth >= 320) const SizedBox(width: 8),
+                if (constraints.maxWidth >= 280)
+                  Text(
+                    _speedText(_speed),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                if (pip && widget.onSwitchMode != null) ...[
+                  const SizedBox(width: 8),
+                  _fullscreenButton(size: 34),
+                ],
+              ],
+            );
+          },
         ),
       ),
     ];
@@ -1606,6 +1717,18 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     if (callback == null) return const SizedBox.shrink();
     return _roundIconButton(HeroAppIcons.expand.data, () {
       callback(VideoDisplayMode.fullscreen);
+      _scheduleHide();
+    }, size: size);
+  }
+
+  bool get _showsSystemPictureInPictureButton =>
+      _systemPiPSupported &&
+      widget.presentation != VideoPlayerPresentation.pictureInPicture;
+
+  Widget _systemPictureInPictureButton({required double size}) {
+    if (!_showsSystemPictureInPictureButton) return const SizedBox.shrink();
+    return _roundIconButton(HeroAppIcons.pictureInPicture.data, () {
+      unawaited(_startSystemPictureInPicture());
       _scheduleHide();
     }, size: size);
   }

@@ -56,6 +56,85 @@ class SystemPictureInPicture {
     }
   }
 
+  static Future<bool> prepare({
+    required String id,
+    required Uri uri,
+    required Duration position,
+    required double speed,
+    required bool muted,
+    Future<void> Function()? onStop,
+  }) async {
+    if (!isSupportedPlatform) return false;
+    _attachHandler();
+    if (onStop != null) _cleanupById[id] = onStop;
+    try {
+      final prepared =
+          await _channel.invokeMethod<bool>('prepare', {
+            'id': id,
+            'url': uri.toString(),
+            'positionMs': position.inMilliseconds,
+            'speed': speed,
+            'muted': muted,
+          }) ??
+          false;
+      if (!prepared) _cleanupById.remove(id);
+      return prepared;
+    } catch (_) {
+      _cleanupById.remove(id);
+      return false;
+    }
+  }
+
+  static Future<bool> startPrepared({
+    required String id,
+    required Duration position,
+    required double speed,
+    required bool muted,
+  }) async {
+    if (!isSupportedPlatform) return false;
+    _attachHandler();
+    try {
+      return await _channel.invokeMethod<bool>('startPrepared', {
+            'id': id,
+            'positionMs': position.inMilliseconds,
+            'speed': speed,
+            'muted': muted,
+          }) ??
+          false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> updatePrepared({
+    required String id,
+    required Duration position,
+    required double speed,
+    required bool muted,
+    required bool playing,
+  }) async {
+    if (!isSupportedPlatform) return;
+    _attachHandler();
+    try {
+      await _channel.invokeMethod<void>('update', {
+        'id': id,
+        'positionMs': position.inMilliseconds,
+        'speed': speed,
+        'muted': muted,
+        'playing': playing,
+      });
+    } catch (_) {}
+  }
+
+  static Future<void> cancelPrepared(String id) async {
+    if (!isSupportedPlatform) return;
+    _cleanupById.remove(id);
+    _attachHandler();
+    try {
+      await _channel.invokeMethod<void>('cancel', {'id': id});
+    } catch (_) {}
+  }
+
   static Future<void> stop() async {
     if (!isSupportedPlatform) return;
     _attachHandler();

@@ -39,6 +39,13 @@ class _SenderInfo {
   final int emojiStatusId;
 }
 
+class _ChatActionInfo {
+  const _ChatActionInfo(this.name, this.actionType);
+
+  final String name;
+  final String actionType;
+}
+
 class MessageSenderOption {
   const MessageSenderOption({
     required this.sender,
@@ -207,8 +214,8 @@ class ChatViewModel extends ChangeNotifier {
   final Set<int> _blockedReadIds = {};
   final Set<int> _blockedSenderIds = {};
 
-  // Typing: sender ids currently acting, auto-cleared after a few seconds.
-  final Map<int, String> _typing = {};
+  // Transient chat actions: sender ids currently acting, auto-cleared shortly.
+  final Map<int, _ChatActionInfo> _chatActions = {};
   Timer? _typingTimer;
   Timer? _draftSaveTimer;
   Timer? _senderPatchTimer;
@@ -218,28 +225,21 @@ class ChatViewModel extends ChangeNotifier {
   String get headerTitle =>
       (isGroup && memberCount > 0) ? '$peerTitle($memberCount)' : peerTitle;
 
-  /// Subtitle under the title: typing (group/private) or online/last-seen
-  /// (private). Group member count lives in the title, not here.
+  /// Subtitle under the title: online/last-seen plus transient chat actions.
+  /// Group member count lives in the title, not here.
   String get subtitle {
-    if (_typing.isNotEmpty) {
-      if (!isGroup) return AppStrings.t(AppStringKeys.chatTyping);
-      final names = _typing.values.where((n) => n.isNotEmpty).toList();
-      if (names.length == 1) {
-        return AppStrings.t(AppStringKeys.chatUserTyping, {
-          'value1': names.first,
-        });
-      }
-      if (names.isNotEmpty) {
-        return AppStrings.t(AppStringKeys.chatPeopleTyping, {
-          'value1': names.length,
-        });
-      }
-      return AppStrings.t(AppStringKeys.chatTyping);
-    }
-    if (isGroup) return '';
-    if (peerOnline) return AppStrings.t(AppStringKeys.chatOnline);
-    return peerStatusText;
+    final base = isGroup
+        ? ''
+        : (peerOnline
+              ? AppStrings.t(AppStringKeys.chatOnline)
+              : peerStatusText);
+    final action = _chatActionSubtitle;
+    if (base.isEmpty) return action;
+    if (action.isEmpty) return base;
+    return '$base · $action';
   }
+
+  bool get hasActiveChatAction => _chatActions.isNotEmpty;
 
   bool isRead(ChatMessage m) => m.isOutgoing && m.id <= lastReadOutboxId;
   bool get canChooseMessageSender => availableMessageSenders.length > 1;
@@ -1257,6 +1257,23 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> loadOlderLocal({bool restorePosition = true}) async {
+    if (!canLoadOlder) return false;
+    _isLoadingOlder = true;
+    try {
+      return await _fetchHistory(
+        _allMessages.first.id,
+        0,
+        30,
+        isOlder: true,
+        restorePosition: restorePosition,
+        onlyLocal: true,
+      );
+    } finally {
+      _isLoadingOlder = false;
+    }
+  }
+
   Future<bool> loadLatestHistory() async {
     anchoredHistory = false;
     _pendingScrollToId = null;
@@ -2173,10 +2190,14 @@ class ChatViewModel extends ChangeNotifier {
         final sender = update.obj('sender_id');
         final sid = sender?.int64('user_id') ?? sender?.int64('chat_id');
         if (sid == null) return;
-        if (update.obj('action')?.type == 'chatActionCancel') {
-          _typing.remove(sid);
+        final actionType = update.obj('action')?.type;
+        if (actionType == 'chatActionCancel') {
+          _chatActions.remove(sid);
         } else {
-          _typing[sid] = _senderCache[sid]?.name ?? '';
+          _chatActions[sid] = _ChatActionInfo(
+            _senderCache[sid]?.name ?? '',
+            actionType ?? 'chatActionTyping',
+          );
           if ((_senderCache[sid]?.name ?? '').isEmpty && isGroup && sid > 0) {
             _resolveSender(sid); // fills the name for the next render
           }
@@ -2384,11 +2405,74 @@ class ChatViewModel extends ChangeNotifier {
   void _restartTypingTimer() {
     _typingTimer?.cancel();
     _typingTimer = Timer(const Duration(seconds: 6), () {
-      if (_typing.isNotEmpty) {
-        _typing.clear();
+      if (_chatActions.isNotEmpty) {
+        _chatActions.clear();
         notifyListeners();
       }
     });
+  }
+
+  String get _chatActionSubtitle {
+    if (_chatActions.isEmpty) return '';
+    final actions = _chatActions.values.toList(growable: false);
+    if (actions.length > 1) {
+      final allTyping = actions.every(
+        (a) => a.actionType == 'chatActionTyping',
+      );
+      return AppStrings.t(
+        allTyping
+            ? AppStringKeys.chatPeopleTyping
+            : AppStringKeys.chatPeopleDoingAction,
+        {'value1': actions.length},
+      );
+    }
+
+    final action = actions.first;
+    final label = _chatActionLabel(action.actionType);
+    if (!isGroup) return label;
+    final name = action.name.trim();
+    if (name.isEmpty) return label;
+    if (action.actionType == 'chatActionTyping') {
+      return AppStrings.t(AppStringKeys.chatUserTyping, {'value1': name});
+    }
+    return AppStrings.t(AppStringKeys.chatUserDoingAction, {
+      'value1': name,
+      'value2': label,
+    });
+  }
+
+  String _chatActionLabel(String type) {
+    switch (type) {
+      case 'chatActionRecordingVideo':
+        return AppStrings.t(AppStringKeys.chatActionRecordingVideo);
+      case 'chatActionUploadingVideo':
+        return AppStrings.t(AppStringKeys.chatActionUploadingVideo);
+      case 'chatActionRecordingVoiceNote':
+        return AppStrings.t(AppStringKeys.chatActionRecordingVoice);
+      case 'chatActionUploadingVoiceNote':
+        return AppStrings.t(AppStringKeys.chatActionUploadingVoice);
+      case 'chatActionUploadingPhoto':
+        return AppStrings.t(AppStringKeys.chatActionUploadingPhoto);
+      case 'chatActionUploadingDocument':
+        return AppStrings.t(AppStringKeys.chatActionUploadingFile);
+      case 'chatActionChoosingSticker':
+        return AppStrings.t(AppStringKeys.chatActionChoosingSticker);
+      case 'chatActionChoosingLocation':
+        return AppStrings.t(AppStringKeys.chatActionChoosingLocation);
+      case 'chatActionChoosingContact':
+        return AppStrings.t(AppStringKeys.chatActionChoosingContact);
+      case 'chatActionStartPlayingGame':
+        return AppStrings.t(AppStringKeys.chatActionPlayingGame);
+      case 'chatActionRecordingVideoNote':
+        return AppStrings.t(AppStringKeys.chatActionRecordingVideoNote);
+      case 'chatActionUploadingVideoNote':
+        return AppStrings.t(AppStringKeys.chatActionUploadingVideoNote);
+      case 'chatActionWatchingAnimations':
+        return AppStrings.t(AppStringKeys.chatActionWatchingAnimations);
+      case 'chatActionTyping':
+      default:
+        return AppStrings.t(AppStringKeys.chatTyping);
+    }
   }
 
   String _statusLabel(String? type) {
@@ -2897,6 +2981,13 @@ class ChatViewModel extends ChangeNotifier {
     }
     if (_isDisposed) return;
     _senderCache[senderId] = info;
+    final activeAction = _chatActions[senderId];
+    if (activeAction != null && activeAction.name.isEmpty) {
+      _chatActions[senderId] = _ChatActionInfo(
+        info.name,
+        activeAction.actionType,
+      );
+    }
     _resolvingSenders.remove(senderId);
     _patchSender(info, senderId);
   }

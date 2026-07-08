@@ -337,6 +337,19 @@ abstract final class AppStringKeys {
   static const channelsLoading = 'channelsLoading';
   static const channelsNoTopicChannels = 'channelsNoTopicChannels';
   static const chatAdminsOnlyPosting = 'chatAdminsOnlyPosting';
+  static const chatActionChoosingContact = 'chatActionChoosingContact';
+  static const chatActionChoosingLocation = 'chatActionChoosingLocation';
+  static const chatActionChoosingSticker = 'chatActionChoosingSticker';
+  static const chatActionPlayingGame = 'chatActionPlayingGame';
+  static const chatActionRecordingVideo = 'chatActionRecordingVideo';
+  static const chatActionRecordingVideoNote = 'chatActionRecordingVideoNote';
+  static const chatActionRecordingVoice = 'chatActionRecordingVoice';
+  static const chatActionUploadingFile = 'chatActionUploadingFile';
+  static const chatActionUploadingPhoto = 'chatActionUploadingPhoto';
+  static const chatActionUploadingVideo = 'chatActionUploadingVideo';
+  static const chatActionUploadingVideoNote = 'chatActionUploadingVideoNote';
+  static const chatActionUploadingVoice = 'chatActionUploadingVoice';
+  static const chatActionWatchingAnimations = 'chatActionWatchingAnimations';
   static const chatAllMembersMuted = 'chatAllMembersMuted';
   static const chatAndOthersCount = 'chatAndOthersCount';
   static const chatAutoDeleteCountdown = 'chatAutoDeleteCountdown';
@@ -457,6 +470,7 @@ abstract final class AppStringKeys {
   static const chatOnlineWithinMonth = 'chatOnlineWithinMonth';
   static const chatOnlineWithinWeek = 'chatOnlineWithinWeek';
   static const chatPeopleTyping = 'chatPeopleTyping';
+  static const chatPeopleDoingAction = 'chatPeopleDoingAction';
   static const chatPickerChooseChat = 'chatPickerChooseChat';
   static const chatRecentlyOnline = 'chatRecentlyOnline';
   static const chatRequestToJoin = 'chatRequestToJoin';
@@ -490,6 +504,7 @@ abstract final class AppStringKeys {
   static const chatUserLeftGroup = 'chatUserLeftGroup';
   static const chatUsersJoinedGroup = 'chatUsersJoinedGroup';
   static const chatUserTyping = 'chatUserTyping';
+  static const chatUserDoingAction = 'chatUserDoingAction';
   static const chatVideoPlaceholder = 'chatVideoPlaceholder';
   static const chatYouAreMuted = 'chatYouAreMuted';
   static const chatYouWereRemovedFromGroup = 'chatYouWereRemovedFromGroup';
