@@ -966,59 +966,55 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Column(
-      children: [
-        Container(
-          height: 44,
-          color: c.navBar,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Container(
-              height: 32,
-              decoration: BoxDecoration(
-                color: c.searchFill,
-                borderRadius: BorderRadius.circular(16),
+    return _index == 0
+        ? ChatView(
+            chatId: widget.chat.id,
+            title: widget.chat.title,
+            seedMessage: widget.chat.lastChatMessage,
+            showBackButton: false,
+            headerHeight: widget.headerHeight,
+            headerColor: widget.headerColor,
+            headerBottom: _tabSwitcher(c),
+          )
+        : TopicChatView(
+            chat: widget.chat,
+            showBackButton: false,
+            headerHeight: widget.headerHeight,
+            headerColor: widget.headerColor,
+          );
+  }
+
+  Widget _tabSwitcher(AppColors c) {
+    return Container(
+      color: Colors.transparent,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Container(
+          height: 32,
+          decoration: BoxDecoration(
+            color: c.searchFill,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ForumDetailTabButton(
+                selected: _index == 0,
+                icon: HeroAppIcons.solidMessage,
+                label: AppStringKeys.tabMessages,
+                onTap: () => setState(() => _index = 0),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _ForumDetailTabButton(
-                    selected: _index == 0,
-                    icon: HeroAppIcons.solidMessage,
-                    label: AppStringKeys.tabMessages,
-                    onTap: () => setState(() => _index = 0),
-                  ),
-                  _ForumDetailTabButton(
-                    selected: _index == 1,
-                    icon: HeroAppIcons.hashtag,
-                    label: AppStringKeys.topicChatAllTopics,
-                    onTap: () => setState(() => _index = 1),
-                  ),
-                ],
+              _ForumDetailTabButton(
+                selected: _index == 1,
+                icon: HeroAppIcons.hashtag,
+                label: AppStringKeys.topicChatAllTopics,
+                onTap: () => setState(() => _index = 1),
               ),
-            ),
+            ],
           ),
         ),
-        Expanded(
-          child: _index == 0
-              ? ChatView(
-                  chatId: widget.chat.id,
-                  title: widget.chat.title,
-                  seedMessage: widget.chat.lastChatMessage,
-                  showBackButton: false,
-                  headerHeight: widget.headerHeight,
-                  headerColor: widget.headerColor,
-                  showHeaderDivider: false,
-                )
-              : TopicChatView(
-                  chat: widget.chat,
-                  showBackButton: false,
-                  headerHeight: widget.headerHeight,
-                  headerColor: widget.headerColor,
-                ),
-        ),
-      ],
+      ),
     );
   }
 }

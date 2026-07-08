@@ -285,6 +285,8 @@ class ChatView extends StatefulWidget {
     this.headerHeight = 48,
     this.headerColor,
     this.showHeaderDivider = true,
+    this.headerBottom,
+    this.headerBottomHeight = 44,
     this.onBack,
   });
   final int chatId;
@@ -295,6 +297,8 @@ class ChatView extends StatefulWidget {
   final double headerHeight;
   final Color? headerColor;
   final bool showHeaderDivider;
+  final Widget? headerBottom;
+  final double headerBottomHeight;
   final VoidCallback? onBack;
 
   @override
@@ -2693,59 +2697,69 @@ class _ChatViewState extends State<ChatView> {
             ? Border(bottom: BorderSide(color: c.divider, width: 0.5))
             : null,
       ),
-      child: SizedBox(
-        height: widget.headerHeight,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Row(
-            children: [
-              if (widget.showBackButton)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: widget.onBack ?? () => Navigator.of(context).pop(),
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: widget.headerHeight,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              child: Row(
+                children: [
+                  if (widget.showBackButton)
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: widget.onBack ?? () => Navigator.of(context).pop(),
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: AppIcon(
+                          HeroAppIcons.chevronLeft,
+                          size: 22,
+                          color: c.textPrimary,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 4),
+                  Expanded(child: _headerTitleBlock(subtitle, actionActive)),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ChatInfoView(
+                          chatId: widget.chatId,
+                          title: _vm.peerTitle,
+                        ),
+                      ),
+                    ),
                     child: AppIcon(
-                      HeroAppIcons.chevronLeft,
+                      HeroAppIcons.bars,
                       size: 22,
                       color: c.textPrimary,
                     ),
                   ),
-                )
-              else
-                const SizedBox(width: 4),
-              Expanded(child: _headerTitleBlock(subtitle, actionActive)),
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChatInfoView(
-                      chatId: widget.chatId,
-                      title: _vm.peerTitle,
+                  if (_vm.isForum) ...[
+                    const SizedBox(width: 18),
+                    GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _openTopicMode,
+                      child: AppIcon(
+                        HeroAppIcons.hashtag,
+                        size: 22,
+                        color: c.textPrimary,
+                      ),
                     ),
-                  ),
-                ),
-                child: AppIcon(
-                  HeroAppIcons.bars,
-                  size: 22,
-                  color: c.textPrimary,
-                ),
+                  ],
+                ],
               ),
-              if (_vm.isForum) ...[
-                const SizedBox(width: 18),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _openTopicMode,
-                  child: AppIcon(
-                    HeroAppIcons.hashtag,
-                    size: 22,
-                    color: c.textPrimary,
-                  ),
-                ),
-              ],
-            ],
+            ),
           ),
-        ),
+          if (widget.headerBottom != null)
+            SizedBox(
+              height: widget.headerBottomHeight,
+              child: widget.headerBottom,
+            ),
+        ],
       ),
     );
   }
@@ -3258,6 +3272,7 @@ class _ChatViewState extends State<ChatView> {
     final viewportTop =
         media.padding.top +
         widget.headerHeight +
+        (widget.headerBottom == null ? 0 : widget.headerBottomHeight) +
         (widget.showHeaderDivider ? 1 : 0);
     final viewportBottom =
         media.size.height - media.viewInsets.bottom - media.padding.bottom - 72;
