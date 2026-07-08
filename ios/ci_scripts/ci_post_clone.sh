@@ -74,8 +74,39 @@ pod_install_with_retry() {
       return "$status"
     fi
     echo "warning: pod install failed with exit $status; clearing transient CocoaPods state and retrying $((n + 1))/$attempts in ${delay}s" >&2
-    find "${TMPDIR:-/tmp}" -maxdepth 1 \( -name 'CocoaPods-*' -o -name 'd20*' \) -exec rm -rf {} + 2>/dev/null || true
-    pod cache clean --all >/dev/null 2>&1 || true
+    cleanup_cocoapods_transients
+    sleep "$delay"
+    n=$((n + 1))
+    delay=$((delay * 2))
+  done
+}
+
+cleanup_cocoapods_transients() {
+  find "${TMPDIR:-/tmp}" -maxdepth 1 \( -name 'CocoaPods-*' -o -name 'd20*' \) -exec rm -rf {} + 2>/dev/null || true
+  pod cache clean --all >/dev/null 2>&1 || true
+}
+
+flutter_build_ios_config_with_retry() {
+  attempts=4
+  delay=8
+  n=1
+  while :; do
+    if flutter build ios --config-only --release \
+      --build-name="$XCODE_BUILD_NAME" \
+      --build-number="$APP_BUILD_NUMBER" \
+      --dart-define="GIT_COMMIT=$GIT_COMMIT" \
+      --dart-define="SENTRY_DSN=${SENTRY_DSN:-}" \
+      --dart-define="SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}" \
+      --dart-define="REVIEW_RELAY=${REVIEW_RELAY:-}"; then
+      return 0
+    fi
+    status=$?
+    if [ "$n" -ge "$attempts" ]; then
+      echo "error: flutter build ios --config-only failed after $attempts attempts" >&2
+      return "$status"
+    fi
+    echo "warning: flutter build ios --config-only failed with exit $status; clearing transient CocoaPods state and retrying $((n + 1))/$attempts in ${delay}s" >&2
+    cleanup_cocoapods_transients
     sleep "$delay"
     n=$((n + 1))
     delay=$((delay * 2))
@@ -178,13 +209,7 @@ echo "▸ generating Flutter iOS build inputs"
 flutter config --no-enable-swift-package-manager
 flutter precache --ios
 flutter pub get
-flutter build ios --config-only --release \
-  --build-name="$XCODE_BUILD_NAME" \
-  --build-number="$APP_BUILD_NUMBER" \
-  --dart-define="GIT_COMMIT=$GIT_COMMIT" \
-  --dart-define="SENTRY_DSN=${SENTRY_DSN:-}" \
-  --dart-define="SENTRY_ENVIRONMENT=${SENTRY_ENVIRONMENT:-production}" \
-  --dart-define="REVIEW_RELAY=${REVIEW_RELAY:-}"
+flutter_build_ios_config_with_retry
 python3 - <<PY >> ios/Flutter/Generated.xcconfig
 import os
 import urllib.parse
