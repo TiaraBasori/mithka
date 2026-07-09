@@ -3,8 +3,8 @@
 Generated for the Telegram language-pack migration. Mapped strings use Telegram language-pack keys at runtime; unmapped strings keep Mithka localizations until reviewed.
 
 - Total app strings: 989
-- Mapped to Telegram keys: 561
-- Unmapped app strings: 428
+- Mapped to Telegram keys: 598
+- Unmapped app strings: 391
 
 ## Unmapped Strings
 
@@ -14,60 +14,59 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `aboutVersion` | Version {value1} | - |
 | `aboutWebsite` | Website | - |
 | `accountBackupCopied` | Pyrogram session copied | CurrentSession / OtherSessions |
-| `accountBackupCopyPyrogramMessage` | This copies the active Telegram authorization session to the clipboard. Anyone with this string can sign in as this account. | Copy; Message / SendMessage / SearchMessages; CurrentSession / OtherSessions |
-| `accountBackupCopyPyrogramSession` | Copy Pyrogram session | Copy; CurrentSession / OtherSessions |
-| `accountBackupCopyPyrogramTitle` | Copy Pyrogram session? | Copy; CurrentSession / OtherSessions |
-| `accountBackupCreate` | Back up current account to Keychain | Create / NewGroup / ChannelAlertCreate2 |
-| `accountBackupDeleteMessage` | This removes the saved session from Keychain. The Telegram session is not revoked. | Delete / DeleteChat / DeleteAll / DeleteAllFrom; Message / SendMessage / SearchMessages; CurrentSession / OtherSessions; Save |
-| `accountBackupDeleteInvalidSession` | Delete Saved Session | Delete / DeleteChat / DeleteAll / DeleteAllFrom; CurrentSession / OtherSessions; Save |
-| `accountBackupDeleteTitle` | Delete saved session? | Delete / DeleteChat / DeleteAll / DeleteAllFrom; CurrentSession / OtherSessions; Save |
+| `accountBackupCopyPyrogramMessage` | This copies the active Telegram authorization session to the clipboard. Anyone with this string can sign in as this account. | Message / SendMessage / SearchMessages; CurrentSession / OtherSessions |
+| `accountBackupCopyPyrogramSession` | Copy Pyrogram session | CurrentSession / OtherSessions |
+| `accountBackupCopyPyrogramTitle` | Copy Pyrogram session? | CurrentSession / OtherSessions |
+| `accountBackupCreate` | Back up current account to Keychain | - |
+| `accountBackupDeleteMessage` | This removes the saved session from Keychain. The Telegram session is not revoked. | Message / SendMessage / SearchMessages; Delete / DeleteChat / DeleteAll / DeleteAllFrom; Save / SavedMessages; CurrentSession / OtherSessions |
+| `accountBackupDeleteInvalidSession` | Delete Saved Session | Delete / DeleteChat / DeleteAll / DeleteAllFrom; Save / SavedMessages; CurrentSession / OtherSessions |
+| `accountBackupDeleteTitle` | Delete saved session? | Delete / DeleteChat / DeleteAll / DeleteAllFrom; Save / SavedMessages; CurrentSession / OtherSessions |
 | `accountBackupEmpty` | No account sessions are backed up yet. | CurrentSession / OtherSessions |
 | `accountBackupEnabled` | Back up accounts | - |
-| `accountBackupFreshSessionCreate` | Create New Session | CurrentSession / OtherSessions; Create / NewGroup / ChannelAlertCreate2 |
+| `accountBackupFreshSessionCreate` | Create New Session | CurrentSession / OtherSessions |
 | `accountBackupFreshSessionInteractive` | Continue the login step to finish creating the new session. | CurrentSession / OtherSessions; BotAuthLogin / AuthAnotherClient |
-| `accountBackupFreshSessionMessage` | The restored session is ready. To avoid using the same Telegram session on multiple devices, Mithka can create a new session from it with QR login. Telegram may ask for your two-step verification password. | Message / SendMessage / SearchMessages; CurrentSession / OtherSessions; Devices / CurrentSession / OtherSessions; TwoStepVerification / Password; BotAuthLogin / AuthAnotherClient |
+| `accountBackupFreshSessionMessage` | The restored session is ready. To avoid using the same Telegram session on multiple devices, Mithka can create a new session from it with QR login. Telegram may ask for your two-step verification password. | Message / SendMessage / SearchMessages; Devices / CurrentSession / OtherSessions; CurrentSession / OtherSessions; TwoStepVerification / Password; BotAuthLogin / AuthAnotherClient; AuthAnotherClient / QrCode |
 | `accountBackupFreshSessionReady` | Created a new session in slot {value1} | CurrentSession / OtherSessions |
-| `accountBackupFreshSessionTitle` | Create a new session? | CurrentSession / OtherSessions; Create / NewGroup / ChannelAlertCreate2 |
+| `accountBackupFreshSessionTitle` | Create a new session? | CurrentSession / OtherSessions |
 | `accountBackupFreshSessionUseRestored` | Use Restored Session | CurrentSession / OtherSessions |
 | `accountBackupFreshSessionWaiting` | Creating the new session... | CurrentSession / OtherSessions |
-| `accountBackupInvalidImportedMessage` | This session string is no longer valid or may have been revoked. Please export a fresh session from a logged-in device. | Message / SendMessage / SearchMessages; CurrentSession / OtherSessions; Devices / CurrentSession / OtherSessions |
-| `accountBackupInvalidMessage` | The saved session for {value1} is no longer valid or may have been revoked. Delete this saved session from Keychain? | Delete / DeleteChat / DeleteAll / DeleteAllFrom; Message / SendMessage / SearchMessages; CurrentSession / OtherSessions; Save |
+| `accountBackupInvalidImportedMessage` | This session string is no longer valid or may have been revoked. Please export a fresh session from a logged-in device. | Message / SendMessage / SearchMessages; Devices / CurrentSession / OtherSessions; CurrentSession / OtherSessions |
+| `accountBackupInvalidMessage` | The saved session for {value1} is no longer valid or may have been revoked. Delete this saved session from Keychain? | Message / SendMessage / SearchMessages; Delete / DeleteChat / DeleteAll / DeleteAllFrom; Save / SavedMessages; CurrentSession / OtherSessions |
 | `accountBackupInvalidTitle` | Session no longer valid | CurrentSession / OtherSessions |
 | `accountBackupImported` | Imported to account slot {value1} | - |
 | `accountBackupIOSOnly` | Account backup is available on iOS only. | - |
 | `accountBackupLoadPyrogramConfirm` | Load Session | CurrentSession / OtherSessions |
-| `accountBackupLoadPyrogramMessage` | Paste a Pyrogram-compatible Telegram session string. The session will be imported locally as an account if it is still valid. | Paste; Message / SendMessage / SearchMessages; CurrentSession / OtherSessions |
+| `accountBackupLoadPyrogramMessage` | Paste a Pyrogram-compatible Telegram session string. The session will be imported locally as an account if it is still valid. | Message / SendMessage / SearchMessages; CurrentSession / OtherSessions |
 | `accountBackupLoadPyrogramPlaceholder` | Pyrogram session string | CurrentSession / OtherSessions |
 | `accountBackupLoadPyrogramSession` | Load Pyrogram session | CurrentSession / OtherSessions |
 | `accountBackupLoadPyrogramTitle` | Load Pyrogram session | CurrentSession / OtherSessions |
-| `accountBackupNotice` | Only the TDLib session file is stored in the device Keychain. Message databases, media, logs, and caches are not backed up. To transfer this Keychain item to a new device, restore from an encrypted device backup. | Message / SendMessage / SearchMessages; AttachDocument / SharedFilesTab; CurrentSession / OtherSessions; Devices / CurrentSession / OtherSessions; Restore |
-| `accountBackupRestoreAccount` | Restore saved account | Restore; Save |
+| `accountBackupNotice` | Only the TDLib session file is stored in the device Keychain. Message databases, media, logs, and caches are not backed up. To transfer this Keychain item to a new device, restore from an encrypted device backup. | Message / SendMessage / SearchMessages; AttachDocument / SharedFilesTab; Devices / CurrentSession / OtherSessions; CurrentSession / OtherSessions |
+| `accountBackupRestoreAccount` | Restore saved account | Save / SavedMessages |
 | `accountBackupRestored` | Restored to account slot {value1} | - |
-| `accountBackupRestoreMessage` | This imports the saved session as a new account. The session must still be active on Telegram servers. | Message / SendMessage / SearchMessages; CurrentSession / OtherSessions; Restore; Save |
-| `accountBackupRestoreTitle` | Restore saved session? | CurrentSession / OtherSessions; Restore; Save |
-| `accountBackupSaved` | Session saved ({value1}) | CurrentSession / OtherSessions; Save |
-| `accountBackupSessions` | Saved Sessions | CurrentSession / OtherSessions; Save |
+| `accountBackupRestoreMessage` | This imports the saved session as a new account. The session must still be active on Telegram servers. | Message / SendMessage / SearchMessages; Save / SavedMessages; CurrentSession / OtherSessions |
+| `accountBackupRestoreTitle` | Restore saved session? | Save / SavedMessages; CurrentSession / OtherSessions |
+| `accountBackupSaved` | Session saved ({value1}) | Save / SavedMessages; CurrentSession / OtherSessions |
+| `accountBackupSessions` | Saved Sessions | Save / SavedMessages; CurrentSession / OtherSessions |
 | `accountBackupTitle` | Account Backup | - |
 | `accountBackupUserId` | User ID: {value1} | - |
-| `addMembersDoneWithCount` | Done ({value1}) | Members / GroupMembers / ChannelMembers; Done |
-| `addMembersInvitePermissionError` | Invite failed. You may not have permission. | Members / GroupMembers / ChannelMembers; AddMember / VoipGroupInviteMember; ErrorOccurred |
+| `addMembersDoneWithCount` | Done ({value1}) | Members / GroupMembers / ChannelMembers |
+| `addMembersInvitePermissionError` | Invite failed. You may not have permission. | Members / GroupMembers / ChannelMembers; InviteLink / AddMember |
 | `addPeopleFindGroups` | Find Groups | NewGroup / GroupMembers / Groups |
 | `addPeopleFindPeople` | Find People | - |
 | `addPeopleGroupNameOrLinkPlaceholder` | Group name/link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink |
 | `addPeopleNoGroupsOrChannelsFound` | No groups or channels found | NewGroup / GroupMembers / Groups; Channel / ChannelSettings / ChannelMembers |
-| `addPeopleNoUsersFound` | No users found | - |
-| `addPeopleUsernameOrPhonePlaceholder` | Username/phone number | Username / SetUsernameHeader; Phone |
+| `addPeopleUsernameOrPhonePlaceholder` | Username/phone number | Phone / PhoneNumber; Username / SetUsernameHeader |
 | `apiCredentialsCustomClientApi` | Custom Client API | - |
-| `apiCredentialsDescription` | Off by default. When enabled, fill in your own Telegram client API credentials; they take effect on the next launch or after signing in again. Acceleration stays off until every field is filled in. | Default |
+| `apiCredentialsDescription` | Off by default. When enabled, fill in your own Telegram client API credentials; they take effect on the next launch or after signing in again. Acceleration stays off until every field is filled in. | - |
 | `apiCredentialsTitle` | Video and Download Acceleration | AttachVideo / Videos; Download / Downloaded |
 | `appIconBlueGradient` | Blue Gradient | - |
-| `appIconChangeFailed` | Failed to change app icon | ErrorOccurred |
+| `appIconChangeFailed` | Failed to change app icon | - |
 | `appIconPixel` | 8-bit Pixel | - |
 | `appIconPurpleGradient` | Purple Gradient | - |
 | `appIconUnsupported` | This platform or launcher may not support changing the app icon. | - |
 | `appIconWhite` | Pure White | - |
-| `appearanceAddFont` | Add Font | FontSize |
-| `appearanceAddTextFont` | Add Text Font | FontSize |
+| `appearanceAddFont` | Add Font | FontSize / FontType |
+| `appearanceAddTextFont` | Add Text Font | FontSize / FontType |
 | `appearanceCacheCleaned` | Cleaned | ClearCache / StorageUsage |
 | `appearanceCacheFiles` | Cache Files | AttachDocument / SharedFilesTab; ClearCache / StorageUsage |
 | `appearanceCacheRefreshed` | Refreshed | ClearCache / StorageUsage |
@@ -75,49 +74,49 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `appearanceChatList` | Chat List | SearchAllChatsShort / SelectChat |
 | `appearanceChatView` | Chat View | SearchAllChatsShort / SelectChat |
 | `appearanceCleanableSize` | Cleanable | - |
-| `appearanceCleanUnusedFonts` | Clean Unused Fonts | - |
-| `appearanceClearTextFonts` | Clear Text Fonts | - |
-| `appearanceColor` | Color | NotificationsLedColor |
+| `appearanceCleanUnusedFonts` | Clean Unused Fonts | FontSize / FontType |
+| `appearanceClearTextFonts` | Clear Text Fonts | FontSize / FontType |
+| `appearanceColor` | Color | Exact upstream text: NotificationsLedColor |
 | `appearanceDisplay` | Display | - |
-| `appearanceEmojiFont` | Emoji Font | FontSize; Emoji1..Emoji7 / SetEmojiStatus |
-| `appearanceEmojiFontCatalogDescription` | The font list comes from the iebb/emojifonts manifest. Selected fonts are downloaded from GitHub Releases. Previews come from Emojipedia. | Download / Downloaded; FontSize; Emoji1..Emoji7 / SetEmojiStatus |
+| `appearanceEmojiFont` | Emoji Font | Emoji1..Emoji7 / SetEmojiStatus; FontSize / FontType |
+| `appearanceEmojiFontCatalogDescription` | The font list comes from the iebb/emojifonts manifest. Selected fonts are downloaded from GitHub Releases. Previews come from Emojipedia. | Emoji1..Emoji7 / SetEmojiStatus; Download / Downloaded; FontSize / FontType |
 | `appearanceFileCount` | {value1} | AttachDocument / SharedFilesTab |
-| `appearanceFont` | Font | FontSize |
-| `appearanceFontCache` | Font Cache | ClearCache / StorageUsage; FontSize |
-| `appearanceFontCacheDescription` | Manages only runtime-downloaded Google font caches. Files used by the current font chain, monospace font, and emoji font are kept. | AttachDocument / SharedFilesTab; Download / Downloaded; ClearCache / StorageUsage; FontSize; Emoji1..Emoji7 / SetEmojiStatus |
-| `appearanceFontChainDescription` | Text fonts are applied in order across the interface. The emoji font is preferred for emoji. The monospace font is used for code blocks. | FontSize; Emoji1..Emoji7 / SetEmojiStatus |
-| `appearanceFontDownloadFailedName` | {value1} · Download failed | Download / Downloaded; FontSize; ErrorOccurred |
-| `appearanceFontInUse` | In Use | FontSize |
-| `appearanceFontUnused` | Unused | FontSize |
+| `appearanceFont` | Font | FontSize / FontType |
+| `appearanceFontCache` | Font Cache | ClearCache / StorageUsage; FontSize / FontType |
+| `appearanceFontCacheDescription` | Manages only runtime-downloaded Google font caches. Files used by the current font chain, monospace font, and emoji font are kept. | AttachDocument / SharedFilesTab; Emoji1..Emoji7 / SetEmojiStatus; Download / Downloaded; ClearCache / StorageUsage; FontSize / FontType |
+| `appearanceFontChainDescription` | Text fonts are applied in order across the interface. The emoji font is preferred for emoji. The monospace font is used for code blocks. | Emoji1..Emoji7 / SetEmojiStatus; FontSize / FontType |
+| `appearanceFontDownloadFailedName` | {value1} · Download failed | Download / Downloaded; FontSize / FontType |
+| `appearanceFontInUse` | In Use | FontSize / FontType |
+| `appearanceFontUnused` | Unused | FontSize / FontType |
 | `appearanceGoogleDownloaded` | Google downloaded | Download / Downloaded |
 | `appearanceGroupAssistantPosition` | Group Assistant Position | NewGroup / GroupMembers / Groups |
-| `appearanceHidePhoneInSidebar` | Hide Phone Number in Sidebar | Phone |
+| `appearanceHidePhoneInSidebar` | Hide Phone Number in Sidebar | Phone / PhoneNumber |
 | `appearanceInterfaceSize` | Interface Size | - |
 | `appearanceInUseSize` | In Use | - |
 | `appearanceManage` | Manage | - |
 | `appearanceMergeConsecutiveImages` | Merge Consecutive Images | AttachPhoto / SharedMediaTab |
 | `appearanceMode` | Mode | - |
-| `appearanceMonospaceFont` | Monospace Font | FontSize |
-| `appearanceNoCleanableFonts` | Nothing to clean | - |
-| `appearanceNoDownloadedFontCache` | No downloaded font cache. | Download / Downloaded; ClearCache / StorageUsage; FontSize |
+| `appearanceMonospaceFont` | Monospace Font | FontSize / FontType |
+| `appearanceNoCleanableFonts` | Nothing to clean | FontSize / FontType |
+| `appearanceNoDownloadedFontCache` | No downloaded font cache. | Download / Downloaded; ClearCache / StorageUsage; FontSize / FontType |
 | `appearanceRefreshCacheList` | Refresh Cache List | ClearCache / StorageUsage |
 | `appearanceRoundGroupAvatars` | Show Group Avatars as Circles | NewGroup / GroupMembers / Groups |
 | `appearanceShowChatFiltersOnTop` | Show Chat Filters at Top | SearchAllChatsShort / SelectChat |
-| `appearanceShowChatListSearch` | Show Chat List Search | Search / SearchMessages / NoResult; SearchAllChatsShort / SelectChat |
+| `appearanceShowChatListSearch` | Show Chat List Search | SearchAllChatsShort / SelectChat; Search / SearchMessages / NoResult |
 | `appearanceShowEditAndReadMarks` | Show Edit and Read Marks | - |
 | `appearanceShowGroupMemberTitles` | Show Group Member Titles | NewGroup / GroupMembers / Groups; Members / GroupMembers / ChannelMembers |
 | `appearanceShowPremiumNameColor` | Show Premium Name Color | TelegramPremiumShort |
 | `appearanceShowPremiumStatusEmoji` | Show Premium Status Emoji | Emoji1..Emoji7 / SetEmojiStatus; TelegramPremiumShort |
 | `appearanceShowUnreadChatCount` | Show Unread Chat Count | SearchAllChatsShort / SelectChat |
 | `appearanceSize` | Size | - |
-| `appearanceSystemEmojiFont` | System emoji font | FontSize; Emoji1..Emoji7 / SetEmojiStatus |
-| `appearanceTextFont` | Text Font | FontSize |
-| `appearanceTextFontOrderHint` | Text fonts are applied in order. Characters not covered continue using the system font. | FontSize |
-| `appearanceTextFontUnsetHint` | No text font set. Using the system default. | FontSize; Default |
+| `appearanceSystemEmojiFont` | System emoji font | Emoji1..Emoji7 / SetEmojiStatus; FontSize / FontType |
+| `appearanceTextFont` | Text Font | FontSize / FontType |
+| `appearanceTextFontOrderHint` | Text fonts are applied in order. Characters not covered continue using the system font. | FontSize / FontType |
+| `appearanceTextFontUnsetHint` | No text font set. Using the system default. | FontSize / FontType |
 | `appearanceTotalSize` | Total Size | - |
 | `appearanceUnreadBadge` | Unread Badge | - |
 | `appLocaleArabic` | العربية | - |
-| `appLocaleEnglish` | English | LanguageName; English; LanguageNameInEnglish |
+| `appLocaleEnglish` | English | Exact upstream text: LanguageName, English, LanguageNameInEnglish |
 | `appLocaleFollowSystem` | Follow System | - |
 | `appLocaleFrench` | Français | - |
 | `appLocaleGerman` | Deutsch | - |
@@ -136,52 +135,46 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `appLocaleTurkish` | Türkçe | - |
 | `appLocaleUkrainian` | Українська | - |
 | `appLocaleVietnamese` | Tiếng Việt | - |
-| `archivedChatsGroupAssistant` | Group Assistant | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
+| `archivedChatsGroupAssistant` | Group Assistant | NewGroup / GroupMembers / Groups |
 | `authCodeSent` | Verification code sent | - |
 | `authCodeSentByFlashCall` | You will receive a flash call | Call / VideoCall / VoipConnecting |
-| `authCodeSentByPhoneCall` | You’ll receive a phone call with the verification code | Call / VideoCall / VoipConnecting; Phone |
+| `authCodeSentByPhoneCall` | You’ll receive a phone call with the verification code | Call / VideoCall / VoipConnecting; Phone / PhoneNumber |
 | `authCodeSentBySms` | The verification code was sent by SMS | - |
-| `authCodeSentToTelegramDevices` | The verification code was sent to your other Telegram devices | Devices / CurrentSession / OtherSessions |
-| `autoDeleteDescription` | New messages will be automatically deleted from the chat after the set time. | Delete / DeleteChat / DeleteAll / DeleteAllFrom; Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat |
-| `callIncomingCallInvite` | invited you to a {value1} call | Call / VideoCall / VoipConnecting; AddMember / VoipGroupInviteMember |
-| `callWaitingForInviteAccept` | Waiting for the other person to accept… | Call / VideoCall / VoipConnecting; AddMember / VoipGroupInviteMember |
+| `callIncomingCallInvite` | invited you to a {value1} call | Call / VideoCall / VoipConnecting; InviteLink / AddMember |
+| `callWaitingForInviteAccept` | Waiting for the other person to accept… | Call / VideoCall / VoipConnecting; InviteLink / AddMember |
 | `chatAdminsOnlyPosting` | Only admins can post | SearchAllChatsShort / SelectChat |
 | `chatAllMembersMuted` | All members are muted | SearchAllChatsShort / SelectChat; Members / GroupMembers / ChannelMembers |
 | `chatAndOthersCount` |  and {value1} others | SearchAllChatsShort / SelectChat |
 | `chatContactCallsOnly` | Calls are only supported with contacts | SearchAllChatsShort / SelectChat; Contacts / AddContactChat / SelectContact; Call / VideoCall / VoipConnecting |
-| `chatDeleteSelectedMessagesConfirmation` | Delete the selected {value1} messages? | Delete / DeleteChat / DeleteAll / DeleteAllFrom; Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat |
-| `chatBlockUserMessage` | Block this sender, report the message for review, and remove their messages from this chat immediately? | Delete / Remove; BlockUser / BlockedUsers; ReportChat / ReportChatSent; Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat |
-| `chatForwardedToName` | Forwarded to {value1} | SearchAllChatsShort / SelectChat |
-| `chatForwardProtected` | This message is protected and can’t be forwarded | Forward / ForwardTo; Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat |
-| `chatForwardRemoveCaption` | Remove caption | Forward / ForwardTo; Delete / Remove; SearchAllChatsShort / SelectChat; AddCaption |
-| `chatForwardRemoveSender` | Remove sender | Forward / ForwardTo; Delete / Remove; SearchAllChatsShort / SelectChat |
-| `chatInfoClearHistoryDescription` | This deletes the local chat history but does not leave the chat. | SearchAllChatsShort / SelectChat; LeaveMegaMenu / LeaveChannel |
+| `chatBlockUserMessage` | Block this sender, report the message for review, and remove their messages from this chat immediately? | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Delete / Remove; BlockUser / BlockedUsers; ReportChat / ReportChatSent |
+| `chatForwardedToName` | Forwarded to {value1} | SearchAllChatsShort / SelectChat; Forward / ForwardTo |
+| `chatForwardProtected` | This message is protected and can’t be forwarded | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Forward / ForwardTo |
+| `chatForwardRemoveSender` | Remove sender | SearchAllChatsShort / SelectChat; Delete / Remove; Forward / ForwardTo |
+| `chatInfoClearHistoryDescription` | This deletes the local chat history but does not leave the chat. | SearchAllChatsShort / SelectChat |
 | `chatInfoClearHistoryIrreversibleWarning` | After clearing, history on this device can’t be recovered. | SearchAllChatsShort / SelectChat; Devices / CurrentSession / OtherSessions |
 | `chatInfoConfirmAgain` | Confirm again | SearchAllChatsShort / SelectChat |
-| `chatInfoDisableExplicitFolderWarning` | Turning off explicit folders will remove this chat. If it still matches automatic folder rules, it will be added to the exclusions list. | Delete / Remove; SearchAllChatsShort / SelectChat; SettingsFolders / FilterNew / FilterNameHeader |
+| `chatInfoDisableExplicitFolderWarning` | Turning off explicit folders will remove this chat. If it still matches automatic folder rules, it will be added to the exclusions list. | SearchAllChatsShort / SelectChat; SettingsFolders / FilterNew / FilterNameHeader; Delete / Remove |
 | `chatInfoFolderName` | Folder {value1} | SearchAllChatsShort / SelectChat; SettingsFolders / FilterNew / FilterNameHeader |
-| `chatInfoGroupAlbum` | Group album | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups; Album |
+| `chatInfoGroupAlbum` | Group album | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
 | `chatInfoGroupApps` | Group apps | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
 | `chatInfoGroupChat` | Group chat | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
 | `chatInfoGroupId` | Group ID: {value1} | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
 | `chatInfoMoveToGroupAssistant` | Move to Group Assistant | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
 | `chatInfoTitle` | Chat Info | SearchAllChatsShort / SelectChat |
 | `chatListAddFriendOrGroup` | Add friend/group | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
-| `chatListBlockedPlaceholder` | [Blocked] | BlockedUsers; SearchAllChatsShort / SelectChat |
+| `chatListBlockedPlaceholder` | [Blocked] | SearchAllChatsShort / SelectChat; BlockUser / BlockedUsers |
 | `chatMeLabel` | Me | SearchAllChatsShort / SelectChat |
-| `chatMemberCount` | {value1} members | SearchAllChatsShort / SelectChat; Members / GroupMembers / ChannelMembers |
-| `chatMembersRemoveMemberConfirmation` | Remove {value1} from the group? | Delete / Remove; SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups; Members / GroupMembers / ChannelMembers |
-| `chatMembersRemoveMemberTitle` | Remove Member | Delete / Remove; SearchAllChatsShort / SelectChat; Members / GroupMembers / ChannelMembers |
+| `chatMembersRemoveMemberConfirmation` | Remove {value1} from the group? | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups; Members / GroupMembers / ChannelMembers; Delete / Remove |
+| `chatMembersRemoveMemberTitle` | Remove Member | SearchAllChatsShort / SelectChat; Members / GroupMembers / ChannelMembers; Delete / Remove |
 | `chatMessageRequired` | Message can’t be empty | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat |
-| `chatMessagesSavedCount` | Saved {value1} messages | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Save |
-| `chatReportMessage` | Report this message as objectionable or abusive content? | ReportChat / ReportChatSent; Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat |
+| `chatMessagesSavedCount` | Saved {value1} messages | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Save / SavedMessages |
+| `chatReportMessage` | Report this message as objectionable or abusive content? | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; ReportChat / ReportChatSent |
 | `chatPeopleDoingAction` | {value1} people active… | SearchAllChatsShort / SelectChat |
 | `chatPeopleTyping` | {value1} people are typing… | SearchAllChatsShort / SelectChat |
-| `chatRestrictedTelegramTosMessage` | This group can’t be displayed because it violated Telegram's Terms of Service. You can go back or leave the group. | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups; LeaveMegaMenu / LeaveChannel |
+| `chatRestrictedTelegramTosMessage` | This group can’t be displayed because it violated Telegram's Terms of Service. You can go back or leave the group. | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
 | `chatRestrictedTitle` | Safety notice | SearchAllChatsShort / SelectChat |
-| `chatSavedToSavedMessages` | Saved to Saved Messages | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Save |
-| `chatSelectedMessagesCount` | {value1} messages selected | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat |
-| `chatsSearchPublicGroupsAndChannels` | Public groups/channels | Search / SearchMessages / NoResult; SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups; Channel / ChannelSettings / ChannelMembers |
+| `chatSavedToSavedMessages` | Saved to Saved Messages | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Save / SavedMessages |
+| `chatsSearchPublicGroupsAndChannels` | Public groups/channels | NewGroup / GroupMembers / Groups; Channel / ChannelSettings / ChannelMembers; Search / SearchMessages / NoResult |
 | `chatStickerAddSuccess` | Added to emoji | SearchAllChatsShort / SelectChat; Emoji1..Emoji7 / SetEmojiStatus; AttachSticker / ViewPackPreview |
 | `chatActionWatchingAnimations` | watching animations… | SearchAllChatsShort / SelectChat |
 | `chatUserFallbackName` | User {value1} | SearchAllChatsShort / SelectChat |
@@ -189,11 +182,10 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `chatUsersJoinedGroup` | {value1}{value2} joined the group | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
 | `chatUserDoingAction` | {value1} is {value2} | SearchAllChatsShort / SelectChat |
 | `chatYouAreMuted` | You are muted | SearchAllChatsShort / SelectChat |
-| `chatYouWereRemovedFromGroup` | You were removed from this group | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
+| `chatYouWereRemovedFromGroup` | You were removed from this group | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups; Delete / Remove |
 | `checklistComposerPremiumLimitHint` | Up to 30 items · Creating checklists requires Telegram Premium | Todo / TodoTitle / AttachChecklist; TelegramPremiumShort |
 | `checklistComposerTaskLabel` | Task {value1} | Todo / TodoTitle / AttachChecklist |
 | `checklistComposerTitleLabel` | Checklist title | Todo / TodoTitle / AttachChecklist |
-| `commonUiGroupOwner` | Group owner | NewGroup / GroupMembers / Groups |
 | `commonUiMentionedBySomeoneBadge` | [Someone mentioned me] | - |
 | `commonUiMentionMeBadge` | [@me] | - |
 | `commonUiNewFileBadge` | [New file] | AttachDocument / SharedFilesTab |
@@ -204,27 +196,25 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `composerMicrophonePermissionRequired` | Microphone permission required | - |
 | `composerMicrophonePermissionSettings` | Allow microphone access in system settings | - |
 | `composerNoEmoji` | No emoji yet | Emoji1..Emoji7 / SetEmojiStatus |
-| `composerPaidMessageCost` | Sending this message costs {value1} Stars. | Message / SendMessage / SearchMessages |
+| `composerPaidMessageCost` | Sending this message costs {value1} Stars. | Message / SendMessage / SearchMessages; MessageLockedStars / Stars |
 | `composerRichText` | Rich text | - |
 | `composerRichTextMessageTitle` | Rich text message | Message / SendMessage / SearchMessages |
-| `composerSendPaidMessageQuestion` | Send paid message? | Message / SendMessage / SearchMessages |
 | `contactsFriends` | Friends | Contacts / AddContactChat / SelectContact |
-| `contactsNoGroupChats` | No group chats yet | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups; Contacts / AddContactChat / SelectContact |
-| `createGroupStartGroupChat` | Start group chat | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups; Create / NewGroup / ChannelAlertCreate2 |
-| `editProfileAnimatedAvatarDescription` | Use a short video as your avatar | AttachVideo / Videos; MyProfile / UserBio |
-| `editProfileBirthDay` | {value1} | MyProfile / UserBio |
-| `editProfileBirthMonth` | {value1} | MyProfile / UserBio |
-| `editProfileBirthYear` | {value1} | MyProfile / UserBio |
-| `editProfileChooseAvatarType` | Choose avatar type | MyProfile / UserBio |
-| `editProfileNameColor` | Name color | MyProfile / UserBio |
-| `editProfileNameColorDescription` | Used for your name and message sidebar. | Message / SendMessage / SearchMessages; MyProfile / UserBio |
-| `editProfileNoBirthYear` | No year | MyProfile / UserBio |
-| `editProfileProfileColor` | Profile color | MyProfile / UserBio |
-| `editProfileProfileColorDescription` | Used for your profile page background. | MyProfile / UserBio |
-| `editProfileStaticAvatarDescription` | Crop and upload a still image | AttachPhoto / SharedMediaTab; MyProfile / UserBio |
-| `editProfileTitle` | Edit profile | MyProfile / UserBio |
-| `editProfileUsernameUnavailable` | Username unavailable | Username / SetUsernameHeader; MyProfile / UserBio |
-| `editProfileUsernameUnsetHandle` | @not set | Username / SetUsernameHeader; MyProfile / UserBio |
+| `contactsNoGroupChats` | No group chats yet | NewGroup / GroupMembers / Groups; Contacts / AddContactChat / SelectContact |
+| `createGroupStartGroupChat` | Start group chat | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
+| `editProfileAnimatedAvatarDescription` | Use a short video as your avatar | AttachVideo / Videos |
+| `editProfileBirthDay` | {value1} | - |
+| `editProfileBirthMonth` | {value1} | - |
+| `editProfileBirthYear` | {value1} | - |
+| `editProfileChooseAvatarType` | Choose avatar type | - |
+| `editProfileNameColor` | Name color | - |
+| `editProfileNameColorDescription` | Used for your name and message sidebar. | Message / SendMessage / SearchMessages |
+| `editProfileNoBirthYear` | No year | - |
+| `editProfileProfileColor` | Profile color | - |
+| `editProfileProfileColorDescription` | Used for your profile page background. | - |
+| `editProfileStaticAvatarDescription` | Crop and upload a still image | AttachPhoto / SharedMediaTab |
+| `editProfileTitle` | Edit profile | - |
+| `editProfileUsernameUnsetHandle` | @not set | Username / SetUsernameHeader |
 | `emojiPreviewFaceWithTearsOfJoy` | Face with tears of joy | Emoji1..Emoji7 / SetEmojiStatus |
 | `emojiStatusNoAvailableStatuses` | No available statuses in this emoji pack | Emoji1..Emoji7 / SetEmojiStatus |
 | `developerModePiPBoundsOverlay` | PiP bounds overlay | - |
@@ -234,14 +224,14 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `featureBottomTabs` | Bottom tabs | - |
 | `fileDetailDownloadProgress` | Downloading file… ({value1}/{value2}) | AttachDocument / SharedFilesTab; Download / Downloaded |
 | `generalCacheSize` | Cache size | ClearCache / StorageUsage |
-| `generalOpenChatAtLatestMessage` | Open chats at latest message | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Open |
+| `generalOpenChatAtLatestMessage` | Open chats at latest message | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat |
 | `generalSendMessageWithEnter` | Send messages with Enter | Message / SendMessage / SearchMessages |
 | `groupManagementAdminApprovalRequired` | Admin approval required | NewGroup / GroupMembers / Groups |
 | `groupManagementBasicSection` | Basic management | NewGroup / GroupMembers / Groups |
 | `groupManagementEditable` | Editable | NewGroup / GroupMembers / Groups |
-| `groupManagementJoinBeforePosting` | Join before posting | NewGroup / GroupMembers / Groups; JoinGroup / RequestToJoin / ChannelJoinRequestSent |
-| `groupManagementJoinSection` | Join settings | NewGroup / GroupMembers / Groups; JoinGroup / RequestToJoin / ChannelJoinRequestSent |
-| `groupManagementLogApprovedJoinRequest` | Approved join request | NewGroup / GroupMembers / Groups; JoinGroup / RequestToJoin / ChannelJoinRequestSent |
+| `groupManagementJoinBeforePosting` | Join before posting | NewGroup / GroupMembers / Groups |
+| `groupManagementJoinSection` | Join settings | NewGroup / GroupMembers / Groups |
+| `groupManagementLogApprovedJoinRequest` | Approved join request | NewGroup / GroupMembers / Groups |
 | `groupManagementLogChangedAdmin` | Changed admin | NewGroup / GroupMembers / Groups |
 | `groupManagementLogChangedGroupDescription` | Changed group description | NewGroup / GroupMembers / Groups |
 | `groupManagementLogChangedGroupName` | Changed group name | NewGroup / GroupMembers / Groups |
@@ -252,37 +242,31 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `groupManagementLogChangedPublicUsername` | Changed public username | NewGroup / GroupMembers / Groups; Username / SetUsernameHeader |
 | `groupManagementLogChangedSlowMode` | Changed slow mode | NewGroup / GroupMembers / Groups |
 | `groupManagementLogCreatedTopic` | Created topic | NewGroup / GroupMembers / Groups; Topics / NoTopics / CreateTopicsPermission |
-| `groupManagementLogDeletedInviteLink` | Deleted invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; AddMember / VoipGroupInviteMember |
-| `groupManagementLogDeletedMessage` | Deleted message | Message / SendMessage / SearchMessages; NewGroup / GroupMembers / Groups |
-| `groupManagementLogDeletedTopic` | Deleted topic | NewGroup / GroupMembers / Groups; Topics / NoTopics / CreateTopicsPermission |
-| `groupManagementLogEditedInviteLink` | Edited invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; AddMember / VoipGroupInviteMember |
+| `groupManagementLogDeletedInviteLink` | Deleted invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; InviteLink / AddMember; Delete / DeleteChat / DeleteAll / DeleteAllFrom |
+| `groupManagementLogDeletedMessage` | Deleted message | Message / SendMessage / SearchMessages; NewGroup / GroupMembers / Groups; Delete / DeleteChat / DeleteAll / DeleteAllFrom |
+| `groupManagementLogDeletedTopic` | Deleted topic | NewGroup / GroupMembers / Groups; Topics / NoTopics / CreateTopicsPermission; Delete / DeleteChat / DeleteAll / DeleteAllFrom |
+| `groupManagementLogEditedInviteLink` | Edited invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; InviteLink / AddMember |
 | `groupManagementLogEditedMessage` | Edited message | Message / SendMessage / SearchMessages; NewGroup / GroupMembers / Groups |
 | `groupManagementLogEditedTopic` | Edited topic | NewGroup / GroupMembers / Groups; Topics / NoTopics / CreateTopicsPermission |
 | `groupManagementLogEmpty` | No management log yet | NewGroup / GroupMembers / Groups |
 | `groupManagementLogGenericAdminAction` | Performed an admin action | NewGroup / GroupMembers / Groups |
-| `groupManagementLogInvitedMember` | Invited member | NewGroup / GroupMembers / Groups; Members / GroupMembers / ChannelMembers |
-| `groupManagementLogJoinedByInviteLink` | Joined via invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; AddMember / VoipGroupInviteMember |
+| `groupManagementLogInvitedMember` | Invited member | NewGroup / GroupMembers / Groups; Members / GroupMembers / ChannelMembers; InviteLink / AddMember |
+| `groupManagementLogJoinedByInviteLink` | Joined via invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; InviteLink / AddMember |
 | `groupManagementLogJoinedGroup` | Joined the group | NewGroup / GroupMembers / Groups |
 | `groupManagementLogLeftGroup` | Left the group | NewGroup / GroupMembers / Groups |
 | `groupManagementLogNoPermission` | You do not have permission to view the group management log | NewGroup / GroupMembers / Groups |
-| `groupManagementLogRevokedInviteLink` | Revoked invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; AddMember / VoipGroupInviteMember |
+| `groupManagementLogRevokedInviteLink` | Revoked invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; InviteLink / AddMember |
 | `groupManagementMembersSection` | Member Management | NewGroup / GroupMembers / Groups; Members / GroupMembers / ChannelMembers |
 | `groupManagementNotSet` | Not set | NewGroup / GroupMembers / Groups |
 | `groupManagementPermissionEditGroupInfo` | Edit group info | NewGroup / GroupMembers / Groups |
-| `groupManagementPermissionSendFiles` | Send files | NewGroup / GroupMembers / Groups; AttachDocument / SharedFilesTab |
-| `groupManagementPermissionSendMusic` | Send music | NewGroup / GroupMembers / Groups; AttachMusic / SharedMusicTab |
-| `groupManagementPermissionSendPhotos` | Send photos | NewGroup / GroupMembers / Groups; AttachPhoto / SharedMediaTab |
-| `groupManagementPermissionSendVideoMessages` | Send video messages | Message / SendMessage / SearchMessages; NewGroup / GroupMembers / Groups; AttachVideo / Videos |
-| `groupManagementPermissionSendVideos` | Send videos | NewGroup / GroupMembers / Groups; AttachVideo / Videos |
-| `groupManagementPermissionSendVoice` | Send voice messages | Message / SendMessage / SearchMessages; NewGroup / GroupMembers / Groups; AttachAudio / VoiceMessages |
 | `groupManagementPostingPermissions` | Posting Permissions | NewGroup / GroupMembers / Groups |
 | `imageEditObscure` | Obscure | AttachPhoto / SharedMediaTab |
 | `imageEditTitle` | Edit Image | AttachPhoto / SharedMediaTab |
-| `keywordBlockerDescription` | After you add keywords, matching messages will be hidden in chats and will not trigger local notifications. Supports plain keywords, re:regex, regex:regex, and /regex/i. Remote lists use one rule per line; lines starting with # or // are comments. | CommentsNoNumber / RepliesTitle; Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Notifications / NotificationsPrivateChats |
+| `keywordBlockerDescription` | After you add keywords, matching messages will be hidden in chats and will not trigger local notifications. Supports plain keywords, re:regex, regex:regex, and /regex/i. Remote lists use one rule per line; lines starting with # or // are comments. | Message / SendMessage / SearchMessages; CommentsNoNumber / RepliesTitle |
 | `keywordBlockerInputPlaceholder` | Enter keyword | - |
 | `keywordBlockerListUrl` | Keyword list URL | - |
-| `keywordBlockerAddFromMessageTitle` | Block keyword | BlockUser / BlockedUsers; Message / SendMessage / SearchMessages |
-| `keywordBlockerRuleAdded` | Blocked keyword: {value1} | BlockedUsers |
+| `keywordBlockerAddFromMessageTitle` | Block keyword | Message / SendMessage / SearchMessages; BlockUser / BlockedUsers |
+| `keywordBlockerRuleAdded` | Blocked keyword: {value1} | BlockUser / BlockedUsers |
 | `keywordBlockerRulesAdded` | Added {value1} rules | - |
 | `keywordBlockerRulesUpToDate` | Rules are up to date | - |
 | `keywordBlockerTitle` | Keyword Blocker | - |
@@ -291,42 +275,29 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `languageTelegramLanguage` | Telegram language | SettingsLanguage |
 | `languageTelegramOfficial` | Official | SettingsLanguage |
 | `languageTelegramUsing` | Using {value1} | SettingsLanguage |
-| `linkHandlerQrLoginWarning` | This link can approve another device signing in to your Telegram account. Make sure it is you signing in. | SharedLinksTab / ShareLink; Devices / CurrentSession / OtherSessions; BotAuthLogin / AuthAnotherClient; AuthAnotherClient |
+| `linkHandlerQrLoginWarning` | This link can approve another device signing in to your Telegram account. Make sure it is you signing in. | SharedLinksTab / ShareLink; Devices / CurrentSession / OtherSessions; BotAuthLogin / AuthAnotherClient; AuthAnotherClient / QrCode |
 | `listSeparator` | ,  | - |
 | `loginBackToAccount` | Back to {value1} | BotAuthLogin / AuthAnotherClient |
 | `loginBackToPreviousAccount` | Back to previous account | BotAuthLogin / AuthAnotherClient |
-| `loginCodeSentByEmail` | Enter the code sent to your email. | BotAuthLogin / AuthAnotherClient |
 | `loginCodeSentByFirebase` | Enter the code from the system verification prompt. | BotAuthLogin / AuthAnotherClient |
 | `loginCodeSentByFlashCall` | Enter the code from the incoming call matching {value1}. | Call / VideoCall / VoipConnecting; BotAuthLogin / AuthAnotherClient |
 | `loginCodeSentByFragment` | Enter the code from Fragment. | BotAuthLogin / AuthAnotherClient |
 | `loginCodeSentByMissedCall` | Enter the last {value2} digits of the missed call from {value1}. | Call / VideoCall / VoipConnecting; BotAuthLogin / AuthAnotherClient |
-| `loginCodeSentByPhoneCall` | Enter the code from the phone call to {value1}. | Call / VideoCall / VoipConnecting; BotAuthLogin / AuthAnotherClient; Phone |
-| `loginCodeSentBySms` | Enter the SMS code sent to {value1}. | BotAuthLogin / AuthAnotherClient |
 | `loginCodeWillBeSentToNumber` | We will send a one-time login code to this number | BotAuthLogin / AuthAnotherClient |
 | `loginCompleteRegistration` | Complete registration | BotAuthLogin / AuthAnotherClient |
 | `loginConfigureCustomApi` | Configure custom API | BotAuthLogin / AuthAnotherClient |
-| `loginGetVerificationCode` | Get code | BotAuthLogin / AuthAnotherClient |
 | `loginNewAccountNicknamePrompt` | This is a new account. Please enter a nickname | BotAuthLogin / AuthAnotherClient |
 | `loginPasswordHint` | Password hint: {value1} | TwoStepVerification / Password; BotAuthLogin / AuthAnotherClient |
-| `loginPhoneNumberWithCountryCode` | Phone number with country code | BotAuthLogin / AuthAnotherClient; Phone |
-| `loginQrCodeSubtitle` | Scan this QR code with another phone already signed in to Telegram. | BotAuthLogin / AuthAnotherClient; AuthAnotherClient; Phone |
-| `loginReenterPhoneNumber` | Re-enter phone number | BotAuthLogin / AuthAnotherClient; Phone |
-| `loginSwitchAccount` | Switch account | BotAuthLogin / AuthAnotherClient |
-| `loginTelegramAccountTitle` | Log in to Telegram | BotAuthLogin / AuthAnotherClient |
+| `loginReenterPhoneNumber` | Re-enter phone number | BotAuthLogin / AuthAnotherClient; Phone / PhoneNumber |
 | `loginTelegramApiCredentialsMissing` | Telegram API credentials are not configured | BotAuthLogin / AuthAnotherClient |
 | `loginTelegramApiPortalInstructions` | (You can get them from my.telegram.org.) | BotAuthLogin / AuthAnotherClient |
 | `loginTelegramApiSecretsInstructions` | Enter your own Telegram client api_id and api_hash | BotAuthLogin / AuthAnotherClient |
-| `loginTermsBody` | By using this app, you must follow Telegram's Terms of Service. Mithka signs in to existing Telegram accounts and has zero tolerance for objectionable content or abusive users. You can filter messages with Keyword Blocker, report objectionable content through Telegram, and block abusive users through Telegram. Blocking removes that sender's messages from your view immediately. | BlockUser / BlockedUsers; ReportChat / ReportChatSent; Message / SendMessage / SearchMessages; SettingsFolders / FilterNoChatsToDisplay; BotAuthLogin / AuthAnotherClient |
-| `loginTwoStepPassword` | Two-step verification password | TwoStepVerification / Password; BotAuthLogin / AuthAnotherClient |
-| `loginVerify` | Verify | BotAuthLogin / AuthAnotherClient |
+| `loginTermsBody` | By using this app, you must follow Telegram's Terms of Service. Mithka signs in to existing Telegram accounts and has zero tolerance for objectionable content or abusive users. You can filter messages with Keyword Blocker, report objectionable content through Telegram, and block abusive users through Telegram. Blocking removes that sender's messages from your view immediately. | Message / SendMessage / SearchMessages; BlockUser / BlockedUsers; ReportChat / ReportChatSent; BotAuthLogin / AuthAnotherClient |
 | `markdownLabel` | Markdown | - |
-| `messageActionBlockKeyword` | Block keyword | BlockUser / BlockedUsers; Message / SendMessage / SearchMessages |
+| `messageActionBlockKeyword` | Block keyword | Message / SendMessage / SearchMessages; BlockUser / BlockedUsers |
 | `messageActionPlayMuted` | Play muted | Message / SendMessage / SearchMessages |
 | `messageBubbleCallDuration` | Call duration {value1} | Message / SendMessage / SearchMessages; Call / VideoCall / VoipConnecting |
-| `messageBubbleExpandQuote` | Expand quote | QuoteMessage; Message / SendMessage / SearchMessages |
-| `messageRepliesUnavailable` | Replies are not available for this message | RepliesTitle; Message / SendMessage / SearchMessages |
-| `momentsCommentPlaceholder` | Say something... | CommentsNoNumber / RepliesTitle |
-| `momentsCreatePostTitle` | Create post | Create / NewGroup / ChannelAlertCreate2 |
+| `momentsCreatePostTitle` | Create post | - |
 | `momentsLiked` | Liked | - |
 | `momentsLikedByCount` | Liked by {value1} | - |
 | `momentsLikedByListWithOthers` | {value1}, ... and {value2} others liked this | - |
@@ -335,58 +306,51 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `momentsNoPostableChannels` | No channels available to post to | Channel / ChannelSettings / ChannelMembers |
 | `momentsNoSearchableChannels` | No searchable channels | Channel / ChannelSettings / ChannelMembers |
 | `momentsNotifySubscribers` | Notify subscribers | - |
-| `momentsPostAction` | Post | StarsTransactionMessage |
+| `momentsPostAction` | Post | Exact upstream text: StarsTransactionMessage |
 | `momentsPostedTo` | Posted to {value1} | - |
 | `momentsPublishTo` | Post to | - |
 | `momentsReplied` | Replied | - |
-| `momentsReplyPrefix` | Reply to {value1}:  | RepliesTitle / Reply |
-| `momentsReplyToPlaceholder` | Reply to {value1}… | RepliesTitle / Reply |
-| `momentsReplyToUser` | Reply to {value1} | RepliesTitle / Reply |
-| `momentsReplyToUserPlaceholder` | Reply to {value1}... | RepliesTitle / Reply |
-| `momentsSearchChannelPosts` | Search channel posts | Search / SearchMessages / NoResult; Channel / ChannelSettings / ChannelMembers |
-| `momentsSearchJoinedChannelPosts` | Search posts from joined channels | Search / SearchMessages / NoResult; Channel / ChannelSettings / ChannelMembers |
+| `momentsSearchChannelPosts` | Search channel posts | Channel / ChannelSettings / ChannelMembers; Search / SearchMessages / NoResult |
+| `momentsSearchJoinedChannelPosts` | Search posts from joined channels | Channel / ChannelSettings / ChannelMembers; Search / SearchMessages / NoResult |
 | `momentsShareSomethingPlaceholder` | Share something new... | - |
 | `momentsUserLiked` | {value1} liked this | - |
 | `musicPlayerAddedToPlaylist` | Added to playlist | AttachMusic / SharedMusicTab |
 | `musicPlayerAlreadyInPlaylist` | Already in the playlist | AttachMusic / SharedMusicTab |
 | `musicPlayerQueueTitleWithCount` | Play queue ({value1}) | AttachMusic / SharedMusicTab |
 | `netemoMusicLabel` | Netemo music | AttachMusic / SharedMusicTab |
-| `notificationGroupMessages` | Group messages | Message / SendMessage / SearchMessages; NewGroup / GroupMembers / Groups; Notifications / NotificationsPrivateChats |
 | `pollComposerQuestionRequired` | Enter a question | Poll / NewPoll / AddAnOption |
 | `pollComposerSingleChoiceLimitHint` | Single choice · Up to 10 options | Poll / NewPoll / AddAnOption |
-| `privacyDeleteTelegramAccountMessage` | Telegram accounts are managed by Telegram and can be set to delete automatically after a period of inactivity in Telegram settings. To delete sooner, open Telegram's official account deletion page and complete deletion directly with Telegram. | Delete / DeleteChat / DeleteAll / DeleteAllFrom; Message / SendMessage / SearchMessages; PrivacySettings / PrivacyTitle; Open |
-| `privacyDeleteTelegramAccountOpen` | Open deletion page | Delete / DeleteChat / DeleteAll / DeleteAllFrom; PrivacySettings / PrivacyTitle; Open |
+| `privacyDeleteTelegramAccountMessage` | Telegram accounts are managed by Telegram and can be set to delete automatically after a period of inactivity in Telegram settings. To delete sooner, open Telegram's official account deletion page and complete deletion directly with Telegram. | Message / SendMessage / SearchMessages; Delete / DeleteChat / DeleteAll / DeleteAllFrom; PrivacySettings / PrivacyTitle |
+| `privacyDeleteTelegramAccountOpen` | Open deletion page | Delete / DeleteChat / DeleteAll / DeleteAllFrom; PrivacySettings / PrivacyTitle |
 | `privacyDeviceApp` | App | PrivacySettings / PrivacyTitle; Devices / CurrentSession / OtherSessions |
-| `privacyLoginQrAccepted` | Login approved | PrivacySettings / PrivacyTitle; BotAuthLogin / AuthAnotherClient; AuthAnotherClient |
-| `privacyLoginQrInvalid` | This is not a Telegram login QR code | PrivacySettings / PrivacyTitle; BotAuthLogin / AuthAnotherClient; AuthAnotherClient |
 | `privacyNoOtherDevices` | No other devices are logged in | PrivacySettings / PrivacyTitle; Devices / CurrentSession / OtherSessions |
-| `privacyScanLoginQrSubtitle` | Scan the QR code shown on another Telegram login screen to approve that device. | PrivacySettings / PrivacyTitle; Devices / CurrentSession / OtherSessions; BotAuthLogin / AuthAnotherClient; AuthAnotherClient |
+| `privacyScanLoginQrSubtitle` | Scan the QR code shown on another Telegram login screen to approve that device. | PrivacySettings / PrivacyTitle; Devices / CurrentSession / OtherSessions; BotAuthLogin / AuthAnotherClient; AuthAnotherClient / QrCode |
 | `privacyTerminateSessionMessage` | Terminate {value1}? | Message / SendMessage / SearchMessages; PrivacySettings / PrivacyTitle; CurrentSession / OtherSessions |
-| `profileDetailAudioVideoCall` | Audio/video call | Call / VideoCall / VoipConnecting; AttachVideo / Videos; AttachAudio / AttachMusic; MyProfile / UserBio |
-| `profileDetailCardLinkCopied` | Profile card link copied | SharedLinksTab / ShareLink; MyProfile / UserBio |
-| `profileDetailFeaturedPhotos` | Featured photos | AttachPhoto / SharedMediaTab; MyProfile / UserBio |
-| `profileDetailMonthDayDate` | {value1}/{value2} | MyProfile / UserBio |
-| `profileDetailYearMonthDate` | {value1}/{value2} | MyProfile / UserBio |
-| `profileLogOutAccountConfirm` | This will revoke the Telegram session for {value1}, remove its local data, and delete its saved Keychain backup. | Delete / DeleteChat / DeleteAll / DeleteAllFrom; Delete / Remove; CurrentSession / OtherSessions; MyProfile / UserBio; Save |
-| `profileRemoveAccountConfirm` | {value1} will be removed from this device. The Telegram session stays active on Telegram and can be restored from a saved backup. | Delete / Remove; CurrentSession / OtherSessions; Devices / CurrentSession / OtherSessions; MyProfile / UserBio; Save |
+| `profileDetailAudioVideoCall` | Audio/video call | Call / VideoCall / VoipConnecting; AttachVideo / Videos |
+| `profileDetailCardLinkCopied` | Profile card link copied | SharedLinksTab / ShareLink |
+| `profileDetailFeaturedPhotos` | Featured photos | AttachPhoto / SharedMediaTab |
+| `profileDetailMonthDayDate` | {value1}/{value2} | - |
+| `profileDetailYearMonthDate` | {value1}/{value2} | - |
+| `profileLogOutAccountConfirm` | This will revoke the Telegram session for {value1}, remove its local data, and delete its saved Keychain backup. | Delete / DeleteChat / DeleteAll / DeleteAllFrom; Delete / Remove; Save / SavedMessages; CurrentSession / OtherSessions |
+| `profileRemoveAccountConfirm` | {value1} will be removed from this device. The Telegram session stays active on Telegram and can be restored from a saved backup. | Delete / Remove; Save / SavedMessages; Devices / CurrentSession / OtherSessions; CurrentSession / OtherSessions |
 | `proxyDescription` | The proxy is only used to connect to Telegram and may slow down your connection. | - |
-| `qrCodeNoGroupQrCode` | No group QR code yet | NewGroup / GroupMembers / Groups; AuthAnotherClient |
-| `qrCodeScanToAddFriend` | Scan the QR code above to add me as a friend | AuthAnotherClient |
+| `qrCodeNoGroupQrCode` | No group QR code yet | NewGroup / GroupMembers / Groups; AuthAnotherClient / QrCode |
+| `qrCodeScanToAddFriend` | Scan the QR code above to add me as a friend | AuthAnotherClient / QrCode |
 | `richTextComposerAddColumn` | Add column | - |
 | `richTextComposerAddRow` | Add row | - |
 | `richTextComposerContentPlaceholder` | Enter rich text | - |
 | `richTextComposerFormatBoldMark` | B | - |
 | `richTextComposerFormatItalicMark` | I | - |
-| `richTextComposerFormatStrikethroughMark` | S | SecretChatTimerSeconds; CalendarWeekNameShortSaturday; CalendarWeekNameShortSunday |
+| `richTextComposerFormatStrikethroughMark` | S | Exact upstream text: SecretChatTimerSeconds, CalendarWeekNameShortSaturday, CalendarWeekNameShortSunday |
 | `richTextComposerFormatUnderlineMark` | U | - |
 | `settingsAboutMithka` | About Mithka | - |
-| `sharedMediaCacheDeleted` | Local cache deleted | ClearCache / StorageUsage |
+| `sharedMediaCacheDeleted` | Local cache deleted | ClearCache / StorageUsage; Delete / DeleteChat / DeleteAll / DeleteAllFrom |
 | `sharedMediaDownloadedSize` | Downloaded {value1} | Download / Downloaded |
 | `sharedMediaDownloadProgress` | Downloaded {value1} of {value2} | Download / Downloaded |
 | `sharedMediaFromSource` | From {value1} | - |
 | `sharedMediaNotDownloadedSize` | Not downloaded · {value1} | Download / Downloaded |
 | `stickerSetDetailAddSuccess` | Sticker added | AttachSticker / ViewPackPreview |
-| `stickerSetDetailRemoved` | Sticker removed | AttachSticker / ViewPackPreview |
+| `stickerSetDetailRemoved` | Sticker removed | AttachSticker / ViewPackPreview; Delete / Remove |
 | `stickerSetDetailTitle` | Sticker Details | AttachSticker / ViewPackPreview |
 | `tabFriendMoments` | Friends' Moments | - |
 | `tabMoments` | Moments | - |
@@ -395,7 +359,7 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `tdMessageLastSeenTodayTime` | Last seen today at {value1}:{value2} | Message / SendMessage / SearchMessages |
 | `tdMessageLastSeenYearMonthDay` | Last seen {value1}/{value2}/{value3} | Message / SendMessage / SearchMessages |
 | `tdMessageLastSeenYesterdayTime` | Last seen yesterday at {value1}:{value2} | Message / SendMessage / SearchMessages |
-| `tdMessagePaidMessagePriceChanged` | Message price changed to {value1} Stars | Message / SendMessage / SearchMessages |
+| `tdMessagePaidMessagePriceChanged` | Message price changed to {value1} Stars | Message / SendMessage / SearchMessages; MessageLockedStars / Stars |
 | `tdMessagePaidMessagesDisabled` | Paid messages turned off | Message / SendMessage / SearchMessages |
 | `tdMessagePaidMessageSettingsChanged` | [Paid message settings changed] | Message / SendMessage / SearchMessages |
 | `themeApplePingFangFamily` | Apple / PingFang | ThemeDay / ThemeDark / ThemeNight |
@@ -412,28 +376,27 @@ Generated for the Telegram language-pack migration. Mapped strings use Telegram 
 | `topicChatAwaitingYourPost` | Waiting for your post | SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission |
 | `topicChatBeKindPrompt` | Be kind | SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission |
 | `topicChatChannelNumber` | Channel No. {value1} | SearchAllChatsShort / SelectChat; Channel / ChannelSettings / ChannelMembers; Topics / NoTopics / CreateTopicsPermission |
-| `topicChatComposerPlaceholder` | Share a thought, caption, or link | SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission; SharedLinksTab / ShareLink; AddCaption |
+| `topicChatComposerPlaceholder` | Share a thought, caption, or link | SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission; SharedLinksTab / ShareLink; AddCaption / HideCaption |
 | `topicChatGroupChatTitle` | Topic Group Chat | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups; Topics / NoTopics / CreateTopicsPermission |
-| `topicChatLeaveChannelConfirm` | Leaving "{value1}" will delete this topic channel. Continue? | Delete / DeleteChat / DeleteAll / DeleteAllFrom; SearchAllChatsShort / SelectChat; Channel / ChannelSettings / ChannelMembers; Topics / NoTopics / CreateTopicsPermission; LeaveMegaMenu / LeaveChannel |
-| `topicChatLikeCommentSummary` | {value1} likes · {value2} comments | CommentsNoNumber / RepliesTitle; SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission |
+| `topicChatLeaveChannelConfirm` | Leaving "{value1}" will delete this topic channel. Continue? | SearchAllChatsShort / SelectChat; Channel / ChannelSettings / ChannelMembers; Topics / NoTopics / CreateTopicsPermission; Delete / DeleteChat / DeleteAll / DeleteAllFrom |
+| `topicChatLikeCommentSummary` | {value1} likes · {value2} comments | SearchAllChatsShort / SelectChat; CommentsNoNumber / RepliesTitle; Topics / NoTopics / CreateTopicsPermission |
 | `topicChatMostRelevant` | Most Relevant | SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission |
-| `topicChatMuteMessagesToggle` | Mute Messages | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission; VoipMute / ChatsUnmute |
+| `topicChatMuteMessagesToggle` | Mute Messages | Message / SendMessage / SearchMessages; SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission |
 | `topicChatNoMoreContent` | No more content | SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission |
-| `topicChatPinnedPrefix` | Pinned \|  | PinnedMessages / PinMessage; SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission |
-| `translationInternalNoExternalApi` | Internal translation does not use an external API | - |
+| `topicChatPinnedPrefix` | Pinned \|  | SearchAllChatsShort / SelectChat; Topics / NoTopics / CreateTopicsPermission; PinnedMessages / PinMessage |
+| `translationInternalNoExternalApi` | Internal translation does not use an external API | TranslateMessage |
 | `translationLibreTranslateUrlRequired` | Set the LibreTranslate URL first | TranslateMessage |
-| `translationMlKitLocal` | ML Kit (local) | - |
-| `translationNativeCancelledOrTimedOut` | Native translation was canceled or timed out | - |
-| `translationNativeNoExternalApi` | Native translation does not use an external API | - |
-| `translationServiceInvalidResponse` | Invalid response format from translation service | - |
-| `translationServiceReturnedStatus` | Translation service returned {value1} | - |
-| `translationServiceUrlInvalid` | Invalid translation service URL | - |
-| `translationSettingsService` | Translation Service | - |
-| `translationSettingsTargetLanguage` | Target Language | SettingsLanguage |
-| `translationSystem` | System Translation | - |
-| `translationTelegram` | Telegram Translation | - |
+| `translationMlKitLocal` | ML Kit (local) | TranslateMessage |
+| `translationNativeCancelledOrTimedOut` | Native translation was canceled or timed out | TranslateMessage |
+| `translationNativeNoExternalApi` | Native translation does not use an external API | TranslateMessage |
+| `translationServiceInvalidResponse` | Invalid response format from translation service | TranslateMessage |
+| `translationServiceReturnedStatus` | Translation service returned {value1} | TranslateMessage |
+| `translationServiceUrlInvalid` | Invalid translation service URL | TranslateMessage |
+| `translationSettingsService` | Translation Service | TranslateMessage |
+| `translationSettingsTargetLanguage` | Target Language | TranslateMessage; SettingsLanguage |
+| `translationSystem` | System Translation | TranslateMessage |
+| `translationTelegram` | Telegram Translation | TranslateMessage |
 | `updateNewVersionFound` | New Version Available | - |
-| `videoPlayerPictureInPicture` | Picture in Picture | AttachVideo / Videos |
 | `videoPlayerSplitScreen` | Split Screen | AttachVideo / Videos |
 | `videoPlayerStreamingWhileDownloading` | Streaming while downloading | AttachVideo / Videos |
 | `videoPlayerToggleDisplayMode` | Switch display mode | AttachVideo / Videos |
