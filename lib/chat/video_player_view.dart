@@ -130,6 +130,12 @@ class _TdVideoStreamServer {
         return;
       }
 
+      final rangeHeader = request.headers.value(HttpHeaders.rangeHeader);
+      if (rangeHeader == null || !rangeHeader.startsWith('bytes=')) {
+        await _handleWholeRequest(request);
+        return;
+      }
+
       final (start, end) = _requestedRange(request);
       final ok = await _ensureRange(start, end);
       if (!ok || _path == null) {
@@ -157,6 +163,22 @@ class _TdVideoStreamServer {
       request.response.statusCode = HttpStatus.internalServerError;
       await request.response.close();
     }
+  }
+
+  Future<void> _handleWholeRequest(HttpRequest request) async {
+    request.response.statusCode = HttpStatus.ok;
+    var start = 0;
+    while (start < _total) {
+      final end = math.min(_total - 1, start + _chunkSize - 1);
+      final ok = await _ensureRange(start, end);
+      if (!ok || _path == null) break;
+      final bytes = await _readRange(start, end);
+      if (bytes.isEmpty) break;
+      request.response.add(bytes);
+      await request.response.flush();
+      start += bytes.length;
+    }
+    await request.response.close();
   }
 
   (int, int) _requestedRange(HttpRequest request) {
@@ -631,12 +653,19 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   Future<bool> _startSystemPictureInPicture() async {
     final c = _controller;
     final uri = _systemPiPSourceUri();
-    if (c == null || !c.value.isInitialized || uri == null) return false;
-    if (!await _isSystemPictureInPictureSupported()) return false;
+    if (c == null || !c.value.isInitialized || uri == null) {
+      debugPrint('system PiP start skipped: controller/source unavailable');
+      return false;
+    }
+    if (!await _isSystemPictureInPictureSupported()) {
+      debugPrint('system PiP start skipped: AVPictureInPicture unsupported');
+      return false;
+    }
 
     var id = _systemPiPId;
     var started = false;
     if (id != null && _systemPiPPrepared) {
+      debugPrint('system PiP starting prepared source: $uri');
       started = await SystemPictureInPicture.startPrepared(
         id: id,
         position: c.value.position,
@@ -655,6 +684,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       final server = _streamServer;
       final shouldCancelOnStop =
           !_openedCompletedLocalFile && _progress?.isCompleted != true;
+      debugPrint('system PiP starting source: $uri');
       started = await SystemPictureInPicture.start(
         id: id,
         uri: uri,
@@ -669,7 +699,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         },
       );
     }
-    if (!started) return false;
+    if (!started) {
+      debugPrint('system PiP failed to start for source: $uri');
+      if (mounted) {
+        showToast(context, AppStringKeys.videoPlayerPictureInPictureFailed);
+      }
+      return false;
+    }
     _systemPiPHandoff = true;
     _systemPiPPrepared = false;
     _streamServer = null;
@@ -727,7 +763,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
 
   Future<void> _refreshSystemPictureInPictureSupport() async {
     final supported = await _isSystemPictureInPictureSupported();
-    if (supported) {
+    if (supported && widget.onSwitchMode == null) {
       unawaited(_prepareSystemPictureInPicture());
     }
   }
@@ -1723,15 +1759,27 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   }
 
   bool get _showsSystemPictureInPictureButton =>
-      _systemPiPSupported &&
+      (widget.onSwitchMode != null ||
+          _systemPiPSupported ||
+          SystemPictureInPicture.isSupportedPlatform) &&
       widget.presentation != VideoPlayerPresentation.pictureInPicture;
 
   Widget _systemPictureInPictureButton({required double size}) {
     if (!_showsSystemPictureInPictureButton) return const SizedBox.shrink();
     return _roundIconButton(HeroAppIcons.pictureInPicture.data, () {
-      unawaited(_startSystemPictureInPicture());
+      debugPrint('picture in picture button tapped');
+      unawaited(_enterPictureInPicture());
       _scheduleHide();
     }, size: size);
+  }
+
+  Future<void> _enterPictureInPicture() async {
+    final callback = widget.onSwitchMode;
+    if (callback != null) {
+      callback(VideoDisplayMode.pictureInPicture);
+      return;
+    }
+    await _startSystemPictureInPicture();
   }
 
   Widget _modeSwitchButton({double size = 50}) {
@@ -1780,8 +1828,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     VideoDisplayMode mode,
     ValueChanged<VideoDisplayMode> callback,
   ) async {
-    if (mode == VideoDisplayMode.pictureInPicture &&
-        await _startSystemPictureInPicture()) {
+    if (mode == VideoDisplayMode.pictureInPicture) {
+      if (!mounted) return;
+      callback(mode);
       return;
     }
     if (!mounted) return;

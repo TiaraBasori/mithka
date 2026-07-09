@@ -800,6 +800,11 @@ abstract final class AppStringKeys {
   static const emojiStatusSetRequiresPremiumFailed =
       'emojiStatusSetRequiresPremiumFailed';
   static const emojiStatusSetTitle = 'emojiStatusSetTitle';
+  static const developerModePiPBoundsOverlay = 'developerModePiPBoundsOverlay';
+  static const developerModePiPBoundsOverlayDescription =
+      'developerModePiPBoundsOverlayDescription';
+  static const developerModeTitle = 'developerModeTitle';
+  static const developerModeUnlocked = 'developerModeUnlocked';
   static const featureBottomTabs = 'featureBottomTabs';
   static const featureTitle = 'featureTitle';
   static const fileDetailDownloadProgress = 'fileDetailDownloadProgress';
@@ -948,6 +953,9 @@ abstract final class AppStringKeys {
   static const keywordBlockerInputPlaceholder =
       'keywordBlockerInputPlaceholder';
   static const keywordBlockerListUrl = 'keywordBlockerListUrl';
+  static const keywordBlockerAddFromMessageTitle =
+      'keywordBlockerAddFromMessageTitle';
+  static const keywordBlockerRuleAdded = 'keywordBlockerRuleAdded';
   static const keywordBlockerRulesAdded = 'keywordBlockerRulesAdded';
   static const keywordBlockerRulesUpToDate = 'keywordBlockerRulesUpToDate';
   static const keywordBlockerTitle = 'keywordBlockerTitle';
@@ -1019,6 +1027,7 @@ abstract final class AppStringKeys {
   static const loginWithQrCode = 'loginWithQrCode';
   static const markdownLabel = 'markdownLabel';
   static const messageActionBlock = 'messageActionBlock';
+  static const messageActionBlockKeyword = 'messageActionBlockKeyword';
   static const messageActionCopy = 'messageActionCopy';
   static const messageActionEdit = 'messageActionEdit';
   static const messageActionFavorite = 'messageActionFavorite';
@@ -1426,6 +1435,8 @@ abstract final class AppStringKeys {
   static const videoPlayerFullscreen = 'videoPlayerFullscreen';
   static const videoPlayerLoadFailed = 'videoPlayerLoadFailed';
   static const videoPlayerLoading = 'videoPlayerLoading';
+  static const videoPlayerPictureInPictureFailed =
+      'videoPlayerPictureInPictureFailed';
   static const videoPlayerPictureInPicture = 'videoPlayerPictureInPicture';
   static const videoPlayerPlaybackSpeed = 'videoPlayerPlaybackSpeed';
   static const videoPlayerSplitScreen = 'videoPlayerSplitScreen';

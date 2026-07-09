@@ -1186,6 +1186,7 @@ class ChatViewModel extends ChangeNotifier {
       throw TdError({'message': 'Missing message sender'});
     }
     _blockedSenderIds.add(senderId);
+    KeywordBlocker.shared.addBlockedSender(senderId);
     _applyKeywordFilter();
     try {
       await _client.query({
@@ -1195,6 +1196,7 @@ class ChatViewModel extends ChangeNotifier {
       });
     } catch (_) {
       _blockedSenderIds.remove(senderId);
+      KeywordBlocker.shared.removeBlockedSender(senderId);
       _applyKeywordFilter();
       rethrow;
     }
@@ -2617,6 +2619,7 @@ class ChatViewModel extends ChangeNotifier {
     if (message.isOutgoing || message.isService) return false;
     final senderId = message.senderId;
     if (senderId != null && _blockedSenderIds.contains(senderId)) return true;
+    if (KeywordBlocker.shared.isSenderBlocked(senderId)) return true;
     return KeywordBlocker.shared.matches(message.text);
   }
 

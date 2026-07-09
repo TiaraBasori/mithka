@@ -299,7 +299,9 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
   private func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "isSupported":
-      result(AVPictureInPictureController.isPictureInPictureSupported())
+      let supported = AVPictureInPictureController.isPictureInPictureSupported()
+      NSLog("Mithka system PiP isSupported: \(supported)")
+      result(supported)
     case "prepare":
       result(prepare(call: call))
     case "startPrepared":
@@ -334,6 +336,7 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
 
   private func prepare(call: FlutterMethodCall) -> Bool {
     guard AVPictureInPictureController.isPictureInPictureSupported() else {
+      NSLog("Mithka system PiP prepare failed: unsupported")
       return false
     }
     guard
@@ -342,6 +345,7 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
       let rawURL = args["url"] as? String,
       let url = URL(string: rawURL)
     else {
+      NSLog("Mithka system PiP prepare failed: bad arguments")
       return false
     }
 
@@ -353,13 +357,16 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
       try audioSession.setActive(true)
     } catch {
       // PiP can still work when another owner already configured the session.
+      NSLog("Mithka system PiP audio session setup failed: \(error.localizedDescription)")
     }
 
+    NSLog("Mithka system PiP prepare source: \(url.absoluteString)")
     let item = AVPlayerItem(url: url)
     let player = AVPlayer(playerItem: item)
     applyPlaybackArguments(args, to: player, shouldSeek: true)
 
     guard let (layer, pipController, hostView) = attach(player: player) else {
+      NSLog("Mithka system PiP prepare failed: could not attach AVPlayerLayer")
       return false
     }
 
@@ -379,6 +386,7 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
       let player,
       let pipController = pictureInPictureController
     else {
+      NSLog("Mithka system PiP startPrepared failed: no active prepared controller")
       result(false)
       return
     }
@@ -442,6 +450,11 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
 
     let timeout = DispatchWorkItem { [weak self] in
       guard let self, self.pendingStartResult != nil else { return }
+      let itemStatus = player.currentItem?.status.rawValue ?? -1
+      let itemError = player.currentItem?.error?.localizedDescription ?? "none"
+      NSLog(
+        "Mithka system PiP start timed out: possible=\(pipController.isPictureInPicturePossible) itemStatus=\(itemStatus) itemError=\(itemError)"
+      )
       self.pendingStartResult?(false)
       self.pendingStartResult = nil
       self.possibleObservation?.invalidate()
@@ -469,9 +482,44 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
     ) { [weak self] item, _ in
       Task { @MainActor in
         if item.status == .failed {
+          let error = item.error?.localizedDescription ?? "unknown"
+          NSLog("Mithka system PiP item failed: \(error)")
           self?.pendingStartResult?(false)
           self?.pendingStartResult = nil
           self?.stop(notifyFlutter: false)
+        }
+      }
+    }
+
+    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self, weak pipController] in
+      Task { @MainActor in
+        guard
+          let self,
+          let pipController,
+          self.pendingStartResult != nil,
+          self.pictureInPictureController === pipController
+        else {
+          return
+        }
+        self.possibleObservation?.invalidate()
+        self.possibleObservation = nil
+        self.statusObservation?.invalidate()
+        self.statusObservation = nil
+        NSLog(
+          "Mithka system PiP force start: possible=\(pipController.isPictureInPicturePossible)"
+        )
+        if pipController.isPictureInPicturePossible {
+          pipController.startPictureInPicture()
+        } else {
+          self.possibleObservation = pipController.observe(
+            \.isPictureInPicturePossible,
+            options: [.new]
+          ) { [weak self, weak pipController] _, _ in
+            Task { @MainActor in
+              guard let self, let pipController else { return }
+              self.startPictureInPictureIfPossible(pipController)
+            }
+          }
         }
       }
     }
@@ -489,24 +537,16 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
     possibleObservation = nil
     statusObservation?.invalidate()
     statusObservation = nil
+    NSLog("Mithka system PiP startPictureInPicture")
     pipController.startPictureInPicture()
   }
 
   private func attach(player: AVPlayer) -> (AVPlayerLayer, AVPictureInPictureController, UIView)? {
     guard let root = Self.rootViewController() else { return nil }
-    let hostSize: CGFloat = 2
-    let hostView = UIView(
-      frame: CGRect(
-        x: max(0, root.view.bounds.maxX - hostSize),
-        y: max(0, root.view.bounds.maxY - hostSize),
-        width: hostSize,
-        height: hostSize
-      )
-    )
-    hostView.autoresizingMask = [.flexibleLeftMargin, .flexibleTopMargin]
-    hostView.alpha = 0.02
+    let hostView = UIView(frame: root.view.bounds)
+    hostView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    hostView.alpha = 0.01
     hostView.backgroundColor = .clear
-    hostView.clipsToBounds = true
     hostView.isUserInteractionEnabled = false
     let layer = AVPlayerLayer(player: player)
     layer.frame = hostView.bounds
@@ -520,7 +560,7 @@ private final class SystemPictureInPictureBridge: NSObject, AVPictureInPictureCo
     }
     pipController.delegate = self
     if #available(iOS 14.2, *) {
-      pipController.canStartPictureInPictureAutomaticallyFromInline = false
+      pipController.canStartPictureInPictureAutomaticallyFromInline = true
     }
     return (layer, pipController, hostView)
   }

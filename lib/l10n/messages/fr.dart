@@ -494,6 +494,11 @@ const frMessages = <String, String>{
   'emojiStatusSetRequiresPremiumFailed':
       "Échec de la définition du statut (Premium requis)",
   'emojiStatusSetTitle': "Définir le statut",
+  'developerModePiPBoundsOverlay': "Contour PiP",
+  'developerModePiPBoundsOverlayDescription':
+      "Affiche le cadre PiP de l’app et la taille de la fenêtre pour diagnostiquer une rotation, un recadrage ou une superposition.",
+  'developerModeTitle': "Mode développeur",
+  'developerModeUnlocked': "Mode développeur activé",
   'featureBottomTabs': "Onglets inférieurs",
   'featureTitle': "Fonctionnalités",
   'fileDetailDownloadProgress':
@@ -607,6 +612,8 @@ const frMessages = <String, String>{
       "Échec du téléchargement de la liste de mots-clés",
   'keywordBlockerInputPlaceholder': "Saisir un mot-clé",
   'keywordBlockerListUrl': "URL de la liste de mots-clés",
+  'keywordBlockerAddFromMessageTitle': "Bloquer un mot-clé",
+  'keywordBlockerRuleAdded': "Mot-clé bloqué : {value1}",
   'keywordBlockerRulesAdded': "{value1} règles ajoutées",
   'keywordBlockerRulesUpToDate': "Les règles sont à jour",
   'keywordBlockerTitle': "Blocage par mots-clés",
@@ -684,6 +691,7 @@ const frMessages = <String, String>{
   'loginWithQrCode': "Se connecter avec un QR code",
   'markdownLabel': "Markdown",
   'messageActionBlock': "Bloquer",
+  'messageActionBlockKeyword': "Bloquer mot",
   'messageActionCopy': "Copier",
   'messageActionEdit': "Modifier",
   'messageActionFavorite': "Ajouter aux favoris",
@@ -1080,6 +1088,8 @@ const frMessages = <String, String>{
   'videoPlayerFullscreen': "Plein écran",
   'videoPlayerLoadFailed': "Échec du chargement de la vidéo",
   'videoPlayerLoading': "Chargement de la vidéo",
+  'videoPlayerPictureInPictureFailed':
+      "Impossible de démarrer l’image dans l’image",
   'videoPlayerPictureInPicture': "Image dans l’image",
   'videoPlayerPlaybackSpeed': "Vitesse de lecture",
   'videoPlayerSplitScreen': "Écran partagé",

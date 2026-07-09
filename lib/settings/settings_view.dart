@@ -21,6 +21,8 @@ import '../l10n/telegram_language_controller.dart';
 import '../theme/app_theme.dart';
 import 'about_view.dart';
 import 'appearance_view.dart';
+import 'developer_mode_controller.dart';
+import 'developer_settings_view.dart';
 import 'edit_profile_view.dart';
 import 'feature_settings_view.dart';
 import 'general_settings_view.dart';
@@ -43,6 +45,7 @@ class _SettingsViewState extends State<SettingsView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final developer = context.watch<DeveloperModeController>();
     return Scaffold(
       backgroundColor: c.groupedBackground,
       body: Column(
@@ -139,6 +142,16 @@ class _SettingsViewState extends State<SettingsView> {
                     const Color(0xFF34A2DF),
                     () => const ProxyView(),
                   ),
+                  if (developer.unlocked) ...[
+                    const InsetDivider(leadingInset: 56),
+                    _navRow(
+                      context,
+                      HeroAppIcons.code.data,
+                      AppStrings.t(AppStringKeys.developerModeTitle),
+                      const Color(0xFFFF5A5F),
+                      () => const DeveloperSettingsView(),
+                    ),
+                  ],
                   const InsetDivider(leadingInset: 56),
                   _aboutRow(context),
                 ]),

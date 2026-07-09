@@ -19,6 +19,7 @@ import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import 'keyword_blocker.dart';
 import 'privacy_rule_options.dart';
 import 'qr_login_scanner_view.dart';
 
@@ -539,6 +540,7 @@ class _BlockedUsersViewState extends State<BlockedUsersView> {
         'sender_id': {'@type': 'messageSenderUser', 'user_id': u.id},
         'block_list': null,
       });
+      KeywordBlocker.shared.removeBlockedSender(u.id);
       setState(() => _blocked.removeWhere((x) => x.id == u.id));
     } catch (_) {}
   }

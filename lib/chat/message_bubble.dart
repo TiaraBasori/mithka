@@ -152,6 +152,16 @@ class _MessageBubbleState extends State<MessageBubble>
 
   double _mediaMaxWidth() => _bubbleMaxWidth();
 
+  double _chatTextScale() {
+    return context
+        .watch<ThemeController>()
+        .fontScale
+        .clamp(ThemeController.minFontScale, ThemeController.maxFontScale)
+        .toDouble();
+  }
+
+  double _chatFontSize(double base) => base * _chatTextScale();
+
   @override
   void initState() {
     super.initState();
@@ -792,7 +802,7 @@ class _MessageBubbleState extends State<MessageBubble>
     }
     _linkRecognizers.clear();
     final emojiOnly = _isEmojiOnlyText(text);
-    final textFontSize = emojiOnly ? 34.0 : 14.0;
+    final textFontSize = emojiOnly ? 34.0 : 16.0;
     return Container(
       constraints: BoxConstraints(maxWidth: _bubbleMaxWidth()),
       padding: emojiOnly
@@ -1733,7 +1743,7 @@ class _MessageBubbleState extends State<MessageBubble>
     bool outgoing,
     bool appendMeta, [
     List<MessageTextEntity>? entities,
-    double fontSize = 14,
+    double fontSize = 16,
   ]) {
     final sourceEntities = entities ?? message.textEntities;
     final blocks =
@@ -1780,8 +1790,26 @@ class _MessageBubbleState extends State<MessageBubble>
       }
       widgets.add(
         block.isPreBlock
-            ? _preBlock(block, text, start, end, base, link, sourceEntities)
-            : _quoteBlock(block, text, start, end, base, link, sourceEntities),
+            ? _preBlock(
+                block,
+                text,
+                start,
+                end,
+                base,
+                link,
+                sourceEntities,
+                fontSize,
+              )
+            : _quoteBlock(
+                block,
+                text,
+                start,
+                end,
+                base,
+                link,
+                sourceEntities,
+                fontSize,
+              ),
       );
       cursor = end;
     }
@@ -1823,8 +1851,9 @@ class _MessageBubbleState extends State<MessageBubble>
     bool appendMeta, {
     int? maxLines,
     List<MessageTextEntity>? entities,
-    double fontSize = 14,
+    double fontSize = 16,
   }) {
+    final effectiveFontSize = _chatFontSize(fontSize);
     final children = _entitySpans(
       text,
       start,
@@ -1832,12 +1861,12 @@ class _MessageBubbleState extends State<MessageBubble>
       base,
       link,
       entities ?? message.textEntities,
-      fontSize,
+      effectiveFontSize,
     );
     if (appendMeta) children.add(_metaSpan(outgoing));
     final style = DefaultTextStyle.of(
       context,
-    ).style.merge(TextStyle(fontSize: fontSize, color: base));
+    ).style.merge(TextStyle(fontSize: effectiveFontSize, color: base));
     return RichText(
       maxLines: maxLines,
       overflow: maxLines == null ? TextOverflow.clip : TextOverflow.fade,
@@ -1853,6 +1882,7 @@ class _MessageBubbleState extends State<MessageBubble>
     Color base,
     Color link,
     List<MessageTextEntity> entities,
+    double fontSize,
   ) {
     final c = context.colors;
     final key = '${quote.offset}:${quote.length}';
@@ -1892,6 +1922,7 @@ class _MessageBubbleState extends State<MessageBubble>
               false,
               maxLines: expanded ? null : 3,
               entities: entities,
+              fontSize: fontSize,
             ),
             if (quote.isExpandableBlockQuote) ...[
               const SizedBox(height: 4),
@@ -1922,6 +1953,7 @@ class _MessageBubbleState extends State<MessageBubble>
     Color base,
     Color link,
     List<MessageTextEntity> entities,
+    double fontSize,
   ) {
     final c = context.colors;
     final language = (pre.language ?? '').trim();
@@ -1973,7 +2005,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 false,
                 false,
                 entities: entities,
-                fontSize: 13,
+                fontSize: math.max(13.0, fontSize - 1),
               ),
             ),
           ],

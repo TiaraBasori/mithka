@@ -7,6 +7,8 @@
 //  Port of the Swift `MessageActionMenu`.
 //
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -20,6 +22,7 @@ import 'emoji_store.dart';
 enum MessageAction {
   copy(HeroAppIcons.file, AppStringKeys.messageActionCopy),
   selectText(HeroAppIcons.font, AppStringKeys.messageActionSelectText),
+  blockKeyword(HeroAppIcons.filter, AppStringKeys.messageActionBlockKeyword),
   edit(HeroAppIcons.pen, AppStringKeys.messageActionEdit),
   translate(HeroAppIcons.language, AppStringKeys.messageActionTranslate),
   reply(HeroAppIcons.quoteLeft, AppStringKeys.messageActionQuote),
@@ -64,6 +67,8 @@ class MessageActionMenu extends StatelessWidget {
 
   static const _surface = Color(0xFF2C2C2E);
   static const _destructive = Color(0xFFFF6961);
+  static const _horizontalPadding = 8.0;
+  static const _actionWidth = 86.0;
   static const preferredHeight = 152.0;
 
   bool get _isEditableTextMessage =>
@@ -78,6 +83,7 @@ class MessageActionMenu extends StatelessWidget {
     if (_hasCopyableText) {
       result.add(MessageAction.copy);
       result.add(MessageAction.selectText);
+      result.add(MessageAction.blockKeyword);
       if (message.isOutgoing && _isEditableTextMessage) {
         result.add(MessageAction.edit);
       }
@@ -134,13 +140,14 @@ class MessageActionMenu extends StatelessWidget {
         final availableWidth = constraints.hasBoundedWidth
             ? constraints.maxWidth.clamp(0.0, maxWidth)
             : maxWidth;
-        final itemWidth = columnCount == 0
-            ? 58.0
-            : ((availableWidth - 16) / columnCount).clamp(48.0, 72.0);
-        final menuWidth = (itemWidth * columnCount + 16).clamp(0.0, maxWidth);
+        final contentWidth =
+            (math.max(columnCount, 1) * _actionWidth) +
+            (_horizontalPadding * 2);
+        final menuWidth = contentWidth.clamp(0.0, availableWidth);
         return Container(
           width: menuWidth,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 13),
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: _surface,
             borderRadius: BorderRadius.circular(16),
@@ -152,29 +159,33 @@ class MessageActionMenu extends StatelessWidget {
               ),
             ],
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _ActionRow(
-                actions: firstRow,
-                itemWidth: itemWidth,
-                onSelect: onSelect,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: SizedBox(
+              width: contentWidth,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: _horizontalPadding,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ActionRow(actions: firstRow, onSelect: onSelect),
+                    if (secondRow.isNotEmpty) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        height: 1,
+                        color: Colors.white.withValues(alpha: 0.08),
+                      ),
+                      const SizedBox(height: 12),
+                      _ActionRow(actions: secondRow, onSelect: onSelect),
+                    ],
+                  ],
+                ),
               ),
-              if (secondRow.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Container(
-                  height: 1,
-                  color: Colors.white.withValues(alpha: 0.08),
-                ),
-                const SizedBox(height: 12),
-                _ActionRow(
-                  actions: secondRow,
-                  itemWidth: itemWidth,
-                  onSelect: onSelect,
-                ),
-              ],
-            ],
+            ),
           ),
         );
       },
@@ -183,14 +194,9 @@ class MessageActionMenu extends StatelessWidget {
 }
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.actions,
-    required this.itemWidth,
-    required this.onSelect,
-  });
+  const _ActionRow({required this.actions, required this.onSelect});
 
   final List<MessageAction> actions;
-  final double itemWidth;
   final ValueChanged<MessageAction> onSelect;
 
   @override
@@ -203,7 +209,7 @@ class _ActionRow extends StatelessWidget {
             behavior: HitTestBehavior.opaque,
             onTap: () => onSelect(action),
             child: SizedBox(
-              width: itemWidth,
+              width: MessageActionMenu._actionWidth,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [

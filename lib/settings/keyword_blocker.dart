@@ -17,19 +17,24 @@ class KeywordBlocker extends ChangeNotifier {
 
   static const _prefsKey = 'spamBlockKeywords';
   static const _urlKey = 'spamBlockKeywordListUrl';
+  static const _senderKey = 'spamBlockSenderIds';
 
   SharedPreferences? _prefs;
   List<String> _keywords = const [];
   String _listUrl = '';
+  Set<int> _blockedSenderIds = const <int>{};
 
   List<String> get keywords => List.unmodifiable(_keywords);
   String get listUrl => _listUrl;
-  bool get isEnabled => _keywords.isNotEmpty;
+  bool get isEnabled => _keywords.isNotEmpty || _blockedSenderIds.isNotEmpty;
 
   void initialize(SharedPreferences prefs) {
     _prefs = prefs;
     _keywords = _normalizeList(prefs.getStringList(_prefsKey) ?? const []);
     _listUrl = prefs.getString(_urlKey)?.trim() ?? '';
+    _blockedSenderIds = _parseSenderIds(
+      prefs.getStringList(_senderKey) ?? const [],
+    );
   }
 
   bool matches(String text) {
@@ -46,6 +51,10 @@ class KeywordBlocker extends ChangeNotifier {
     return false;
   }
 
+  bool isSenderBlocked(int? senderId) {
+    return senderId != null && _blockedSenderIds.contains(senderId);
+  }
+
   void add(String value) {
     final keyword = _normalize(value);
     if (keyword == null) return;
@@ -60,6 +69,18 @@ class KeywordBlocker extends ChangeNotifier {
     if (next.length == _keywords.length) return;
     _keywords = next;
     _save();
+  }
+
+  void addBlockedSender(int senderId) {
+    if (senderId <= 0 || _blockedSenderIds.contains(senderId)) return;
+    _blockedSenderIds = {..._blockedSenderIds, senderId};
+    _saveBlockedSenders();
+  }
+
+  void removeBlockedSender(int senderId) {
+    if (!_blockedSenderIds.contains(senderId)) return;
+    _blockedSenderIds = {..._blockedSenderIds}..remove(senderId);
+    _saveBlockedSenders();
   }
 
   void replaceAll(List<String> values) {
@@ -124,6 +145,14 @@ class KeywordBlocker extends ChangeNotifier {
     }).toList();
   }
 
+  static Set<int> _parseSenderIds(List<String> values) {
+    return values
+        .map((value) => int.tryParse(value.trim()))
+        .whereType<int>()
+        .where((value) => value > 0)
+        .toSet();
+  }
+
   static RegExp? _regexFromRule(String rule) {
     final trimmed = rule.trim();
     if (trimmed.startsWith('re:') || trimmed.startsWith('regex:')) {
@@ -152,6 +181,14 @@ class KeywordBlocker extends ChangeNotifier {
 
   void _save() {
     _prefs?.setStringList(_prefsKey, _keywords);
+    notifyListeners();
+  }
+
+  void _saveBlockedSenders() {
+    _prefs?.setStringList(
+      _senderKey,
+      _blockedSenderIds.map((id) => id.toString()).toList()..sort(),
+    );
     notifyListeners();
   }
 }

@@ -39,6 +39,7 @@ import 'notifications/notification_controller.dart';
 import 'notifications/push_device_registrar.dart';
 import 'settings/app_icon_controller.dart';
 import 'settings/auto_download_media_controller.dart';
+import 'settings/developer_mode_controller.dart';
 import 'settings/keyword_blocker.dart';
 import 'settings/translation_controller.dart';
 import 'theme/app_theme.dart';
@@ -220,6 +221,9 @@ class _MithkaAppState extends State<MithkaApp> {
   late final AppIconController _appIcons = AppIconController(widget.prefs);
   late final AutoDownloadMediaController _autoDownload =
       AutoDownloadMediaController.shared;
+  late final DeveloperModeController _developer = DeveloperModeController(
+    widget.prefs,
+  );
 
   @override
   void initState() {
@@ -290,6 +294,7 @@ class _MithkaAppState extends State<MithkaApp> {
         ChangeNotifierProvider.value(value: _chatDeepLinks),
         ChangeNotifierProvider.value(value: _appIcons),
         ChangeNotifierProvider.value(value: _autoDownload),
+        ChangeNotifierProvider.value(value: _developer),
         ChangeNotifierProvider<dc.DrawerController>.value(value: _drawer),
       ],
       child: Consumer3<ThemeController, AccountStore, AppLocaleController>(

@@ -15,9 +15,12 @@ mobile-native messaging interface.
 > [Terms of Service](https://telegram.org/tos) and API
 > [Terms](https://core.telegram.org/api/terms).
 
-## TestFlight
+## Availability
 
-iOS beta builds are available on TestFlight:
+Mithka is available on the App Store:
+<https://apps.apple.com/us/app/mithka/id6783830742>
+
+iOS beta builds are also available on TestFlight:
 <https://testflight.apple.com/join/tVC8WkbW>
 
 ## The name

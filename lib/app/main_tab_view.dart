@@ -27,6 +27,7 @@ import '../contacts/contacts_view.dart';
 import '../l10n/app_localizations.dart';
 import '../moments/moments_view.dart';
 import '../profile/profile_view.dart';
+import '../settings/developer_mode_controller.dart';
 import '../settings/topic_group_display_mode.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -35,6 +36,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import '../update/update_checker.dart';
 import 'chat_deep_link_controller.dart';
+import 'pip_bounds_debug_overlay.dart';
 import 'video_split_controller.dart';
 
 /// Global unread badge source.
@@ -580,13 +582,33 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         builder: (context, setOverlayState) {
           final media = MediaQuery.sizeOf(context);
           final padding = MediaQuery.paddingOf(context);
-          void clampOffset() {
+          void clampFrame() {
+            final maxWidth = math.max(80.0, media.width - margin * 2);
+            final maxHeight = math.max(
+              80.0,
+              media.height - padding.top - padding.bottom - margin * 2,
+            );
+            if (boxWidth > maxWidth) {
+              boxWidth = maxWidth;
+              boxHeight = boxWidth / aspect;
+            }
+            if (boxHeight > maxHeight) {
+              boxHeight = maxHeight;
+              boxWidth = boxHeight * aspect;
+            }
+            final minX = math.min(margin, media.width - boxWidth);
+            final maxX = math.max(minX, media.width - boxWidth - margin);
+            final minY = math.min(
+              padding.top + margin,
+              media.height - boxHeight,
+            );
+            final maxY = math.max(
+              minY,
+              media.height - boxHeight - padding.bottom - margin,
+            );
             offset = Offset(
-              offset.dx.clamp(margin, media.width - boxWidth - margin),
-              offset.dy.clamp(
-                padding.top + margin,
-                media.height - boxHeight - padding.bottom - margin,
-              ),
+              offset.dx.clamp(minX, maxX),
+              offset.dy.clamp(minY, maxY),
             );
           }
 
@@ -596,13 +618,13 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
             aspect = _videoSessionAspect(nextSession);
             boxHeight = (boxWidth / aspect).clamp(110.0, media.height * 0.72);
             boxWidth = boxHeight * aspect;
-            clampOffset();
+            clampFrame();
           }
 
           void move(DragUpdateDetails details) {
             setOverlayState(() {
               offset += details.delta;
-              clampOffset();
+              clampFrame();
             });
           }
 
@@ -639,7 +661,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               if (verticalSign < 0) {
                 offset = offset.translate(0, oldHeight - boxHeight);
               }
-              clampOffset();
+              clampFrame();
             });
           }
 
@@ -649,6 +671,10 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               final currentSession = pip.session;
               if (currentSession == null) return const SizedBox.shrink();
               syncSession(currentSession);
+              clampFrame();
+              final showDebugBounds = context
+                  .watch<DeveloperModeController>()
+                  .showPiPBounds;
               return Positioned(
                 left: offset.dx,
                 top: offset.dy,
@@ -715,6 +741,12 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                           verticalSign: 1,
                         ),
                       ),
+                      if (showDebugBounds)
+                        PiPBoundsDebugOverlay(
+                          offset: offset,
+                          size: Size(boxWidth, boxHeight),
+                          viewport: media,
+                        ),
                     ],
                   ),
                 ),

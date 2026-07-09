@@ -494,6 +494,11 @@ const deMessages = <String, String>{
   'emojiStatusSetRequiresPremiumFailed':
       "Status konnte nicht gesetzt werden (Premium erforderlich)",
   'emojiStatusSetTitle': "Status festlegen",
+  'developerModePiPBoundsOverlay': "PiP-Rahmen einblenden",
+  'developerModePiPBoundsOverlayDescription':
+      "Zeigt den App-PiP-Rahmen und die Fenstergröße, um Rotation, Zuschnitt oder überdeckende Ebenen zu prüfen.",
+  'developerModeTitle': "Entwicklermodus",
+  'developerModeUnlocked': "Entwicklermodus aktiviert",
   'featureBottomTabs': "Untere Tabs",
   'featureTitle': "Funktionen",
   'fileDetailDownloadProgress':
@@ -604,6 +609,8 @@ const deMessages = <String, String>{
       "Schlüsselwortliste konnte nicht heruntergeladen werden",
   'keywordBlockerInputPlaceholder': "Schlüsselwort eingeben",
   'keywordBlockerListUrl': "URL der Schlüsselwortliste",
+  'keywordBlockerAddFromMessageTitle': "Schlüsselwort blockieren",
+  'keywordBlockerRuleAdded': "Blockiertes Schlüsselwort: {value1}",
   'keywordBlockerRulesAdded': "{value1} Regeln hinzugefügt",
   'keywordBlockerRulesUpToDate': "Regeln sind aktuell",
   'keywordBlockerTitle': "Schlüsselwörter blockieren",
@@ -680,6 +687,7 @@ const deMessages = <String, String>{
   'loginWithQrCode': "Mit QR-Code anmelden",
   'markdownLabel': "Markdown",
   'messageActionBlock': "Blockieren",
+  'messageActionBlockKeyword': "Wort blockieren",
   'messageActionCopy': "Kopieren",
   'messageActionEdit': "Bearbeiten",
   'messageActionFavorite': "Favorit",
@@ -1077,6 +1085,8 @@ const deMessages = <String, String>{
   'videoPlayerFullscreen': "Vollbild",
   'videoPlayerLoadFailed': "Video konnte nicht geladen werden",
   'videoPlayerLoading': "Video wird geladen",
+  'videoPlayerPictureInPictureFailed':
+      "Bild-in-Bild konnte nicht gestartet werden",
   'videoPlayerPictureInPicture': "Bild-in-Bild",
   'videoPlayerPlaybackSpeed': "Wiedergabegeschwindigkeit",
   'videoPlayerSplitScreen': "Geteilter Bildschirm",

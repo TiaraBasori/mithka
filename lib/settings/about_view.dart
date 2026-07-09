@@ -5,14 +5,19 @@
 //  that resolve through the shared link handler.
 //
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 
 import '../app/app_version.dart';
 import '../chat/link_handler.dart';
 import '../components/app_icons.dart';
+import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../theme/app_theme.dart';
+import 'developer_mode_controller.dart';
 
 class AboutView extends StatefulWidget {
   const AboutView({super.key});
@@ -26,6 +31,26 @@ class _AboutViewState extends State<AboutView> {
   static const _channelUrl = 'https://t.me/mithka';
   static const _githubUrl = 'https://github.com/iebb/mithka';
   late final Future<AppVersion> _versionFuture = AppVersion.load();
+  int _versionTapCount = 0;
+  DateTime? _lastVersionTapAt;
+
+  Future<void> _handleVersionTap() async {
+    final now = DateTime.now();
+    final previous = _lastVersionTapAt;
+    _lastVersionTapAt = now;
+    if (previous == null ||
+        now.difference(previous) > const Duration(seconds: 3)) {
+      _versionTapCount = 0;
+    }
+    _versionTapCount += 1;
+    if (_versionTapCount < 20) return;
+    _versionTapCount = 0;
+    final developer = context.read<DeveloperModeController>();
+    if (developer.unlocked) return;
+    await developer.unlock();
+    if (!mounted) return;
+    showToast(context, AppStringKeys.developerModeUnlocked);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,20 +95,30 @@ class _AboutViewState extends State<AboutView> {
                         ),
                       ),
                       const SizedBox(height: 4),
-                      FutureBuilder<AppVersion>(
-                        future: _versionFuture,
-                        builder: (context, snapshot) {
-                          final version = snapshot.data?.display ?? '...';
-                          return Text(
-                            AppStrings.t(AppStringKeys.aboutVersion, {
-                              'value1': version,
-                            }),
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: c.textSecondary,
-                            ),
-                          );
-                        },
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => unawaited(_handleVersionTap()),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          child: FutureBuilder<AppVersion>(
+                            future: _versionFuture,
+                            builder: (context, snapshot) {
+                              final version = snapshot.data?.display ?? '...';
+                              return Text(
+                                AppStrings.t(AppStringKeys.aboutVersion, {
+                                  'value1': version,
+                                }),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: c.textSecondary,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
                       ),
                     ],
                   ),

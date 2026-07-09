@@ -216,8 +216,8 @@ class _ChatListViewState extends State<ChatListView> {
       if (mode.isChat) {
         unawaited(
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => ChatView(
+            _chatEntryRoute(
+              ChatView(
                 chatId: chat.id,
                 title: chat.title,
                 seedMessage: chat.lastChatMessage,
@@ -233,8 +233,8 @@ class _ChatListViewState extends State<ChatListView> {
       }
       unawaited(
         Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ForumTopicBrowserView(
+          _chatEntryRoute(
+            ForumTopicBrowserView(
               chats: railChats.values.toList(),
               initialChat: chat,
             ),
@@ -245,8 +245,8 @@ class _ChatListViewState extends State<ChatListView> {
     }
     unawaited(
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ChatView(
+        _chatEntryRoute(
+          ChatView(
             chatId: chat.id,
             title: chat.title,
             seedMessage: chat.lastChatMessage,
@@ -294,11 +294,9 @@ class _ChatListViewState extends State<ChatListView> {
         return;
       }
       unawaited(
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => ChatView(chatId: id, title: title),
-          ),
-        ),
+        Navigator.of(
+          context,
+        ).push(_chatEntryRoute(ChatView(chatId: id, title: title))),
       );
     } catch (_) {
       if (mounted) {
@@ -846,6 +844,11 @@ class _ChatListViewState extends State<ChatListView> {
               color: const Color(0xFF8E8E93),
               onTap: () => _model.togglePin(chat),
             ),
+            SwipeActionItem(
+              title: _deleteOrLeaveTitle(chat),
+              color: const Color(0xFFFA5151),
+              onTap: () => _confirmDeleteChat(chat),
+            ),
           ]
         : [
             SwipeActionItem(
@@ -859,7 +862,7 @@ class _ChatListViewState extends State<ChatListView> {
               onTap: () => _model.markUnread(chat),
             ),
             SwipeActionItem(
-              title: AppStringKeys.chatDelete,
+              title: _deleteOrLeaveTitle(chat),
               color: const Color(0xFFFA5151),
               onTap: () => _confirmDeleteChat(chat),
             ),
@@ -879,26 +882,27 @@ class _ChatListViewState extends State<ChatListView> {
   }
 
   Future<void> _confirmDeleteChat(ChatSummary chat) async {
-    final isGroup = chat.kind == ChatKind.group;
+    final isChannel = chat.kind == ChatKind.channel;
+    final isGroupOrChannel = chat.kind == ChatKind.group || isChannel;
     final confirmed = await confirmDialog(
       context,
-      title: isGroup
-          ? AppStringKeys.chatInfoLeaveGroup
+      title: isGroupOrChannel
+          ? _leaveTitle(chat)
           : AppStringKeys.chatListDeleteChatQuestion,
-      message: isGroup
+      message: isGroupOrChannel
           ? AppStrings.t(
               AppStringKeys.chatListLeaveAndDeleteGroupConfirmation,
               {'value1': chat.title},
             )
           : AppStrings.t(AppStringKeys.chatInfoClearHistoryDescription),
-      confirmText: isGroup
-          ? AppStringKeys.chatInfoLeaveGroup
+      confirmText: isGroupOrChannel
+          ? _leaveTitle(chat)
           : AppStringKeys.chatDelete,
       destructive: true,
     );
     if (!mounted || !confirmed) return;
     try {
-      if (isGroup) {
+      if (isGroupOrChannel) {
         await _model.leaveAndDeleteChat(chat);
       } else {
         await _model.deleteChat(chat);
@@ -911,6 +915,45 @@ class _ChatListViewState extends State<ChatListView> {
         message.trim().isEmpty ? AppStringKeys.chatDelete : message,
       );
     }
+  }
+
+  String _deleteOrLeaveTitle(ChatSummary chat) {
+    if (chat.kind == ChatKind.channel) {
+      return AppStringKeys.topicChatLeaveChannel;
+    }
+    if (chat.kind == ChatKind.group) return AppStringKeys.chatInfoLeaveGroup;
+    return AppStringKeys.chatDelete;
+  }
+
+  String _leaveTitle(ChatSummary chat) {
+    return chat.kind == ChatKind.channel
+        ? AppStringKeys.topicChatLeaveChannel
+        : AppStringKeys.chatInfoLeaveGroup;
+  }
+
+  PageRoute<T> _chatEntryRoute<T>(Widget child) {
+    return PageRouteBuilder<T>(
+      transitionDuration: const Duration(milliseconds: 240),
+      reverseTransitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (_, _, _) => child,
+      transitionsBuilder: (_, animation, _, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: Tween<double>(begin: 0.90, end: 1).animate(curved),
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0.045, 0),
+              end: Offset.zero,
+            ).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
   }
 
   Widget _assistantRow() {

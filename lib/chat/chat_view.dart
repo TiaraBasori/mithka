@@ -17,6 +17,7 @@ import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../app/pip_bounds_debug_overlay.dart';
 import '../app/video_split_controller.dart';
 import '../call/call_manager.dart';
 import '../channels/topic_chat_view.dart';
@@ -28,7 +29,9 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/telegram_language_controller.dart';
 import '../profile/profile_detail_view.dart';
+import '../settings/developer_mode_controller.dart';
 import '../settings/edit_field_view.dart';
+import '../settings/keyword_blocker.dart';
 import '../settings/topic_group_display_mode.dart';
 import '../settings/translation_api.dart';
 import '../settings/translation_controller.dart';
@@ -360,6 +363,7 @@ class _ChatViewState extends State<ChatView> {
   bool _shortTranscriptFillScheduled = false;
   bool _isFillingShortTranscript = false;
   bool _loadingLatestFromAnchor = false;
+  bool _initialTranscriptReady = false;
   int _bottomSettleGeneration = 0;
   final Set<int> _selectedMessageIds = {};
   int? _selectionAnchorId;
@@ -473,6 +477,7 @@ class _ChatViewState extends State<ChatView> {
 
   void _saveSessionScrollSnapshot() {
     if (!_didInitialScroll ||
+        !_initialTranscriptReady ||
         !_scroll.hasClients ||
         widget.initialMessageId != null) {
       return;
@@ -707,7 +712,9 @@ class _ChatViewState extends State<ChatView> {
     // bottom when caught up. Runs exactly once per chat open.
     if (!_didInitialScroll && _vm.initialLoaded) {
       _didInitialScroll = true;
-      if (_vm.messages.isNotEmpty) {
+      if (_vm.messages.isEmpty) {
+        _initialTranscriptReady = true;
+      } else {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           unawaited(_completeInitialScroll());
         });
@@ -740,11 +747,14 @@ class _ChatViewState extends State<ChatView> {
   /// after layout, without waiting to reveal the UI.
   Future<void> _completeInitialScroll() async {
     if (_shouldRestoreSessionScroll) {
-      unawaited(_restoreSessionScrollPosition());
+      await _restoreSessionScrollPosition();
     } else {
-      unawaited(_positionInitialTranscript());
-      _scheduleShortTranscriptFill();
+      await _positionInitialTranscript();
     }
+    if (!mounted) return;
+    setState(() => _initialTranscriptReady = true);
+    _saveSessionScrollSnapshot();
+    _scheduleShortTranscriptFill();
   }
 
   Future<void> _restoreSessionScrollPosition() async {
@@ -787,9 +797,11 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _positionInitialTranscript() async {
     if (!_scroll.hasClients) return;
     _jumpToInitialEstimate();
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted || !_scroll.hasClients) return;
-    await _correctInitialPosition();
+    for (var i = 0; i < 3; i++) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || !_scroll.hasClients) return;
+      await _correctInitialPosition(settleBottom: false);
+    }
   }
 
   void _jumpToInitialEstimate() {
@@ -832,7 +844,7 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Future<bool> _correctInitialPosition() async {
+  Future<bool> _correctInitialPosition({bool settleBottom = true}) async {
     if (!_scroll.hasClients) return false;
     final target = widget.initialMessageId ?? _scrollTargetId;
     if (target != null) {
@@ -848,7 +860,7 @@ class _ChatViewState extends State<ChatView> {
     }
     if (_vm.anchoredHistory) return true;
     if (_openAtLatest) {
-      _scrollToBottom(settle: true, forceSettle: true);
+      _scrollToBottom(settle: settleBottom, forceSettle: settleBottom);
       unawaited(_vm.markLoadedMessagesRead());
       return true;
     }
@@ -1503,13 +1515,33 @@ class _ChatViewState extends State<ChatView> {
         builder: (context, setOverlayState) {
           final media = MediaQuery.sizeOf(context);
           final padding = MediaQuery.paddingOf(context);
-          void clampOffset() {
+          void clampFrame() {
+            final maxWidth = math.max(80.0, media.width - margin * 2);
+            final maxHeight = math.max(
+              80.0,
+              media.height - padding.top - padding.bottom - margin * 2,
+            );
+            if (boxWidth > maxWidth) {
+              boxWidth = maxWidth;
+              boxHeight = boxWidth / aspect;
+            }
+            if (boxHeight > maxHeight) {
+              boxHeight = maxHeight;
+              boxWidth = boxHeight * aspect;
+            }
+            final minX = math.min(margin, media.width - boxWidth);
+            final maxX = math.max(minX, media.width - boxWidth - margin);
+            final minY = math.min(
+              padding.top + margin,
+              media.height - boxHeight,
+            );
+            final maxY = math.max(
+              minY,
+              media.height - boxHeight - padding.bottom - margin,
+            );
             offset = Offset(
-              offset.dx.clamp(margin, media.width - boxWidth - margin),
-              offset.dy.clamp(
-                padding.top + margin,
-                media.height - boxHeight - padding.bottom - margin,
-              ),
+              offset.dx.clamp(minX, maxX),
+              offset.dy.clamp(minY, maxY),
             );
           }
 
@@ -1519,13 +1551,13 @@ class _ChatViewState extends State<ChatView> {
             aspect = _sessionAspect(session);
             boxHeight = (boxWidth / aspect).clamp(110.0, media.height * 0.72);
             boxWidth = boxHeight * aspect;
-            clampOffset();
+            clampFrame();
           }
 
           void move(DragUpdateDetails details) {
             setOverlayState(() {
               offset += details.delta;
-              clampOffset();
+              clampFrame();
             });
           }
 
@@ -1562,7 +1594,7 @@ class _ChatViewState extends State<ChatView> {
               if (verticalSign < 0) {
                 offset = offset.translate(0, oldHeight - boxHeight);
               }
-              clampOffset();
+              clampFrame();
             });
           }
 
@@ -1572,6 +1604,10 @@ class _ChatViewState extends State<ChatView> {
               final session = pip.session;
               if (session == null) return const SizedBox.shrink();
               syncSession(session);
+              clampFrame();
+              final showDebugBounds = context
+                  .watch<DeveloperModeController>()
+                  .showPiPBounds;
               return Positioned(
                 left: offset.dx,
                 top: offset.dy,
@@ -1642,6 +1678,12 @@ class _ChatViewState extends State<ChatView> {
                           verticalSign: 1,
                         ),
                       ),
+                      if (showDebugBounds)
+                        PiPBoundsDebugOverlay(
+                          offset: offset,
+                          size: Size(boxWidth, boxHeight),
+                          viewport: media,
+                        ),
                     ],
                   ),
                 ),
@@ -1750,6 +1792,8 @@ class _ChatViewState extends State<ChatView> {
         unawaited(Clipboard.setData(ClipboardData(text: message.text)));
       case MessageAction.selectText:
         await _showTextSelection(message);
+      case MessageAction.blockKeyword:
+        await _blockKeywordFromMessage(message);
       case MessageAction.edit:
         unawaited(_editMessage(message));
       case MessageAction.translate:
@@ -1952,6 +1996,55 @@ class _ChatViewState extends State<ChatView> {
       backgroundColor: Colors.transparent,
       builder: (context) => _MessageTextSelectionSheet(text: message.text),
     );
+  }
+
+  Future<void> _blockKeywordFromMessage(ChatMessage message) async {
+    final initial = _keywordCandidate(message.text);
+    if (initial.isEmpty || !mounted) return;
+    final keyword = await Navigator.of(context).push<String>(
+      PageRouteBuilder(
+        transitionDuration: const Duration(milliseconds: 220),
+        reverseTransitionDuration: const Duration(milliseconds: 180),
+        pageBuilder: (_, _, _) => EditFieldView(
+          title: AppStringKeys.keywordBlockerAddFromMessageTitle,
+          initial: initial,
+          hint: AppStringKeys.keywordBlockerInputPlaceholder,
+          multiline: true,
+          maxLength: 200,
+        ),
+        transitionsBuilder: (_, animation, _, child) {
+          final curved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          );
+          return FadeTransition(
+            opacity: Tween<double>(begin: 0.85, end: 1).animate(curved),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0, 0.04),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
+    final rule = keyword?.trim() ?? '';
+    if (rule.isEmpty) return;
+    KeywordBlocker.shared.add(rule);
+    if (!mounted) return;
+    showToast(
+      context,
+      AppStrings.t(AppStringKeys.keywordBlockerRuleAdded, {'value1': rule}),
+    );
+  }
+
+  String _keywordCandidate(String text) {
+    final normalized = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized.length <= 80) return normalized;
+    return normalized.substring(0, 80).trim();
   }
 
   Future<void> _showReactionUsers(
@@ -2330,11 +2423,24 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Widget _transcriptLayer() {
+    final transcriptReady = _initialTranscriptReady;
     final showPinnedTodo =
-        !_isSelecting && _vm.pinnedMessage != null && !_vm.pinnedDismissed;
+        transcriptReady &&
+        !_isSelecting &&
+        _vm.pinnedMessage != null &&
+        !_vm.pinnedDismissed;
     return Stack(
       children: [
-        _transcript(),
+        Positioned.fill(
+          child: Opacity(
+            opacity: transcriptReady ? 1 : 0,
+            child: IgnorePointer(
+              ignoring: !transcriptReady,
+              child: _transcript(),
+            ),
+          ),
+        ),
+        if (!transcriptReady) Positioned.fill(child: _transcriptSkeleton()),
         if (showPinnedTodo)
           Positioned(
             top: 12,
@@ -2342,8 +2448,8 @@ class _ChatViewState extends State<ChatView> {
             right: 12,
             child: _pinnedBar(_vm.pinnedMessage!),
           ),
-        if (_isSelecting) _selectToHereButton(),
-        if (_shouldShowNewMessagesBanner)
+        if (transcriptReady && _isSelecting) _selectToHereButton(),
+        if (transcriptReady && _shouldShowNewMessagesBanner)
           _openAtLatest
               ? Positioned(
                   top: showPinnedTodo ? 72 : 8,
@@ -2355,9 +2461,84 @@ class _ChatViewState extends State<ChatView> {
                   bottom: 12,
                   child: _newMessagesBanner(pointsDown: true),
                 ),
-        if (_showJumpDown && !(!_openAtLatest && _shouldShowNewMessagesBanner))
+        if (transcriptReady &&
+            _showJumpDown &&
+            !(!_openAtLatest && _shouldShowNewMessagesBanner))
           Positioned(right: 16, bottom: 12, child: _jumpToBottomButton()),
       ],
+    );
+  }
+
+  Widget _transcriptSkeleton() {
+    final c = context.colors;
+    final width = MediaQuery.sizeOf(context).width;
+    final rows = <Widget>[];
+    for (var i = 0; i < 9; i++) {
+      final outgoing = i == 2 || i == 6;
+      final bubbleWidth = math.min(
+        width * (outgoing ? 0.58 : (i.isEven ? 0.66 : 0.48)),
+        360.0,
+      );
+      final bubbleHeight = i == 4 ? 82.0 : (i.isEven ? 48.0 : 38.0);
+      rows.add(
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            outgoing ? 72 : 14,
+            i == 0 ? 14 : 8,
+            outgoing ? 14 : 72,
+            8,
+          ),
+          child: Row(
+            mainAxisAlignment: outgoing
+                ? MainAxisAlignment.end
+                : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (!outgoing) ...[
+                _skeletonBlock(36, 36, radius: 18),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: outgoing
+                      ? CrossAxisAlignment.end
+                      : CrossAxisAlignment.start,
+                  children: [
+                    if (!outgoing && i % 3 == 0)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 4, bottom: 5),
+                        child: _skeletonBlock(86, 10, radius: 5),
+                      ),
+                    _skeletonBlock(bubbleWidth, bubbleHeight, radius: 10),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: c.chatBackground),
+        child: ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          children: rows,
+        ),
+      ),
+    );
+  }
+
+  Widget _skeletonBlock(double width, double height, {double radius = 8}) {
+    final c = context.colors;
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: c.textPrimary.withValues(alpha: 0.075),
+        borderRadius: BorderRadius.circular(radius),
+      ),
     );
   }
 
