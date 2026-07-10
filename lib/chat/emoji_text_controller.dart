@@ -19,12 +19,14 @@ class _ComposerTextEntity {
   _ComposerTextEntity({
     required this.offset,
     required this.length,
-    required this.type,
-  });
+    required Map<String, dynamic> type,
+  }) : type = Map<String, dynamic>.of(type);
 
   int offset;
   int length;
-  final String type;
+  final Map<String, dynamic> type;
+
+  String get typeName => type['@type'] as String? ?? '';
 
   int get end => offset + length;
 
@@ -40,7 +42,7 @@ class _ComposerTextEntity {
     '@type': 'textEntity',
     'offset': offset,
     'length': length,
-    'type': {'@type': type},
+    'type': Map<String, dynamic>.of(type),
   };
 }
 
@@ -96,7 +98,11 @@ class EmojiTextEditingController extends TextEditingController {
     );
     if (type != null && s.isNotEmpty) {
       _entities.add(
-        _ComposerTextEntity(offset: start, length: s.length, type: type),
+        _ComposerTextEntity(
+          offset: start,
+          length: s.length,
+          type: {'@type': type},
+        ),
       );
       _mergeEntities(type);
     }
@@ -104,6 +110,88 @@ class EmojiTextEditingController extends TextEditingController {
   }
 
   bool get hasContent => text.trim().isNotEmpty;
+
+  void setFormattedText(String source, List<Map<String, dynamic>> entities) {
+    _byCode.clear();
+    _codeForId.clear();
+    _entities.clear();
+    _next = 0xE000;
+
+    final customByOffset = <int, Map<String, dynamic>>{};
+    for (final entity in entities) {
+      final type = entity['type'];
+      if (type is! Map || type['@type'] != 'textEntityTypeCustomEmoji') {
+        continue;
+      }
+      final offset = entity['offset'];
+      final length = entity['length'];
+      if (offset is int && length is int && offset >= 0 && length > 0) {
+        customByOffset[offset] = entity;
+      }
+    }
+
+    final output = StringBuffer();
+    final mappedOffsets = List<int>.filled(source.length + 1, 0);
+    var sourceOffset = 0;
+    while (sourceOffset < source.length) {
+      mappedOffsets[sourceOffset] = output.length;
+      final custom = customByOffset[sourceOffset];
+      final customLength = custom?['length'];
+      final customType = custom?['type'];
+      if (custom != null &&
+          customLength is int &&
+          customType is Map &&
+          sourceOffset + customLength <= source.length) {
+        final rawId = customType['custom_emoji_id'];
+        final id = rawId is int ? rawId : int.tryParse('$rawId');
+        if (id != null) {
+          final code = _next++;
+          final fallback = source.substring(
+            sourceOffset,
+            sourceOffset + customLength,
+          );
+          _byCode[code] = (id: id, fallback: fallback);
+          _codeForId[id] = code;
+          output.writeCharCode(code);
+          for (var i = 1; i <= customLength; i++) {
+            mappedOffsets[sourceOffset + i] = output.length;
+          }
+          sourceOffset += customLength;
+          continue;
+        }
+      }
+      output.writeCharCode(source.codeUnitAt(sourceOffset));
+      sourceOffset++;
+      mappedOffsets[sourceOffset] = output.length;
+    }
+
+    final editorText = output.toString();
+    for (final entity in entities) {
+      final rawType = entity['type'];
+      final offset = entity['offset'];
+      final length = entity['length'];
+      if (rawType is! Map || offset is! int || length is! int) continue;
+      if (rawType['@type'] == 'textEntityTypeCustomEmoji') continue;
+      final end = offset + length;
+      if (offset < 0 || length <= 0 || end > source.length) continue;
+      final mappedStart = mappedOffsets[offset];
+      final mappedEnd = mappedOffsets[end];
+      if (mappedEnd <= mappedStart) continue;
+      _entities.add(
+        _ComposerTextEntity(
+          offset: mappedStart,
+          length: mappedEnd - mappedStart,
+          type: Map<String, dynamic>.from(rawType),
+        ),
+      );
+    }
+    _lastText = editorText;
+    super.value = TextEditingValue(
+      text: editorText,
+      selection: TextSelection.collapsed(offset: editorText.length),
+    );
+    notifyListeners();
+  }
 
   bool get hasSelection {
     final sel = selection;
@@ -129,7 +217,11 @@ class EmojiTextEditingController extends TextEditingController {
       _removeFormat(type, start, end);
     } else {
       _entities.add(
-        _ComposerTextEntity(offset: start, length: end - start, type: type),
+        _ComposerTextEntity(
+          offset: start,
+          length: end - start,
+          type: {'@type': type},
+        ),
       );
       _mergeEntities(type);
     }
@@ -139,7 +231,11 @@ class EmojiTextEditingController extends TextEditingController {
   void formatRange(int start, int end, String type) {
     if (start < 0 || end > text.length || start >= end) return;
     _entities.add(
-      _ComposerTextEntity(offset: start, length: end - start, type: type),
+      _ComposerTextEntity(
+        offset: start,
+        length: end - start,
+        type: {'@type': type},
+      ),
     );
     _mergeEntities(type);
     notifyListeners();
@@ -292,7 +388,7 @@ class EmojiTextEditingController extends TextEditingController {
           (entity) => entity.offset >= 0 && entity.end <= newText.length,
         ),
       );
-    for (final type in _entities.map((entity) => entity.type).toSet()) {
+    for (final type in _entities.map((entity) => entity.typeName).toSet()) {
       _mergeEntities(type);
     }
   }
@@ -318,7 +414,7 @@ class EmojiTextEditingController extends TextEditingController {
         _entities
             .where(
               (entity) =>
-                  entity.type == type &&
+                  entity.typeName == type &&
                   entity.offset < end &&
                   entity.end > start,
             )
@@ -342,7 +438,9 @@ class EmojiTextEditingController extends TextEditingController {
   void _removeFormat(String type, int start, int end) {
     final next = <_ComposerTextEntity>[];
     for (final entity in _entities) {
-      if (entity.type != type || entity.end <= start || entity.offset >= end) {
+      if (entity.typeName != type ||
+          entity.end <= start ||
+          entity.offset >= end) {
         next.add(entity);
         continue;
       }
@@ -384,9 +482,9 @@ class EmojiTextEditingController extends TextEditingController {
   }
 
   void _mergeEntities(String type) {
-    final same = _entities.where((entity) => entity.type == type).toList()
+    final same = _entities.where((entity) => entity.typeName == type).toList()
       ..sort((a, b) => a.offset.compareTo(b.offset));
-    final other = _entities.where((entity) => entity.type != type).toList();
+    final other = _entities.where((entity) => entity.typeName != type).toList();
     final merged = <_ComposerTextEntity>[];
     for (final entity in same) {
       if (merged.isEmpty || entity.offset > merged.last.end) {
@@ -408,7 +506,7 @@ class EmojiTextEditingController extends TextEditingController {
     var style = baseStyle;
     final decorations = <TextDecoration>[];
     for (final entity in active) {
-      switch (entity.type) {
+      switch (entity.typeName) {
         case 'textEntityTypeBold':
           style = (style ?? const TextStyle()).copyWith(
             fontWeight: FontWeight.w700,

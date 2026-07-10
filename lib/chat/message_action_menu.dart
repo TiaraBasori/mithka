@@ -22,7 +22,6 @@ import 'emoji_store.dart';
 enum MessageAction {
   copy(HeroAppIcons.file, AppStringKeys.messageActionCopy),
   selectText(HeroAppIcons.font, AppStringKeys.messageActionSelectText),
-  blockKeyword(HeroAppIcons.filter, AppStringKeys.messageActionBlockKeyword),
   edit(HeroAppIcons.pen, AppStringKeys.messageActionEdit),
   translate(HeroAppIcons.language, AppStringKeys.messageActionTranslate),
   reply(HeroAppIcons.quoteLeft, AppStringKeys.messageActionQuote),
@@ -68,7 +67,7 @@ class MessageActionMenu extends StatelessWidget {
   static const _surface = Color(0xFF2C2C2E);
   static const _destructive = Color(0xFFFF6961);
   static const _horizontalPadding = 8.0;
-  static const _actionWidth = 86.0;
+  static const _actionWidth = 68.0;
   static const preferredHeight = 152.0;
 
   bool get _isEditableTextMessage =>
@@ -83,16 +82,13 @@ class MessageActionMenu extends StatelessWidget {
     if (_hasCopyableText) {
       result.add(MessageAction.copy);
       result.add(MessageAction.selectText);
-      result.add(MessageAction.blockKeyword);
       if (message.isOutgoing && _isEditableTextMessage) {
         result.add(MessageAction.edit);
       }
       if (translationEnabled) result.add(MessageAction.translate);
     }
     result.add(MessageAction.reply);
-    if (message.hasCommentThread ||
-        message.commentCount > 0 ||
-        message.lastCommentMessageId != null) {
+    if (message.hasActualReplies) {
       result.add(MessageAction.replies);
     }
     result.add(MessageAction.forward);

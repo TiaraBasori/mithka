@@ -1066,6 +1066,19 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  Future<String> translateText(String text, String toLanguageCode) async {
+    final formatted = await _client.query({
+      '@type': 'translateText',
+      'text': {
+        '@type': 'formattedText',
+        'text': text,
+        'entities': const <Map<String, dynamic>>[],
+      },
+      'to_language_code': toLanguageCode,
+    });
+    return formatted.str('text') ?? '';
+  }
+
   Future<void> translateMessageExternally(
     int messageId,
     String toLanguageCode,
@@ -1233,16 +1246,23 @@ class ChatViewModel extends ChangeNotifier {
     await _client.query({...base, 'option_id': options.first['id'] ?? ''});
   }
 
-  void editMessageText(int id, String text) {
-    final value = text.trim();
-    if (value.isEmpty) return;
-    _client.send({
+  Future<void> editMessageText(
+    int id,
+    String text, {
+    List<Map<String, dynamic>> entities = const [],
+  }) async {
+    if (text.trim().isEmpty) return;
+    await _client.query({
       '@type': 'editMessageText',
       'chat_id': chatId,
       'message_id': id,
       'input_message_content': {
         '@type': 'inputMessageText',
-        'text': {'@type': 'formattedText', 'text': value, 'entities': []},
+        'text': {
+          '@type': 'formattedText',
+          'text': text,
+          if (entities.isNotEmpty) 'entities': entities,
+        },
         'link_preview_options': {
           '@type': 'linkPreviewOptions',
           'is_disabled': false,
@@ -1250,7 +1270,49 @@ class ChatViewModel extends ChangeNotifier {
         'clear_draft': false,
       },
     });
-    _replaceText(id, value, edited: true);
+    final parsed = TDParse.textEntities({
+      '@type': 'formattedText',
+      'text': text,
+      'entities': entities,
+    });
+    _replaceText(
+      id,
+      text,
+      edited: true,
+      entities: parsed,
+      customEmoji: TDParse.customEmojiEntitiesFrom(parsed),
+    );
+  }
+
+  Future<void> editMessageMedia(
+    int id,
+    String path, {
+    required bool isVideo,
+    required String caption,
+    List<Map<String, dynamic>> entities = const [],
+  }) async {
+    await _client.query({
+      '@type': 'editMessageMedia',
+      'chat_id': chatId,
+      'message_id': id,
+      'input_message_content': {
+        '@type': isVideo ? 'inputMessageVideo' : 'inputMessagePhoto',
+        isVideo ? 'video' : 'photo': {
+          '@type': isVideo ? 'inputVideo' : 'inputPhoto',
+          isVideo ? 'video' : 'photo': {
+            '@type': 'inputFileLocal',
+            'path': path,
+          },
+          if (isVideo) 'supports_streaming': true,
+        },
+        if (caption.trim().isNotEmpty)
+          'caption': {
+            '@type': 'formattedText',
+            'text': caption,
+            if (entities.isNotEmpty) 'entities': entities,
+          },
+      },
+    });
   }
 
   // MARK: - Paging

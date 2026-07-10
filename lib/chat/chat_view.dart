@@ -30,7 +30,6 @@ import '../components/ui_components.dart';
 import '../l10n/telegram_language_controller.dart';
 import '../profile/profile_detail_view.dart';
 import '../settings/developer_mode_controller.dart';
-import '../settings/edit_field_view.dart';
 import '../settings/keyword_blocker.dart';
 import '../settings/topic_group_display_mode.dart';
 import '../settings/translation_api.dart';
@@ -55,6 +54,7 @@ import 'message_action_menu.dart';
 import 'message_bubble.dart';
 import 'message_replies_sheet.dart';
 import 'music_player_controller.dart';
+import 'rich_text_composer_view.dart';
 import 'sticker_set_detail_view.dart';
 import 'sticker_viewer.dart';
 import 'video_player_view.dart';
@@ -1793,8 +1793,6 @@ class _ChatViewState extends State<ChatView> {
         unawaited(Clipboard.setData(ClipboardData(text: message.text)));
       case MessageAction.selectText:
         await _showTextSelection(message);
-      case MessageAction.blockKeyword:
-        await _blockKeywordFromMessage(message);
       case MessageAction.edit:
         unawaited(_editMessage(message));
       case MessageAction.translate:
@@ -1990,49 +1988,36 @@ class _ChatViewState extends State<ChatView> {
 
   Future<void> _showTextSelection(ChatMessage message) async {
     if (message.text.isEmpty || !mounted) return;
-    await showModalBottomSheet<void>(
+    await showGeneralDialog<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _MessageTextSelectionSheet(text: message.text),
+      barrierDismissible: true,
+      barrierLabel: AppStrings.t(AppStringKeys.musicPlayerClose),
+      barrierColor: Colors.black.withValues(alpha: 0.48),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, _, _) => _MessageTextSelectionDialog(
+        text: message.text,
+        onTranslate: _translateSelectedText,
+        onAddToBlocklist: _addSelectionToBlocklist,
+      ),
+      transitionBuilder: (context, animation, _, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+            child: child,
+          ),
+        );
+      },
     );
   }
 
-  Future<void> _blockKeywordFromMessage(ChatMessage message) async {
-    final initial = _keywordCandidate(message.text);
-    if (initial.isEmpty || !mounted) return;
-    final keyword = await Navigator.of(context).push<String>(
-      PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 220),
-        reverseTransitionDuration: const Duration(milliseconds: 180),
-        pageBuilder: (_, _, _) => EditFieldView(
-          title: AppStringKeys.keywordBlockerAddFromMessageTitle,
-          initial: initial,
-          hint: AppStringKeys.keywordBlockerInputPlaceholder,
-          multiline: true,
-          maxLength: 200,
-        ),
-        transitionsBuilder: (_, animation, _, child) {
-          final curved = CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          );
-          return FadeTransition(
-            opacity: Tween<double>(begin: 0.85, end: 1).animate(curved),
-            child: SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, 0.04),
-                end: Offset.zero,
-              ).animate(curved),
-              child: child,
-            ),
-          );
-        },
-      ),
-    );
-    final rule = keyword?.trim() ?? '';
+  void _addSelectionToBlocklist(String selectedText) {
+    final rule = _keywordCandidate(selectedText);
     if (rule.isEmpty) return;
     KeywordBlocker.shared.add(rule);
     if (!mounted) return;
@@ -2040,6 +2025,44 @@ class _ChatViewState extends State<ChatView> {
       context,
       AppStrings.t(AppStringKeys.keywordBlockerRuleAdded, {'value1': rule}),
     );
+  }
+
+  Future<String?> _translateSelectedText(String selectedText) async {
+    final sourceText = selectedText.trim();
+    if (sourceText.isEmpty || !mounted) return null;
+    final translation = context.read<TranslationController>();
+    final targetLanguage = _translationTargetLanguage(translation);
+    try {
+      return switch (translation.provider) {
+        TranslationProvider.iosSystem ||
+        TranslationProvider.androidMlKit => NativeTranslationApi.translate(
+          text: sourceText,
+          sourceLanguageCode: 'autodetect',
+          targetLanguageCode: targetLanguage,
+        ),
+        TranslationProvider.tdlib => _vm.translateText(
+          sourceText,
+          targetLanguage,
+        ),
+        _ => ThirdPartyTranslationApi.translate(
+          provider: translation.provider,
+          text: sourceText,
+          sourceLanguageCode: 'autodetect',
+          targetLanguageCode: targetLanguage,
+          lingvaEndpoint: translation.lingvaEndpoint,
+          libreTranslateEndpoint: translation.libreTranslateEndpoint,
+          libreTranslateApiKey: translation.libreTranslateApiKey,
+        ),
+      };
+    } catch (e) {
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.chatTranslateFailed, {'value1': e}),
+        );
+      }
+      return null;
+    }
   }
 
   String _keywordCandidate(String text) {
@@ -2151,23 +2174,85 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Future<void> _editMessage(ChatMessage message) async {
-    final edited = await Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        builder: (_) => EditFieldView(
-          title: AppStringKeys.chatEditMessageTitle,
-          initial: message.text,
-          hint: AppStringKeys.tabMessages,
-          multiline: true,
-          maxLength: 4096,
-        ),
-      ),
+    final result = await showRichTextComposerSheet(
+      context,
+      initialText: message.text,
+      initialEntities: [
+        for (final entity in message.textEntities) entity.toTdJson(),
+      ],
+      title: AppStringKeys.chatEditMessageTitle,
+      submitText: AppStringKeys.messageActionEdit,
+      hintText: AppStringKeys.tabMessages,
     );
-    if (!mounted || edited == null || edited == message.text) return;
-    if (edited.trim().isEmpty) {
+    if (!mounted || result == null) return;
+    if (result.text.trim().isEmpty) {
       showToast(context, AppStringKeys.chatMessageRequired);
       return;
     }
-    _vm.editMessageText(message.id, edited);
+    try {
+      var mediaStart = 0;
+      if (result.media.isNotEmpty &&
+          (message.contentType == 'messagePhoto' ||
+              message.contentType == 'messageVideo')) {
+        final media = result.media.first;
+        await _vm.editMessageMedia(
+          message.id,
+          media.path,
+          isVideo: _isVideoMediaPath(media.path),
+          caption: result.text,
+          entities: result.entities,
+        );
+        mediaStart = 1;
+      } else if (result.text != message.text ||
+          !_sameFormattedEntities(result.entities, message.textEntities)) {
+        await _vm.editMessageText(
+          message.id,
+          result.text,
+          entities: result.entities,
+        );
+      }
+      for (final media in result.media.skip(mediaStart)) {
+        if (_isVideoMediaPath(media.path)) {
+          _vm.sendVideo(media.path);
+        } else {
+          _vm.sendPhoto(media.path);
+        }
+      }
+    } catch (e) {
+      if (mounted) showToast(context, '$e');
+    }
+  }
+
+  bool _isVideoMediaPath(String path) {
+    final lower = path.toLowerCase();
+    return lower.endsWith('.mp4') ||
+        lower.endsWith('.mov') ||
+        lower.endsWith('.m4v') ||
+        lower.endsWith('.webm');
+  }
+
+  bool _sameFormattedEntities(
+    List<Map<String, dynamic>> edited,
+    List<MessageTextEntity> original,
+  ) {
+    if (edited.length != original.length) return false;
+    for (var i = 0; i < edited.length; i++) {
+      final value = edited[i];
+      final expected = original[i];
+      final type = value['type'];
+      if (value['offset'] != expected.offset ||
+          value['length'] != expected.length ||
+          type is! Map ||
+          type['@type'] != expected.type ||
+          type['url'] != expected.url ||
+          type['user_id'] != expected.userId ||
+          '${type['custom_emoji_id'] ?? ''}' !=
+              '${expected.customEmojiId ?? ''}' ||
+          type['language'] != expected.language) {
+        return false;
+      }
+    }
+    return true;
   }
 
   void _openSenderProfile(ChatMessage m) {
@@ -4292,14 +4377,20 @@ class _ChatViewState extends State<ChatView> {
   }
 }
 
-class _MessageTextSelectionSheet extends StatefulWidget {
-  const _MessageTextSelectionSheet({required this.text});
+class _MessageTextSelectionDialog extends StatefulWidget {
+  const _MessageTextSelectionDialog({
+    required this.text,
+    required this.onTranslate,
+    required this.onAddToBlocklist,
+  });
 
   final String text;
+  final Future<String?> Function(String text) onTranslate;
+  final ValueChanged<String> onAddToBlocklist;
 
   @override
-  State<_MessageTextSelectionSheet> createState() =>
-      _MessageTextSelectionSheetState();
+  State<_MessageTextSelectionDialog> createState() =>
+      _MessageTextSelectionDialogState();
 }
 
 class _ReactionUsersSheet extends StatefulWidget {
@@ -4502,10 +4593,12 @@ class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
   }
 }
 
-class _MessageTextSelectionSheetState
-    extends State<_MessageTextSelectionSheet> {
+class _MessageTextSelectionDialogState
+    extends State<_MessageTextSelectionDialog> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  String? _translation;
+  bool _translating = false;
 
   @override
   void initState() {
@@ -4529,60 +4622,231 @@ class _MessageTextSelectionSheetState
     super.dispose();
   }
 
+  String get _selectedText {
+    final selection = _controller.selection;
+    if (!selection.isValid || selection.isCollapsed) {
+      return _controller.text.trim();
+    }
+    return selection.textInside(_controller.text).trim();
+  }
+
+  void _copySelection() {
+    final selected = _selectedText;
+    if (selected.isEmpty) return;
+    Clipboard.setData(ClipboardData(text: selected));
+    showToast(context, AppStringKeys.topicPostContentCopied);
+  }
+
+  Future<void> _translateSelection() async {
+    final selected = _selectedText;
+    if (selected.isEmpty || _translating) return;
+    setState(() => _translating = true);
+    final translated = await widget.onTranslate(selected);
+    if (!mounted) return;
+    setState(() {
+      final isEmpty = translated == null || translated.trim().isEmpty;
+      _translation = isEmpty ? null : translated;
+      _translating = false;
+    });
+  }
+
+  void _addSelectionToBlocklist() {
+    final selected = _selectedText;
+    if (selected.isEmpty) return;
+    widget.onAddToBlocklist(selected);
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
+    final screen = MediaQuery.sizeOf(context);
+    return SafeArea(
       child: Material(
-        color: c.card,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-        clipBehavior: Clip.antiAlias,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(36, 22, 36, 34),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 36,
-                height: 4,
+        type: MaterialType.transparency,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 560,
+                maxHeight: screen.height * 0.72,
+              ),
+              child: Container(
+                width: double.infinity,
                 decoration: BoxDecoration(
-                  color: c.divider,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.sizeOf(context).height * 0.62,
-                ),
-                child: Scrollbar(
-                  child: SingleChildScrollView(
-                    child: TextField(
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      readOnly: true,
-                      autofocus: true,
-                      maxLines: null,
-                      keyboardType: TextInputType.multiline,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        isCollapsed: true,
-                      ),
-                      style: TextStyle(
-                        fontSize: 32,
-                        height: 1.35,
-                        color: c.textPrimary,
-                      ),
-                      selectionControls: materialTextSelectionControls,
+                  color: c.card,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: c.divider, width: 0.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.28),
+                      blurRadius: 24,
+                      offset: const Offset(0, 10),
                     ),
-                  ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(22, 16, 12, 13),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              AppStringKeys.messageActionSelectText.l10n(
+                                context,
+                              ),
+                              style: TextStyle(
+                                color: c.textPrimary,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w700,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => Navigator.of(context).pop(),
+                            child: Padding(
+                              padding: const EdgeInsets.all(8),
+                              child: AppIcon(
+                                HeroAppIcons.xmark,
+                                color: c.textSecondary,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(height: 0.5, color: c.divider),
+                    Flexible(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(28, 22, 28, 20),
+                        child: Scrollbar(
+                          child: SingleChildScrollView(
+                            child: TextField(
+                              controller: _controller,
+                              focusNode: _focusNode,
+                              readOnly: true,
+                              autofocus: true,
+                              maxLines: null,
+                              keyboardType: TextInputType.multiline,
+                              contextMenuBuilder: (_, _) =>
+                                  const SizedBox.shrink(),
+                              decoration: const InputDecoration(
+                                border: InputBorder.none,
+                                isCollapsed: true,
+                              ),
+                              style: TextStyle(
+                                fontSize: 32,
+                                height: 1.35,
+                                color: c.textPrimary,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (_translation != null) ...[
+                      Container(height: 0.5, color: c.divider),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 132),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(28, 16, 28, 16),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerStart,
+                            child: SelectableText(
+                              _translation!,
+                              style: TextStyle(
+                                color: c.textPrimary,
+                                fontSize: 17,
+                                height: 1.4,
+                                decoration: TextDecoration.none,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                    Container(height: 0.5, color: c.divider),
+                    SizedBox(
+                      height: 76,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _TextSelectionAction(
+                              icon: HeroAppIcons.file,
+                              label: AppStringKeys.messageActionCopy,
+                              onTap: _copySelection,
+                            ),
+                          ),
+                          Expanded(
+                            child: _TextSelectionAction(
+                              icon: HeroAppIcons.language,
+                              label: AppStringKeys.messageActionTranslate,
+                              onTap: _translating ? null : _translateSelection,
+                            ),
+                          ),
+                          Expanded(
+                            child: _TextSelectionAction(
+                              icon: HeroAppIcons.filter,
+                              label: AppStringKeys.messageActionBlockKeyword,
+                              onTap: _addSelectionToBlocklist,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TextSelectionAction extends StatelessWidget {
+  const _TextSelectionAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final AppIconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final enabled = onTap != null;
+    final color = enabled ? c.textPrimary : c.textTertiary;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AppIcon(icon, size: 22, color: color),
+          const SizedBox(height: 7),
+          Text(
+            label.l10n(context),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: color,
+              fontSize: 12,
+              decoration: TextDecoration.none,
+            ),
+          ),
+        ],
       ),
     );
   }

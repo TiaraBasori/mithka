@@ -200,6 +200,35 @@ void main() {
     });
   });
 
+  group('ChatMessage replies', () {
+    ChatMessage message({
+      bool hasThread = false,
+      int replyCount = 0,
+      int? lastReplyId,
+    }) => ChatMessage(
+      id: 1,
+      isOutgoing: false,
+      text: 'message',
+      date: 1,
+      hasCommentThread: hasThread,
+      commentCount: replyCount,
+      lastCommentMessageId: lastReplyId,
+    );
+
+    test('thread metadata without replies does not expose Replies', () {
+      expect(message(hasThread: true).hasActualReplies, isFalse);
+      expect(
+        message(hasThread: true, lastReplyId: 0).hasActualReplies,
+        isFalse,
+      );
+    });
+
+    test('reply count or a real last reply exposes Replies', () {
+      expect(message(replyCount: 1).hasActualReplies, isTrue);
+      expect(message(lastReplyId: 42).hasActualReplies, isTrue);
+    });
+  });
+
   group('MediaAlbumLayout', () {
     test('uses proportional non-overlapping rows for mixed albums', () {
       final layout = buildTelegramMediaAlbumLayout(

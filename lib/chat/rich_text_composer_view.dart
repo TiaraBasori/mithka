@@ -27,6 +27,7 @@ class RichTextComposerResult {
 Future<RichTextComposerResult?> showRichTextComposerSheet(
   BuildContext context, {
   required String initialText,
+  List<Map<String, dynamic>> initialEntities = const [],
   String title = AppStringKeys.topicChatShare,
   String submitText = AppStringKeys.topicChatPublish,
   String hintText = AppStringKeys.richTextComposerContentPlaceholder,
@@ -41,6 +42,7 @@ Future<RichTextComposerResult?> showRichTextComposerSheet(
     pageBuilder: (dialogContext, _, _) {
       return RichTextComposerView(
         initialText: initialText,
+        initialEntities: initialEntities,
         title: title,
         submitText: submitText,
         hintText: hintText,
@@ -69,6 +71,7 @@ class RichTextComposerView extends StatefulWidget {
   const RichTextComposerView({
     super.key,
     required this.initialText,
+    this.initialEntities = const [],
     this.title = AppStringKeys.topicChatShare,
     this.submitText = AppStringKeys.topicChatPublish,
     this.hintText = AppStringKeys.richTextComposerContentPlaceholder,
@@ -77,6 +80,7 @@ class RichTextComposerView extends StatefulWidget {
   });
 
   final String initialText;
+  final List<Map<String, dynamic>> initialEntities;
   final String title;
   final String submitText;
   final String hintText;
@@ -213,7 +217,10 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
   @override
   void initState() {
     super.initState();
-    final first = _createTextBlock(widget.initialText);
+    final first = _createTextBlock(
+      widget.initialText,
+      entities: widget.initialEntities,
+    );
     _blocks = [_RichContentBlock.text(first)];
     _activeTextBlock = first;
   }
@@ -226,10 +233,17 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     super.dispose();
   }
 
-  _RichTextBlock _createTextBlock(String text) {
-    final controller = EmojiTextEditingController()
-      ..text = text
-      ..addListener(_onEditorChanged);
+  _RichTextBlock _createTextBlock(
+    String text, {
+    List<Map<String, dynamic>> entities = const [],
+  }) {
+    final controller = EmojiTextEditingController();
+    if (entities.isEmpty) {
+      controller.text = text;
+    } else {
+      controller.setFormattedText(text, entities);
+    }
+    controller.addListener(_onEditorChanged);
     final focusNode = FocusNode();
     final block = _RichTextBlock(controller, focusNode);
     focusNode.addListener(() {

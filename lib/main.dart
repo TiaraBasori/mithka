@@ -103,6 +103,12 @@ Future<void> _bootstrapAndRunApp() async {
 
 bool _shouldUseFvp() {
   if (kIsWeb) return false;
+  if (defaultTargetPlatform == TargetPlatform.android) {
+    // Android's platform player owns Surface lifecycle transitions. Routing all
+    // video through FVP's SurfaceProducer can retain a stale Java Surface when
+    // Android 16 recreates it, which crashes in android_view_Surface_getSurface.
+    return false;
+  }
   if (defaultTargetPlatform == TargetPlatform.iOS) {
     // Older iOS devices have native MdkPrepare crashes under thread pressure.
     // Keep ordinary MP4 playback on AVFoundation there; WebM stickers fall back

@@ -113,6 +113,22 @@ class MessageTextEntity {
       type == 'textEntityTypePre' || type == 'textEntityTypePreCode';
   bool get isMathematicalExpression =>
       type == 'textEntityTypeMathematicalExpression';
+
+  Map<String, dynamic> toTdJson() {
+    final entityType = <String, dynamic>{'@type': type};
+    if (url != null) entityType['url'] = url;
+    if (userId != null) entityType['user_id'] = userId;
+    if (customEmojiId != null) {
+      entityType['custom_emoji_id'] = customEmojiId.toString();
+    }
+    if (language != null) entityType['language'] = language;
+    return {
+      '@type': 'textEntity',
+      'offset': offset,
+      'length': length,
+      'type': entityType,
+    };
+  }
 }
 
 class RichMessageTableCell {
@@ -443,6 +459,9 @@ class ChatMessage {
   bool get isAlbumVisualMedia =>
       image != null &&
       (contentType == 'messagePhoto' || contentType == 'messageVideo');
+
+  bool get hasActualReplies =>
+      commentCount > 0 || (lastCommentMessageId ?? 0) > 0;
 
   bool get isDice =>
       contentType == 'messageDice' && (diceEmoji ?? '').isNotEmpty;

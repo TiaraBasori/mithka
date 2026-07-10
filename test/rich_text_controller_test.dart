@@ -87,5 +87,82 @@ void main() {
       expect(entities.single['length'], 3);
       expect(entities.single['type'], {'@type': 'textEntityTypeUnderline'});
     });
+
+    test('rehydrates formatting metadata for message editing', () {
+      final controller = EmojiTextEditingController();
+      addTearDown(controller.dispose);
+
+      controller.setFormattedText('open link', [
+        {
+          '@type': 'textEntity',
+          'offset': 5,
+          'length': 4,
+          'type': {
+            '@type': 'textEntityTypeTextUrl',
+            'url': 'https://example.com',
+          },
+        },
+      ]);
+
+      final (text, entities) = controller.toFormatted();
+      expect(text, 'open link');
+      expect(entities, hasLength(1));
+      expect(entities.single['offset'], 5);
+      expect(entities.single['length'], 4);
+      expect(entities.single['type'], {
+        '@type': 'textEntityTypeTextUrl',
+        'url': 'https://example.com',
+      });
+    });
+
+    test('rehydrates custom emoji while preserving enclosing formats', () {
+      final controller = EmojiTextEditingController();
+      addTearDown(controller.dispose);
+      const source = 'a 🙂 b';
+
+      controller.setFormattedText(source, [
+        {
+          '@type': 'textEntity',
+          'offset': 2,
+          'length': 2,
+          'type': {
+            '@type': 'textEntityTypeCustomEmoji',
+            'custom_emoji_id': '123',
+          },
+        },
+        {
+          '@type': 'textEntity',
+          'offset': 0,
+          'length': source.length,
+          'type': {'@type': 'textEntityTypeBold'},
+        },
+      ]);
+
+      final (text, entities) = controller.toFormatted();
+      expect(text, source);
+      expect(
+        entities,
+        contains(
+          allOf([
+            containsPair('offset', 2),
+            containsPair('length', 2),
+            containsPair('type', {
+              '@type': 'textEntityTypeCustomEmoji',
+              'custom_emoji_id': '123',
+            }),
+          ]),
+        ),
+      );
+      expect(
+        entities,
+        contains(
+          allOf([
+            containsPair('offset', 0),
+            containsPair('length', source.length),
+            containsPair('type', {'@type': 'textEntityTypeBold'}),
+          ]),
+        ),
+      );
+    });
   });
 }
