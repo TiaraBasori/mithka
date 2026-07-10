@@ -3,8 +3,8 @@
 Generated for the Telegram language-pack migration. Mapped strings use Telegram language-pack keys at runtime; unmapped strings keep Mithka localizations until reviewed.
 
 - Total app strings: 989
-- Mapped to Telegram keys: 598
-- Unmapped app strings: 391
+- Mapped to Telegram keys: 614
+- Unmapped app strings: 375
 
 ## Custom Chinese Telegram Pack Overrides
 
@@ -36,6 +36,7 @@ language-pack keys:
 | `AttachSticker` | 表情包 | Familiar sticker wording. |
 | `BlockedUsers` | 黑名单 | Familiar blocked-user list wording. |
 | `NoBlocked` | 黑名单为空 | Familiar blocked-user empty state. |
+| `TelegramPremiumShort` | VIP | Premium membership is presented as VIP in the familiar Chinese glossary. |
 
 ## Unmapped Strings
 
@@ -262,31 +263,15 @@ language-pack keys:
 | `groupManagementEditable` | Editable | NewGroup / GroupMembers / Groups |
 | `groupManagementJoinBeforePosting` | Join before posting | NewGroup / GroupMembers / Groups |
 | `groupManagementJoinSection` | Join settings | NewGroup / GroupMembers / Groups |
-| `groupManagementLogApprovedJoinRequest` | Approved join request | NewGroup / GroupMembers / Groups |
-| `groupManagementLogChangedAdmin` | Changed admin | NewGroup / GroupMembers / Groups |
-| `groupManagementLogChangedGroupDescription` | Changed group description | NewGroup / GroupMembers / Groups |
-| `groupManagementLogChangedGroupName` | Changed group name | NewGroup / GroupMembers / Groups |
-| `groupManagementLogChangedGroupPhoto` | Changed group photo | NewGroup / GroupMembers / Groups; AttachPhoto / SharedMediaTab |
-| `groupManagementLogChangedLinkedChat` | Changed linked chat | SearchAllChatsShort / SelectChat; NewGroup / GroupMembers / Groups |
-| `groupManagementLogChangedMemberPermissions` | Changed member permissions | NewGroup / GroupMembers / Groups; Members / GroupMembers / ChannelMembers |
-| `groupManagementLogChangedPostingPermissions` | Changed posting permissions | NewGroup / GroupMembers / Groups |
-| `groupManagementLogChangedPublicUsername` | Changed public username | NewGroup / GroupMembers / Groups; Username / SetUsernameHeader |
-| `groupManagementLogChangedSlowMode` | Changed slow mode | NewGroup / GroupMembers / Groups |
-| `groupManagementLogCreatedTopic` | Created topic | NewGroup / GroupMembers / Groups; Topics / NoTopics / CreateTopicsPermission |
+| `groupManagementLogEmpty` | No management log yet | NewGroup / GroupMembers / Groups |
 | `groupManagementLogDeletedInviteLink` | Deleted invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; InviteLink / AddMember; Delete / DeleteChat / DeleteAll / DeleteAllFrom |
-| `groupManagementLogDeletedMessage` | Deleted message | Message / SendMessage / SearchMessages; NewGroup / GroupMembers / Groups; Delete / DeleteChat / DeleteAll / DeleteAllFrom |
 | `groupManagementLogDeletedTopic` | Deleted topic | NewGroup / GroupMembers / Groups; Topics / NoTopics / CreateTopicsPermission; Delete / DeleteChat / DeleteAll / DeleteAllFrom |
 | `groupManagementLogEditedInviteLink` | Edited invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; InviteLink / AddMember |
-| `groupManagementLogEditedMessage` | Edited message | Message / SendMessage / SearchMessages; NewGroup / GroupMembers / Groups |
 | `groupManagementLogEditedTopic` | Edited topic | NewGroup / GroupMembers / Groups; Topics / NoTopics / CreateTopicsPermission |
-| `groupManagementLogEmpty` | No management log yet | NewGroup / GroupMembers / Groups |
 | `groupManagementLogGenericAdminAction` | Performed an admin action | NewGroup / GroupMembers / Groups |
-| `groupManagementLogInvitedMember` | Invited member | NewGroup / GroupMembers / Groups; Members / GroupMembers / ChannelMembers; InviteLink / AddMember |
-| `groupManagementLogJoinedByInviteLink` | Joined via invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; InviteLink / AddMember |
 | `groupManagementLogJoinedGroup` | Joined the group | NewGroup / GroupMembers / Groups |
 | `groupManagementLogLeftGroup` | Left the group | NewGroup / GroupMembers / Groups |
 | `groupManagementLogNoPermission` | You do not have permission to view the group management log | NewGroup / GroupMembers / Groups |
-| `groupManagementLogRevokedInviteLink` | Revoked invite link | NewGroup / GroupMembers / Groups; SharedLinksTab / ShareLink; InviteLink / AddMember |
 | `groupManagementMembersSection` | Member Management | NewGroup / GroupMembers / Groups; Members / GroupMembers / ChannelMembers |
 | `groupManagementNotSet` | Not set | NewGroup / GroupMembers / Groups |
 | `groupManagementPermissionEditGroupInfo` | Edit group info | NewGroup / GroupMembers / Groups |
