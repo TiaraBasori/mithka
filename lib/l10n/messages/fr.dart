@@ -401,10 +401,12 @@ const frMessages = <String, String>{
   'composerChecklist': "Liste",
   'composerClipboardNoImage': "Le presse-papiers ne contient aucune image",
   'composerFilePreview': "[Fichier]{value1}",
+  'composerGifSendFailed': "Impossible d’envoyer le GIF",
   'composerHoldToTalk': "Maintenir pour parler",
   'composerImage': "Image",
   'composerImagePreview': "[Image]",
   'composerLoadingEmoji': "Chargement des emoji…",
+  'composerLoadingGifs': "Chargement des GIF…",
   'composerLocation': "Position",
   'composerLocationPreview': "[Position]",
   'composerMarkdownSupportHint':
@@ -413,6 +415,7 @@ const frMessages = <String, String>{
   'composerMicrophonePermissionSettings':
       "Autorisez l’accès au microphone dans les réglages système",
   'composerNoEmoji': "Aucun emoji",
+  'composerNoGifs': "Aucun GIF enregistré",
   'composerOpenAttachmentFailed': "Impossible d’ouvrir {value1}",
   'composerOpenMenu': "Ouvrir le menu",
   'composerPaidMessageCost': "L’envoi de ce message coûte {value1} étoiles.",

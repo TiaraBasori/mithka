@@ -398,10 +398,12 @@ const deMessages = <String, String>{
   'composerChecklist': "Checkliste",
   'composerClipboardNoImage': "Keine Bilder in der Zwischenablage",
   'composerFilePreview': "[Datei]{value1}",
+  'composerGifSendFailed': "GIF konnte nicht gesendet werden",
   'composerHoldToTalk': "Zum Sprechen gedrückt halten",
   'composerImage': "Bild",
   'composerImagePreview': "[Bild]",
   'composerLoadingEmoji': "emoji werden geladen…",
+  'composerLoadingGifs': "GIFs werden geladen…",
   'composerLocation': "Standort",
   'composerLocationPreview': "[Standort]",
   'composerMarkdownSupportHint':
@@ -410,6 +412,7 @@ const deMessages = <String, String>{
   'composerMicrophonePermissionSettings':
       "Erlaube den Mikrofonzugriff in den Systemeinstellungen",
   'composerNoEmoji': "Keine emoji vorhanden",
+  'composerNoGifs': "Keine gespeicherten GIFs",
   'composerOpenAttachmentFailed': "{value1} kann nicht geöffnet werden",
   'composerOpenMenu': "Menü öffnen",
   'composerPaidMessageCost':

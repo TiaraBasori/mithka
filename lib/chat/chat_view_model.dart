@@ -19,6 +19,7 @@ import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import 'forward_options.dart';
+import 'gif_item.dart';
 import 'sticker_item.dart';
 
 class _SenderInfo {
@@ -790,6 +791,21 @@ class ChatViewModel extends ChangeNotifier {
         },
       }),
     );
+  }
+
+  Future<bool> sendGif(GifItem gif) async {
+    try {
+      await _client.query(
+        _withPaidMessageOptions({
+          '@type': 'sendMessage',
+          'chat_id': chatId,
+          'input_message_content': gifMessageContent(gif),
+        }),
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   void sendSticker(StickerItem sticker) {

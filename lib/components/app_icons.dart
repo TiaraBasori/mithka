@@ -68,6 +68,7 @@ class HeroAppIcons {
   static const folder = AppIconData(HeroiconsOutline.folder);
   static const font = AppIconData(HeroiconsOutline.documentText);
   static const gear = AppIconData(HeroiconsOutline.cog6Tooth);
+  static const gif = AppIconData(HeroiconsOutline.gif);
   static const globe = AppIconData(HeroiconsOutline.globeAlt);
   static const grip = AppIconData(HeroiconsOutline.squares2x2);
   static const hashtag = AppIconData(HeroiconsOutline.hashtag);

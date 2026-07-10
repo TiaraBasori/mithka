@@ -392,10 +392,12 @@ const enMessages = <String, String>{
   'composerChecklist': "Checklist",
   'composerClipboardNoImage': "No image on clipboard",
   'composerFilePreview': "[File]{value1}",
+  'composerGifSendFailed': "Could not send GIF",
   'composerHoldToTalk': "Hold to talk",
   'composerImage': "Image",
   'composerImagePreview': "[Image]",
   'composerLoadingEmoji': "Loading emoji…",
+  'composerLoadingGifs': "Loading GIFs…",
   'composerLocation': "Location",
   'composerLocationPreview': "[Location]",
   'composerMarkdownSupportHint':
@@ -404,6 +406,7 @@ const enMessages = <String, String>{
   'composerMicrophonePermissionSettings':
       "Allow microphone access in system settings",
   'composerNoEmoji': "No emoji yet",
+  'composerNoGifs': "No saved GIFs",
   'composerOpenAttachmentFailed': "Cannot open {value1}",
   'composerOpenMenu': "Open menu",
   'composerPaidMessageCost': "Sending this message costs {value1} Stars.",

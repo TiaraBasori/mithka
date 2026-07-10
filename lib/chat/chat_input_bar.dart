@@ -37,6 +37,8 @@ import 'custom_emoji.dart';
 import 'emoji_catalog.dart';
 import 'emoji_store.dart';
 import 'emoji_text_controller.dart';
+import 'gif_preview.dart';
+import 'gif_store.dart';
 import 'image_edit_view.dart';
 import 'link_handler.dart';
 import 'location_picker_view.dart';
@@ -62,6 +64,7 @@ class ChatInputBar extends StatefulWidget {
 
 class _ChatInputBarState extends State<ChatInputBar> {
   static const _clipboardChannel = MethodChannel('mithka/clipboard');
+  static const _gifTabId = -2;
   static const _imageMimeTypes = <String>[
     'image/png',
     'image/jpeg',
@@ -105,6 +108,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     vm.addListener(_syncFromVm);
     EmojiStore.shared.addListener(_onStore);
     StickerStore.shared.addListener(_onStore);
+    GifStore.shared.addListener(_onStore);
   }
 
   void _onStore() {
@@ -149,6 +153,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     vm.removeListener(_syncFromVm);
     EmojiStore.shared.removeListener(_onStore);
     StickerStore.shared.removeListener(_onStore);
+    GifStore.shared.removeListener(_onStore);
     _controller.dispose();
     _focus.dispose();
     _recTimer?.cancel();
@@ -828,7 +833,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
           _icon(HeroAppIcons.camera.data, false, _takePhoto),
           _icon(HeroAppIcons.grip.data, _panel == _Panel.sticker, () {
             _toggle(_Panel.sticker);
-            if (_panel == _Panel.sticker) StickerStore.shared.loadIfNeeded();
+            if (_panel == _Panel.sticker) {
+              StickerStore.shared.loadIfNeeded();
+              GifStore.shared.loadIfNeeded();
+            }
           }),
           _icon(HeroAppIcons.solidFaceSmile.data, _panel == _Panel.emoji, () {
             _toggle(_Panel.emoji);
@@ -1472,6 +1480,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Widget _stickerContent() {
     final store = StickerStore.shared;
     final packs = store.packs;
+    final activeId =
+        _stickerPack ??
+        (packs.isNotEmpty ? packs.first.id : StickerStore.recentPackId);
+    if (activeId == _gifTabId) return _gifContent();
     if (packs.isEmpty) {
       return Center(
         child: Text(
@@ -1482,7 +1494,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
         ),
       );
     }
-    final activeId = _stickerPack ?? packs.first.id;
     StickerPack? pack;
     for (final p in packs) {
       if (p.id == activeId) {
@@ -1525,10 +1536,57 @@ class _ChatInputBarState extends State<ChatInputBar> {
     );
   }
 
+  Widget _gifContent() {
+    final store = GifStore.shared;
+    final items = store.items;
+    if (items.isEmpty) {
+      return Center(
+        child: Text(
+          store.loading
+              ? AppStrings.t(AppStringKeys.composerLoadingGifs)
+              : AppStrings.t(AppStringKeys.composerNoGifs),
+          style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
+        ),
+      );
+    }
+    return GridView.builder(
+      padding: const EdgeInsets.all(8),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 3,
+        childAspectRatio: 1.2,
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+      ),
+      itemCount: items.length,
+      itemBuilder: (_, index) {
+        final item = items[index];
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () async {
+            final sent = await widget.vm.sendGif(item);
+            if (!mounted) return;
+            if (sent) {
+              setState(() => _panel = _Panel.none);
+            } else {
+              showToast(
+                context,
+                AppStrings.t(AppStringKeys.composerGifSendFailed),
+              );
+            }
+          },
+          child: GifPreview(item: item),
+        );
+      },
+    );
+  }
+
   Widget _stickerTabStrip() {
     final c = context.colors;
     final packs = StickerStore.shared.packs;
-    final activeId = _stickerPack ?? (packs.isNotEmpty ? packs.first.id : null);
+    final activeId =
+        _stickerPack ??
+        (packs.isNotEmpty ? packs.first.id : StickerStore.recentPackId);
+    final installed = packs.where((p) => p.id != StickerStore.recentPackId);
     return Container(
       decoration: BoxDecoration(
         color: c.inputBarBackground,
@@ -1540,29 +1598,45 @@ class _ChatInputBarState extends State<ChatInputBar> {
           scrollDirection: Axis.horizontal,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           children: [
-            for (final pack in packs)
+            _emojiTabButton(
+              selected: activeId == StickerStore.recentPackId,
+              onTap: () {
+                setState(() => _stickerPack = StickerStore.recentPackId);
+                StickerStore.shared.loadIfNeeded();
+              },
+              child: AppIcon(
+                HeroAppIcons.clock,
+                size: 20,
+                color: activeId == StickerStore.recentPackId
+                    ? AppTheme.brand
+                    : c.textSecondary,
+              ),
+            ),
+            _emojiTabButton(
+              selected: activeId == _gifTabId,
+              onTap: () {
+                setState(() => _stickerPack = _gifTabId);
+                GifStore.shared.loadIfNeeded();
+              },
+              child: AppIcon(
+                HeroAppIcons.gif,
+                size: 22,
+                color: activeId == _gifTabId ? AppTheme.brand : c.textSecondary,
+              ),
+            ),
+            for (final pack in installed)
               _emojiTabButton(
                 selected: pack.id == activeId,
                 onTap: () {
                   setState(() => _stickerPack = pack.id);
                   StickerStore.shared.loadPack(pack.id);
                 },
-                child: pack.id == StickerStore.recentPackId
-                    ? AppIcon(
-                        HeroAppIcons.clock,
-                        size: 20,
-                        color: pack.id == activeId
-                            ? AppTheme.brand
-                            : c.textSecondary,
-                      )
-                    : (pack.cover != null
-                          ? StickerPreview(item: pack.cover!, cornerRadius: 4)
-                          : Text(
-                              pack.title.isEmpty
-                                  ? ''
-                                  : pack.title.characters.first,
-                              style: TextStyle(color: c.textPrimary),
-                            )),
+                child: pack.cover != null
+                    ? StickerTabPreview(item: pack.cover!)
+                    : Text(
+                        pack.title.isEmpty ? '' : pack.title.characters.first,
+                        style: TextStyle(color: c.textPrimary),
+                      ),
               ),
           ],
         ),

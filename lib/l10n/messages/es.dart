@@ -393,10 +393,12 @@ const esMessages = <String, String>{
   'composerChecklist': "Lista",
   'composerClipboardNoImage': "No hay ninguna imagen en el portapapeles",
   'composerFilePreview': "[Archivo]{value1}",
+  'composerGifSendFailed': "No se pudo enviar el GIF",
   'composerHoldToTalk': "Mantén pulsado para hablar",
   'composerImage': "Imagen",
   'composerImagePreview': "[Imagen]",
   'composerLoadingEmoji': "Cargando emoji…",
+  'composerLoadingGifs': "Cargando GIF…",
   'composerLocation': "Ubicación",
   'composerLocationPreview': "[Ubicación]",
   'composerMarkdownSupportHint':
@@ -406,6 +408,7 @@ const esMessages = <String, String>{
   'composerMicrophonePermissionSettings':
       "Permite el acceso al micrófono en los ajustes del sistema",
   'composerNoEmoji': "No hay emoji",
+  'composerNoGifs': "No hay GIF guardados",
   'composerOpenAttachmentFailed': "No se puede abrir {value1}",
   'composerOpenMenu': "Abrir menú",
   'composerPaidMessageCost': "Enviar este mensaje cuesta {value1} estrellas.",

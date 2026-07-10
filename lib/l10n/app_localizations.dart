@@ -532,10 +532,12 @@ abstract final class AppStringKeys {
   static const composerChecklist = 'composerChecklist';
   static const composerClipboardNoImage = 'composerClipboardNoImage';
   static const composerFilePreview = 'composerFilePreview';
+  static const composerGifSendFailed = 'composerGifSendFailed';
   static const composerHoldToTalk = 'composerHoldToTalk';
   static const composerImage = 'composerImage';
   static const composerImagePreview = 'composerImagePreview';
   static const composerLoadingEmoji = 'composerLoadingEmoji';
+  static const composerLoadingGifs = 'composerLoadingGifs';
   static const composerLocation = 'composerLocation';
   static const composerLocationPreview = 'composerLocationPreview';
   static const composerMarkdownSupportHint = 'composerMarkdownSupportHint';
@@ -544,6 +546,7 @@ abstract final class AppStringKeys {
   static const composerMicrophonePermissionSettings =
       'composerMicrophonePermissionSettings';
   static const composerNoEmoji = 'composerNoEmoji';
+  static const composerNoGifs = 'composerNoGifs';
   static const composerOpenAttachmentFailed = 'composerOpenAttachmentFailed';
   static const composerOpenMenu = 'composerOpenMenu';
   static const composerPaidMessageCost = 'composerPaidMessageCost';

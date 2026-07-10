@@ -9,8 +9,10 @@
 
 import 'package:flutter/material.dart';
 
+import '../components/app_icons.dart';
 import '../components/photo_avatar.dart'; // TDImage
 import '../tdlib/td_models.dart';
+import '../theme/app_theme.dart';
 import 'animated_sticker_view.dart';
 import 'sticker_item.dart';
 import 'video_sticker_view.dart';
@@ -48,6 +50,34 @@ class StickerPreview extends StatelessWidget {
         item.emoji.isEmpty ? '🎴' : item.emoji,
         style: const TextStyle(fontSize: 30),
       ),
+    );
+  }
+}
+
+/// Stable, non-animated cover used by the narrow sticker-set tab strip.
+/// Starting TGS/WebM decoders in 28px tab cells causes corrupt frames while
+/// tabs are recycled, so only Telegram's static thumbnail is rendered here.
+class StickerTabPreview extends StatelessWidget {
+  const StickerTabPreview({super.key, required this.item});
+
+  final StickerItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final thumbnail = item.thumb;
+    final canRenderThumbnail =
+        thumbnail != null &&
+        (!(item.isAnimated || item.isVideo) || thumbnail.id != item.id);
+    if (canRenderThumbnail) {
+      return TDImage(photo: thumbnail, cornerRadius: 4, fit: BoxFit.contain);
+    }
+    if (item.emoji.isNotEmpty) {
+      return Text(item.emoji, style: const TextStyle(fontSize: 22));
+    }
+    return AppIcon(
+      HeroAppIcons.solidFaceSmile,
+      size: 20,
+      color: context.colors.textSecondary,
     );
   }
 }

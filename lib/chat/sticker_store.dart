@@ -58,18 +58,26 @@ class StickerStore extends ChangeNotifier {
         'is_attached': false,
       });
       final items = parseStickers(recent.objects('stickers'));
-      if (items.isNotEmpty) {
-        result.add(
-          StickerPack(
-            id: recentPackId,
-            title: AppStrings.t(AppStringKeys.stickerStoreRecent),
-            cover: items.first,
-            stickers: items,
-            loaded: true,
-          ),
-        );
-      }
+      result.add(
+        StickerPack(
+          id: recentPackId,
+          title: AppStrings.t(AppStringKeys.stickerStoreRecent),
+          cover: items.firstOrNull,
+          stickers: items,
+          loaded: true,
+        ),
+      );
     } catch (_) {}
+
+    if (result.isEmpty) {
+      result.add(
+        StickerPack(
+          id: recentPackId,
+          title: AppStrings.t(AppStringKeys.stickerStoreRecent),
+          loaded: true,
+        ),
+      );
+    }
 
     try {
       final sets = await TdClient.shared.query({
@@ -108,9 +116,8 @@ class StickerStore extends ChangeNotifier {
     } catch (_) {}
   }
 
-  /// Cover for the set-icon tab. Prefer the first cover sticker (it carries its
-  /// format, so an animated set icon renders + animates); else synthesize one
-  /// from the set thumbnail (which may itself be tgs/webm/webp).
+  /// Cover for the set-icon tab. The tab itself renders only a static thumbnail
+  /// so tiny cells never spin up animated sticker decoders.
   StickerItem? _coverItem(Map<String, dynamic> info) {
     final covers = info.objects('covers');
     if (covers != null && covers.isNotEmpty) {
