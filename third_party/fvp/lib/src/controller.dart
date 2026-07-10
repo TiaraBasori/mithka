@@ -57,6 +57,9 @@ extension FVPControllerExtensions on VideoPlayerController {
     }
   }();
 
+  /// Identifier shared with the native FVP texture/player registry.
+  int get fvpPlayerId => _getId(this);
+
   /// Indicates whether current media is a live stream or not
   bool isLive() {
     return _platform.isLive(_getId(this));

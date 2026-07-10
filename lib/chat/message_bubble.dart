@@ -2401,8 +2401,12 @@ class _MessageBubbleState extends State<MessageBubble>
 
   Widget _imageContent(TdFileRef image, bool outgoing) {
     final imageSize = _imageDisplaySize();
-    final frameSize = _imageFrameSize(imageSize);
     final caption = _caption();
+    final usesBlurredFrame =
+        caption != null && _usesBlurredImageFrame(imageSize);
+    final frameSize = usesBlurredFrame
+        ? Size(_mediaMaxWidth(), imageSize.height)
+        : imageSize;
     final grouped = _groupsMediaCaption(caption);
     final mediaRadius = grouped ? 0.0 : 10.0;
     final media = GestureDetector(
@@ -2410,7 +2414,7 @@ class _MessageBubbleState extends State<MessageBubble>
       child: SizedBox(
         width: frameSize.width,
         height: frameSize.height,
-        child: _usesBlurredImageFrame(imageSize)
+        child: usesBlurredFrame
             ? _blurredImageFrame(image, imageSize, frameSize, mediaRadius)
             : TDImage(
                 photo: image,
@@ -2643,11 +2647,6 @@ class _MessageBubbleState extends State<MessageBubble>
       maxHeight: maxWidth,
       fallback: Size(maxWidth, maxWidth),
     );
-  }
-
-  Size _imageFrameSize(Size imageSize) {
-    if (!_usesBlurredImageFrame(imageSize)) return imageSize;
-    return Size(_mediaMaxWidth(), imageSize.height);
   }
 
   bool _usesBlurredImageFrame(Size imageSize) {

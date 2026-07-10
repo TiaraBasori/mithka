@@ -11,6 +11,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:fvp/fvp.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:video_player/video_player.dart';
@@ -369,6 +370,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   _TdVideoStreamServer? _streamServer;
   bool _openedCompletedLocalFile = false;
   bool _systemPiPHandoff = false;
+  bool _systemPiPUsesActivePlayer = false;
   bool _systemPiPSupported = false;
   bool _systemPiPPrepared = false;
   String? _systemPiPId;
@@ -671,6 +673,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         position: c.value.position,
         speed: _speed,
         muted: _volume <= 0.01,
+        playing: c.value.isPlaying,
       );
     }
     if (!started) {
@@ -691,7 +694,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         position: c.value.position,
         speed: _speed,
         muted: _volume <= 0.01,
+        playing: c.value.isPlaying,
+        playerId: c.fvpPlayerId,
         onStop: () async {
+          if (SystemPictureInPicture.usesActivePlayer(id!)) {
+            await c.dispose();
+          }
           await server?.close();
           if (shouldCancelOnStop) {
             TdFileCenter.shared.cancelDownload(widget.video.id);
@@ -706,10 +714,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       }
       return false;
     }
+    _systemPiPUsesActivePlayer =
+        id != null && SystemPictureInPicture.usesActivePlayer(id);
     _systemPiPHandoff = true;
     _systemPiPPrepared = false;
     _streamServer = null;
-    unawaited(c.pause());
+    if (!_systemPiPUsesActivePlayer) unawaited(c.pause());
     _close();
     return true;
   }
@@ -742,7 +752,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       position: c.value.position,
       speed: _speed,
       muted: _volume <= 0.01,
+      playing: c.value.isPlaying,
+      playerId: c.fvpPlayerId,
       onStop: () async {
+        if (SystemPictureInPicture.usesActivePlayer(id)) {
+          await c.dispose();
+        }
         await server?.close();
         if (shouldCancelOnStop) {
           TdFileCenter.shared.cancelDownload(widget.video.id);
@@ -793,7 +808,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
     _progressSub?.cancel();
     unawaited(_storePlaybackPosition(force: true));
     _controller?.removeListener(_onTick);
-    _controller?.dispose();
+    if (!_systemPiPHandoff || !_systemPiPUsesActivePlayer) {
+      _controller?.dispose();
+    }
     final preparedPiPId = _systemPiPId;
     if (!_systemPiPHandoff && preparedPiPId != null) {
       unawaited(SystemPictureInPicture.cancelPrepared(preparedPiPId));
