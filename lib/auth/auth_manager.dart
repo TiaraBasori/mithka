@@ -108,6 +108,21 @@ class AuthMissingCredentials extends AuthStep {
   const AuthMissingCredentials();
 }
 
+@visibleForTesting
+bool authorizationStateAcceptsPhoneNumber(String? type) => const {
+  'authorizationStateWaitPhoneNumber',
+  'authorizationStateWaitPremiumPurchase',
+  'authorizationStateWaitEmailAddress',
+  'authorizationStateWaitEmailCode',
+  'authorizationStateWaitCode',
+  'authorizationStateWaitPassword',
+  'authorizationStateWaitRegistration',
+}.contains(type);
+
+@visibleForTesting
+bool authorizationStateRequiresQrReset(String? type) =>
+    type == 'authorizationStateWaitOtherDeviceConfirmation';
+
 class AuthManager extends ChangeNotifier {
   final TdClient _client = TdClient.shared;
   bool _started = false;
@@ -117,6 +132,7 @@ class AuthManager extends ChangeNotifier {
   String? _errorMessage;
   bool _isWorking = false;
   int _actionSerial = 0;
+  int? _authorizationTransitionAction;
   bool _useReviewCodeRelay = false;
   bool _reviewCodePollActive = false;
   String? _mockReviewSessionPhone;
@@ -160,7 +176,8 @@ class AuthManager extends ChangeNotifier {
 
   void _handle(Map<String, dynamic> state) {
     debugPrint('🔑 [Mithka] authorizationState → ${state.type ?? 'nil'}');
-    if (_isWorking) {
+    final preserveWorking = _authorizationTransitionAction == _actionSerial;
+    if (_isWorking && !preserveWorking) {
       _actionSerial += 1;
       _isWorking = false;
     }
@@ -219,7 +236,8 @@ class AuthManager extends ChangeNotifier {
 
   // MARK: - User actions
 
-  void submitPhone(String phone) {
+  Future<bool> submitPhone(String phone) async {
+    if (_isWorking) return false;
     final normalizedPhone = phone.trim();
     _mockReviewSessionPhone =
         ReviewLoginCodeService.isMockSessionPhone(normalizedPhone)
@@ -233,12 +251,64 @@ class AuthManager extends ChangeNotifier {
       _isWorking = false;
       _errorMessage = null;
       _set(const AuthWaitCode(AuthCodeInfo.fallback));
-      return;
+      return true;
     }
-    _run({
-      '@type': 'setAuthenticationPhoneNumber',
-      'phone_number': normalizedPhone,
-    });
+    final action = _beginAuthorizationTransition();
+    try {
+      var state = await _client
+          .query({'@type': 'getAuthorizationState'})
+          .timeout(const Duration(seconds: 5));
+      if (authorizationStateRequiresQrReset(state.type)) {
+        _set(const AuthInitializing());
+        await _client.resetActiveQrLogin();
+        if (action != _actionSerial) return false;
+        state = await _client
+            .query({'@type': 'getAuthorizationState'})
+            .timeout(const Duration(seconds: 5));
+      }
+      if (!authorizationStateAcceptsPhoneNumber(state.type)) {
+        throw StateError(
+          'Phone number authentication is unavailable from ${state.type}',
+        );
+      }
+      await _client
+          .query({
+            '@type': 'setAuthenticationPhoneNumber',
+            'phone_number': normalizedPhone,
+          })
+          .timeout(const Duration(seconds: 20));
+      return action == _actionSerial;
+    } catch (error) {
+      if (action == _actionSerial) _report(error);
+      return false;
+    } finally {
+      _finishAuthorizationTransition(action);
+    }
+  }
+
+  /// Leaves TDLib's persisted QR state before the phone-number form is used.
+  Future<bool> switchToPhoneLogin() async {
+    if (_isWorking) return false;
+    final action = _beginAuthorizationTransition();
+    try {
+      final state = await _client
+          .query({'@type': 'getAuthorizationState'})
+          .timeout(const Duration(seconds: 5));
+      if (authorizationStateRequiresQrReset(state.type)) {
+        _set(const AuthInitializing());
+        await _client.resetActiveQrLogin();
+      } else if (!authorizationStateAcceptsPhoneNumber(state.type)) {
+        throw StateError(
+          'Phone number authentication is unavailable from ${state.type}',
+        );
+      }
+      return action == _actionSerial;
+    } catch (error) {
+      if (action == _actionSerial) _report(error);
+      return false;
+    } finally {
+      _finishAuthorizationTransition(action);
+    }
   }
 
   void requestQrLogin() =>
@@ -277,6 +347,24 @@ class AuthManager extends ChangeNotifier {
   }
 
   // MARK: - Helpers
+
+  int _beginAuthorizationTransition() {
+    final action = ++_actionSerial;
+    _authorizationTransitionAction = action;
+    _isWorking = true;
+    _errorMessage = null;
+    notifyListeners();
+    return action;
+  }
+
+  void _finishAuthorizationTransition(int action) {
+    if (_authorizationTransitionAction == action) {
+      _authorizationTransitionAction = null;
+    }
+    if (action != _actionSerial) return;
+    _isWorking = false;
+    notifyListeners();
+  }
 
   Future<void> _submitReviewCodeFromRelay() async {
     if (_reviewCodePollActive) return;

@@ -301,11 +301,13 @@ class _LoginViewState extends State<LoginView> {
   }
 
   void _showPhoneEntry() {
-    context.read<AuthManager>().cancelPendingAction();
+    final auth = context.read<AuthManager>();
+    auth.cancelPendingAction();
     _code.clear();
     _password.clear();
     _stopResendCountdown();
     setState(() => _forcePhone = true);
+    unawaited(auth.switchToPhoneLogin());
   }
 
   Widget _stepFor(AuthManager auth, AccountStore accounts) {
@@ -439,10 +441,7 @@ class _LoginViewState extends State<LoginView> {
           auth,
           AppStrings.t(AppStringKeys.loginGetVerificationCode),
           _phoneDigits.length >= 7,
-          () {
-            auth.submitPhone('+$_phoneDigits');
-            if (_forcePhone) setState(() => _forcePhone = false);
-          },
+          () => unawaited(_submitPhone(auth)),
         ),
         const SizedBox(height: 20),
         Text(
@@ -452,6 +451,13 @@ class _LoginViewState extends State<LoginView> {
         ),
       ],
     );
+  }
+
+  Future<void> _submitPhone(AuthManager auth) async {
+    final submitted = await auth.submitPhone('+$_phoneDigits');
+    if (submitted && mounted && _forcePhone) {
+      setState(() => _forcePhone = false);
+    }
   }
 
   Widget _topRightActions(AuthManager auth, bool showingPhone) {

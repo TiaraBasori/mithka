@@ -85,6 +85,7 @@ class TdClient {
 
   // Request/response correlation, keyed by the "@extra" we attach.
   final Map<String, Completer<Map<String, dynamic>>> _pending = {};
+  final Map<int, Completer<void>> _clientClosedWaiters = {};
   int _extraCounter = 0;
 
   // Multicast of the ACTIVE account's updates.
@@ -220,6 +221,70 @@ class TdClient {
       '@type': 'confirmQrCodeAuthentication',
       'link': link,
     }).timeout(const Duration(seconds: 20));
+  }
+
+  /// Cancels an in-progress QR login and recreates the active unauthenticated
+  /// client on a clean database. TDLib persists QR authorization state, and it
+  /// rejects setAuthenticationPhoneNumber until the client returns to
+  /// authorizationStateWaitPhoneNumber.
+  Future<void> resetActiveQrLogin() async {
+    final slot = _activeSlot;
+    final oldClientId = _activeClientId;
+    if (oldClientId == 0) {
+      throw StateError('TDLib client is not active yet');
+    }
+
+    final state = await queryTo({
+      '@type': 'getAuthorizationState',
+    }, oldClientId).timeout(const Duration(seconds: 5));
+    if (state.type == 'authorizationStateWaitPhoneNumber') return;
+    if (state.type != 'authorizationStateWaitOtherDeviceConfirmation') {
+      throw StateError('Cannot cancel QR login from ${state.type}');
+    }
+
+    final closed = Completer<void>();
+    _clientClosedWaiters[oldClientId] = closed;
+    _activeClientId = 0;
+    _bindings.send(oldClientId, jsonEncode({'@type': 'close'}));
+    try {
+      await closed.future.timeout(const Duration(seconds: 15));
+    } finally {
+      if (identical(_clientClosedWaiters[oldClientId], closed)) {
+        _clientClosedWaiters.remove(oldClientId);
+      }
+    }
+
+    if (_clientForSlot[slot] == oldClientId) {
+      _clientForSlot.remove(slot);
+    }
+    _slotForClient.remove(oldClientId);
+    _latestChatFoldersByClient.remove(oldClientId);
+    _proxyAppliedClients.remove(oldClientId);
+    await deleteSlotData(slot);
+
+    final newClientId = _bindings.createClientId();
+    _clientForSlot[slot] = newClientId;
+    _slotForClient[newClientId] = slot;
+    _activeSlot = slot;
+    _activeClientId = newClientId;
+    _persist();
+    if (kDebugMode) unawaited(_persistDebugLiveClientIds());
+
+    final waitForPhoneNumber = _updates.stream
+        .where((update) => update.type == 'updateAuthorizationState')
+        .map((update) => update.obj('authorization_state'))
+        .where((authorizationState) => authorizationState != null)
+        .map((authorizationState) => authorizationState!)
+        .firstWhere(
+          (authorizationState) =>
+              authorizationState.type == 'authorizationStateWaitPhoneNumber',
+        )
+        .timeout(const Duration(seconds: 20));
+    _bindings.send(
+      newClientId,
+      jsonEncode({'@type': 'getOption', 'name': 'version'}),
+    );
+    await waitForPhoneNumber;
   }
 
   Future<TdFreshSessionResult> createFreshSessionFromSlot(
@@ -796,6 +861,11 @@ class TdClient {
     }
 
     final clientId = object.integer('@client_id') ?? -1;
+    if (object.type == 'updateAuthorizationState' &&
+        object.obj('authorization_state')?.type == 'authorizationStateClosed') {
+      final waiter = _clientClosedWaiters.remove(clientId);
+      if (waiter != null && !waiter.isCompleted) waiter.complete();
+    }
     // Bootstrap ANY client that asks for parameters, so every account
     // initializes and stays logged in (not just the active one).
     if (object.type == 'updateAuthorizationState' &&
