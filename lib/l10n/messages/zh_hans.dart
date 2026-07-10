@@ -397,6 +397,8 @@ const zhHansMessages = <String, String>{
   'composerSendPaidMessageQuestion': "发送付费消息？",
   'composerVideoCall': "视频通话",
   'composerVoiceCall': "语音通话",
+  'composerGroupVideoCall': "群视频",
+  'composerGroupVoiceCall': "群通话",
   'composerVoicePreview': "[语音]",
   'confirmOk': "确定",
   'contactsFriends': "好友",

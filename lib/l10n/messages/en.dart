@@ -420,6 +420,8 @@ const enMessages = <String, String>{
   'composerSendPaidMessageQuestion': "Send paid message?",
   'composerVideoCall': "Video call",
   'composerVoiceCall': "Voice call",
+  'composerGroupVideoCall': "Group video chat",
+  'composerGroupVoiceCall': "Group voice chat",
   'composerVoicePreview': "[Voice]",
   'confirmOk': "OK",
   'contactsFriends': "Friends",

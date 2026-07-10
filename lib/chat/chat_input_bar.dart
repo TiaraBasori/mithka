@@ -56,7 +56,7 @@ class _SendComposerIntent extends Intent {
 class ChatInputBar extends StatefulWidget {
   const ChatInputBar({super.key, required this.vm, required this.onStartCall});
   final ChatViewModel vm;
-  final void Function(bool isVideo) onStartCall;
+  final FutureOr<void> Function(bool isVideo) onStartCall;
 
   @override
   State<ChatInputBar> createState() => _ChatInputBarState();
@@ -1127,12 +1127,20 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final items = [
       (
         HeroAppIcons.phone.data,
-        AppStrings.t(AppStringKeys.composerVoiceCall),
+        AppStrings.t(
+          vm.isGroup
+              ? AppStringKeys.composerGroupVoiceCall
+              : AppStringKeys.composerVoiceCall,
+        ),
         () => widget.onStartCall(false),
       ),
       (
         HeroAppIcons.video.data,
-        AppStrings.t(AppStringKeys.composerVideoCall),
+        AppStrings.t(
+          vm.isGroup
+              ? AppStringKeys.composerGroupVideoCall
+              : AppStringKeys.composerVideoCall,
+        ),
         () => widget.onStartCall(true),
       ),
       (

@@ -67,6 +67,7 @@ ios/Runner/GoogleService-Info.plist
 # Native TDLib binaries (large, platform-specific — built via scripts/, see NATIVE.md)
 android/app/src/main/jniLibs/
 **/tdjson.xcframework/
+**/TgVoipWebrtc.xcframework/
 .tdlib-build/
 
 # One-time working notes (not part of the app)

@@ -1,6 +1,7 @@
 import AVFoundation
 import AVKit
 import Flutter
+import LiveCommunicationKit
 import Security
 import Sentry
 import SwiftUI
@@ -15,6 +16,8 @@ import UIKit
   private var apnsDeviceToken: String?
   private var didRegisterFlutterPlugins = false
   private var systemPictureInPictureBridge: SystemPictureInPictureBridge?
+  private var liveCommunicationBridge: AnyObject?
+  private var groupCallMediaBridge: TelegramGroupCallMediaBridge?
 
   override func application(
     _ application: UIApplication,
@@ -214,6 +217,39 @@ import UIKit
     )
     systemPictureInPictureBridge = systemPiPBridge
 
+    var liveCommunicationOwnsAudioSession = false
+    if #available(iOS 17.4, *) {
+      liveCommunicationOwnsAudioSession = true
+    }
+    let groupCallMediaBridge = TelegramGroupCallMediaBridge(
+      messenger: engineBridge.applicationRegistrar.messenger(),
+      registrar: engineBridge.applicationRegistrar,
+      audioSessionManagedBySystem: liveCommunicationOwnsAudioSession
+    )
+    self.groupCallMediaBridge = groupCallMediaBridge
+
+    if #available(iOS 17.4, *) {
+      liveCommunicationBridge = LiveCommunicationBridge(
+        messenger: engineBridge.applicationRegistrar.messenger(),
+        audioSessionChanged: { [weak groupCallMediaBridge] active in
+          groupCallMediaBridge?.setAudioSessionActive(active)
+        }
+      )
+    } else {
+      let liveCommunicationChannel = FlutterMethodChannel(
+        name: "mithka/live_communication",
+        binaryMessenger: engineBridge.applicationRegistrar.messenger()
+      )
+      liveCommunicationChannel.setMethodCallHandler { call, result in
+        switch call.method {
+        case "start", "connected", "setMuted", "updateMembers", "end":
+          result(nil)
+        default:
+          result(FlutterMethodNotImplemented)
+        }
+      }
+    }
+
     let nativeTranslationChannel = FlutterMethodChannel(
       name: "mithka/native_translation",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
@@ -266,6 +302,204 @@ import UIKit
   ) {
     pushChannel?.invokeMethod("registrationError", arguments: error.localizedDescription)
     super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+  }
+}
+
+@available(iOS 17.4, *)
+@MainActor
+private final class LiveCommunicationBridge: NSObject, ConversationManagerDelegate {
+  private let channel: FlutterMethodChannel
+  private let manager: ConversationManager
+  private var localActionIds = Set<UUID>()
+  private let audioSessionChanged: (Bool) -> Void
+
+  init(
+    messenger: FlutterBinaryMessenger,
+    audioSessionChanged: @escaping (Bool) -> Void
+  ) {
+    channel = FlutterMethodChannel(
+      name: "mithka/live_communication",
+      binaryMessenger: messenger
+    )
+    let configuration = ConversationManager.Configuration(
+      ringtoneName: nil,
+      iconTemplateImageData: nil,
+      maximumConversationGroups: 1,
+      maximumConversationsPerConversationGroup: 1,
+      includesConversationInRecents: true,
+      supportsVideo: true,
+      supportedHandleTypes: [.generic]
+    )
+    manager = ConversationManager(configuration: configuration)
+    self.audioSessionChanged = audioSessionChanged
+    super.init()
+    manager.delegate = self
+    channel.setMethodCallHandler { [weak self] call, result in
+      Task { @MainActor in
+        await self?.handle(call: call, result: result)
+      }
+    }
+  }
+
+  private func handle(call: FlutterMethodCall, result: @escaping FlutterResult) async {
+    guard
+      let arguments = call.arguments as? [String: Any],
+      let uuidString = arguments["uuid"] as? String,
+      let uuid = UUID(uuidString: uuidString)
+    else {
+      result(
+        FlutterError(
+          code: "live_communication_invalid_arguments",
+          message: "A valid conversation UUID is required",
+          details: nil
+        )
+      )
+      return
+    }
+
+    do {
+      switch call.method {
+      case "start":
+        let title = (arguments["title"] as? String)?.trimmingCharacters(
+          in: .whitespacesAndNewlines
+        )
+        let rawMembers = arguments["members"] as? [String] ?? []
+        var handles = rawMembers.filter { !$0.isEmpty }.map {
+          Handle(type: .generic, value: $0, displayName: $0)
+        }
+        if handles.isEmpty {
+          let displayName = title?.isEmpty == false ? title! : "Telegram"
+          handles = [Handle(type: .generic, value: displayName, displayName: displayName)]
+        } else if let title, !title.isEmpty {
+          handles[0].displayName = title
+        }
+        let action = StartConversationAction(
+          conversationUUID: uuid,
+          handles: handles,
+          isVideo: arguments["isVideo"] as? Bool ?? false
+        )
+        localActionIds.insert(action.uuid)
+        try await manager.perform([action])
+      case "connected":
+        guard let conversation = conversation(uuid: uuid) else {
+          result(nil)
+          return
+        }
+        manager.reportConversationEvent(
+          .conversationConnected(Date()),
+          for: conversation
+        )
+      case "setMuted":
+        let action = MuteConversationAction(
+          conversationUUID: uuid,
+          isMuted: arguments["muted"] as? Bool ?? false
+        )
+        localActionIds.insert(action.uuid)
+        try await manager.perform([action])
+      case "updateMembers":
+        guard let conversation = conversation(uuid: uuid) else {
+          result(nil)
+          return
+        }
+        let names = arguments["members"] as? [String] ?? []
+        let handles = Set(
+          names.filter { !$0.isEmpty }.map {
+            Handle(type: .generic, value: $0, displayName: $0)
+          }
+        )
+        manager.reportConversationEvent(
+          .conversationUpdated(Conversation.Update(members: handles)),
+          for: conversation
+        )
+      case "end":
+        let action = EndConversationAction(conversationUUID: uuid)
+        localActionIds.insert(action.uuid)
+        try await manager.perform([action])
+      default:
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      result(nil)
+    } catch {
+      result(
+        FlutterError(
+          code: "live_communication_failed",
+          message: error.localizedDescription,
+          details: nil
+        )
+      )
+    }
+  }
+
+  private func conversation(uuid: UUID) -> Conversation? {
+    manager.conversations.first { $0.uuid == uuid }
+  }
+
+  func conversationManager(
+    _ manager: ConversationManager,
+    conversationChanged conversation: Conversation
+  ) {}
+
+  func conversationManagerDidBegin(_ manager: ConversationManager) {}
+
+  func conversationManagerDidReset(_ manager: ConversationManager) {}
+
+  func conversationManager(
+    _ manager: ConversationManager,
+    perform action: ConversationAction
+  ) {
+    let wasRequestedByFlutter = localActionIds.remove(action.uuid) != nil
+    switch action {
+    case let start as StartConversationAction:
+      start.fulfill(dateStarted: Date())
+    case let join as JoinConversationAction:
+      join.fulfill(dateConnected: Date())
+    case let mute as MuteConversationAction:
+      if !wasRequestedByFlutter {
+        channel.invokeMethod(
+          "setMuted",
+          arguments: [
+            "uuid": mute.conversationUUID.uuidString,
+            "muted": mute.isMuted
+          ]
+        )
+      }
+      mute.fulfill()
+    case let end as EndConversationAction:
+      if !wasRequestedByFlutter {
+        channel.invokeMethod(
+          "end",
+          arguments: ["uuid": end.conversationUUID.uuidString]
+        )
+      }
+      end.fulfill(dateEnded: Date())
+    default:
+      action.fulfill()
+    }
+  }
+
+  func conversationManager(
+    _ manager: ConversationManager,
+    timedOutPerforming action: ConversationAction
+  ) {
+    localActionIds.remove(action.uuid)
+    action.fail()
+  }
+
+  func conversationManager(
+    _ manager: ConversationManager,
+    didActivate audioSession: AVAudioSession
+  ) {
+    audioSessionChanged(true)
+    channel.invokeMethod("audioSessionActivated", arguments: nil)
+  }
+
+  func conversationManager(
+    _ manager: ConversationManager,
+    didDeactivate audioSession: AVAudioSession
+  ) {
+    audioSessionChanged(false)
+    channel.invokeMethod("audioSessionDeactivated", arguments: nil)
   }
 }
 

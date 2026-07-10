@@ -430,6 +430,8 @@ const frMessages = <String, String>{
   'composerSendPaidMessageQuestion': "Envoyer le message payant ?",
   'composerVideoCall': "Appel vidéo",
   'composerVoiceCall': "Appel vocal",
+  'composerGroupVideoCall': "Appel vidéo de groupe",
+  'composerGroupVoiceCall': "Appel vocal de groupe",
   'composerVoicePreview': "[Vocal]",
   'confirmOk': "OK",
   'contactsFriends': "Amis",

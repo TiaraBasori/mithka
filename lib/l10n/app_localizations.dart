@@ -560,6 +560,8 @@ abstract final class AppStringKeys {
   static const composerSend = 'composerSend';
   static const composerSendPaidMessageQuestion =
       'composerSendPaidMessageQuestion';
+  static const composerGroupVideoCall = 'composerGroupVideoCall';
+  static const composerGroupVoiceCall = 'composerGroupVoiceCall';
   static const composerVideoCall = 'composerVideoCall';
   static const composerVoiceCall = 'composerVoiceCall';
   static const composerVoicePreview = 'composerVoicePreview';

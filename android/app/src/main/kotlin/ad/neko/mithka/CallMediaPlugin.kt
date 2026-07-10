@@ -16,8 +16,10 @@ import io.github.pytgcalls.media.MediaDescription
 import io.github.pytgcalls.media.MediaSource
 import io.github.pytgcalls.media.StreamDevice
 import io.github.pytgcalls.media.StreamMode
+import io.github.pytgcalls.media.SsrcGroup
 import io.github.pytgcalls.media.VideoDescription
 import io.github.pytgcalls.p2p.RTCServer
+import org.json.JSONObject
 import org.webrtc.ContextUtils
 import org.webrtc.EglBase
 import org.webrtc.JavaI420Buffer
@@ -58,6 +60,7 @@ class CallMediaPlugin(
 
     private var ntg: NTgCalls? = null
     private var chatId: Long = 0L
+    private var isGroupCall = false
     private var eventSink: EventChannel.EventSink? = null
     private var prevAudioMode = AudioManager.MODE_NORMAL
 
@@ -65,6 +68,8 @@ class CallMediaPlugin(
     // Remote frames from ntgcalls are routed to renderers["remote"].
     private var egl: EglBase? = null
     private val renderers = ConcurrentHashMap<String, TextureViewRenderer>()
+    private val groupVideoEndpointBySsrc = ConcurrentHashMap<Long, String>()
+    private val groupVideoSourcesByEndpoint = ConcurrentHashMap<String, String>()
 
     // We capture our own camera (CameraCapture) and feed ntgcalls an EXTERNAL stream,
     // because ntgcalls' DEVICE capture never surfaces frames for a local preview.
@@ -129,9 +134,44 @@ class CallMediaPlugin(
                 return@setMethodCallHandler
             }
             when (call.method) {
+                "isSupported" -> result.success(true)
                 "start" -> worker.execute { runCatching { start(call.argument("config")!!) }
                     .onSuccess { reply(result, null) }
                     .onFailure { reply(result, it) } }
+                "createGroup" -> worker.execute {
+                    runCatching {
+                        @Suppress("UNCHECKED_CAST")
+                        createGroup(call.arguments as Map<String, Any?>)
+                    }.onSuccess { value -> main.post { result.success(value) } }
+                        .onFailure { reply(result, it) }
+                }
+                "connectGroup" -> worker.execute {
+                    runCatching {
+                        @Suppress("UNCHECKED_CAST")
+                        val args = call.arguments as Map<String, Any?>
+                        connectGroup(args["responsePayload"] as String)
+                    }.onSuccess { reply(result, null) }.onFailure { reply(result, it) }
+                }
+                "addGroupVideo" -> worker.execute {
+                    runCatching {
+                        @Suppress("UNCHECKED_CAST")
+                        addGroupVideo(call.arguments as Map<String, Any?>)
+                    }.onSuccess { reply(result, null) }.onFailure { reply(result, it) }
+                }
+                "removeGroupVideo" -> worker.execute {
+                    runCatching {
+                        @Suppress("UNCHECKED_CAST")
+                        val args = call.arguments as Map<String, Any?>
+                        removeGroupVideo(args["endpointId"] as String)
+                    }.onSuccess { reply(result, null) }.onFailure { reply(result, it) }
+                }
+                "setRequestedVideoChannels" -> worker.execute {
+                    runCatching {
+                        @Suppress("UNCHECKED_CAST")
+                        setRequestedVideoChannels(call.arguments as? List<Map<String, Any?>> ?: emptyList())
+                    }.onSuccess { reply(result, null) }.onFailure { reply(result, it) }
+                }
+                "setMediaChannelDescriptions" -> result.success(null)
                 "stop" -> worker.execute { runCatching { stop() }
                     .onSuccess { reply(result, null) }.onFailure { reply(result, it) } }
                 "setMuted" -> worker.execute { runCatching { setMuted(call.arguments as Boolean) }
@@ -203,6 +243,7 @@ class CallMediaPlugin(
         stop() // tear down any previous call
         sawRemoteFrame = false
         useFrontCamera = true
+        isGroupCall = false
 
         chatId = (config["callId"] as Number).toLong()
         val isOutgoing = config["isOutgoing"] as Boolean
@@ -259,6 +300,9 @@ class CallMediaPlugin(
     private fun stop() {
         runCatching { camera?.stop() }
         camera = null
+        groupVideoEndpointBySsrc.clear()
+        groupVideoSourcesByEndpoint.clear()
+        isGroupCall = false
         val instance = ntg ?: return
         runCatching { instance.stop(chatId) }
         ntg = null
@@ -288,7 +332,10 @@ class CallMediaPlugin(
         val cam = camera ?: CameraCapture(
             context = context,
             eglContext = eglContext(),
-            onLocalFrame = { frame -> renderers["local"]?.onFrame(frame) },
+            onLocalFrame = { frame ->
+                val role = if (isGroupCall) "group:local" else "local"
+                renderers[role]?.onFrame(frame)
+            },
             onEncodedFrame = { bytes, w, h, rot, tsMs ->
                 runCatching {
                     ntg?.sendExternalFrame(
@@ -305,6 +352,106 @@ class CallMediaPlugin(
             },
         ).also { camera = it }
         cam.start(front)
+    }
+
+    // MARK: - Telegram group calls / video chats
+
+    /** Creates ntgcalls' WebRTC offer for TDLib joinVideoChat. The returned JSON
+     *  is passed through unchanged as groupCallJoinParameters.payload; its SSRC
+     *  is also the audio_source_id Telegram uses to identify our audio stream. */
+    private fun createGroup(args: Map<String, Any?>): Map<String, Any?> {
+        stop()
+        sawRemoteFrame = false
+        useFrontCamera = true
+        isGroupCall = true
+        chatId = (args["groupCallId"] as Number).toLong()
+        val isVideo = args["isVideo"] as? Boolean ?: false
+
+        val instance = NTgCalls()
+        ntg = instance
+        instance.setConnectionChangeCallback { _, info ->
+            emit(mapOf("type" to "groupState", "state" to info.state.name))
+        }
+        instance.setFrameCallback { _, mode, device, frames ->
+            if (mode != StreamMode.PLAYBACK || device != StreamDevice.CAMERA) {
+                return@setFrameCallback
+            }
+            for (frame in frames) {
+                val endpoint = groupVideoEndpointBySsrc[frame.ssrc]
+                    ?: groupVideoEndpointBySsrc[frame.ssrc.toInt().toLong()]
+                    ?: continue
+                val renderer = renderers["group:$endpoint"] ?: continue
+                renderFrame(renderer, frame)
+            }
+        }
+
+        val payload = instance.createCall(chatId)
+        instance.setStreamSources(chatId, StreamMode.CAPTURE, captureMedia(isVideo))
+        instance.setStreamSources(chatId, StreamMode.PLAYBACK, playbackMedia(true))
+        beginAudioSession()
+        setSpeaker(true)
+        if (isVideo) startCameraCapture(useFrontCamera)
+
+        val audioSourceId = JSONObject(payload).optLong("ssrc", 0L)
+        check(audioSourceId != 0L) { "ntgcalls join payload has no SSRC" }
+        return mapOf("audioSourceId" to audioSourceId, "payload" to payload)
+    }
+
+    private fun connectGroup(responsePayload: String) {
+        check(isGroupCall) { "no pending group call" }
+        ntg?.connect(chatId, responsePayload, false)
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun addGroupVideo(args: Map<String, Any?>) {
+        if (!isGroupCall) return
+        val endpoint = args["endpointId"] as String
+        val rawGroups = args["sourceGroups"] as? List<Map<String, Any?>> ?: emptyList()
+        val groups = rawGroups.mapNotNull { raw ->
+            val semantics = raw["semantics"] as? String ?: return@mapNotNull null
+            val sources = (raw["sourceIds"] as? List<Number>)?.map { it.toInt() }
+                ?: return@mapNotNull null
+            sources.forEach { source ->
+                groupVideoEndpointBySsrc[source.toLong() and 0xffffffffL] = endpoint
+                groupVideoEndpointBySsrc[source.toLong()] = endpoint
+            }
+            SsrcGroup(semantics, sources)
+        }
+        if (groups.isNotEmpty()) {
+            ntg?.addIncomingVideo(chatId, endpoint, groups)
+            groupVideoSourcesByEndpoint[endpoint] = rawGroups.toString()
+        }
+    }
+
+    private fun removeGroupVideo(endpoint: String) {
+        if (!isGroupCall) return
+        groupVideoEndpointBySsrc.entries.removeIf { it.value == endpoint }
+        groupVideoSourcesByEndpoint.remove(endpoint)
+        ntg?.removeIncomingVideo(chatId, endpoint)
+    }
+
+    /** Telegram iOS replaces the complete remote-video subscription set in one
+     *  operation. Keep the Android ntgcalls endpoint API behind the same contract
+     *  by diffing that set here. */
+    private fun setRequestedVideoChannels(channels: List<Map<String, Any?>>) {
+        if (!isGroupCall) return
+        val requested = channels.mapNotNull { channel ->
+            val endpoint = channel["endpointId"] as? String ?: return@mapNotNull null
+            endpoint to channel
+        }.toMap()
+
+        groupVideoSourcesByEndpoint.keys
+            .filter { endpoint -> !requested.containsKey(endpoint) }
+            .forEach(::removeGroupVideo)
+
+        for ((endpoint, channel) in requested) {
+            @Suppress("UNCHECKED_CAST")
+            val groups = channel["sourceGroups"] as? List<Map<String, Any?>> ?: emptyList()
+            val signature = groups.toString()
+            if (groupVideoSourcesByEndpoint[endpoint] == signature) continue
+            if (groupVideoSourcesByEndpoint.containsKey(endpoint)) removeGroupVideo(endpoint)
+            addGroupVideo(mapOf("endpointId" to endpoint, "sourceGroups" to groups))
+        }
     }
 
     /** CAPTURE media (what we send): the microphone, plus — for a video call — an

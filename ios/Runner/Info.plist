@@ -34,13 +34,13 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>Mithka uses the camera to take photos or videos you choose to send in chats and to scan Telegram login QR codes. For example, you can photograph a document to send to a group or scan a QR code to sign in.</string>
+	<string>Mithka uses the camera for photos and videos you choose to send, Telegram video calls, and login QR codes.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Mithka needs your location to share where you are.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Mithka needs your location to share where you are.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Mithka needs the microphone to record voice messages.</string>
+	<string>Mithka uses the microphone for voice messages and Telegram voice or video calls.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Mithka needs photo access to send images.</string>
 	<key>SentryDSNEncoded</key>

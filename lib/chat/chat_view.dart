@@ -2272,7 +2272,20 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  void _startCall(bool isVideo) {
+  Future<void> _startCall(bool isVideo) async {
+    if (_vm.isGroup) {
+      try {
+        await context.read<CallManager>().startGroupCall(
+          chatId: _vm.chatId,
+          title: _vm.peerTitle,
+          isVideo: isVideo,
+        );
+      } catch (error) {
+        if (!mounted) return;
+        showToast(context, error.toString());
+      }
+      return;
+    }
     final uid = _vm.peerUserId;
     if (uid == null) {
       showToast(context, AppStringKeys.chatContactCallsOnly);

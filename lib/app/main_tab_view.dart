@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 
 import '../call/call_manager.dart';
 import '../call/call_screen.dart';
+import '../call/group_call_screen.dart';
 import '../channels/topic_channels_view.dart';
 import '../channels/topic_chat_view.dart';
 import '../chat/chat_view.dart';
@@ -333,9 +334,52 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         // Full-screen call HUD over everything when a call is active.
         if (showCallOverlay)
           Consumer<CallManager>(
-            builder: (context, calls, _) => calls.call == null
-                ? const SizedBox.shrink()
-                : Positioned.fill(child: CallScreen(manager: calls)),
+            builder: (context, calls, _) {
+              if (calls.groups.session != null) {
+                if (calls.groups.isMinimized) {
+                  return Positioned(
+                    top: MediaQuery.paddingOf(context).top + 12,
+                    right: 16,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: calls.groups.restore,
+                      child: Container(
+                        width: 58,
+                        height: 58,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF253442),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.55),
+                            width: 2,
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x55000000),
+                              blurRadius: 16,
+                              offset: Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        child: const AppIcon(
+                          HeroAppIcons.users,
+                          size: 26,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                return Positioned.fill(
+                  child: GroupCallScreen(controller: calls.groups),
+                );
+              }
+              if (calls.call != null) {
+                return Positioned.fill(child: CallScreen(manager: calls));
+              }
+              return const SizedBox.shrink();
+            },
           ),
       ],
     );

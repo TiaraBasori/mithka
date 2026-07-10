@@ -429,6 +429,8 @@ const deMessages = <String, String>{
   'composerSendPaidMessageQuestion': "Kostenpflichtige Nachricht senden?",
   'composerVideoCall': "Videoanruf",
   'composerVoiceCall': "Sprachanruf",
+  'composerGroupVideoCall': "Gruppen-Videoanruf",
+  'composerGroupVoiceCall': "Gruppen-Sprachanruf",
   'composerVoicePreview': "[Sprachnachricht]",
   'confirmOk': "OK",
   'contactsFriends': "Freunde",

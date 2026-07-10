@@ -404,6 +404,8 @@ const koMessages = <String, String>{
   'composerSendPaidMessageQuestion': "유료 메시지를 보내시겠습니까?",
   'composerVideoCall': "영상 통화",
   'composerVoiceCall': "음성 통화",
+  'composerGroupVideoCall': "그룹 영상 통화",
+  'composerGroupVoiceCall': "그룹 음성 통화",
   'composerVoicePreview': "[음성]",
   'confirmOk': "확인",
   'contactsFriends': "친구",

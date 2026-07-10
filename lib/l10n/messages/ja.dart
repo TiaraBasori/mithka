@@ -404,6 +404,8 @@ const jaMessages = <String, String>{
   'composerSendPaidMessageQuestion': "有料メッセージを送信しますか？",
   'composerVideoCall': "ビデオ通話",
   'composerVoiceCall': "音声通話",
+  'composerGroupVideoCall': "グループビデオ通話",
+  'composerGroupVoiceCall': "グループ音声通話",
   'composerVoicePreview': "[音声]",
   'confirmOk': "OK",
   'contactsFriends': "友達",

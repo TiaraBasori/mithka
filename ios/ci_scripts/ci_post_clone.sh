@@ -19,6 +19,10 @@
 #                      base64 of ios/Runner/GoogleService-Info.plist
 # Optional:
 #   TDJSON_XCFRAMEWORK_URL   override the prebuilt-framework download (see default below)
+#   TGVOIP_WEBRTC_XCFRAMEWORK_URL
+#                      override the pinned official Telegram iOS group-call XCFramework
+#   TGVOIP_WEBRTC_XCFRAMEWORK_SHA256
+#                      SHA-256 for the TgVoip override
 #   REVIEW_RELAY             https://relay.example|sha256(normalized-phone-digits)
 #   SENTRY_AUTH_TOKEN        upload iOS dSYMs to Sentry when set
 #   SENTRY_ORG               Sentry org slug for dSYM upload; defaults to nekoko
@@ -35,6 +39,9 @@ set -e
 FLUTTER_VERSION="3.44.2"
 TDJSON_RELEASE_TAG="mithka-session-string-keyfix-783d04e"
 TDJSON_URL="${TDJSON_XCFRAMEWORK_URL:-https://github.com/iebb/mithka-tdjson/releases/download/${TDJSON_RELEASE_TAG}/tdjson-ios.xcframework.zip}"
+TGVOIP_RELEASE_TAG="tgvoip-telegram-ios-6e370e06d147"
+TGVOIP_URL="${TGVOIP_WEBRTC_XCFRAMEWORK_URL:-https://github.com/iebb/mithka-tdjson/releases/download/${TGVOIP_RELEASE_TAG}/tgvoip-ios.xcframework.zip}"
+TGVOIP_SHA256="${TGVOIP_WEBRTC_XCFRAMEWORK_SHA256:-a1da44189af3802fcc0900696c5cdc549ffc2e53c5a2a0bab713a208aefe2737}"
 CURL_RETRY_FLAGS="-fL --retry 5 --retry-delay 2 --connect-timeout 20"
 if curl --help all 2>/dev/null | grep -q -- '--retry-all-errors'; then
   CURL_RETRY_FLAGS="$CURL_RETRY_FLAGS --retry-all-errors"
@@ -65,7 +72,14 @@ pod_install_with_retry() {
   n=1
   while :; do
     rm -rf Pods
-    if pod install --deployment; then
+    pod_install_args="--deployment"
+    if [ -d LocalPods/tgvoip/TgVoipWebrtc.xcframework ]; then
+      # The optional local binary pod is added after checkout, so it cannot be
+      # represented in the lockfile used by source-only contributor builds.
+      pod_install_args=""
+    fi
+    # shellcheck disable=SC2086 # optional CocoaPods argument is intentionally split.
+    if pod install $pod_install_args; then
       return 0
     fi
     status=$?
@@ -200,6 +214,14 @@ unzip -q -o /tmp/tdjson.zip -d ios/tdjson
 ls -d ios/tdjson/tdjson.xcframework
 "$REPO/scripts/wrap-tdjson-xcframework.sh" ios/tdjson/tdjson.xcframework
 "$REPO/scripts/check-tdjson-session-symbols.sh" ios/tdjson/tdjson.xcframework
+
+echo "▸ downloading TgVoipWebrtc.xcframework"
+rm -rf ios/LocalPods/tgvoip/TgVoipWebrtc.xcframework /tmp/tgvoip.zip
+# shellcheck disable=SC2086 # CURL_RETRY_FLAGS is intentionally split.
+retry 4 5 curl $CURL_RETRY_FLAGS "$TGVOIP_URL" -o /tmp/tgvoip.zip
+printf '%s  %s\n' "$TGVOIP_SHA256" /tmp/tgvoip.zip | shasum -a 256 -c -
+unzip -q -o /tmp/tgvoip.zip -d ios/LocalPods/tgvoip
+ls -d ios/LocalPods/tgvoip/TgVoipWebrtc.xcframework
 
 # --- Flutter iOS build inputs (Generated.xcconfig, plugin pods) --------------
 # Keep Swift Package Manager OFF: the project is CocoaPods-only on purpose (SPM

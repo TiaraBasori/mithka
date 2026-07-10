@@ -397,6 +397,8 @@ const zhHantMessages = <String, String>{
   'composerSendPaidMessageQuestion': "要傳送付費訊息嗎？",
   'composerVideoCall': "視訊通話",
   'composerVoiceCall': "語音通話",
+  'composerGroupVideoCall': "群組視訊",
+  'composerGroupVoiceCall': "群組通話",
   'composerVoicePreview': "[語音]",
   'confirmOk': "確定",
   'contactsFriends': "好友",

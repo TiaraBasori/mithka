@@ -20,6 +20,8 @@ import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import 'call_media_engine.dart';
+import 'group_call_controller.dart';
+import 'live_communication_bridge.dart';
 import 'tgcalls_media_engine.dart';
 
 enum CallPhase {
@@ -42,7 +44,8 @@ class ActiveCall {
     required this.phase,
     this.emojis = const [],
     this.startedAt,
-  });
+    String? systemUuid,
+  }) : systemUuid = systemUuid ?? LiveCommunicationBridge.newUuid();
   int callId;
   final int peerUserId;
   String peerName;
@@ -52,10 +55,20 @@ class ActiveCall {
   CallPhase phase;
   List<String> emojis;
   DateTime? startedAt;
+  final String systemUuid;
+  bool systemConversationStarted = false;
 }
 
 class CallManager extends ChangeNotifier {
-  CallManager({CallMediaEngine? engine}) : _engine = engine ?? _defaultEngine();
+  CallManager({CallMediaEngine? engine, GroupCallController? groups})
+    : _engine = engine ?? _defaultEngine(),
+      groups = groups ?? GroupCallController() {
+    this.groups.addListener(_groupCallChanged);
+    final liveCommunication = LiveCommunicationBridge.instance;
+    liveCommunication.installHandler();
+    liveCommunication.onSystemMuted = _handleSystemMuted;
+    liveCommunication.onSystemEnded = _handleSystemEnded;
+  }
 
   /// Android gets the real ntgcalls engine; other platforms fall back to Noop
   /// (signaling works, no audio) until a native engine exists for them.
@@ -64,6 +77,7 @@ class CallManager extends ChangeNotifier {
 
   final TdClient _client = TdClient.shared;
   final CallMediaEngine _engine;
+  final GroupCallController groups;
   StreamSubscription? _sub;
   bool _started = false;
 
@@ -95,6 +109,7 @@ class CallManager extends ChangeNotifier {
   void start() {
     if (_started) return;
     _started = true;
+    groups.start();
     // Advertise the engine's own protocol so TDLib negotiates a compatible version.
     _engine.queryProtocol().then((p) {
       if (p == null) return;
@@ -139,6 +154,8 @@ class CallManager extends ChangeNotifier {
   @override
   void dispose() {
     _sub?.cancel();
+    groups.removeListener(_groupCallChanged);
+    groups.dispose();
     super.dispose();
   }
 
@@ -147,6 +164,7 @@ class CallManager extends ChangeNotifier {
   /// Places an outgoing call. Sets a `.requesting` placeholder immediately and
   /// resolves the peer's name/photo in the background.
   void startCall(int userId, bool isVideo) {
+    if (groups.session != null) return;
     isMuted = false;
     isSpeaker = false;
     isVideoEnabled = isVideo;
@@ -158,6 +176,7 @@ class CallManager extends ChangeNotifier {
       phase: CallPhase.requesting,
     );
     notifyListeners();
+    unawaited(_ensureSystemConversation(call!));
     _resolvePeer(userId);
     _ensureCallPermissions(isVideo).whenComplete(() {
       _client
@@ -169,6 +188,17 @@ class CallManager extends ChangeNotifier {
           })
           .catchError((_) => <String, dynamic>{});
     });
+  }
+
+  Future<void> startGroupCall({
+    required int chatId,
+    required String title,
+    required bool isVideo,
+  }) {
+    if (call != null) {
+      return Future.error(StateError('Another call is already active'));
+    }
+    return groups.startOrJoin(chatId: chatId, title: title, isVideo: isVideo);
   }
 
   void accept() {
@@ -197,7 +227,9 @@ class CallManager extends ChangeNotifier {
     } catch (_) {}
   }
 
-  void end() {
+  void end() => _end(reportSystem: true);
+
+  void _end({required bool reportSystem}) {
     final current = call;
     if (current == null) return;
     final duration = current.startedAt == null
@@ -222,12 +254,24 @@ class CallManager extends ChangeNotifier {
           .catchError((_) => <String, dynamic>{});
     }
     _engine.stop();
+    if (reportSystem) {
+      unawaited(LiveCommunicationBridge.instance.end(current.systemUuid));
+    }
     _clear();
   }
 
-  void toggleMute() {
-    isMuted = !isMuted;
+  void toggleMute() => _setMuted(!isMuted, reportSystem: true);
+
+  void _setMuted(bool muted, {required bool reportSystem}) {
+    if (isMuted == muted) return;
+    isMuted = muted;
     _engine.setMuted(isMuted);
+    final active = call;
+    if (active != null && reportSystem) {
+      unawaited(
+        LiveCommunicationBridge.instance.setMuted(active.systemUuid, isMuted),
+      );
+    }
     notifyListeners();
   }
 
@@ -292,6 +336,7 @@ class CallManager extends ChangeNotifier {
           isSpeaker = false;
           isVideoEnabled = isVideo;
           notifyListeners();
+          unawaited(_ensureSystemConversation(call!));
           _resolvePeer(peerUserId);
         } else {
           _updatePhase(CallPhase.ringingIncoming, callId);
@@ -330,6 +375,12 @@ class CallManager extends ChangeNotifier {
             allowP2p: state?.boolean('allow_p2p') ?? true,
           ),
         );
+        unawaited(
+          _ensureSystemConversation(active).then(
+            (_) =>
+                LiveCommunicationBridge.instance.connected(active.systemUuid),
+          ),
+        );
 
       case 'callStateHangingUp':
         _updatePhase(CallPhase.ending, callId);
@@ -337,6 +388,10 @@ class CallManager extends ChangeNotifier {
       case 'callStateDiscarded':
       case 'callStateError':
         _engine.stop();
+        final active = call;
+        if (active != null) {
+          unawaited(LiveCommunicationBridge.instance.end(active.systemUuid));
+        }
         _clear();
     }
   }
@@ -379,7 +434,52 @@ class CallManager extends ChangeNotifier {
       if (call?.peerUserId != userId) return;
       call?.peerName = TDParse.userName(user);
       call?.peerPhoto = TDParse.smallPhoto(user.obj('profile_photo'));
+      final active = call;
+      if (active != null) {
+        unawaited(
+          LiveCommunicationBridge.instance.updateMembers(active.systemUuid, [
+            active.peerName,
+          ]),
+        );
+      }
       notifyListeners();
     } catch (_) {}
+  }
+
+  Future<void> _ensureSystemConversation(ActiveCall active) async {
+    if (active.systemConversationStarted) return;
+    active.systemConversationStarted = true;
+    try {
+      await LiveCommunicationBridge.instance.start(
+        uuid: active.systemUuid,
+        title: active.peerName.isEmpty ? 'Telegram' : active.peerName,
+        isVideo: active.isVideo,
+        memberHandles: [active.peerUserId.toString()],
+      );
+    } catch (_) {
+      active.systemConversationStarted = false;
+    }
+  }
+
+  void _groupCallChanged() => notifyListeners();
+
+  void _handleSystemMuted(String uuid, bool muted) {
+    if (call?.systemUuid == uuid) {
+      _setMuted(muted, reportSystem: false);
+      return;
+    }
+    if (groups.session?.systemUuid == uuid) {
+      groups.setMutedFromSystem(muted);
+    }
+  }
+
+  void _handleSystemEnded(String uuid) {
+    if (call?.systemUuid == uuid) {
+      _end(reportSystem: false);
+      return;
+    }
+    if (groups.session?.systemUuid == uuid) {
+      unawaited(groups.endFromSystem());
+    }
   }
 }

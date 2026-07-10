@@ -423,6 +423,8 @@ const esMessages = <String, String>{
   'composerSendPaidMessageQuestion': "¿Enviar mensaje de pago?",
   'composerVideoCall': "Videollamada",
   'composerVoiceCall': "Llamada de voz",
+  'composerGroupVideoCall': "Videollamada grupal",
+  'composerGroupVoiceCall': "Llamada de voz grupal",
   'composerVoicePreview': "[Voz]",
   'confirmOk': "Aceptar",
   'contactsFriends': "Amigos",
