@@ -3,40 +3,31 @@
 Generated for the Telegram language-pack migration. Mapped strings use Telegram language-pack keys at runtime; unmapped strings keep Mithka localizations until reviewed.
 
 - Total app strings: 989
-- Mapped to Telegram keys: 614
-- Unmapped app strings: 375
+- Mapped to Telegram keys: 601
+- Unmapped app strings: 388
 
 ## Custom Chinese Telegram Pack Overrides
 
 The `zhhanscn-qq` Telegram language pack keeps standard Telegram concepts on
-the upstream keys, while overriding familiar Chinese glossary terms only where
-the app maps to the same Telegram concept. These overrides were applied to the
-Android pack on `translations.telegram.org` because Mithka resolves TDLib-style
-language-pack keys:
+the upstream keys and overrides only context-safe familiar Chinese wording.
+The Android pack currently contains 108 deliberate overrides. A fresh export
+from `translations.telegram.org` was compared with the official `zh-hans` pack
+after publishing, and all 108 values matched the intended glossary.
 
-| Telegram key | Custom Chinese value | Reason |
+The overrides cover these groups:
+
+| Area | Representative Telegram keys | Familiar Chinese examples |
 | --- | --- | --- |
-| `PinMessage` | 群待办 | Message pin action uses the familiar group-todo term. |
-| `UnpinMessage` | 取消群待办 | Message unpin action matches `PinMessage`. |
-| `MessagePinnedHint` | 已设为群待办。 | Toast after setting a message pin. |
-| `MessageUnpinnedHint` | 已取消群待办。 | Toast after removing a message pin. |
-| `PinnedMessages` | 群待办 | Pinned message list label. |
-| `PinnedMessage` | 群待办 | Singular pinned-message label. |
-| `UserRestrictionsPinMessages` | 设置群待办 | Group permission label for pinning messages. |
-| `SearchAllChatsShort` | 消息 | Chat-list tab/search concept in the familiar glossary. |
-| `NewGroup` | 创建群聊 | Familiar group-chat wording. |
-| `JoinGroup` | 加入群聊 | Familiar group-chat wording. |
-| `LeaveMegaMenu` | 退出群聊 | Familiar group-chat wording. |
-| `GroupName` | 群名称 | Familiar group wording. |
-| `ManageGroup` | 管理群 | Familiar group wording. |
-| `SettingsFolders` | 聊天分组 | Familiar folder/grouping wording. |
-| `FilterNew` | 新建分组 | Familiar folder/grouping wording. |
-| `FilterNameHeader` | 分组名称 | Familiar folder/grouping wording. |
-| `AddContactChat` | 加好友 | Familiar contact-add wording. |
-| `AttachSticker` | 表情包 | Familiar sticker wording. |
-| `BlockedUsers` | 黑名单 | Familiar blocked-user list wording. |
-| `NoBlocked` | 黑名单为空 | Familiar blocked-user empty state. |
-| `TelegramPremiumShort` | VIP | Premium membership is presented as VIP in the familiar Chinese glossary. |
+| Pinning and group tasks | `PinMessage`, `UnpinMessage`, `PinnedMessages`, `MessagePinnedHint` | 群待办、取消群待办 |
+| Chats, groups, and folders | `SearchAllChatsShort`, `NewGroup`, `JoinGroup`, `LeaveMegaMenu`, `SettingsFolders` | 消息、创建群聊、退出群聊、聊天分组 |
+| Contacts and profile | `AddContactChat`, `BlockedUsers`, `UserBio`, `EditName`, `ProfileActionsEditUsername` | 加好友、黑名单、个性签名、修改名字 |
+| Calls | `VoipCamera`, `VoipEndCall`, `VoipSpeaker`, `Call` | 摄像头、挂断、免提、语音通话 |
+| Media and playback | `AttachSticker`, `ProfilePlaylistTitleMine`, `ShuffleList`, `VideoPlayerSpeed` | 表情包、列表、随机播放、播放速度 |
+| Privacy and devices | `PrivacySettings`, `CurrentSession`, `Devices`, `OtherSessions`, `TerminateAllSessions` | 隐私与安全、当前设备、已登录设备、其他设备 |
+| Composer and permissions | `Todo`, `TodoTitle`, `SendMediaPermissionPhotos`, `HideCaption`, `ShareComment` | 清单、新建清单、发送图片、移除说明 |
+| Formatting | `Bold`, `Code`, `Spoiler` | 加粗、代码、剧透 |
+| General UI | `ClearCache`, `StorageUsage`, `MarkAsUnread`, `FilterNoChats`, `NoReplies`, `NoTopics` | 清除缓存、存储空间、标为未读、还没有聊天、暂无回复 |
+| Membership | `TelegramPremiumShort` | VIP |
 
 ## Unmapped Strings
 
@@ -417,3 +408,16 @@ language-pack keys:
 | `videoPlayerStreamingWhileDownloading` | Streaming while downloading | AttachVideo / Videos |
 | `videoPlayerToggleDisplayMode` | Switch display mode | AttachVideo / Videos |
 | `vipBadgeLabel` | VIP | - |
+| `audioSearchFailed` | Audio search failed | Kept local; `NoAudioFound` means no results, not a search failure. |
+| `callSelectCamera` | Select Camera | Kept local; `AccDescrSwitchCamera` is an immediate switch action, not a selector title. |
+| `chatInfoNoFolders` | No chat folders yet | Kept local; `FilterNoChatsToDisplay` means an existing folder is empty. |
+| `chatSearchMessagePlaceholder` | Search messages in this chat | Kept local; `SearchMessages` is a messages label, not this empty-state instruction. |
+| `fileDetailNoAppCanOpenFile` | No app can open this file | Kept local; `Open` loses the error meaning. |
+| `generalAutoDownloadHighResImages` | High-resolution images | Kept local; `AutoDownloadHigh` is only the quality value “High”. |
+| `locationDetailFetchingLocation` | Fetching location… | Kept local; `ChatLocation` is only the location label. |
+| `loginGetVerificationCode` | Get verification code | Kept local; `EnterCode` asks the user to enter an existing code. |
+| `musicPlayerModeSequence` | Play in order | Kept local; `RepeatList` is a different playback mode. |
+| `proxyDisabled` | No proxy | Kept local; `MenuProxyDisabled` is a generic disabled state. |
+| `videoPlayerCannotPlay` | Cannot play video | Kept local; `UnsupportedMedia2` describes an unsupported Telegram message version. |
+| `videoPlayerForwardUnsupported` | This video cannot be forwarded | Kept local; `UnsupportedMedia2` describes an unsupported Telegram message version. |
+| `videoPlayerWaitingForFile` | Waiting for video file | Kept local; `BotFileDownloading` reports an active download. |
