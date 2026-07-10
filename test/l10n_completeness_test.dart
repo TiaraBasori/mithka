@@ -151,6 +151,33 @@ void main() {
     }
   });
 
+  test('Telegram printf placeholders are interpolated for counted strings', () {
+    AppStrings.telegramStringResolver = (_, _) => '%1\$d 条新消息';
+    addTearDown(() => AppStrings.telegramStringResolver = null);
+
+    expect(
+      AppStrings.tForLocaleWithTelegram(
+        'zhHans',
+        AppStringKeys.chatNewMessagesCount,
+        {'value1': 3},
+      ),
+      '3 条新消息',
+    );
+  });
+
+  test('unresolved Telegram placeholders fall back to app strings', () {
+    AppStrings.telegramStringResolver = (_, _) => '%1\$d 条新消息';
+    addTearDown(() => AppStrings.telegramStringResolver = null);
+
+    expect(
+      AppStrings.tForLocaleWithTelegram(
+        'zhHans',
+        AppStringKeys.chatNewMessagesDivider,
+      ),
+      zhHansMessages[AppStringKeys.chatNewMessagesDivider],
+    );
+  });
+
   test('locale tag round-trips through resolve for common device tags', () {
     for (final tag in [
       'zh-CN',

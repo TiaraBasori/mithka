@@ -1489,7 +1489,10 @@ abstract final class AppStrings {
     Map<String, Object?> placeholders = const {},
   ]) {
     final telegram = telegramStringResolver?.call(key, placeholders);
-    if (telegram != null && telegram.trim().isNotEmpty) return telegram;
+    if (telegram != null && telegram.trim().isNotEmpty) {
+      final result = _interpolatePlaceholders(telegram, placeholders);
+      if (!_hasUnresolvedPlaceholder(result)) return result;
+    }
     return tForLocale(localeKey, key, placeholders);
   }
 
@@ -1508,12 +1511,36 @@ abstract final class AppStrings {
         _messages['en']?[key] ??
         key;
     if (placeholders.isEmpty) return value;
+    return _interpolatePlaceholders(value, placeholders);
+  }
+
+  static String _interpolatePlaceholders(
+    String value,
+    Map<String, Object?> placeholders,
+  ) {
+    if (placeholders.isEmpty) return value;
     var result = value;
     placeholders.forEach((placeholder, replacement) {
-      result = result.replaceAll('{$placeholder}', '$replacement');
+      final replacementText = '$replacement';
+      result = result.replaceAll('{$placeholder}', replacementText);
+      final indexMatch = RegExp(r'^value(\d+)$').firstMatch(placeholder);
+      if (indexMatch != null) {
+        final index = indexMatch.group(1)!;
+        result = result
+            .replaceAll('%$index\$@', replacementText)
+            .replaceAll('%$index\$s', replacementText)
+            .replaceAll('%$index\$d', replacementText);
+      }
     });
     return result;
   }
+
+  static final _unresolvedPlaceholderPattern = RegExp(
+    r'\{value\d+\}|%\d+\$[@sd]|%[sd@]',
+  );
+
+  static bool _hasUnresolvedPlaceholder(String value) =>
+      _unresolvedPlaceholderPattern.hasMatch(value);
 }
 
 const _messages = <String, Map<String, String>>{
