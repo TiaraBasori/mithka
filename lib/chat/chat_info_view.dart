@@ -18,6 +18,7 @@ import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
 import '../components/icon_grid.dart';
 import '../components/photo_avatar.dart';
+import 'package:mithka/notifications/scope_notification_settings.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/telegram_language_controller.dart';
@@ -28,6 +29,7 @@ import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
+import 'telegram_rich_text.dart';
 import 'add_members_view.dart';
 import 'chat_members_view.dart';
 import 'chat_search_view.dart';
@@ -113,6 +115,10 @@ class _ChatInfoViewState extends State<ChatInfoView> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
               children: [
                 _topCard(),
+                if (_vm.description.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _descriptionCard(),
+                ],
                 if (_vm.isGroup) ...[
                   const SizedBox(height: 14),
                   _memberGridCard(),
@@ -202,6 +208,22 @@ class _ChatInfoViewState extends State<ChatInfoView> {
               ],
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Group / channel description with clickable links and mentions.
+  Widget _descriptionCard() {
+    final c = context.colors;
+    return Container(
+      decoration: _card,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+        child: TelegramRichText(
+          text: _vm.description,
+          entities: _vm.descriptionEntities,
+          style: TextStyle(fontSize: 15, height: 1.4, color: c.textPrimary),
         ),
       ),
     );
@@ -1228,11 +1250,51 @@ class ChatInfoViewModel extends ChangeNotifier {
   bool isMember = false; // confirmed member → may quit; false hides 退出
   bool _loaded = false;
   String? _notice;
+  // Group / channel description (plain text) with link entities parsed
+  String description = '';
+  List<MessageTextEntity> descriptionEntities = const [];
 
   String? takeNotice() {
     final value = _notice;
     _notice = null;
     return value;
+  }
+
+  /// Parse plain-text description into entities for URLs, @mentions, and emails.
+  void _setDescription(String text) {
+    description = text;
+    if (text.isEmpty) {
+      descriptionEntities = const [];
+      return;
+    }
+    final entities = <MessageTextEntity>[];
+    // URL pattern (http/https)
+    final urlPattern = RegExp(r'https?://[^\s]+');
+    // Email pattern
+    final emailPattern = RegExp(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
+    // @username pattern
+    final mentionPattern = RegExp(r'@[a-zA-Z0-9_]{5,}');
+
+    void addMatches(RegExp pattern, String entityType, {String? url, int? userId}) {
+      for (final match in pattern.allMatches(text)) {
+        // Avoid overlapping entities
+        if (entities.any((e) => match.start < e.end && match.end > e.offset)) continue;
+        entities.add(MessageTextEntity(
+          offset: match.start,
+          length: match.end - match.start,
+          type: entityType,
+          url: url,
+          userId: userId,
+        ));
+      }
+    }
+
+    addMatches(urlPattern, 'textEntityTypeUrl');
+    addMatches(emailPattern, 'textEntityTypeEmailAddress');
+    addMatches(mentionPattern, 'textEntityTypeMention');
+
+    entities.sort((a, b) => a.offset.compareTo(b.offset));
+    descriptionEntities = entities;
   }
 
   void load() {
@@ -1259,7 +1321,7 @@ class ChatInfoViewModel extends ChangeNotifier {
     isChannel = kind == ChatKind.channel;
     isGroup = kind == ChatKind.group || kind == ChatKind.channel;
     canChangeAutoDelete = !isGroup;
-    isMuted = (chat.obj('notification_settings')?.integer('mute_for') ?? 0) > 0;
+    isMuted = ScopeNotificationSettings.shared.isMuted(chat);
     autoDeleteTime =
         chat.obj('message_auto_delete_time')?.integer('time') ??
         chat.integer('message_auto_delete_time') ??
@@ -1303,6 +1365,15 @@ class ChatInfoViewModel extends ChangeNotifier {
         username = uname.isEmpty ? null : uname;
         isPublic = uname.isNotEmpty;
         _applySelfStatus(sg.obj('status'), defaultInvite: false);
+        // Fetch supergroupFullInfo for the description.
+        try {
+          final info = await TdClient.shared.query({
+            '@type': 'getSupergroupFullInfo',
+            'supergroup_id': sgid,
+          });
+          final desc = info.str('description') ?? '';
+          _setDescription(desc);
+        } catch (_) {}
       }
     } catch (_) {}
     notifyListeners();
@@ -1391,6 +1462,9 @@ class ChatInfoViewModel extends ChangeNotifier {
         final raw = full.objects('members') ?? const <Map<String, dynamic>>[];
         memberCount = raw.length;
         await _resolveMembers(raw);
+        // Extract description from basic group full info.
+        final desc = full.str('description') ?? '';
+        _setDescription(desc);
       } else if (type?.type == 'chatTypeSupergroup') {
         final sgid = type?.int64('supergroup_id');
         if (sgid == null) return;
