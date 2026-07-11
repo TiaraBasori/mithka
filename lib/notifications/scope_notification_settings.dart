@@ -14,7 +14,6 @@ class ScopeNotificationSettings {
   static const _channel = 'notificationSettingsScopeChannelChats';
 
   final Map<String, int> _muteFor = {};
-  bool _loaded = false;
 
   /// Loads mute_for values for all three scopes from TDLib.
   Future<void> load() async {
@@ -30,7 +29,6 @@ class ScopeNotificationSettings {
         _muteFor[scope] = _muteFor[scope] ?? 0;
       }
     }
-    _loaded = true;
   }
 
   /// Updates the cached mute_for for a scope (called after user changes settings).
