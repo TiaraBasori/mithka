@@ -79,7 +79,7 @@ class ScopeNotificationSettings {
     final settings = chat.obj('notification_settings');
     final useDefault = settings?.boolean('use_default_mute_for') ?? false;
     final muteFor = useDefault
-        ? _scopeMuteFor(_scopeForChat(chat))
+        ? getMuteForScope(_scopeForChat(chat))
         : (settings?.integer('mute_for') ?? 0);
     return muteFor > 0;
   }
