@@ -63,6 +63,7 @@ class ChatListViewModel extends ChangeNotifier {
   final TdClient _client = TdClient.shared;
   StreamSubscription? _sub;
   bool _listening = false;
+  int? _meId;
   bool _prefetchingMain = false;
   final Set<String> _loadingChatLists = {};
   final Set<String> _exhaustedChatLists = {};
@@ -78,6 +79,18 @@ class ChatListViewModel extends ChangeNotifier {
     _loadFilters();
     _loadChats(_initialPageSize);
     _deferWarmCaches();
+  }
+
+  /// Called when the current user's id becomes known so we can flag the
+  /// Saved Messages chat (private chat with yourself).
+  set meId(int? value) {
+    if (_meId == value) return;
+    _meId = value;
+    if (value == null) return;
+    for (final s in _map.values) {
+      s.isSavedMessages = s.peerUserId == value;
+    }
+    notifyListeners();
   }
 
   @override
@@ -616,6 +629,7 @@ class ChatListViewModel extends ChangeNotifier {
       _removeChat(summary.id);
       return;
     }
+    if (_meId != null) summary.isSavedMessages = summary.peerUserId == _meId;
     summary.lastMessage = _previewText(summary.lastMessage);
     _map[summary.id] = summary;
     _applyPositions(summary.id, raw.objects('positions'));

@@ -843,6 +843,7 @@ const jaMessages = <String, String>{
   'richTextComposerRemoveColumn': "列を削除",
   'richTextComposerRemoveRow': "行を削除",
   'richTextComposerRemoveTable': "表を削除",
+  'savedMessages': "保存済みメッセージ",
   'settingsAboutMithka': "Mithka について",
   'settingsLogOut': "ログアウト",
   'sharedMediaCacheDeleted': "ローカルキャッシュを削除しました",

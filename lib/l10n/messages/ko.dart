@@ -842,6 +842,7 @@ const koMessages = <String, String>{
   'richTextComposerRemoveColumn': "열 삭제",
   'richTextComposerRemoveRow': "행 삭제",
   'richTextComposerRemoveTable': "표 삭제",
+  'savedMessages': "저장된 메시지",
   'settingsAboutMithka': "Mithka 정보",
   'settingsLogOut': "로그아웃",
   'sharedMediaCacheDeleted': "로컬 캐시 삭제됨",

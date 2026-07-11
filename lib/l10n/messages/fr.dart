@@ -902,6 +902,7 @@ const frMessages = <String, String>{
   'richTextComposerRemoveColumn': "Supprimer la colonne",
   'richTextComposerRemoveRow': "Supprimer la ligne",
   'richTextComposerRemoveTable': "Supprimer le tableau",
+  'savedMessages': "Messages enregistrés",
   'settingsAboutMithka': "À propos de Mithka",
   'settingsLogOut': "Se déconnecter",
   'sharedMediaCacheDeleted': "Cache local supprimé",

@@ -901,6 +901,7 @@ const deMessages = <String, String>{
   'richTextComposerRemoveColumn': "Spalte entfernen",
   'richTextComposerRemoveRow': "Zeile entfernen",
   'richTextComposerRemoveTable': "Tabelle entfernen",
+  'savedMessages': "Gespeicherte Nachrichten",
   'settingsAboutMithka': "Über Mithka",
   'settingsLogOut': "Abmelden",
   'sharedMediaCacheDeleted': "Lokaler Cache gelöscht",

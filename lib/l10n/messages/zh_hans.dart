@@ -832,6 +832,7 @@ const zhHansMessages = <String, String>{
   'richTextComposerRemoveColumn': "删除列",
   'richTextComposerRemoveRow': "删除行",
   'richTextComposerRemoveTable': "删除表格",
+  'savedMessages': "收藏夹",
   'settingsAboutMithka': "关于 Mithka",
   'settingsLogOut': "退出登录",
   'sharedMediaCacheDeleted': "已删除本地缓存",
