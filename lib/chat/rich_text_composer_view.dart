@@ -202,10 +202,13 @@ class _RichTableDraft {
 }
 
 class _RichTextBlock {
-  _RichTextBlock(this.controller, this.focusNode);
+  _RichTextBlock(this.controller, this.focusNode, this.onTextChanged)
+    : lastText = controller.text;
 
   final EmojiTextEditingController controller;
   final FocusNode focusNode;
+  final VoidCallback onTextChanged;
+  String lastText;
 }
 
 class _RichContentBlock {
@@ -259,9 +262,16 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     } else {
       controller.setFormattedText(text, entities);
     }
-    controller.addListener(_onEditorChanged);
     final focusNode = FocusNode();
-    final block = _RichTextBlock(controller, focusNode);
+    late final _RichTextBlock block;
+    void onTextChanged() {
+      if (controller.text == block.lastText) return;
+      block.lastText = controller.text;
+      if (mounted) setState(() {});
+    }
+
+    block = _RichTextBlock(controller, focusNode, onTextChanged);
+    controller.addListener(onTextChanged);
     focusNode.addListener(() {
       if (focusNode.hasFocus) _activeTextBlock = block;
     });
@@ -269,7 +279,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
   }
 
   void _disposeTextBlock(_RichTextBlock block) {
-    block.controller.removeListener(_onEditorChanged);
+    block.controller.removeListener(block.onTextChanged);
     block.controller.dispose();
     block.focusNode.dispose();
   }
@@ -278,10 +288,6 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     final text = block.text;
     if (text != null) _disposeTextBlock(text);
     block.table?.dispose();
-  }
-
-  void _onEditorChanged() {
-    if (mounted) setState(() {});
   }
 
   void _submit() {
