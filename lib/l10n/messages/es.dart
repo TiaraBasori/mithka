@@ -125,6 +125,7 @@ const esMessages = <String, String>{
   'appearanceRoundGroupAvatars': "Mostrar avatares de grupos redondos",
   'appearanceSearchFont': "Buscar fuente",
   'appearanceDisableChatListSwipeActions': 'Desactivar acciones de deslizamiento en la lista de chats',
+  'appearanceDisplayOwnChatAsFavorites': 'Mostrar como mensajes guardados en la lista de chats',
   'appearanceChatListFolderSwipeSwitching': 'Deslizar para cambiar de carpeta de chats',
   'appearanceShowChatListSearch': "Mostrar búsqueda en la lista de chats",
   'appearanceShowEditAndReadMarks': "Mostrar marcas de edición y lectura",

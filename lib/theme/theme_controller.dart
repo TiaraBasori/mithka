@@ -833,6 +833,8 @@ class ThemeController extends ChangeNotifier {
     _chatListFolderSwipeSwitching =
         _disableChatListSwipeActions &&
         (_prefs.getBool(_chatListFolderSwipeSwitchingKey) ?? false);
+    _displayOwnChatAsFavorites =
+        _prefs.getBool(_displayOwnChatAsFavoritesKey) ?? false;
     _hideSidebarPhone = _prefs.getBool(_hideSidebarPhoneKey) ?? false;
     _showMemberTags = _prefs.getBool(_memberTagsKey) ?? false;
     _showPremiumNameColors = _prefs.getBool(_premiumNameColorsKey) ?? true;
@@ -884,6 +886,7 @@ class ThemeController extends ChangeNotifier {
   static const _disableChatListSwipeActionsKey = 'disableChatListSwipeActions';
   static const _chatListFolderSwipeSwitchingKey =
       'chatListFolderSwipeSwitching';
+  static const _displayOwnChatAsFavoritesKey = 'displayOwnChatAsFavorites';
   static const _hideSidebarPhoneKey = 'hideSidebarPhone';
   static const _memberTagsKey = 'showMemberTags';
   static const _premiumNameColorsKey = 'showPremiumNameColors';
@@ -922,6 +925,7 @@ class ThemeController extends ChangeNotifier {
   bool _showChatListSearch = true;
   bool _disableChatListSwipeActions = false;
   bool _chatListFolderSwipeSwitching = false;
+  bool _displayOwnChatAsFavorites = false;
   bool _hideSidebarPhone = false;
   bool _showMemberTags = false;
   bool _showPremiumNameColors = true;
@@ -977,6 +981,7 @@ class ThemeController extends ChangeNotifier {
   bool get showChatListSearch => _showChatListSearch;
   bool get disableChatListSwipeActions => _disableChatListSwipeActions;
   bool get chatListFolderSwipeSwitching => _chatListFolderSwipeSwitching;
+  bool get displayOwnChatAsFavorites => _displayOwnChatAsFavorites;
   bool get hideSidebarPhone => _hideSidebarPhone;
   bool get showMemberTags => _showMemberTags;
   bool get showPremiumNameColors => _showPremiumNameColors;
@@ -1290,6 +1295,12 @@ class ThemeController extends ChangeNotifier {
     if (_chatFolderDisplayMode == value) return;
     _chatFolderDisplayMode = value;
     _prefs.setString(_chatFolderDisplayModeKey, value.name);
+    notifyListeners();
+  }
+
+  set displayOwnChatAsFavorites(bool value) {
+    _displayOwnChatAsFavorites = value;
+    _prefs.setBool(_displayOwnChatAsFavoritesKey, value);
     notifyListeners();
   }
 

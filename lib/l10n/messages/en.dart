@@ -124,6 +124,7 @@ const enMessages = <String, String>{
   'appearanceRoundGroupAvatars': "Show Group Avatars as Circles",
   'appearanceSearchFont': "Search fonts",
   'appearanceDisableChatListSwipeActions': 'Disable Chat List Swipe Actions',
+  'appearanceDisplayOwnChatAsFavorites': 'Show as Saved Messages in Chat List',
   'appearanceChatListFolderSwipeSwitching': 'Swipe to Switch Chat Folders',
   'appearanceShowChatListSearch': "Show Chat List Search",
   'appearanceShowEditAndReadMarks': "Show Edit and Read Marks",

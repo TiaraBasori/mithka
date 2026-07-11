@@ -119,6 +119,7 @@ const zhHantMessages = <String, String>{
   'appearanceRoundGroupAvatars': "群組頭像顯示為圓形",
   'appearanceSearchFont': "搜尋字型",
   'appearanceDisableChatListSwipeActions': '禁用聊天列表側滑選項',
+  'appearanceDisplayOwnChatAsFavorites': '聊天列表顯示為收藏夾',
   'appearanceChatListFolderSwipeSwitching': '滑動切換聊天資料夾',
   'appearanceShowChatListSearch': "顯示聊天列表搜尋",
   'appearanceShowEditAndReadMarks': "顯示編輯與已讀標記",
