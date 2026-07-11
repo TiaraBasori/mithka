@@ -21,6 +21,7 @@ import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import 'forward_options.dart';
 import 'gif_item.dart';
+import 'outgoing_attachment.dart';
 import 'sticker_item.dart';
 
 class _SenderInfo {
@@ -737,6 +738,34 @@ class ChatViewModel extends ChangeNotifier {
       }
     }
     return out;
+  }
+
+  Future<void> sendAttachments(
+    List<OutgoingAttachment> attachments, {
+    String caption = '',
+    List<Map<String, dynamic>> captionEntities = const [],
+  }) async {
+    if (attachments.isEmpty) return;
+    final allEntities = [
+      ...captionEntities,
+      ..._mentionEntitiesFor(caption, captionEntities),
+    ];
+    final reply = replyTo;
+    final requests = buildAttachmentSendRequests(
+      chatId: chatId,
+      attachments: attachments,
+      caption: caption,
+      captionEntities: allEntities,
+      replyTo: reply == null
+          ? null
+          : {'@type': 'inputMessageReplyToMessage', 'message_id': reply.id},
+    );
+    replyTo = null;
+    _clearDraft();
+    notifyListeners();
+    for (final request in requests) {
+      await _client.query(_withPaidMessageOptions(request));
+    }
   }
 
   void sendPhoto(

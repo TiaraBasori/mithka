@@ -16,6 +16,7 @@ import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
 import '../chat/forward_options.dart';
+import '../chat/outgoing_attachment.dart';
 import '../chat/rich_text_composer_view.dart';
 import '../chat/rich_text_format.dart';
 import '../components/app_icons.dart';
@@ -26,7 +27,6 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../l10n/telegram_language_controller.dart';
-import '../media/app_asset_picker.dart';
 import '../notifications/notification_settings_payload.dart';
 import '../settings/topic_group_display_mode.dart';
 import '../tdlib/json_helpers.dart';
@@ -412,7 +412,7 @@ class _TopicChatViewState extends State<TopicChatView> {
     );
     if (result == null) return;
     _input.text = result.text;
-    if (result.media.isEmpty) {
+    if (result.attachments.isEmpty) {
       await _sendPostText(result.formattedText);
     } else {
       await _sendPostMedia(result);
@@ -421,26 +421,13 @@ class _TopicChatViewState extends State<TopicChatView> {
 
   Future<void> _sendPostMedia(RichTextComposerResult result) async {
     final threadId = _selectedThreadId;
-    for (var i = 0; i < result.media.length; i++) {
-      final file = result.media[i];
-      final caption = i == 0 ? result.formattedText.toTdJson() : null;
-      final isVideo = isPickedAssetVideo(file);
-      final request = <String, dynamic>{
-        '@type': 'sendMessage',
-        'chat_id': widget.chat.id,
-        'input_message_content': {
-          '@type': isVideo ? 'inputMessageVideo' : 'inputMessagePhoto',
-          isVideo ? 'video' : 'photo': {
-            '@type': isVideo ? 'inputVideo' : 'inputPhoto',
-            isVideo ? 'video' : 'photo': {
-              '@type': 'inputFileLocal',
-              'path': file.path,
-            },
-          },
-          if (caption != null && (caption['text'] as String).isNotEmpty)
-            'caption': caption,
-        },
-      };
+    final requests = buildAttachmentSendRequests(
+      chatId: widget.chat.id,
+      attachments: result.attachments,
+      caption: result.text,
+      captionEntities: result.entities,
+    );
+    for (final request in requests) {
       if (threadId != null) _attachForumTopic(request, threadId);
       await _sendForumMessage(request);
     }
@@ -1427,11 +1414,10 @@ class _TopicCommentsSheetState extends State<_TopicCommentsSheet> {
       initialText: _replyController.text,
       submitText: AppStringKeys.composerSend,
       hintText: AppStringKeys.topicChatBeKindPrompt,
-      allowMedia: false,
     );
     if (result == null) return;
     if (!mounted) return;
-    await _sendReply(result.formattedText);
+    await _sendReply(result.formattedText, attachments: result.attachments);
   }
 
   Future<void> _sendPlainReply() async {
@@ -1440,42 +1426,63 @@ class _TopicCommentsSheetState extends State<_TopicCommentsSheet> {
     await _sendReply(FormattedTextPayload(text, const []));
   }
 
-  Future<void> _sendReply(FormattedTextPayload formatted) async {
+  Future<void> _sendReply(
+    FormattedTextPayload formatted, {
+    List<OutgoingAttachment> attachments = const [],
+  }) async {
     final text = formatted.text.trim();
-    if (text.isEmpty || _sending) return;
+    if ((text.isEmpty && attachments.isEmpty) || _sending) return;
     if (!mounted) return;
     setState(() => _sending = true);
-    final content = {'@type': 'inputMessageText', 'text': formatted.toTdJson()};
-    final request = {
-      '@type': 'sendMessage',
-      'chat_id': widget.chatId,
-      'topic_id': {
+    final replyTo = <String, dynamic>{
+      '@type': 'inputMessageReplyToMessage',
+      'message_id': widget.post.message.id,
+    };
+    final requests = attachments.isEmpty
+        ? <Map<String, dynamic>>[
+            {
+              '@type': 'sendMessage',
+              'chat_id': widget.chatId,
+              'reply_to': replyTo,
+              'input_message_content': {
+                '@type': 'inputMessageText',
+                'text': formatted.toTdJson(),
+              },
+            },
+          ]
+        : buildAttachmentSendRequests(
+            chatId: widget.chatId,
+            attachments: attachments,
+            caption: formatted.text,
+            captionEntities: formatted.entities,
+            replyTo: replyTo,
+          );
+    for (final request in requests) {
+      request['topic_id'] = {
         '@type': 'messageTopicForum',
         'forum_topic_id': widget.post.topic.id,
-      },
-      'message_thread_id': widget.post.topic.id,
-      'reply_to': {
-        '@type': 'inputMessageReplyToMessage',
-        'message_id': widget.post.message.id,
-      },
-      'input_message_content': content,
-    };
+      };
+      request['message_thread_id'] = widget.post.topic.id;
+    }
     Object? error;
     try {
-      await TdClient.shared.query(request);
-    } catch (_) {
-      final newOnly = Map<String, dynamic>.from(request)
-        ..remove('message_thread_id');
-      try {
-        await TdClient.shared.query(newOnly);
-      } catch (_) {
-        final oldOnly = Map<String, dynamic>.from(request)..remove('topic_id');
+      for (final request in requests) {
         try {
-          await TdClient.shared.query(oldOnly);
-        } catch (e) {
-          error = e;
+          await TdClient.shared.query(request);
+        } catch (_) {
+          final newOnly = Map<String, dynamic>.from(request)
+            ..remove('message_thread_id');
+          try {
+            await TdClient.shared.query(newOnly);
+          } catch (_) {
+            final oldOnly = Map<String, dynamic>.from(request)
+              ..remove('topic_id');
+            await TdClient.shared.query(oldOnly);
+          }
         }
       }
+    } catch (e) {
+      error = e;
     } finally {
       if (mounted) setState(() => _sending = false);
     }

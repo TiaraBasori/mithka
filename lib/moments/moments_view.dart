@@ -11,13 +11,13 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 
 import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/forward_options.dart';
 import '../chat/full_image_viewer.dart';
 import '../chat/media_album_layout.dart';
+import '../chat/outgoing_attachment.dart';
 import '../chat/rich_text_composer_view.dart';
 import '../chat/rich_text_format.dart';
 import '../chat/shared_media_view.dart';
@@ -2806,7 +2806,7 @@ class ChannelPostComposerView extends StatefulWidget {
 class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
   final _controller = TextEditingController();
   final _focus = FocusNode();
-  final List<XFile> _pickedImages = [];
+  final List<OutgoingAttachment> _attachments = [];
   FormattedTextPayload? _richTextPayload;
   ChatSummary? _channel;
   bool _notifySubscribers = true;
@@ -2959,8 +2959,8 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
 
   Widget _mediaStrip() {
     final children = <Widget>[
-      for (var i = 0; i < _pickedImages.length; i++) _imageTile(i),
-      if (_pickedImages.length < 9) _addImageTile(),
+      for (var i = 0; i < _attachments.length; i++) _imageTile(i),
+      if (_attachments.length < 10) _addImageTile(),
     ];
     return SizedBox(
       height: AppMetric.mediaTile,
@@ -2974,31 +2974,30 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
   }
 
   Widget _imageTile(int index) {
-    final c = context.colors;
-    final image = _pickedImages[index];
+    final attachment = _attachments[index];
+    final isVisual =
+        attachment.kind == OutgoingAttachmentKind.photo ||
+        attachment.kind == OutgoingAttachmentKind.video;
     return Stack(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Image.file(
-            File(image.path),
-            width: AppMetric.mediaTile,
-            height: AppMetric.mediaTile,
-            fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => Container(
-              width: AppMetric.mediaTile,
-              height: AppMetric.mediaTile,
-              color: c.searchFill,
-              child: AppIcon(HeroAppIcons.image, color: c.textTertiary),
-            ),
-          ),
+          child: isVisual
+              ? Image.file(
+                  File(attachment.path),
+                  width: AppMetric.mediaTile,
+                  height: AppMetric.mediaTile,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => _postAttachmentIcon(attachment),
+                )
+              : _postAttachmentIcon(attachment),
         ),
         Positioned(
           top: AppSpacing.xs,
           right: AppSpacing.xs,
           child: GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => setState(() => _pickedImages.removeAt(index)),
+            onTap: () => setState(() => _attachments.removeAt(index)),
             child: Container(
               width: AppMetric.overlayCloseButton,
               height: AppMetric.overlayCloseButton,
@@ -3016,6 +3015,23 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _postAttachmentIcon(OutgoingAttachment attachment) {
+    final c = context.colors;
+    return Container(
+      width: AppMetric.mediaTile,
+      height: AppMetric.mediaTile,
+      color: c.searchFill,
+      alignment: Alignment.center,
+      child: AppIcon(switch (attachment.kind) {
+        OutgoingAttachmentKind.photo => HeroAppIcons.image,
+        OutgoingAttachmentKind.video ||
+        OutgoingAttachmentKind.animation => HeroAppIcons.video,
+        OutgoingAttachmentKind.document => HeroAppIcons.file,
+        OutgoingAttachmentKind.audio => HeroAppIcons.music,
+      }, color: c.textTertiary),
     );
   }
 
@@ -3101,12 +3117,15 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
       title: AppStringKeys.momentsCreatePostTitle,
       submitText: AppStringKeys.addMembersDone,
       hintText: AppStringKeys.momentsShareSomethingPlaceholder,
-      allowMedia: false,
+      initialAttachments: _attachments,
     );
     if (result == null || !mounted) return;
     setState(() {
       _controller.text = result.text;
       _richTextPayload = result.formattedText;
+      _attachments
+        ..clear()
+        ..addAll(result.attachments);
       _controller.selection = TextSelection.collapsed(
         offset: _controller.text.length,
       );
@@ -3148,18 +3167,27 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
 
   bool get _canSend =>
       _channel != null &&
-      (_controller.text.trim().isNotEmpty || _pickedImages.isNotEmpty);
+      (_controller.text.trim().isNotEmpty || _attachments.isNotEmpty);
 
   Future<void> _pickImages() async {
     try {
-      final remaining = 9 - _pickedImages.length;
+      final remaining = 10 - _attachments.length;
       final images = await AppAssetPicker.pick(
         context,
         type: AppAssetPickerType.image,
         maxAssets: remaining,
       );
       if (images.isEmpty || !mounted) return;
-      setState(() => _pickedImages.addAll(images));
+      setState(() {
+        _attachments.addAll(
+          images.map(
+            (image) => OutgoingAttachment(
+              path: image.path,
+              kind: OutgoingAttachmentKind.photo,
+            ),
+          ),
+        );
+      });
     } catch (_) {
       if (mounted) showToast(context, AppStringKeys.momentsPickPhotoFailed);
     }
@@ -3214,22 +3242,26 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
     final formatted = _richTextPayload?.text.trim() == text
         ? _richTextPayload!
         : parseTelegramMarkdown(text);
-    if (channel == null ||
-        (text.isEmpty && _pickedImages.isEmpty) ||
-        _sending) {
+    if (channel == null || (text.isEmpty && _attachments.isEmpty) || _sending) {
       return;
     }
     setState(() => _sending = true);
     try {
-      if (_pickedImages.isEmpty) {
+      if (_attachments.isEmpty) {
         await _sendTextPost(channel, formatted);
       } else {
-        for (var i = 0; i < _pickedImages.length; i++) {
-          await _sendPhotoPost(
-            channel,
-            _pickedImages[i].path,
-            caption: i == 0 ? formatted : null,
-          );
+        final requests = buildAttachmentSendRequests(
+          chatId: channel.id,
+          attachments: _attachments,
+          caption: formatted.text,
+          captionEntities: formatted.entities,
+        );
+        for (final request in requests) {
+          request['options'] = {
+            '@type': 'messageSendOptions',
+            'disable_notification': !_notifySubscribers,
+          };
+          await TdClient.shared.query(request);
         }
       }
       if (!mounted) return;
@@ -3264,30 +3296,6 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
       'input_message_content': {
         '@type': 'inputMessageText',
         'text': formatted.toTdJson(),
-      },
-    });
-  }
-
-  Future<void> _sendPhotoPost(
-    ChatSummary channel,
-    String path, {
-    FormattedTextPayload? caption,
-  }) {
-    return TdClient.shared.query({
-      '@type': 'sendMessage',
-      'chat_id': channel.id,
-      'options': {
-        '@type': 'messageSendOptions',
-        'disable_notification': !_notifySubscribers,
-      },
-      'input_message_content': {
-        '@type': 'inputMessagePhoto',
-        'photo': {
-          '@type': 'inputPhoto',
-          'photo': {'@type': 'inputFileLocal', 'path': path},
-        },
-        if (caption != null && caption.text.isNotEmpty)
-          'caption': caption.toTdJson(),
       },
     });
   }

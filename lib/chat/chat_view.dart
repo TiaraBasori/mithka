@@ -28,7 +28,6 @@ import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/telegram_language_controller.dart';
-import '../media/app_asset_picker.dart';
 import '../profile/profile_detail_view.dart';
 import '../settings/developer_mode_controller.dart';
 import '../settings/keyword_blocker.dart';
@@ -55,6 +54,7 @@ import 'message_action_menu.dart';
 import 'message_bubble.dart';
 import 'message_replies_sheet.dart';
 import 'music_player_controller.dart';
+import 'outgoing_attachment.dart';
 import 'rich_text_composer_view.dart';
 import 'sticker_set_detail_view.dart';
 import 'sticker_viewer.dart';
@@ -2207,38 +2207,42 @@ class _ChatViewState extends State<ChatView> {
       hintText: AppStringKeys.tabMessages,
     );
     if (!mounted || result == null) return;
-    if (result.text.trim().isEmpty) {
+    if (result.text.trim().isEmpty && result.attachments.isEmpty) {
       showToast(context, AppStringKeys.chatMessageRequired);
       return;
     }
     try {
       var mediaStart = 0;
-      if (result.media.isNotEmpty &&
+      if (result.attachments.isNotEmpty &&
           (message.contentType == 'messagePhoto' ||
               message.contentType == 'messageVideo')) {
-        final media = result.media.first;
-        await _vm.editMessageMedia(
-          message.id,
-          media.path,
-          isVideo: isPickedAssetVideo(media),
-          caption: result.text,
-          entities: result.entities,
-        );
-        mediaStart = 1;
-      } else if (result.text != message.text ||
-          !_sameFormattedEntities(result.entities, message.textEntities)) {
+        final media = result.attachments.first;
+        final canReplaceMedia =
+            media.kind == OutgoingAttachmentKind.photo ||
+            media.kind == OutgoingAttachmentKind.video;
+        if (canReplaceMedia) {
+          await _vm.editMessageMedia(
+            message.id,
+            media.path,
+            isVideo: media.kind == OutgoingAttachmentKind.video,
+            caption: result.text,
+            entities: result.entities,
+          );
+          mediaStart = 1;
+        }
+      }
+      if (mediaStart == 0 &&
+          (result.text != message.text ||
+              !_sameFormattedEntities(result.entities, message.textEntities))) {
         await _vm.editMessageText(
           message.id,
           result.text,
           entities: result.entities,
         );
       }
-      for (final media in result.media.skip(mediaStart)) {
-        if (isPickedAssetVideo(media)) {
-          _vm.sendVideo(media.path);
-        } else {
-          _vm.sendPhoto(media.path);
-        }
+      final extras = result.attachments.skip(mediaStart).toList();
+      if (extras.isNotEmpty) {
+        await _vm.sendAttachments(extras);
       }
     } catch (e) {
       if (mounted) showToast(context, '$e');

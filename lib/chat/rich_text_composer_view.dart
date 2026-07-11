@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -9,18 +10,19 @@ import '../media/app_asset_picker.dart';
 import '../theme/app_theme.dart';
 import 'emoji_text_controller.dart';
 import 'image_edit_view.dart';
+import 'outgoing_attachment.dart';
 import 'rich_text_format.dart';
 
 class RichTextComposerResult {
   const RichTextComposerResult({
     required this.text,
     required this.entities,
-    required this.media,
+    required this.attachments,
   });
 
   final String text;
   final List<Map<String, dynamic>> entities;
-  final List<XFile> media;
+  final List<OutgoingAttachment> attachments;
 
   FormattedTextPayload get formattedText =>
       FormattedTextPayload(text, entities);
@@ -31,6 +33,7 @@ Future<RichTextComposerResult?> showRichTextComposerSheet(
   required String initialText,
   List<Map<String, dynamic>> initialEntities = const [],
   List<XFile> initialMedia = const [],
+  List<OutgoingAttachment> initialAttachments = const [],
   String title = AppStringKeys.topicChatShare,
   String submitText = AppStringKeys.topicChatPublish,
   String hintText = AppStringKeys.richTextComposerContentPlaceholder,
@@ -47,6 +50,7 @@ Future<RichTextComposerResult?> showRichTextComposerSheet(
         initialText: initialText,
         initialEntities: initialEntities,
         initialMedia: initialMedia,
+        initialAttachments: initialAttachments,
         title: title,
         submitText: submitText,
         hintText: hintText,
@@ -77,6 +81,7 @@ class RichTextComposerView extends StatefulWidget {
     required this.initialText,
     this.initialEntities = const [],
     this.initialMedia = const [],
+    this.initialAttachments = const [],
     this.title = AppStringKeys.topicChatShare,
     this.submitText = AppStringKeys.topicChatPublish,
     this.hintText = AppStringKeys.richTextComposerContentPlaceholder,
@@ -87,6 +92,7 @@ class RichTextComposerView extends StatefulWidget {
   final String initialText;
   final List<Map<String, dynamic>> initialEntities;
   final List<XFile> initialMedia;
+  final List<OutgoingAttachment> initialAttachments;
   final String title;
   final String submitText;
   final String hintText;
@@ -211,9 +217,9 @@ class _RichContentBlock {
 }
 
 class _RichTextComposerViewState extends State<RichTextComposerView> {
-  static const _obsidianAccent = Color(0xFF7C3AED);
+  static const _maxAttachments = 10;
 
-  final _media = <XFile>[];
+  final _attachments = <OutgoingAttachment>[];
   late final List<_RichContentBlock> _blocks;
   late _RichTextBlock _activeTextBlock;
 
@@ -228,7 +234,11 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     );
     _blocks = [_RichContentBlock.text(first)];
     _activeTextBlock = first;
-    _media.addAll(widget.initialMedia.take(9));
+    _attachments.addAll(widget.initialAttachments.take(_maxAttachments));
+    final remaining = _maxAttachments - _attachments.length;
+    _attachments.addAll(
+      widget.initialMedia.take(remaining).map(_attachmentFromPickedMedia),
+    );
   }
 
   @override
@@ -301,7 +311,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
       RichTextComposerResult(
         text: buffer.toString(),
         entities: entities,
-        media: List<XFile>.of(_media),
+        attachments: List.unmodifiable(_attachments),
       ),
     );
   }
@@ -484,7 +494,6 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
           ),
           Divider(height: 1, color: c.divider),
           _toolbar(c),
-          if (widget.allowMedia) _mediaStrip(c),
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -509,6 +518,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
               },
             ),
           ),
+          if (widget.allowMedia) _attachmentDock(c),
         ],
       ),
     );
@@ -520,10 +530,10 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
       child: Material(
         color: Colors.transparent,
         child: FractionallySizedBox(
-          heightFactor: 0.86,
+          heightFactor: 0.94,
           widthFactor: 1,
           child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
             child: ColoredBox(color: c.background, child: content),
           ),
         ),
@@ -713,9 +723,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
       width: 132,
       height: 42,
       decoration: BoxDecoration(
-        color: isHeader
-            ? _obsidianAccent.withValues(alpha: 0.12)
-            : c.background,
+        color: isHeader ? AppTheme.brand.withValues(alpha: 0.1) : c.background,
         border: Border(
           right: BorderSide(color: c.divider),
           bottom: BorderSide(color: c.divider),
@@ -771,16 +779,16 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
 
   Widget _toolbar(AppColors c) {
     return Container(
-      height: 54,
+      height: 48,
       decoration: BoxDecoration(
         color: c.background,
         border: Border(bottom: BorderSide(color: c.divider)),
       ),
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         children: [
-          _toolbarGroup(c, [
+          ...[
             _formatChip(
               c,
               AppStringKeys.richTextComposerFormatBoldMark.l10n(context),
@@ -807,8 +815,9 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
               'textEntityTypeStrikethrough',
               AppStringKeys.richTextComposerFormatStrikethrough.l10n(context),
             ),
-          ]),
-          _toolbarGroup(c, [
+          ],
+          _toolbarDivider(c),
+          ...[
             _formatChip(
               c,
               '</>',
@@ -817,7 +826,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
             ),
             _formatChip(
               c,
-              AppStringKeys.richTextComposerFormatSpoiler.l10n(context),
+              '||',
               'textEntityTypeSpoiler',
               AppStringKeys.richTextComposerFormatSpoiler.l10n(context),
             ),
@@ -836,8 +845,9 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
               label: AppStringKeys.sharedMediaLinks.l10n(context),
               onTap: _insertLink,
             ),
-          ]),
-          _toolbarGroup(c, [
+          ],
+          _toolbarDivider(c),
+          ...[
             _actionChip(c, 'H1', _insertHeading),
             _actionChip(c, '•', () => _insertList('- ')),
             _actionChip(c, '1.', () => _insertList('1. ')),
@@ -854,176 +864,361 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
               label: AppStringKeys.richTextComposerInsertTable.l10n(context),
               onTap: _insertTable,
             ),
-          ]),
+          ],
         ],
       ),
     );
   }
 
-  Widget _mediaStrip(AppColors c) {
-    if (_media.isEmpty) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: TextButton.icon(
-          onPressed: _pickMedia,
-          icon: const AppIcon(HeroAppIcons.image, size: 20),
-          label: Text(AppStringKeys.richTextComposerPhotoVideo.l10n(context)),
-        ),
-      );
-    }
-    return SizedBox(
-      height: 94,
-      child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        scrollDirection: Axis.horizontal,
-        itemCount: _media.length + (_media.length < 9 ? 1 : 0),
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          if (index == _media.length) return _addMediaTile(c);
-          return _mediaTile(c, index);
-        },
+  Widget _toolbarDivider(AppColors c) {
+    return Container(
+      width: 1,
+      height: 22,
+      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      color: c.divider,
+    );
+  }
+
+  Widget _attachmentDock(AppColors c) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: c.background,
+        border: Border(top: BorderSide(color: c.divider)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_attachments.isNotEmpty) _attachmentStrip(c),
+          SizedBox(
+            height: 52,
+            child: Row(
+              children: [
+                Expanded(
+                  child: _attachmentAction(
+                    c,
+                    icon: HeroAppIcons.image,
+                    label: AppStringKeys.richTextComposerPhotoVideo.l10n(
+                      context,
+                    ),
+                    onTap: _pickMedia,
+                  ),
+                ),
+                Expanded(
+                  child: _attachmentAction(
+                    c,
+                    icon: HeroAppIcons.file,
+                    label: AppStringKeys.topicPostContentFile.l10n(context),
+                    onTap: _pickFiles,
+                  ),
+                ),
+                Expanded(
+                  child: _attachmentAction(
+                    c,
+                    icon: HeroAppIcons.music,
+                    label: AppStringKeys.composerAudio.l10n(context),
+                    onTap: _pickMusic,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 14),
+                  child: Text(
+                    '${_attachments.length}/$_maxAttachments',
+                    style: AppTextStyle.caption(c.textTertiary),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _addMediaTile(AppColors c) {
+  Widget _attachmentAction(
+    AppColors c, {
+    required AppIconData icon,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    final enabled = _attachments.length < _maxAttachments;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _pickMedia,
+      onTap: enabled ? onTap : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AppIcon(
+              icon,
+              size: 20,
+              color: enabled ? c.textPrimary : c.textTertiary,
+            ),
+            const SizedBox(width: 5),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyle.caption(
+                  enabled ? c.textPrimary : c.textTertiary,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _attachmentStrip(AppColors c) {
+    return SizedBox(
+      height: 82,
+      child: ReorderableListView.builder(
+        scrollDirection: Axis.horizontal,
+        buildDefaultDragHandles: false,
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+        itemCount: _attachments.length,
+        onReorderItem: (oldIndex, newIndex) {
+          setState(() {
+            final item = _attachments.removeAt(oldIndex);
+            _attachments.insert(newIndex, item);
+          });
+        },
+        proxyDecorator: (child, _, animation) => FadeTransition(
+          opacity: Tween<double>(begin: 0.72, end: 1).animate(animation),
+          child: child,
+        ),
+        itemBuilder: (context, index) => Padding(
+          key: ObjectKey(_attachments[index]),
+          padding: const EdgeInsets.only(right: 8),
+          child: _attachmentTile(c, index),
+        ),
+      ),
+    );
+  }
+
+  Widget _attachmentTile(AppColors c, int index) {
+    final item = _attachments[index];
+    final isPhoto = item.kind == OutgoingAttachmentKind.photo;
+    final isVisual = isPhoto || item.kind == OutgoingAttachmentKind.video;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: isPhoto ? () => _editAttachment(index) : null,
       child: Container(
-        width: 84,
-        height: 84,
-        alignment: Alignment.center,
+        width: 164,
+        padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: c.searchFill,
           borderRadius: BorderRadius.circular(8),
         ),
-        child: AppIcon(HeroAppIcons.plus, color: c.textTertiary),
+        child: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: isVisual
+                  ? Image.file(
+                      File(item.path),
+                      width: 52,
+                      height: 52,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _attachmentIcon(c, item),
+                    )
+                  : _attachmentIcon(c, item),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _fileName(item.path),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyle.callout(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _attachmentLabel(item.kind),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyle.caption(c.textTertiary),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _attachments.removeAt(index)),
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: AppIcon(
+                      HeroAppIcons.xmark,
+                      size: 16,
+                      color: c.textSecondary,
+                    ),
+                  ),
+                ),
+                ReorderableDragStartListener(
+                  index: index,
+                  child: Padding(
+                    padding: const EdgeInsets.all(2),
+                    child: AppIcon(
+                      HeroAppIcons.grip,
+                      size: 16,
+                      color: c.textTertiary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _mediaTile(AppColors c, int index) {
-    final item = _media[index];
-    final isVideo = isPickedAssetVideo(item);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: isVideo ? null : () => _editMedia(index),
-      child: Stack(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.file(
-              File(item.path),
-              width: 84,
-              height: 84,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => Container(
-                width: 84,
-                height: 84,
-                color: c.searchFill,
-                child: AppIcon(
-                  isVideo ? HeroAppIcons.solidFileVideo : HeroAppIcons.image,
-                  color: c.textTertiary,
-                ),
-              ),
-            ),
-          ),
-          if (isVideo)
-            const Positioned.fill(
-              child: Center(
-                child: AppIcon(
-                  HeroAppIcons.play,
-                  color: Colors.white,
-                  size: 24,
-                ),
-              ),
-            ),
-          if (!isVideo)
-            Positioned(
-              left: 4,
-              bottom: 4,
-              child: Container(
-                width: 22,
-                height: 22,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  shape: BoxShape.circle,
-                ),
-                child: const AppIcon(
-                  HeroAppIcons.pen,
-                  size: 12,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          Positioned(
-            top: 4,
-            right: 4,
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _media.removeAt(index)),
-              child: Container(
-                width: 22,
-                height: 22,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.55),
-                  shape: BoxShape.circle,
-                ),
-                child: const AppIcon(
-                  HeroAppIcons.xmark,
-                  size: 12,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-          ),
-        ],
+  Widget _attachmentIcon(AppColors c, OutgoingAttachment attachment) {
+    return Container(
+      width: 52,
+      height: 52,
+      color: c.card,
+      alignment: Alignment.center,
+      child: AppIcon(
+        switch (attachment.kind) {
+          OutgoingAttachmentKind.photo => HeroAppIcons.image,
+          OutgoingAttachmentKind.video ||
+          OutgoingAttachmentKind.animation => HeroAppIcons.solidFileVideo,
+          OutgoingAttachmentKind.document => HeroAppIcons.file,
+          OutgoingAttachmentKind.audio => HeroAppIcons.music,
+        },
+        size: 23,
+        color: c.textSecondary,
       ),
     );
   }
 
-  Future<void> _editMedia(int index) async {
-    if (index < 0 || index >= _media.length) return;
+  String _attachmentLabel(OutgoingAttachmentKind kind) {
+    return switch (kind) {
+      OutgoingAttachmentKind.photo ||
+      OutgoingAttachmentKind.video ||
+      OutgoingAttachmentKind.animation =>
+        AppStringKeys.richTextComposerPhotoVideo.l10n(context),
+      OutgoingAttachmentKind.document =>
+        AppStringKeys.topicPostContentFile.l10n(context),
+      OutgoingAttachmentKind.audio => AppStringKeys.composerAudio.l10n(context),
+    };
+  }
+
+  String _fileName(String path) {
+    final segments = File(path).uri.pathSegments;
+    return segments.isEmpty ? path : segments.last;
+  }
+
+  Future<void> _editAttachment(int index) async {
+    if (index < 0 || index >= _attachments.length) return;
+    final item = _attachments[index];
+    if (item.kind != OutgoingAttachmentKind.photo) return;
     final result = await Navigator.of(context).push<ImageEditResult>(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => ImageEditView(sourcePath: _media[index].path),
+        builder: (_) => ImageEditView(sourcePath: item.path),
       ),
     );
-    if (!mounted || result == null || index >= _media.length) return;
-    setState(() => _media[index] = XFile(result.path));
+    if (!mounted || result == null || index >= _attachments.length) return;
+    setState(() => _attachments[index] = item.copyWith(path: result.path));
     if (result.caption.trim().isNotEmpty) {
       _activeTextBlock.controller.insertText(result.caption);
     }
   }
 
+  OutgoingAttachment _attachmentFromPickedMedia(XFile file) {
+    final kind = isPickedAssetVideo(file)
+        ? OutgoingAttachmentKind.video
+        : isPickedAssetGif(file)
+        ? OutgoingAttachmentKind.animation
+        : OutgoingAttachmentKind.photo;
+    return OutgoingAttachment(path: file.path, kind: kind);
+  }
+
   Future<void> _pickMedia() async {
+    final remaining = _maxAttachments - _attachments.length;
+    if (remaining <= 0) return;
     try {
-      final remaining = 9 - _media.length;
       final picked = await AppAssetPicker.pick(
         context,
         type: AppAssetPickerType.imageAndVideo,
         maxAssets: remaining,
       );
       if (picked.isEmpty || !mounted) return;
-      setState(() => _media.addAll(picked));
+      setState(() {
+        _attachments.addAll(picked.map(_attachmentFromPickedMedia));
+      });
     } catch (_) {}
   }
 
-  Widget _toolbarGroup(AppColors c, List<Widget> children) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: c.searchFill.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: c.divider),
-      ),
-      child: Row(mainAxisSize: MainAxisSize.min, children: children),
-    );
+  Future<void> _pickFiles() async {
+    final remaining = _maxAttachments - _attachments.length;
+    if (remaining <= 0) return;
+    try {
+      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+      if (!mounted || result == null) return;
+      final paths = result.files.map((file) => file.path).whereType<String>();
+      setState(() {
+        _attachments.addAll(
+          paths
+              .take(remaining)
+              .map(
+                (path) => OutgoingAttachment(
+                  path: path,
+                  kind: OutgoingAttachmentKind.document,
+                ),
+              ),
+        );
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _pickMusic() async {
+    final remaining = _maxAttachments - _attachments.length;
+    if (remaining <= 0) return;
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
+        type: FileType.custom,
+        allowedExtensions: const [
+          'mp3',
+          'm4a',
+          'aac',
+          'flac',
+          'wav',
+          'ogg',
+          'opus',
+          'amr',
+        ],
+      );
+      if (!mounted || result == null) return;
+      final paths = result.files.map((file) => file.path).whereType<String>();
+      setState(() {
+        _attachments.addAll(
+          paths
+              .take(remaining)
+              .map(
+                (path) => OutgoingAttachment(
+                  path: path,
+                  kind: OutgoingAttachmentKind.audio,
+                ),
+              ),
+        );
+      });
+    } catch (_) {}
   }
 
   Widget _formatChip(
@@ -1043,17 +1238,17 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: active
-              ? _obsidianAccent.withValues(alpha: 0.16)
+              ? AppTheme.brand.withValues(alpha: 0.14)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(6),
           border: active
-              ? Border.all(color: _obsidianAccent.withValues(alpha: 0.65))
+              ? Border.all(color: AppTheme.brand.withValues(alpha: 0.5))
               : null,
         ),
         child: Text(
           label,
           style: AppTextStyle.callout(
-            active ? _obsidianAccent : c.textPrimary,
+            active ? AppTheme.brand : c.textPrimary,
             weight: AppTextWeight.semibold,
           ),
         ),

@@ -43,6 +43,7 @@ import 'gif_store.dart';
 import 'image_edit_view.dart';
 import 'link_handler.dart';
 import 'location_picker_view.dart';
+import 'outgoing_attachment.dart';
 import 'poll_composer_view.dart';
 import 'rich_text_composer_view.dart';
 import 'sticker_preview.dart';
@@ -324,10 +325,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
       initialText: _controller.text,
       title: AppStringKeys.composerRichTextMessageTitle,
       submitText: AppStringKeys.composerSend,
-      allowMedia: false,
     );
     if (result == null || !mounted) return;
-    if (result.text.trim().isEmpty) return;
+    if (result.text.trim().isEmpty && result.attachments.isEmpty) return;
     if (vm.requiresPaidMessage) {
       final ok = await confirmDialog(
         context,
@@ -339,10 +339,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       );
       if (!mounted || !ok) return;
     }
-    vm.sendFormatted(result.text, result.entities);
-    widget.onMessageSent();
-    _controller.clear();
-    _focus.requestFocus();
+    await _sendRichTextResult(result);
   }
 
   Future<void> _handlePaste([ContextMenuButtonItem? pasteItem]) async {
@@ -911,30 +908,46 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   // MARK: - Media pickers
 
-  /// 图片: pick one or more photos/videos from the library and send each.
+  /// 图片: pick one or more photos/videos and preserve their album order.
   Future<void> _pickPhotos() async {
     try {
       final media = await AppAssetPicker.pick(
         context,
         type: AppAssetPickerType.imageAndVideo,
+        maxAssets: 10,
       );
-      var sent = false;
+      final attachments = <OutgoingAttachment>[];
       for (final x in media) {
         if (isPickedAssetVideo(x)) {
-          widget.vm.sendVideo(x.path);
-          sent = true;
+          attachments.add(
+            OutgoingAttachment(
+              path: x.path,
+              kind: OutgoingAttachmentKind.video,
+            ),
+          );
         } else if (isPickedAssetGif(x)) {
-          widget.vm.sendAnimation(x.path);
-          sent = true;
+          attachments.add(
+            OutgoingAttachment(
+              path: x.path,
+              kind: OutgoingAttachmentKind.animation,
+            ),
+          );
         } else {
           final edited = await _editImage(x.path);
           if (edited != null) {
-            widget.vm.sendPhoto(edited.path, caption: edited.caption);
-            sent = true;
+            attachments.add(
+              OutgoingAttachment(
+                path: edited.path,
+                kind: OutgoingAttachmentKind.photo,
+                caption: edited.caption,
+              ),
+            );
           }
         }
       }
-      if (sent) widget.onMessageSent();
+      if (attachments.isEmpty) return;
+      await widget.vm.sendAttachments(attachments);
+      widget.onMessageSent();
     } catch (_) {
       _pickFailed(AppStrings.t(AppStringKeys.composerImage));
     }
@@ -1037,7 +1050,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
           submitText: AppStringKeys.composerSend,
         );
         if (result != null && mounted) {
-          _sendRichTextResult(result);
+          await _sendRichTextResult(result);
         }
         return;
       }
@@ -1209,41 +1222,27 @@ class _ChatInputBarState extends State<ChatInputBar> {
     );
   }
 
-  void _sendRichTextResult(RichTextComposerResult result) {
-    if (result.media.isEmpty) {
-      if (result.text.trim().isEmpty) return;
-      widget.vm.sendFormatted(result.text, result.entities);
-      widget.onMessageSent();
-      return;
-    }
-    for (var index = 0; index < result.media.length; index++) {
-      final media = result.media[index];
-      final isFirst = index == 0;
-      final caption = isFirst ? result.text : '';
-      final entities = isFirst
-          ? result.entities
-          : const <Map<String, dynamic>>[];
-      if (isPickedAssetVideo(media)) {
-        widget.vm.sendVideo(
-          media.path,
-          caption: caption,
-          captionEntities: entities,
-        );
-      } else if (isPickedAssetGif(media)) {
-        widget.vm.sendAnimation(
-          media.path,
-          caption: caption,
-          captionEntities: entities,
-        );
+  Future<void> _sendRichTextResult(RichTextComposerResult result) async {
+    try {
+      if (result.attachments.isEmpty) {
+        if (result.text.trim().isEmpty) return;
+        widget.vm.sendFormatted(result.text, result.entities);
+        widget.onMessageSent();
       } else {
-        widget.vm.sendPhoto(
-          media.path,
-          caption: caption,
-          captionEntities: entities,
+        await widget.vm.sendAttachments(
+          result.attachments,
+          caption: result.text,
+          captionEntities: result.entities,
         );
+        widget.onMessageSent();
+      }
+      _controller.clear();
+      _focus.requestFocus();
+    } catch (_) {
+      if (mounted) {
+        _pickFailed(AppStringKeys.composerRichText.l10n(context));
       }
     }
-    widget.onMessageSent();
   }
 
   String _extensionForMime(String mimeType) {
@@ -1268,16 +1267,21 @@ class _ChatInputBarState extends State<ChatInputBar> {
   /// 文件: pick an arbitrary document and send it.
   Future<void> _pickFile() async {
     try {
-      final result = await FilePicker.platform.pickFiles();
-      final path = result?.files.single.path;
-      if (path != null) {
-        if (_isGifPath(path)) {
-          widget.vm.sendAnimation(path);
-        } else {
-          widget.vm.sendDocument(path);
-        }
-        widget.onMessageSent();
-      }
+      final result = await FilePicker.platform.pickFiles(allowMultiple: true);
+      final attachments = result?.files
+          .map((file) => file.path)
+          .whereType<String>()
+          .take(10)
+          .map(
+            (path) => OutgoingAttachment(
+              path: path,
+              kind: OutgoingAttachmentKind.document,
+            ),
+          )
+          .toList();
+      if (attachments == null || attachments.isEmpty) return;
+      await widget.vm.sendAttachments(attachments);
+      widget.onMessageSent();
     } catch (_) {
       _pickFailed(telegramText(AppStringKeys.topicPostContentFile));
     }
@@ -1323,7 +1327,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
   /// 音频: pick a local audio file and send it as a music message.
   Future<void> _pickLocalAudio() async {
     try {
-      var result = await FilePicker.platform.pickFiles(
+      final preferred = await FilePicker.platform.pickFiles(
+        allowMultiple: true,
         type: FileType.custom,
         allowedExtensions: const [
           'mp3',
@@ -1336,12 +1341,23 @@ class _ChatInputBarState extends State<ChatInputBar> {
           'amr',
         ],
       );
-      result ??= await FilePicker.platform.pickFiles();
-      final path = result?.files.single.path;
-      if (path != null) {
-        widget.vm.sendAudio(path);
-        widget.onMessageSent();
-      }
+      final result =
+          preferred ?? await FilePicker.platform.pickFiles(allowMultiple: true);
+      if (result == null) return;
+      final attachments = result.files
+          .map((file) => file.path)
+          .whereType<String>()
+          .take(10)
+          .map(
+            (path) => OutgoingAttachment(
+              path: path,
+              kind: OutgoingAttachmentKind.audio,
+            ),
+          )
+          .toList();
+      if (attachments.isEmpty) return;
+      await widget.vm.sendAttachments(attachments);
+      widget.onMessageSent();
     } catch (_) {
       _pickFailed(telegramText(AppStringKeys.composerAudio));
     }
