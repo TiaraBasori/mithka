@@ -14,6 +14,7 @@ import 'package:mithka/chat/chat_view_model.dart';
 import 'package:mithka/chat/emoji_catalog.dart';
 import 'package:mithka/chat/emoji_text_controller.dart';
 import 'package:mithka/chat/media_album_layout.dart';
+import 'package:mithka/chat/message_bubble.dart';
 import 'package:mithka/chat/rich_text_composer_view.dart';
 import 'package:mithka/l10n/app_locale_controller.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -237,6 +238,58 @@ void main() {
         find.byKey(const ValueKey('clipboardImagePreview')),
       );
       expect(preview.onTap, isNotNull);
+    });
+  });
+
+  group('MessageBubble delivery status', () {
+    testWidgets('always shows one sent dot and two read dots', (tester) async {
+      SharedPreferences.setMockInitialValues({
+        'showMessageMetaIndicators': false,
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+      final message = ChatMessage(
+        id: 1,
+        isOutgoing: true,
+        text: 'sent',
+        date: 1,
+      );
+
+      Future<void> pumpBubble({required bool isRead}) {
+        return tester.pumpWidget(
+          ChangeNotifierProvider<ThemeController>.value(
+            value: theme,
+            child: MaterialApp(
+              home: Scaffold(
+                body: MessageBubble(
+                  message: message,
+                  peerTitle: 'Test',
+                  isGroup: false,
+                  isRead: isRead,
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+
+      await pumpBubble(isRead: false);
+      expect(
+        find.byKey(const ValueKey('messageDeliveryDot-0')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
+
+      await pumpBubble(isRead: true);
+      expect(
+        find.byKey(const ValueKey('messageDeliveryDot-0')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('messageDeliveryDot-1')),
+        findsOneWidget,
+      );
     });
   });
 

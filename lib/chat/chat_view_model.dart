@@ -1076,8 +1076,8 @@ class ChatViewModel extends ChangeNotifier {
   Future<Map<String, dynamic>> answerCallbackButton(
     int messageId,
     MessageButton button,
-  ) {
-    return _client.query({
+  ) async {
+    final answer = await _client.query({
       '@type': 'getCallbackQueryAnswer',
       'chat_id': chatId,
       'message_id': messageId,
@@ -1086,6 +1086,35 @@ class ChatViewModel extends ChangeNotifier {
         'data': button.data ?? '',
       },
     });
+    await _refreshMessage(messageId);
+    unawaited(
+      Future<void>.delayed(
+        const Duration(milliseconds: 700),
+        () => _refreshMessage(messageId),
+      ),
+    );
+    return answer;
+  }
+
+  Future<void> _refreshMessage(int messageId) async {
+    if (_isDisposed) return;
+    try {
+      final raw = await _client.query({
+        '@type': 'getMessage',
+        'chat_id': chatId,
+        'message_id': messageId,
+      });
+      if (_isDisposed) return;
+      final refreshed = TDParse.message(raw);
+      if (refreshed == null) return;
+      _merge([refreshed]);
+      _resolveSendersIfNeeded([refreshed]);
+      _resolveRepliesIfNeeded([refreshed]);
+      _resolveForwardsIfNeeded([refreshed]);
+      _resolveServiceUsersIfNeeded([refreshed]);
+    } catch (_) {
+      // Live TDLib updates remain the source of truth if a direct refresh fails.
+    }
   }
 
   Future<void> translateMessage(int messageId, String toLanguageCode) async {
@@ -1198,13 +1227,13 @@ class ChatViewModel extends ChangeNotifier {
     });
   }
 
-  void deleteMessage(int id) {
-    deleteMessages([id]);
+  Future<void> deleteMessage(int id) {
+    return deleteMessages([id]);
   }
 
-  void deleteMessages(List<int> ids) {
+  Future<void> deleteMessages(List<int> ids) async {
     if (ids.isEmpty) return;
-    _client.send({
+    await _client.query({
       '@type': 'deleteMessages',
       'chat_id': chatId,
       'message_ids': ids,

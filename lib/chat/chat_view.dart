@@ -1324,8 +1324,16 @@ class _ChatViewState extends State<ChatView> {
       destructive: true,
     );
     if (!mounted || !confirmed) return;
-    _vm.deleteMessages(ids);
-    _exitSelection();
+    try {
+      await _vm.deleteMessages(ids);
+      if (mounted) _exitSelection();
+    } catch (e) {
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.chatDeleteActionsFailed, {'value1': e}),
+      );
+    }
   }
 
   @override
@@ -1945,7 +1953,7 @@ class _ChatViewState extends State<ChatView> {
       if (options.deleteAllFromSender) {
         await _vm.deleteMessagesFromSender(message);
       } else if (options.deleteMessage) {
-        _vm.deleteMessage(message.id);
+        await _vm.deleteMessage(message.id);
       }
       if (!mounted) return;
       showToast(context, AppStringKeys.chatDeleteActionsDone);

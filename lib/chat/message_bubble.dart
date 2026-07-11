@@ -109,7 +109,7 @@ class MessageBubble extends StatefulWidget {
   onShowReactionUsers;
   final ValueChanged<bool>?
   onRedial; // tap a call log to redial (bool = isVideo)
-  final bool isRead; // outgoing message read by the peer (✓✓)
+  final bool isRead; // outgoing message read by the peer (two delivery dots)
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -542,9 +542,7 @@ class _MessageBubbleState extends State<MessageBubble>
   }
 
   Widget _withFloatingMeta(Widget child, bool outgoing) {
-    final show =
-        context.watch<ThemeController>().showMessageMetaIndicators &&
-        (message.isEdited || outgoing);
+    final show = message.isEdited || outgoing;
     if (!show) return child;
     return Stack(
       clipBehavior: Clip.none,
@@ -577,13 +575,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 AppIcon(HeroAppIcons.pen, size: 13, color: faint),
               if (message.isEdited && outgoing) const SizedBox(width: 3),
               if (outgoing)
-                Icon(
-                  widget.isRead
-                      ? HeroAppIcons.checkDouble.data
-                      : HeroAppIcons.check.data,
-                  size: 14,
-                  color: widget.isRead ? Colors.white : faint,
-                ),
+                _deliveryDots(diameter: 4, color: AppTheme.bubbleOutgoingText),
             ],
           ),
         ),
@@ -1705,7 +1697,7 @@ class _MessageBubbleState extends State<MessageBubble>
     unicode: true,
   );
 
-  /// Trailing inline meta after the text: edited pencil + send/read tick.
+  /// Trailing inline meta after the text: edited pencil + delivery dots.
   InlineSpan _metaSpan(bool outgoing) {
     final faint = outgoing
         ? Colors.white.withValues(alpha: 0.65)
@@ -1720,16 +1712,27 @@ class _MessageBubbleState extends State<MessageBubble>
               AppIcon(HeroAppIcons.pen, size: 11, color: faint),
             if (widget.message.isEdited && outgoing) const SizedBox(width: 4),
             if (outgoing)
-              Icon(
-                widget.isRead
-                    ? HeroAppIcons.checkDouble.data
-                    : HeroAppIcons.check.data,
-                size: 13,
-                color: widget.isRead ? Colors.white : faint,
-              ),
+              _deliveryDots(diameter: 3.5, color: AppTheme.bubbleOutgoingText),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _deliveryDots({required double diameter, required Color color}) {
+    Widget dot(int index) => Container(
+      key: ValueKey('messageDeliveryDot-$index'),
+      width: diameter,
+      height: diameter,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        dot(0),
+        if (widget.isRead) ...[SizedBox(width: diameter * 0.75), dot(1)],
+      ],
     );
   }
 

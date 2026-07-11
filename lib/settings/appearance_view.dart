@@ -335,13 +335,6 @@ class DisplaySettingsView extends StatelessWidget {
                     theme.showChatPremiumEmojiStatus,
                     (v) => theme.showChatPremiumEmojiStatus = v,
                   ),
-                  _toggleRow(
-                    context,
-                    HeroAppIcons.penToSquare.data,
-                    AppStrings.t(AppStringKeys.appearanceShowEditAndReadMarks),
-                    theme.showMessageMetaIndicators,
-                    (v) => theme.showMessageMetaIndicators = v,
-                  ),
                 ]),
                 const SizedBox(height: AppSpacing.xl),
                 _label(context, AppStrings.t(AppStringKeys.appearanceChatList)),
