@@ -895,6 +895,7 @@ const esMessages = <String, String>{
   'richTextComposerRemoveColumn': "Eliminar columna",
   'richTextComposerRemoveRow': "Eliminar fila",
   'richTextComposerRemoveTable': "Eliminar tabla",
+  'savedMessages': "Mensajes guardados",
   'settingsAboutMithka': "Acerca de Mithka",
   'settingsLogOut': "Cerrar sesión",
   'sharedMediaCacheDeleted': "Caché local eliminada",

@@ -874,6 +874,7 @@ const enMessages = <String, String>{
   'richTextComposerRemoveColumn': "Remove column",
   'richTextComposerRemoveRow': "Remove row",
   'richTextComposerRemoveTable': "Remove table",
+  'savedMessages': "Saved Messages",
   'settingsAboutMithka': "About Mithka",
   'settingsLogOut': "Log Out",
   'sharedMediaCacheDeleted': "Local cache deleted",
