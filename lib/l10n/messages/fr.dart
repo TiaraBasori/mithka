@@ -127,6 +127,7 @@ const frMessages = <String, String>{
   'appearanceRoundGroupAvatars': "Afficher les avatars de groupe en cercle",
   'appearanceSearchFont': "Rechercher une police",
   'appearanceDisableChatListSwipeActions': 'Désactiver les actions de balayage de la liste de chats',
+  'appearanceDisplayOwnChatAsFavorites': 'Afficher comme messages enregistrés dans la liste de chats',
   'appearanceChatListFolderSwipeSwitching': 'Balayer pour changer de dossier de chats',
   'appearanceShowChatListSearch': "Afficher la recherche dans la liste",
   'appearanceShowEditAndReadMarks':

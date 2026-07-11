@@ -127,6 +127,7 @@ const deMessages = <String, String>{
   'appearanceRoundGroupAvatars': "Gruppenavatare rund anzeigen",
   'appearanceSearchFont': "Schriftart suchen",
   'appearanceDisableChatListSwipeActions': 'Chatlisten-Wischaktionen deaktivieren',
+  'appearanceDisplayOwnChatAsFavorites': 'Als gespeicherte Nachrichten im Chat anzeigen',
   'appearanceChatListFolderSwipeSwitching': 'Wischen zum Wechseln der Chatordner',
   'appearanceShowChatListSearch': "Chatlistensuche anzeigen",
   'appearanceShowEditAndReadMarks':

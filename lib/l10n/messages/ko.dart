@@ -121,6 +121,7 @@ const koMessages = <String, String>{
   'appearanceRoundGroupAvatars': "그룹 채팅 프로필을 원형으로 표시",
   'appearanceSearchFont': "글꼴 검색",
   'appearanceDisableChatListSwipeActions': '채팅 목록 스와이프 동작 비활성화',
+  'appearanceDisplayOwnChatAsFavorites': '채팅 목록에 저장된 메시지로 표시',
   'appearanceChatListFolderSwipeSwitching': '스와이프로 채팅 폴더 전환',
   'appearanceShowChatListSearch': "채팅 목록 검색 표시",
   'appearanceShowEditAndReadMarks': "수정 및 읽음 표시 보이기",

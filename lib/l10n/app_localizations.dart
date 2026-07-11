@@ -264,6 +264,8 @@ abstract final class AppStringKeys {
   static const appearanceShowChatListSearch = 'appearanceShowChatListSearch';
   static const appearanceDisableChatListSwipeActions =
       'appearanceDisableChatListSwipeActions';
+  static const appearanceDisplayOwnChatAsFavorites =
+      'appearanceDisplayOwnChatAsFavorites';
   static const appearanceChatListFolderSwipeSwitching =
       'appearanceChatListFolderSwipeSwitching';
   static const appearanceShowEditAndReadMarks =
