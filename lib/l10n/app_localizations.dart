@@ -1251,6 +1251,7 @@ abstract final class AppStringKeys {
   static const richTextComposerRemoveColumn = 'richTextComposerRemoveColumn';
   static const richTextComposerRemoveRow = 'richTextComposerRemoveRow';
   static const richTextComposerRemoveTable = 'richTextComposerRemoveTable';
+  static const savedMessages = 'savedMessages';
   static const settingsAboutMithka = 'settingsAboutMithka';
   static const settingsLogOut = 'settingsLogOut';
   static const sharedMediaCacheDeleted = 'sharedMediaCacheDeleted';
