@@ -310,7 +310,7 @@ class TdFileCenter {
       } catch (_) {}
       return null;
     }
-    return downloadPriorityRange(
+    final rangeResult = await downloadPriorityRange(
       fileId,
       offset: 0,
       length: total,
@@ -319,6 +319,27 @@ class TdFileCenter {
       chunkSize: chunkSize,
       timeout: const Duration(seconds: 90),
     );
+    if (rangeResult != null) return rangeResult;
+
+    // One or more chunks timed out or failed. Fall back to a standard
+    // async download so TDLib keeps the file alive in the background and
+    // continues emitting updateFile events. Without this, the progress bar
+    // stalls at whatever fraction the chunked download reached, and the
+    // file never completes.
+    try {
+      final response = await _client.query({
+        '@type': 'downloadFile',
+        'file_id': fileId,
+        'priority': priority,
+        'offset': 0,
+        'limit': 0,
+        'synchronous': false,
+      });
+      _ingest(response);
+      return response;
+    } catch (_) {
+      return null;
+    }
   }
 
   void cancelDownload(int fileId) {
