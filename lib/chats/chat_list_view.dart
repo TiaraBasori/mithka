@@ -199,6 +199,7 @@ class _ChatListViewState extends State<ChatListView> {
               0;
           _meIsPremium = me.boolean('is_premium') ?? false;
           _meId = me.int64('id');
+          _model.meId = _meId;
         });
       }
     } catch (_) {}
@@ -514,27 +515,11 @@ class _ChatListViewState extends State<ChatListView> {
           children: [
             GestureDetector(
               onTap: () => context.read<dc.DrawerController>().open(),
-              child: context.watch<ThemeController>().displayOwnChatAsFavorites
-                  ? Container(
-                      width: AppMetric.headerAvatarSize,
-                      height: AppMetric.headerAvatarSize,
-                      decoration: BoxDecoration(
-                        color: context.colors.linkBlue,
-                        borderRadius: BorderRadius.circular(
-                          AppMetric.headerAvatarSize / 2,
-                        ),
-                      ),
-                      child: AppIcon(
-                        HeroAppIcons.thumbtack,
-                        size: AppMetric.headerAvatarSize * 0.5,
-                        color: const Color(0xFFFFFFFF),
-                      ),
-                    )
-                  : PhotoAvatar(
-                      title: _meName,
-                      photo: _mePhoto,
-                      size: AppMetric.headerAvatarSize,
-                    ),
+              child: PhotoAvatar(
+                title: _meName,
+                photo: _mePhoto,
+                size: AppMetric.headerAvatarSize,
+              ),
             ),
             const SizedBox(width: AppSpacing.lg),
             Expanded(
@@ -547,11 +532,7 @@ class _ChatListViewState extends State<ChatListView> {
                     children: [
                       Flexible(
                         child: Text(
-                          context
-                                  .watch<ThemeController>()
-                                  .displayOwnChatAsFavorites
-                              ? '收藏夹'
-                              : _meName,
+                          _meName,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -561,10 +542,7 @@ class _ChatListViewState extends State<ChatListView> {
                           ),
                         ),
                       ),
-                      if (_meStatusId != 0 &&
-                          !context
-                              .watch<ThemeController>()
-                              .displayOwnChatAsFavorites) ...[
+                      if (_meStatusId != 0) ...[
                         const SizedBox(width: AppSpacing.xs + 1),
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
@@ -579,11 +557,7 @@ class _ChatListViewState extends State<ChatListView> {
                           ),
                         ),
                       ],
-                      if (_meIsPremium &&
-                          _meStatusId != 0 &&
-                          !context
-                              .watch<ThemeController>()
-                              .displayOwnChatAsFavorites) ...[
+                      if (_meIsPremium && _meStatusId != 0) ...[
                         const SizedBox(width: AppSpacing.xs),
                         AppIcon(
                           HeroAppIcons.chevronDown,
@@ -593,31 +567,27 @@ class _ChatListViewState extends State<ChatListView> {
                       ],
                     ],
                   ),
-                  if (!context
-                      .watch<ThemeController>()
-                      .displayOwnChatAsFavorites) ...[
-                    const SizedBox(height: AppSpacing.xxs),
-                    Row(
-                      children: [
-                        Container(
-                          width: AppMetric.onlineDot,
-                          height: AppMetric.onlineDot,
-                          decoration: BoxDecoration(
-                            color: AppTheme.onlineDot,
-                            shape: BoxShape.circle,
-                          ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Row(
+                    children: [
+                      Container(
+                        width: AppMetric.onlineDot,
+                        height: AppMetric.onlineDot,
+                        decoration: BoxDecoration(
+                          color: AppTheme.onlineDot,
+                          shape: BoxShape.circle,
                         ),
-                        const SizedBox(width: AppSpacing.xs),
-                        Text(
-                          AppStringKeys.chatOnline.l10n(context),
-                          style: TextStyle(
-                            fontSize: AppTextSize.caption,
-                            color: c.textSecondary,
-                          ),
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Text(
+                        AppStringKeys.chatOnline.l10n(context),
+                        style: TextStyle(
+                          fontSize: AppTextSize.caption,
+                          color: c.textSecondary,
                         ),
-                      ],
-                    ),
-                  ],
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
