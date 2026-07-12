@@ -9,6 +9,7 @@
 
 import 'dart:async';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -29,6 +30,7 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/telegram_language_controller.dart';
 import '../media/app_asset_picker.dart';
+import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import 'audio_search_view.dart';
@@ -321,6 +323,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
   }
 
   Future<void> _openRichTextComposer() async {
+    if (!await _ensureRichTextPremium()) return;
+    if (!mounted) return;
     final result = await showRichTextComposerSheet(
       context,
       initialText: _controller.text,
@@ -360,6 +364,68 @@ class _ChatInputBarState extends State<ChatInputBar> {
       pasteItem?.onPressed?.call();
     }
     _restoreKeyboardFocus();
+  }
+
+  Future<void> _showComposerFormatMenu(
+    EditableTextState editableTextState,
+  ) async {
+    final selection = _controller.selection;
+    if (!selection.isValid || selection.isCollapsed) return;
+    final start = math.min(selection.start, selection.end);
+    final end = math.max(selection.start, selection.end);
+    final anchor = editableTextState.contextMenuAnchors.primaryAnchor;
+    editableTextState.hideToolbar();
+    final action = await showGeneralDialog<_ComposerFormatAction>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: AppStringKeys.countryPickerCancel.l10n(context),
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 150),
+      pageBuilder: (dialogContext, _, _) => _ComposerFormatMenu(anchor: anchor),
+      transitionBuilder: (context, animation, _, child) {
+        final curved = CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        );
+        return FadeTransition(
+          opacity: curved,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+    if (!mounted || action == null) return;
+    _controller.selection = TextSelection(baseOffset: start, extentOffset: end);
+    if (action == _ComposerFormatAction.link) {
+      final url = await showGeneralDialog<String>(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: AppStringKeys.countryPickerCancel.l10n(context),
+        barrierColor: Colors.black.withValues(alpha: 0.36),
+        transitionDuration: const Duration(milliseconds: 160),
+        pageBuilder: (dialogContext, _, _) => const _ComposerLinkDialog(),
+      );
+      if (!mounted || url == null || url.trim().isEmpty) return;
+      final normalized = _normalizeComposerUrl(url);
+      _controller.applyEntityFormat(start, end, {
+        '@type': 'textEntityTypeTextUrl',
+        'url': normalized,
+      });
+    } else {
+      _controller.toggleFormat(action.entityType);
+    }
+    _controller.selection = TextSelection(baseOffset: start, extentOffset: end);
+    _focus.requestFocus();
+  }
+
+  String _normalizeComposerUrl(String value) {
+    final trimmed = value.trim();
+    final parsed = Uri.tryParse(trimmed);
+    if (parsed?.hasScheme ?? false) return trimmed;
+    return 'https://$trimmed';
   }
 
   void _restoreKeyboardFocus() {
@@ -763,32 +829,50 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                 BuildContext context,
                                 EditableTextState editableTextState,
                               ) {
-                                var hasPasteAction = false;
-                                final items = editableTextState
-                                    .contextMenuButtonItems
-                                    .map((item) {
-                                      if (item.type !=
-                                          ContextMenuButtonType.paste) {
-                                        return item;
-                                      }
-                                      hasPasteAction = true;
-                                      return ContextMenuButtonItem(
-                                        type: item.type,
-                                        label: item.label,
-                                        onPressed: () =>
-                                            unawaited(_handlePaste(item)),
-                                      );
-                                    })
-                                    .toList();
-                                if (!hasPasteAction) {
-                                  items.add(
-                                    ContextMenuButtonItem(
-                                      type: ContextMenuButtonType.paste,
-                                      label: AppStringKeys
+                                ContextMenuButtonItem? originalPaste;
+                                final items = <ContextMenuButtonItem>[];
+                                for (final item
+                                    in editableTextState
+                                        .contextMenuButtonItems) {
+                                  if (item.type ==
+                                      ContextMenuButtonType.paste) {
+                                    originalPaste = item;
+                                  } else {
+                                    items.add(item);
+                                  }
+                                }
+                                final paste = ContextMenuButtonItem(
+                                  type: ContextMenuButtonType.paste,
+                                  label:
+                                      originalPaste?.label ??
+                                      AppStringKeys
                                           .accountBackupLoadPyrogramPaste
                                           .l10n(context),
-                                      onPressed: () =>
-                                          unawaited(_handlePaste()),
+                                  onPressed: () =>
+                                      unawaited(_handlePaste(originalPaste)),
+                                );
+                                final copyIndex = items.indexWhere(
+                                  (item) =>
+                                      item.type == ContextMenuButtonType.copy,
+                                );
+                                final pasteIndex = copyIndex < 0
+                                    ? 0
+                                    : copyIndex + 1;
+                                items.insert(pasteIndex, paste);
+                                final selection = _controller.selection;
+                                if (selection.isValid &&
+                                    !selection.isCollapsed) {
+                                  items.insert(
+                                    pasteIndex + 1,
+                                    ContextMenuButtonItem(
+                                      label: AppStringKeys.composerFormat.l10n(
+                                        context,
+                                      ),
+                                      onPressed: () => unawaited(
+                                        _showComposerFormatMenu(
+                                          editableTextState,
+                                        ),
+                                      ),
                                     ),
                                   );
                                 }
@@ -1049,6 +1133,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
         continue;
       }
       if (action == _ClipboardImageAction.richText) {
+        if (!await _ensureRichTextPremium()) return;
+        if (!mounted) return;
         final result = await showRichTextComposerSheet(
           context,
           initialText: caption,
@@ -1230,29 +1316,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
   }
 
   Future<void> _sendRichTextResult(RichTextComposerResult result) async {
+    if (!await _ensureRichTextPremium()) return;
+    if (!mounted) return;
     try {
-      if (!await widget.vm.canSendRichMessages()) {
-        var sentAny = false;
-        if (result.text.trim().isNotEmpty) {
-          widget.vm.sendFormatted(result.text, result.entities);
-          sentAny = true;
-        }
-        if (result.attachments.isNotEmpty) {
-          await widget.vm.sendAttachments(result.attachments);
-          sentAny = true;
-        }
-        if (!sentAny) return;
-        if (mounted) {
-          showToast(
-            context,
-            AppStringKeys.composerRichTextPremiumRequired.l10n(context),
-          );
-        }
-        widget.onMessageSent();
-        _controller.clear();
-        _focus.requestFocus();
-        return;
-      }
       var sentAny = false;
       for (final segment in result.segments) {
         if (segment.isHtml) {
@@ -1270,11 +1336,41 @@ class _ChatInputBarState extends State<ChatInputBar> {
       widget.onMessageSent();
       _controller.clear();
       _focus.requestFocus();
-    } catch (_) {
+    } catch (error, stackTrace) {
+      debugPrint('Failed to send rich message: $error\n$stackTrace');
       if (mounted) {
-        _pickFailed(AppStringKeys.composerRichText.l10n(context));
+        setState(() => _panel = _Panel.none);
+        final message = switch (error) {
+          TimeoutException() => _richTextPremiumRequiredMessage,
+          TdError(:final message) when message.trim().isNotEmpty => message,
+          _ =>
+            error.toString().trim().isNotEmpty
+                ? error.toString()
+                : AppStringKeys.composerRichTextSendFailed.l10n(context),
+        };
+        showToast(context, message);
       }
     }
+  }
+
+  String get _richTextPremiumRequiredMessage =>
+      '${telegramText(AppStringKeys.composerRichTextSendFailed)} - '
+      '${telegramText(AppStringKeys.premiumLabel)}';
+
+  Future<bool> _ensureRichTextPremium() async {
+    try {
+      if (await widget.vm.currentUserIsPremium()) return true;
+      if (mounted) showToast(context, _richTextPremiumRequiredMessage);
+    } catch (error) {
+      if (mounted) {
+        final message = switch (error) {
+          TdError(:final message) when message.trim().isNotEmpty => message,
+          _ => error.toString(),
+        };
+        showToast(context, message);
+      }
+    }
+    return false;
   }
 
   String _extensionForMime(String mimeType) {
@@ -1953,5 +2049,233 @@ class _ChatInputBarState extends State<ChatInputBar> {
         ),
       ),
     );
+  }
+}
+
+enum _ComposerFormatAction {
+  quote('textEntityTypeBlockQuote'),
+  spoiler('textEntityTypeSpoiler'),
+  bold('textEntityTypeBold'),
+  italic('textEntityTypeItalic'),
+  monospace('textEntityTypeCode'),
+  link(''),
+  strikethrough('textEntityTypeStrikethrough'),
+  underline('textEntityTypeUnderline'),
+  codeBlock('textEntityTypePre');
+
+  const _ComposerFormatAction(this.entityType);
+
+  final String entityType;
+
+  String get labelKey => switch (this) {
+    quote => AppStringKeys.messageActionQuote,
+    spoiler => AppStringKeys.richTextComposerFormatSpoiler,
+    bold => AppStringKeys.richTextComposerFormatBold,
+    italic => AppStringKeys.richTextComposerFormatItalic,
+    monospace => AppStringKeys.composerFormatMonospace,
+    link => AppStringKeys.composerFormatLink,
+    strikethrough => AppStringKeys.richTextComposerFormatStrikethrough,
+    underline => AppStringKeys.richTextComposerFormatUnderline,
+    codeBlock => AppStringKeys.composerFormatCodeBlock,
+  };
+}
+
+class _ComposerFormatMenu extends StatelessWidget {
+  const _ComposerFormatMenu({required this.anchor});
+
+  static const _width = 232.0;
+  static const _rowHeight = 44.0;
+  static const _padding = 8.0;
+
+  final Offset anchor;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final media = MediaQuery.of(context);
+    final screen = media.size;
+    final menuHeight =
+        _ComposerFormatAction.values.length * _rowHeight + _padding * 2;
+    final safeTop = media.padding.top + 8;
+    final safeBottom = screen.height - media.viewInsets.bottom - 8;
+    final left = (anchor.dx - _width / 2)
+        .clamp(12.0, math.max(12.0, screen.width - _width - 12))
+        .toDouble();
+    final below = anchor.dy + 10;
+    final top = below + menuHeight <= safeBottom
+        ? below
+        : math.max(safeTop, anchor.dy - menuHeight - 10);
+    return Stack(
+      children: [
+        Positioned(
+          left: left,
+          top: top,
+          width: _width,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: _padding),
+            decoration: BoxDecoration(
+              color: c.card,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: c.divider, width: 0.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.22),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final action in _ComposerFormatAction.values)
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).pop(action),
+                    child: SizedBox(
+                      height: _rowHeight,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                          child: Text(
+                            action.labelKey.l10n(context),
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: c.textPrimary,
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ComposerLinkDialog extends StatefulWidget {
+  const _ComposerLinkDialog();
+
+  @override
+  State<_ComposerLinkDialog> createState() => _ComposerLinkDialogState();
+}
+
+class _ComposerLinkDialogState extends State<_ComposerLinkDialog> {
+  final _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Center(
+      child: Container(
+        width: math.min(360, MediaQuery.sizeOf(context).width - 40),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: c.divider, width: 0.5),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              AppStringKeys.composerFormatLink.l10n(context),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: c.textPrimary,
+                decoration: TextDecoration.none,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Container(
+              decoration: BoxDecoration(
+                color: c.searchFill,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: TextField(
+                controller: _controller,
+                autofocus: true,
+                keyboardType: TextInputType.url,
+                textInputAction: TextInputAction.done,
+                autocorrect: false,
+                enableSuggestions: false,
+                onSubmitted: _submit,
+                style: TextStyle(fontSize: 16, color: c.textPrimary),
+                decoration: InputDecoration(
+                  hintText: AppStringKeys.composerFormatLinkPlaceholder.l10n(
+                    context,
+                  ),
+                  hintStyle: TextStyle(color: c.textTertiary),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _dialogAction(
+                  context,
+                  AppStringKeys.countryPickerCancel,
+                  () => Navigator.of(context).pop(),
+                ),
+                const SizedBox(width: 8),
+                _dialogAction(
+                  context,
+                  AppStringKeys.composerFormatApply,
+                  () => _submit(_controller.text),
+                  primary: true,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dialogAction(
+    BuildContext context,
+    String label,
+    VoidCallback onTap, {
+    bool primary = false,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Text(
+          label.l10n(context),
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: primary ? FontWeight.w600 : FontWeight.w400,
+            color: primary ? AppTheme.brand : context.colors.textSecondary,
+            decoration: TextDecoration.none,
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _submit(String value) {
+    final url = value.trim();
+    if (url.isEmpty) return;
+    Navigator.of(context).pop(url);
   }
 }

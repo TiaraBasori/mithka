@@ -543,6 +543,12 @@ abstract final class AppStringKeys {
   static const composerChecklist = 'composerChecklist';
   static const composerClipboardNoImage = 'composerClipboardNoImage';
   static const composerFilePreview = 'composerFilePreview';
+  static const composerFormat = 'composerFormat';
+  static const composerFormatApply = 'composerFormatApply';
+  static const composerFormatCodeBlock = 'composerFormatCodeBlock';
+  static const composerFormatLink = 'composerFormatLink';
+  static const composerFormatLinkPlaceholder = 'composerFormatLinkPlaceholder';
+  static const composerFormatMonospace = 'composerFormatMonospace';
   static const composerGifSendFailed = 'composerGifSendFailed';
   static const composerHoldToTalk = 'composerHoldToTalk';
   static const composerImage = 'composerImage';
@@ -569,8 +575,7 @@ abstract final class AppStringKeys {
   static const composerEditInRichText = 'composerEditInRichText';
   static const composerRichText = 'composerRichText';
   static const composerRichTextMessageTitle = 'composerRichTextMessageTitle';
-  static const composerRichTextPremiumRequired =
-      'composerRichTextPremiumRequired';
+  static const composerRichTextSendFailed = 'composerRichTextSendFailed';
   static const composerSend = 'composerSend';
   static const composerSendPaidMessageQuestion =
       'composerSendPaidMessageQuestion';
@@ -1268,8 +1273,14 @@ abstract final class AppStringKeys {
   static const qrCodeScanToJoinGroup = 'qrCodeScanToJoinGroup';
   static const richTextComposerAddColumn = 'richTextComposerAddColumn';
   static const richTextComposerAddRow = 'richTextComposerAddRow';
+  static const richTextComposerAnchorName = 'richTextComposerAnchorName';
   static const richTextComposerContentPlaceholder =
       'richTextComposerContentPlaceholder';
+  static const richTextComposerDetailsContent =
+      'richTextComposerDetailsContent';
+  static const richTextComposerDetailsOpen = 'richTextComposerDetailsOpen';
+  static const richTextComposerDetailsSummary =
+      'richTextComposerDetailsSummary';
   static const richTextComposerFormatBold = 'richTextComposerFormatBold';
   static const richTextComposerFormatBoldMark =
       'richTextComposerFormatBoldMark';
@@ -1292,12 +1303,40 @@ abstract final class AppStringKeys {
   static const richTextComposerFormatUnderlineMark =
       'richTextComposerFormatUnderlineMark';
   static const richTextComposerInsertTable = 'richTextComposerInsertTable';
+  static const richTextComposerInsert = 'richTextComposerInsert';
+  static const richTextComposerLimitExceeded = 'richTextComposerLimitExceeded';
+  static const richTextComposerMapLatitude = 'richTextComposerMapLatitude';
+  static const richTextComposerMapLongitude = 'richTextComposerMapLongitude';
+  static const richTextComposerMapZoom = 'richTextComposerMapZoom';
   static const richTextComposerMoveDown = 'richTextComposerMoveDown';
   static const richTextComposerMoveUp = 'richTextComposerMoveUp';
   static const richTextComposerPhotoVideo = 'richTextComposerPhotoVideo';
   static const richTextComposerRemoveColumn = 'richTextComposerRemoveColumn';
   static const richTextComposerRemoveRow = 'richTextComposerRemoveRow';
   static const richTextComposerRemoveTable = 'richTextComposerRemoveTable';
+  static const richTextComposerRemoveBlock = 'richTextComposerRemoveBlock';
+  static const richTextBlockAnchor = 'richTextBlockAnchor';
+  static const richTextBlockAnimation = 'richTextBlockAnimation';
+  static const richTextBlockAudio = 'richTextBlockAudio';
+  static const richTextBlockBlockQuotation = 'richTextBlockBlockQuotation';
+  static const richTextBlockCollage = 'richTextBlockCollage';
+  static const richTextBlockDetails = 'richTextBlockDetails';
+  static const richTextBlockDivider = 'richTextBlockDivider';
+  static const richTextBlockFooter = 'richTextBlockFooter';
+  static const richTextBlockHeading = 'richTextBlockHeading';
+  static const richTextBlockList = 'richTextBlockList';
+  static const richTextBlockMap = 'richTextBlockMap';
+  static const richTextBlockMathematicalExpression =
+      'richTextBlockMathematicalExpression';
+  static const richTextBlockParagraph = 'richTextBlockParagraph';
+  static const richTextBlockPhoto = 'richTextBlockPhoto';
+  static const richTextBlockPreformatted = 'richTextBlockPreformatted';
+  static const richTextBlockPullQuotation = 'richTextBlockPullQuotation';
+  static const richTextBlockSlideshow = 'richTextBlockSlideshow';
+  static const richTextBlockTable = 'richTextBlockTable';
+  static const richTextBlockThinking = 'richTextBlockThinking';
+  static const richTextBlockVideo = 'richTextBlockVideo';
+  static const richTextBlockVoiceNote = 'richTextBlockVoiceNote';
   static const savedMessages = 'savedMessages';
   static const settingsAboutMithka = 'settingsAboutMithka';
   static const settingsLogOut = 'settingsLogOut';

@@ -93,6 +93,11 @@ String formattedTextToRichHtml(
   return buffer.toString();
 }
 
+String formattedTextToRichInlineHtml(
+  String text,
+  List<Map<String, dynamic>> entities,
+) => _inlineHtml(text, entities, 0);
+
 String _inlineHtml(
   String text,
   List<Map<String, dynamic>> entities,

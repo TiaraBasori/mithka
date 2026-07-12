@@ -191,6 +191,96 @@ void main() {
         const TextSelection(baseOffset: 0, extentOffset: 6),
       );
     });
+
+    testWidgets('offers inline formatting and every-block insertion', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          localizationsDelegates: [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: RichTextComposerView(
+            initialText: 'format me',
+            allowMedia: false,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final fieldFinder = find.byType(TextField).first;
+      final field = tester.widget<TextField>(fieldFinder);
+      final controller = field.controller!;
+      controller.selection = const TextSelection(
+        baseOffset: 0,
+        extentOffset: 6,
+      );
+      await tester.pump();
+      final editableState = tester.state<EditableTextState>(
+        find.descendant(of: fieldFinder, matching: find.byType(EditableText)),
+      );
+      final toolbar =
+          field.contextMenuBuilder!(tester.element(fieldFinder), editableState)
+              as AdaptiveTextSelectionToolbar;
+      final labels = toolbar.buttonItems!.map((item) => item.label);
+
+      expect(labels, contains('Format'));
+      expect(labels, contains('Insert'));
+    });
+
+    testWidgets('block handle opens move and delete actions', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          localizationsDelegates: [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: RichTextComposerView(initialText: 'block', allowMedia: false),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byType(ReorderableDragStartListener).first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Move up'), findsOneWidget);
+      expect(find.text('Move down'), findsOneWidget);
+      expect(find.text('Remove block'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('inserting a block replaces an empty paragraph', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          localizationsDelegates: [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: RichTextComposerView(initialText: '', allowMedia: false),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(TextField), findsOneWidget);
+      await tester.tap(find.byTooltip('Block quote'));
+      await tester.pump();
+
+      expect(find.byType(TextField), findsOneWidget);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).decoration?.hintText,
+        'Block quote',
+      );
+      expect(tester.takeException(), isNull);
+    });
   });
 
   group('ChatInputBar', () {

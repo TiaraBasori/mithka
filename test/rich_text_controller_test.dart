@@ -115,6 +115,27 @@ void main() {
       });
     });
 
+    test('applies a text link to the selected range', () {
+      final controller = EmojiTextEditingController();
+      addTearDown(controller.dispose);
+
+      controller.text = 'open Mithka';
+      controller.applyEntityFormat(5, 11, {
+        '@type': 'textEntityTypeTextUrl',
+        'url': 'https://mithka.ieb.app',
+      });
+
+      final (text, entities) = controller.toFormatted();
+      expect(text, 'open Mithka');
+      expect(entities, hasLength(1));
+      expect(entities.single['offset'], 5);
+      expect(entities.single['length'], 6);
+      expect(entities.single['type'], {
+        '@type': 'textEntityTypeTextUrl',
+        'url': 'https://mithka.ieb.app',
+      });
+    });
+
     test('rehydrates custom emoji while preserving enclosing formats', () {
       final controller = EmojiTextEditingController();
       addTearDown(controller.dispose);

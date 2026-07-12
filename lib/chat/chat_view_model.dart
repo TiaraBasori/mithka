@@ -45,6 +45,13 @@ class _SenderInfo {
   final int emojiStatusId;
 }
 
+class _MessageSendResult {
+  const _MessageSendResult.success() : error = null;
+  const _MessageSendResult.failure(this.error);
+
+  final TdError? error;
+}
+
 class _ChatActionInfo {
   const _ChatActionInfo(this.name, this.actionType);
 
@@ -159,9 +166,6 @@ class ChatViewModel extends ChangeNotifier {
   int? peerSupergroupId;
   String meName = AppStrings.t(AppStringKeys.chatMeLabel);
   int? meId;
-  bool? _currentUserIsPremium;
-  Future<bool>? _currentUserCapabilityLoad;
-  bool get currentUserIsPremium => _currentUserIsPremium ?? false;
   TdFileRef? mePhoto;
   String draft = '';
   String _draftFormattedText = '';
@@ -222,6 +226,9 @@ class ChatViewModel extends ChangeNotifier {
   bool _markReadInFlight = false;
   final Set<int> _blockedReadIds = {};
   final Set<int> _blockedSenderIds = {};
+  final Set<int> _discardedPendingMessageIds = {};
+  final Map<int, Completer<void>> _messageSendWaiters = {};
+  final Map<int, _MessageSendResult> _recentMessageSendResults = {};
 
   // Transient chat actions: sender ids currently acting, auto-cleared shortly.
   final Map<int, _ChatActionInfo> _chatActions = {};
@@ -326,31 +333,14 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   Future<void> _loadMe() async {
-    await canSendRichMessages();
-  }
-
-  Future<bool> canSendRichMessages() {
-    final cached = _currentUserIsPremium;
-    if (cached != null) return Future.value(cached);
-    return _currentUserCapabilityLoad ??= _loadCurrentUserCapability();
-  }
-
-  Future<bool> _loadCurrentUserCapability() async {
     try {
       final me = await _client.query({'@type': 'getMe'});
       meId = me.int64('id');
-      final premium = me.boolean('is_premium') ?? false;
-      _currentUserIsPremium = premium;
       final name = TDParse.userName(me);
       if (name.isNotEmpty) meName = name;
       mePhoto = TDParse.smallPhoto(me.obj('profile_photo'));
       notifyListeners();
-      return premium;
-    } catch (_) {
-      return false;
-    } finally {
-      _currentUserCapabilityLoad = null;
-    }
+    } catch (_) {}
   }
 
   Future<void> _loadAvailableMessageSenders() async {
@@ -478,6 +468,12 @@ class ChatViewModel extends ChangeNotifier {
     _typingTimer?.cancel();
     _draftSaveTimer?.cancel();
     _senderPatchTimer?.cancel();
+    for (final waiter in _messageSendWaiters.values) {
+      if (!waiter.isCompleted) {
+        waiter.completeError(StateError('Chat view model was disposed'));
+      }
+    }
+    _messageSendWaiters.clear();
     super.dispose();
   }
 
@@ -716,8 +712,82 @@ class ChatViewModel extends ChangeNotifier {
       };
     }
     replyTo = null;
-    await _client.query(_withPaidMessageOptions(request));
+    final pendingMessage = await _client.query(
+      _withPaidMessageOptions(request),
+    );
+    final pendingMessageId = pendingMessage.int64('id');
+    if (pendingMessageId != null &&
+        pendingMessage.obj('sending_state') != null) {
+      await _waitForMessageSend(pendingMessageId);
+    }
     notifyListeners();
+  }
+
+  Future<bool> currentUserIsPremium() async {
+    final user = await _client.query({'@type': 'getMe'});
+    return user.boolean('is_premium') ?? false;
+  }
+
+  Future<void> _waitForMessageSend(int pendingMessageId) {
+    final recent = _recentMessageSendResults.remove(pendingMessageId);
+    if (recent != null) {
+      final error = recent.error;
+      return error == null ? Future.value() : Future.error(error);
+    }
+    final waiter = Completer<void>();
+    _messageSendWaiters[pendingMessageId] = waiter;
+    return waiter.future
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () {
+            _discardPendingMessage(pendingMessageId);
+            throw TimeoutException('Rich message send timed out');
+          },
+        )
+        .whenComplete(() {
+          if (identical(_messageSendWaiters[pendingMessageId], waiter)) {
+            _messageSendWaiters.remove(pendingMessageId);
+          }
+        });
+  }
+
+  void _discardPendingMessage(int pendingMessageId) {
+    _discardedPendingMessageIds.add(pendingMessageId);
+    _removeMessages([pendingMessageId]);
+    unawaited(_deleteDiscardedPendingMessage(pendingMessageId));
+  }
+
+  Future<void> _deleteDiscardedPendingMessage(int pendingMessageId) async {
+    try {
+      await _client.query({
+        '@type': 'deleteMessages',
+        'chat_id': chatId,
+        'message_ids': [pendingMessageId],
+        'revoke': false,
+      });
+    } catch (error) {
+      debugPrint('Failed to delete pending message $pendingMessageId: $error');
+    }
+  }
+
+  void _recordMessageSendResult(
+    int pendingMessageId,
+    _MessageSendResult result,
+  ) {
+    final waiter = _messageSendWaiters.remove(pendingMessageId);
+    if (waiter != null) {
+      final error = result.error;
+      if (error == null) {
+        waiter.complete();
+      } else {
+        waiter.completeError(error);
+      }
+      return;
+    }
+    _recentMessageSendResults[pendingMessageId] = result;
+    while (_recentMessageSendResults.length > 32) {
+      _recentMessageSendResults.remove(_recentMessageSendResults.keys.first);
+    }
   }
 
   Map<String, dynamic> _richMessageFilePayload(RichMessageSendFile file) {
@@ -2444,6 +2514,37 @@ class ChatViewModel extends ChangeNotifier {
           _resolveRichMessagesIfNeeded(target);
         }
 
+      case 'updateMessageSendSucceeded':
+        if (update.int64('chat_id') != chatId) return;
+        final oldMessageId = update.int64('old_message_id');
+        final rawSentMessage = update.obj('message');
+        if (oldMessageId == null || rawSentMessage == null) return;
+        _replacePendingMessage(oldMessageId, rawSentMessage);
+        _recordMessageSendResult(
+          oldMessageId,
+          const _MessageSendResult.success(),
+        );
+
+      case 'updateMessageSendFailed':
+        if (update.int64('chat_id') != chatId) return;
+        final oldMessageId = update.int64('old_message_id');
+        if (oldMessageId == null) return;
+        final errorData =
+            update.obj('error') ??
+            update.obj('message')?.obj('sending_state')?.obj('error') ??
+            <String, dynamic>{
+              '@type': 'error',
+              'code': 400,
+              'message': 'Message send failed',
+            };
+        final error = TdError(errorData);
+        debugPrint('Message $oldMessageId failed to send: $error');
+        _discardPendingMessage(oldMessageId);
+        _recordMessageSendResult(
+          oldMessageId,
+          _MessageSendResult.failure(error),
+        );
+
       case 'updateChat':
         final chat = update.obj('chat');
         if (chat == null || chat.int64('id') != chatId) return;
@@ -2992,6 +3093,7 @@ class ChatViewModel extends ChangeNotifier {
     if (incoming.isEmpty) return;
     final byId = {for (final m in _allMessages) m.id: m};
     for (final message in incoming) {
+      if (_discardedPendingMessageIds.contains(message.id)) continue;
       final existing = byId[message.id];
       if (existing != null) {
         message.senderName ??= existing.senderName;
@@ -3024,6 +3126,36 @@ class ChatViewModel extends ChangeNotifier {
     if (updateLinkPreview) target.linkPreview = linkPreview;
     if (edited) target.isEdited = true;
     _applyKeywordFilter();
+  }
+
+  void _replacePendingMessage(
+    int pendingMessageId,
+    Map<String, dynamic> rawMessage,
+  ) {
+    if (_discardedPendingMessageIds.remove(pendingMessageId)) {
+      final sentMessageId = rawMessage.int64('id');
+      if (sentMessageId != null) {
+        _discardedPendingMessageIds.add(sentMessageId);
+        _removeMessages([pendingMessageId, sentMessageId]);
+        unawaited(_deleteDiscardedPendingMessage(sentMessageId));
+      } else {
+        _removeMessages([pendingMessageId]);
+      }
+      return;
+    }
+    _allMessages.removeWhere((message) => message.id == pendingMessageId);
+    messages.removeWhere((message) => message.id == pendingMessageId);
+    final sentMessage = TDParse.message(rawMessage);
+    if (sentMessage == null) {
+      _applyKeywordFilter();
+      return;
+    }
+    _merge([sentMessage]);
+    _resolveRichMessagesIfNeeded([sentMessage]);
+    _resolveSendersIfNeeded([sentMessage]);
+    _resolveRepliesIfNeeded([sentMessage]);
+    _resolveForwardsIfNeeded([sentMessage]);
+    _resolveServiceUsersIfNeeded([sentMessage]);
   }
 
   final Set<int> _loadingFullRichMessageIds = <int>{};

@@ -677,6 +677,7 @@ const _telegramKeyForAppKey = <String, String>{
   AppStringKeys.composerOpenMenu: 'AccDescrOpenMenu2',
   AppStringKeys.composerPastedImageReadFailed: 'ErrorOccurred',
   AppStringKeys.composerPoll: 'Poll',
+  AppStringKeys.composerRichTextSendFailed: 'ErrorOccurred',
   AppStringKeys.composerReleaseFingerToCancel: 'Cancel',
   AppStringKeys.composerReleaseToSendSlideToCancel: 'Cancel',
   AppStringKeys.composerSend: 'SendMessage',

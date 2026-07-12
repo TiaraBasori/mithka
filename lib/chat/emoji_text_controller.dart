@@ -241,6 +241,18 @@ class EmojiTextEditingController extends TextEditingController {
     notifyListeners();
   }
 
+  void applyEntityFormat(int start, int end, Map<String, dynamic> type) {
+    if (start < 0 || end > text.length || start >= end) return;
+    final typeName = type['@type'] as String?;
+    if (typeName == null || typeName.isEmpty) return;
+    _removeFormat(typeName, start, end);
+    _entities.add(
+      _ComposerTextEntity(offset: start, length: end - start, type: type),
+    );
+    if (type.length == 1) _mergeEntities(typeName);
+    notifyListeners();
+  }
+
   void clearFormatting() {
     if (_entities.isEmpty) return;
     _entities.clear();

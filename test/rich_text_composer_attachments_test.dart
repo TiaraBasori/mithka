@@ -36,7 +36,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('2/10'), findsOneWidget);
+    expect(find.text('2/50'), findsOneWidget);
     expect(find.text('document.pdf'), findsOneWidget);
     expect(find.text('song.flac'), findsOneWidget);
     expect(tester.takeException(), isNull);

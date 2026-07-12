@@ -23,18 +23,37 @@ import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../theme/app_theme.dart';
 
+class LocationPickerResult {
+  const LocationPickerResult({required this.center, required this.zoom});
+
+  final LatLng center;
+  final double zoom;
+}
+
 class LocationPickerView extends StatefulWidget {
-  const LocationPickerView({super.key, required this.initial});
+  const LocationPickerView({
+    super.key,
+    required this.initial,
+    this.initialZoom = 16,
+    this.returnCamera = false,
+  });
+
   final LatLng initial;
+  final double initialZoom;
+  final bool returnCamera;
 
   @override
   State<LocationPickerView> createState() => _LocationPickerViewState();
 }
 
 class _LocationPickerViewState extends State<LocationPickerView> {
+  static const _minimumZoom = 3.0;
+  static const _maximumZoom = 20.0;
+
   final MapController _map = MapController(); // flutter_map (Android / OSM)
   amap.AppleMapController? _appleCtrl; // Apple MapKit (iOS)
   late LatLng _center = widget.initial;
+  late double _zoom = widget.initialZoom;
   String _address = '';
   bool _geocoding = false;
   Timer? _debounce;
@@ -54,6 +73,7 @@ class _LocationPickerViewState extends State<LocationPickerView> {
 
   void _onMove(MapCamera camera, bool hasGesture) {
     _center = camera.center;
+    _zoom = camera.zoom;
     _debounce?.cancel();
     _debounce = Timer(
       const Duration(milliseconds: 650),
@@ -116,11 +136,34 @@ class _LocationPickerViewState extends State<LocationPickerView> {
         _map.move(p, 16);
       }
       _center = p;
+      _zoom = 16;
       unawaited(_reverseGeocode(p));
     } catch (_) {}
   }
 
-  void _send() => Navigator.of(context).pop(_center);
+  void _changeZoom(double delta) {
+    final next = (_zoom + delta).clamp(_minimumZoom, _maximumZoom);
+    if ((next - _zoom).abs() < 0.01) return;
+    setState(() => _zoom = next);
+    if (Platform.isIOS) {
+      unawaited(
+        _appleCtrl?.animateCamera(
+          amap.CameraUpdate.newLatLngZoom(
+            amap.LatLng(_center.latitude, _center.longitude),
+            next,
+          ),
+        ),
+      );
+    } else {
+      _map.move(_center, next);
+    }
+  }
+
+  void _send() => Navigator.of(context).pop(
+    widget.returnCamera
+        ? LocationPickerResult(center: _center, zoom: _zoom)
+        : _center,
+  );
 
   /// Native Apple Maps (MapKit) on iOS; flutter_map + OSM tiles elsewhere.
   Widget _mapWidget() {
@@ -131,12 +174,14 @@ class _LocationPickerViewState extends State<LocationPickerView> {
             widget.initial.latitude,
             widget.initial.longitude,
           ),
-          zoom: 15,
+          zoom: widget.initialZoom,
         ),
         myLocationEnabled: true,
         onMapCreated: (c) => _appleCtrl = c,
-        onCameraMove: (pos) =>
-            _center = LatLng(pos.target.latitude, pos.target.longitude),
+        onCameraMove: (pos) {
+          _center = LatLng(pos.target.latitude, pos.target.longitude);
+          _zoom = pos.zoom;
+        },
         onCameraIdle: () {
           _debounce?.cancel();
           _debounce = Timer(
@@ -150,7 +195,7 @@ class _LocationPickerViewState extends State<LocationPickerView> {
       mapController: _map,
       options: MapOptions(
         initialCenter: widget.initial,
-        initialZoom: 16,
+        initialZoom: widget.initialZoom,
         onPositionChanged: _onMove,
       ),
       children: [
@@ -218,30 +263,64 @@ class _LocationPickerViewState extends State<LocationPickerView> {
                 Positioned(
                   right: 16,
                   bottom: 16,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _myLocation,
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: c.card,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.18),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 44,
+                        decoration: BoxDecoration(
+                          color: c.card,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.18),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            _mapControlButton(
+                              c,
+                              HeroAppIcons.plus,
+                              () => _changeZoom(1),
+                            ),
+                            Divider(height: 1, color: c.divider),
+                            _mapControlButton(
+                              c,
+                              HeroAppIcons.minus,
+                              () => _changeZoom(-1),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: _myLocation,
+                        child: Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: c.card,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.18),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
                           ),
-                        ],
+                          child: AppIcon(
+                            HeroAppIcons.locationDot,
+                            size: 20,
+                            color: AppTheme.brand,
+                          ),
+                        ),
                       ),
-                      child: AppIcon(
-                        HeroAppIcons.locationDot,
-                        size: 20,
-                        color: AppTheme.brand,
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ],
@@ -249,6 +328,18 @@ class _LocationPickerViewState extends State<LocationPickerView> {
           ),
           _addressBar(),
         ],
+      ),
+    );
+  }
+
+  Widget _mapControlButton(AppColors c, AppIconData icon, VoidCallback onTap) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 44,
+        height: 40,
+        child: Center(child: AppIcon(icon, size: 19, color: c.textPrimary)),
       ),
     );
   }

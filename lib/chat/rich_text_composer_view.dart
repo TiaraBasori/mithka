@@ -1,16 +1,22 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import '../components/app_icons.dart';
+import '../components/toast.dart';
 import '../media/app_asset_picker.dart';
 import '../theme/app_theme.dart';
 import 'emoji_text_controller.dart';
 import 'image_edit_view.dart';
+import 'location_picker_view.dart';
 import 'outgoing_attachment.dart';
 import 'rich_message_source.dart';
 import 'rich_text_format.dart';
@@ -138,9 +144,9 @@ class _RichTableDraft {
     cells.add(List.generate(columnCount, (_) => TextEditingController()));
   }
 
-  void removeRow() {
-    if (rowCount <= 2) return;
-    final removed = cells.removeLast();
+  void removeRowAt(int index) {
+    if (rowCount <= 1 || index < 0 || index >= rowCount) return;
+    final removed = cells.removeAt(index);
     for (final cell in removed) {
       cell.dispose();
     }
@@ -157,10 +163,10 @@ class _RichTableDraft {
     }
   }
 
-  void removeColumn() {
-    if (columnCount <= 2) return;
+  void removeColumnAt(int index) {
+    if (columnCount <= 1 || index < 0 || index >= columnCount) return;
     for (final row in cells) {
-      row.removeLast().dispose();
+      row.removeAt(index).dispose();
     }
   }
 
@@ -223,13 +229,43 @@ class _RichTableDraft {
   }
 }
 
+enum _RichBlockKind {
+  paragraph,
+  heading,
+  preformatted,
+  footer,
+  divider,
+  mathematicalExpression,
+  anchor,
+  list,
+  blockQuotation,
+  pullQuotation,
+  collage,
+  slideshow,
+  table,
+  details,
+  map,
+  animation,
+  audio,
+  photo,
+  video,
+  voiceNote,
+  thinking,
+  document,
+}
+
 class _RichTextBlock {
-  _RichTextBlock(this.controller, this.focusNode, this.onTextChanged)
-    : lastText = controller.text;
+  _RichTextBlock(
+    this.controller,
+    this.focusNode,
+    this.onTextChanged, {
+    this.kind = _RichBlockKind.paragraph,
+  }) : lastText = controller.text;
 
   final EmojiTextEditingController controller;
   final FocusNode focusNode;
   final VoidCallback onTextChanged;
+  final _RichBlockKind kind;
   String lastText;
   int headingLevel = 0;
 }
@@ -242,37 +278,108 @@ class _RichMathDraft {
   void dispose() => controller.dispose();
 }
 
+class _RichGenericDraft {
+  _RichGenericDraft({
+    String primary = '',
+    String secondary = '',
+    String tertiary = '',
+    this.number = 14,
+  }) : primary = TextEditingController(text: primary),
+       secondary = TextEditingController(text: secondary),
+       tertiary = TextEditingController(text: tertiary),
+       enabled = false;
+
+  final TextEditingController primary;
+  final TextEditingController secondary;
+  final TextEditingController tertiary;
+  int number;
+  bool enabled;
+
+  void dispose() {
+    primary.dispose();
+    secondary.dispose();
+    tertiary.dispose();
+  }
+}
+
+class _RichMediaGroupDraft {
+  _RichMediaGroupDraft(this.kind) : caption = TextEditingController();
+
+  final _RichBlockKind kind;
+  final List<OutgoingAttachment> items = [];
+  final TextEditingController caption;
+
+  void dispose() => caption.dispose();
+}
+
 class _RichContentBlock {
-  const _RichContentBlock.text(this.text)
-    : table = null,
-      math = null,
-      attachment = null;
-  const _RichContentBlock.table(this.table)
-    : text = null,
-      math = null,
-      attachment = null;
-  const _RichContentBlock.math(this.math)
-    : text = null,
-      table = null,
-      attachment = null;
-  const _RichContentBlock.attachment(this.attachment)
-    : text = null,
-      table = null,
-      math = null;
+  _RichContentBlock._({
+    required this.kind,
+    this.text,
+    this.table,
+    this.math,
+    this.attachment,
+    this.generic,
+    this.mediaGroup,
+  }) : id = _nextId++;
+
+  factory _RichContentBlock.text(_RichTextBlock text, {_RichBlockKind? kind}) =>
+      _RichContentBlock._(kind: kind ?? text.kind, text: text);
+
+  factory _RichContentBlock.table(_RichTableDraft table) =>
+      _RichContentBlock._(kind: _RichBlockKind.table, table: table);
+
+  factory _RichContentBlock.math(_RichMathDraft math) => _RichContentBlock._(
+    kind: _RichBlockKind.mathematicalExpression,
+    math: math,
+  );
+
+  factory _RichContentBlock.attachment(
+    OutgoingAttachment attachment, {
+    _RichBlockKind? kind,
+  }) => _RichContentBlock._(
+    kind: kind ?? _kindForAttachment(attachment),
+    attachment: attachment,
+  );
+
+  factory _RichContentBlock.generic(
+    _RichBlockKind kind,
+    _RichGenericDraft generic,
+  ) => _RichContentBlock._(kind: kind, generic: generic);
+
+  factory _RichContentBlock.mediaGroup(_RichMediaGroupDraft group) =>
+      _RichContentBlock._(kind: group.kind, mediaGroup: group);
+
+  static int _nextId = 1;
+
+  static _RichBlockKind _kindForAttachment(OutgoingAttachment attachment) {
+    return switch (attachment.kind) {
+      OutgoingAttachmentKind.photo => _RichBlockKind.photo,
+      OutgoingAttachmentKind.video => _RichBlockKind.video,
+      OutgoingAttachmentKind.animation => _RichBlockKind.animation,
+      OutgoingAttachmentKind.audio => _RichBlockKind.audio,
+      OutgoingAttachmentKind.document => _RichBlockKind.document,
+    };
+  }
+
+  final int id;
+  final _RichBlockKind kind;
 
   final _RichTextBlock? text;
   final _RichTableDraft? table;
   final _RichMathDraft? math;
   final OutgoingAttachment? attachment;
+  final _RichGenericDraft? generic;
+  final _RichMediaGroupDraft? mediaGroup;
 }
 
 class _RichTextComposerViewState extends State<RichTextComposerView> {
-  static const _maxAttachments = 10;
+  static const _maxAttachments = 50;
+  static const _maxBlocks = 500;
+  static const _maxTextBytes = 32768;
 
   late final List<_RichContentBlock> _blocks;
   late _RichTextBlock _activeTextBlock;
-
-  EmojiTextEditingController get _controller => _activeTextBlock.controller;
 
   @override
   void initState() {
@@ -301,6 +408,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
   _RichTextBlock _createTextBlock(
     String text, {
     List<Map<String, dynamic>> entities = const [],
+    _RichBlockKind kind = _RichBlockKind.paragraph,
   }) {
     final controller = EmojiTextEditingController();
     if (entities.isEmpty) {
@@ -316,7 +424,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
       if (mounted) setState(() {});
     }
 
-    block = _RichTextBlock(controller, focusNode, onTextChanged);
+    block = _RichTextBlock(controller, focusNode, onTextChanged, kind: kind);
     controller.addListener(onTextChanged);
     focusNode.addListener(() {
       if (focusNode.hasFocus) _activeTextBlock = block;
@@ -335,9 +443,20 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     if (text != null) _disposeTextBlock(text);
     block.table?.dispose();
     block.math?.dispose();
+    block.generic?.dispose();
+    block.mediaGroup?.dispose();
   }
 
   void _submit() {
+    if (_blocks.length > _maxBlocks ||
+        _documentTextByteCount() > _maxTextBytes ||
+        _attachmentCount > _maxAttachments) {
+      showToast(
+        context,
+        AppStringKeys.richTextComposerLimitExceeded.l10n(context),
+      );
+      return;
+    }
     final buffer = StringBuffer();
     final entities = <Map<String, dynamic>>[];
     final attachments = <OutgoingAttachment>[];
@@ -372,6 +491,29 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     }
 
     for (final block in _blocks) {
+      final mediaGroup = block.mediaGroup;
+      if (mediaGroup != null) {
+        if (mediaGroup.items.isEmpty) continue;
+        flushAttachments();
+        final tag = mediaGroup.kind == _RichBlockKind.collage
+            ? 'tg-collage'
+            : 'tg-slideshow';
+        htmlBuffer.write('<$tag>');
+        for (final item in mediaGroup.items) {
+          attachments.add(item);
+          final id = 'mithka-rich-${segments.length}-${htmlFiles.length}';
+          htmlFiles.add(RichMessageSendFile(id: id, attachment: item));
+          htmlBuffer.write(_mediaBlockHtml(item, id));
+        }
+        final caption = mediaGroup.caption.text.trim();
+        if (caption.isNotEmpty) {
+          htmlBuffer.write(
+            '<figcaption>${escapeRichHtml(caption)}</figcaption>',
+          );
+        }
+        htmlBuffer.write('</$tag>');
+        continue;
+      }
       final attachment = block.attachment;
       if (attachment != null) {
         attachments.add(attachment);
@@ -383,13 +525,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
         flushAttachments();
         final id = 'mithka-rich-${segments.length}-${htmlFiles.length}';
         htmlFiles.add(RichMessageSendFile(id: id, attachment: attachment));
-        htmlBuffer.write(switch (attachment.kind) {
-          OutgoingAttachmentKind.photo => '<img src="$id"/>',
-          OutgoingAttachmentKind.video ||
-          OutgoingAttachmentKind.animation => '<video src="$id"></video>',
-          OutgoingAttachmentKind.audio => '<audio src="$id"></audio>',
-          OutgoingAttachmentKind.document => '',
-        });
+        htmlBuffer.write(_mediaBlockHtml(attachment, id));
         continue;
       }
       flushAttachments();
@@ -399,13 +535,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
         final formatted = block.text!.controller.toFormatted();
         text = formatted.$1;
         blockEntities = formatted.$2;
-        htmlBuffer.write(
-          formattedTextToRichHtml(
-            text,
-            blockEntities,
-            headingLevel: block.text!.headingLevel,
-          ),
-        );
+        htmlBuffer.write(_textBlockHtml(block.text!, text, blockEntities));
       } else if (block.math != null) {
         text = block.math!.controller.text.trim();
         if (text.isNotEmpty) {
@@ -413,9 +543,12 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
             '<tg-math-block>${escapeRichHtml(text)}</tg-math-block>',
           );
         }
-      } else {
+      } else if (block.table != null) {
         text = block.table?.toMarkdown() ?? '';
         htmlBuffer.write(block.table?.toHtml() ?? '');
+      } else {
+        text = block.generic?.primary.text.trim() ?? '';
+        htmlBuffer.write(_genericBlockHtml(block));
       }
       if (text.trim().isEmpty) continue;
       if (hasContent) buffer.write('\n\n');
@@ -438,6 +571,80 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     );
   }
 
+  int _documentTextByteCount() {
+    final text = StringBuffer();
+    for (final block in _blocks) {
+      text.write(block.text?.controller.text ?? '');
+      text.write(block.math?.controller.text ?? '');
+      final generic = block.generic;
+      if (generic != null) {
+        text
+          ..write(generic.primary.text)
+          ..write(generic.secondary.text)
+          ..write(generic.tertiary.text);
+      }
+      final group = block.mediaGroup;
+      if (group != null) text.write(group.caption.text);
+      final table = block.table;
+      if (table != null) {
+        for (final row in table.cells) {
+          for (final cell in row) {
+            text.write(cell.text);
+          }
+        }
+      }
+    }
+    return utf8.encode(text.toString()).length;
+  }
+
+  String _mediaBlockHtml(OutgoingAttachment attachment, String id) {
+    return switch (attachment.kind) {
+      OutgoingAttachmentKind.photo => '<img src="$id"/>',
+      OutgoingAttachmentKind.video ||
+      OutgoingAttachmentKind.animation => '<video src="$id"></video>',
+      OutgoingAttachmentKind.audio => '<audio src="$id"></audio>',
+      OutgoingAttachmentKind.document => '',
+    };
+  }
+
+  String _textBlockHtml(
+    _RichTextBlock block,
+    String text,
+    List<Map<String, dynamic>> entities,
+  ) {
+    if (text.trim().isEmpty) return '';
+    final inline = formattedTextToRichInlineHtml(text, entities);
+    return switch (block.kind) {
+      _RichBlockKind.heading =>
+        '<h${block.headingLevel.clamp(1, 6)}>$inline</h${block.headingLevel.clamp(1, 6)}>',
+      _RichBlockKind.preformatted => '<pre>$inline</pre>',
+      _RichBlockKind.footer => '<footer>$inline</footer>',
+      _RichBlockKind.list => formattedTextToRichHtml(text, entities),
+      _RichBlockKind.blockQuotation =>
+        '<blockquote><p>$inline</p></blockquote>',
+      _RichBlockKind.pullQuotation => '<aside>$inline</aside>',
+      _RichBlockKind.thinking => '<tg-thinking>$inline</tg-thinking>',
+      _ => '<p>$inline</p>',
+    };
+  }
+
+  String _genericBlockHtml(_RichContentBlock block) {
+    final draft = block.generic;
+    if (draft == null) {
+      return block.kind == _RichBlockKind.divider ? '<hr/>' : '';
+    }
+    final primary = escapeRichHtml(draft.primary.text.trim());
+    final secondary = escapeRichHtml(draft.secondary.text.trim());
+    return switch (block.kind) {
+      _RichBlockKind.anchor => primary.isEmpty ? '' : '<a name="$primary"></a>',
+      _RichBlockKind.details =>
+        '<details${draft.enabled ? ' open' : ''}><summary>$primary</summary><p>$secondary</p></details>',
+      _RichBlockKind.map =>
+        '<tg-map lat="${draft.primary.text.trim()}" long="${draft.secondary.text.trim()}" zoom="${draft.number.clamp(13, 20)}"/>',
+      _ => '',
+    };
+  }
+
   Map<String, dynamic> _shiftTextEntity(Map<String, dynamic> entity, int by) {
     return {
       ...entity,
@@ -447,110 +654,206 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     };
   }
 
-  void _toggleFormat(String type, String placeholder) {
-    if (_controller.hasSelection) {
-      _controller.toggleFormat(type);
+  void _insertTable() {
+    _insertStructuredBlock(_RichContentBlock.table(_RichTableDraft()));
+  }
+
+  void _insertMathBlock() {
+    _insertStructuredBlock(_RichContentBlock.math(_RichMathDraft()));
+  }
+
+  void _insertStructuredBlock(_RichContentBlock block) {
+    if (_blocks.length >= _maxBlocks) {
+      _disposeBlock(block);
       return;
     }
-    _insertPlaceholder(placeholder, type: type);
-  }
-
-  void _insertPlaceholder(String placeholder, {String? type}) {
-    final selection = _controller.selection;
-    final start = selection.isValid ? selection.start : _controller.text.length;
-    _controller.insertFormattedText(placeholder, type: type);
-    _controller.selection = TextSelection(
-      baseOffset: start,
-      extentOffset: start + placeholder.length,
-    );
-  }
-
-  void _insertHeading() {
-    setState(() {
-      _activeTextBlock.headingLevel = (_activeTextBlock.headingLevel + 1) % 4;
-    });
-    if (_controller.text.trim().isEmpty) {
-      _insertPlaceholder('Heading');
+    final active = _activeTextBlock;
+    final index = _blocks.indexWhere((item) => item.text == active);
+    void focusAfterFrame(_RichTextBlock? target) {
+      if (target == null) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) target.focusNode.requestFocus();
+      });
     }
-  }
 
-  void _insertList(String marker) {
-    final selection = _controller.selection;
-    final text = _controller.text;
-    final low = selection.isValid
-        ? (selection.start < selection.end ? selection.start : selection.end)
-        : text.length;
-    final high = selection.isValid
-        ? (selection.start < selection.end ? selection.end : selection.start)
-        : low;
-    final lineStart = text.lastIndexOf('\n', low > 0 ? low - 1 : 0) + 1;
-    final nextBreak = text.indexOf('\n', high);
-    final lineEnd = nextBreak < 0 ? text.length : nextBreak;
-    final selected = text.substring(lineStart, lineEnd);
-    final lines = selected.isEmpty ? [''] : selected.split('\n');
-    final replacement = [
-      for (var i = 0; i < lines.length; i++)
-        '${marker == '1. ' ? '${i + 1}. ' : marker}${lines[i].trimLeft()}',
-    ].join('\n');
-    _controller.value = TextEditingValue(
-      text: text.replaceRange(lineStart, lineEnd, replacement),
-      selection: TextSelection.collapsed(
-        offset: lineStart + replacement.length,
-      ),
-    );
-  }
-
-  void _insertTable() {
-    final textBlock = _activeTextBlock;
-    final index = _blocks.indexWhere((block) => block.text == textBlock);
-    final controller = textBlock.controller;
+    if (index < 0) {
+      final insertedText = block.text;
+      setState(() {
+        _blocks.add(block);
+        if (insertedText != null) _activeTextBlock = insertedText;
+      });
+      focusAfterFrame(insertedText);
+      return;
+    }
+    final controller = active.controller;
     final text = controller.text;
     final selection = controller.selection;
     final start = selection.isValid
-        ? (selection.start < selection.end ? selection.start : selection.end)
+        ? math.min(selection.start, selection.end)
         : text.length;
     final end = selection.isValid
-        ? (selection.start < selection.end ? selection.end : selection.start)
+        ? math.max(selection.start, selection.end)
         : text.length;
     final before = text.substring(0, start);
     final after = text.substring(end);
-    final nextText = _createTextBlock(after);
+    if (before.isEmpty && after.isEmpty) {
+      final removed = _blocks[index];
+      final insertedText = block.text;
+      setState(() {
+        _blocks[index] = block;
+        if (insertedText != null) _activeTextBlock = insertedText;
+      });
+      _disposeBlock(removed);
+      focusAfterFrame(insertedText);
+      return;
+    }
+    if (start == 0 && end == 0) {
+      final insertedText = block.text;
+      setState(() {
+        _blocks.insert(index, block);
+        if (insertedText != null) _activeTextBlock = insertedText;
+      });
+      focusAfterFrame(insertedText);
+      return;
+    }
+    if (start == text.length && end == text.length) {
+      final insertedText = block.text;
+      setState(() {
+        _blocks.insert(index + 1, block);
+        if (insertedText != null) _activeTextBlock = insertedText;
+      });
+      focusAfterFrame(insertedText);
+      return;
+    }
     controller.value = TextEditingValue(
       text: before,
       selection: TextSelection.collapsed(offset: before.length),
     );
+    final nextText = after.isEmpty ? null : _createTextBlock(after);
+    final insertedText = block.text;
+    final focusTarget = insertedText ?? nextText;
     setState(() {
-      final insertIndex = index < 0 ? _blocks.length : index + 1;
-      _blocks.insertAll(insertIndex, [
-        _RichContentBlock.table(_RichTableDraft()),
-        _RichContentBlock.text(nextText),
-      ]);
-      _activeTextBlock = nextText;
+      _blocks.insert(index + 1, block);
+      if (nextText != null) {
+        _blocks.insert(index + 2, _RichContentBlock.text(nextText));
+      }
+      if (focusTarget != null) _activeTextBlock = focusTarget;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) nextText.focusNode.requestFocus();
-    });
+    focusAfterFrame(focusTarget);
   }
 
-  void _insertMathBlock() {
-    final index = _blocks.indexWhere((block) => block.text == _activeTextBlock);
-    final nextText = _createTextBlock('');
-    setState(() {
-      final insertIndex = index < 0 ? _blocks.length : index + 1;
-      _blocks.insertAll(insertIndex, [
-        _RichContentBlock.math(_RichMathDraft()),
-        _RichContentBlock.text(nextText),
-      ]);
-      _activeTextBlock = nextText;
-    });
+  _RichContentBlock _newTextContentBlock(
+    _RichBlockKind kind, {
+    String text = '',
+  }) {
+    final block = _createTextBlock(text, kind: kind);
+    if (kind == _RichBlockKind.heading) block.headingLevel = 1;
+    return _RichContentBlock.text(block, kind: kind);
   }
 
-  void _insertCodeBlock() {
-    _controller.insertFormattedText('\ncode\n', type: 'textEntityTypePre');
+  Future<void> _insertBlockKind(_RichBlockKind kind) async {
+    switch (kind) {
+      case _RichBlockKind.paragraph:
+      case _RichBlockKind.heading:
+      case _RichBlockKind.preformatted:
+      case _RichBlockKind.footer:
+      case _RichBlockKind.list:
+      case _RichBlockKind.blockQuotation:
+      case _RichBlockKind.pullQuotation:
+      case _RichBlockKind.thinking:
+        _insertStructuredBlock(
+          _newTextContentBlock(
+            kind,
+            text: kind == _RichBlockKind.list ? '- ' : '',
+          ),
+        );
+      case _RichBlockKind.divider:
+        _insertStructuredBlock(
+          _RichContentBlock.generic(kind, _RichGenericDraft()),
+        );
+      case _RichBlockKind.mathematicalExpression:
+        _insertMathBlock();
+      case _RichBlockKind.anchor:
+        _insertStructuredBlock(
+          _RichContentBlock.generic(
+            kind,
+            _RichGenericDraft(primary: 'section'),
+          ),
+        );
+      case _RichBlockKind.table:
+        _insertTable();
+      case _RichBlockKind.details:
+        _insertStructuredBlock(
+          _RichContentBlock.generic(
+            kind,
+            _RichGenericDraft(primary: 'Details'),
+          ),
+        );
+      case _RichBlockKind.map:
+        _insertStructuredBlock(
+          _RichContentBlock.generic(
+            kind,
+            _RichGenericDraft(
+              primary: '39.908700',
+              secondary: '116.397500',
+              number: 16,
+            ),
+          ),
+        );
+      case _RichBlockKind.collage:
+      case _RichBlockKind.slideshow:
+        final group = _RichMediaGroupDraft(kind);
+        _insertStructuredBlock(_RichContentBlock.mediaGroup(group));
+      case _RichBlockKind.photo:
+      case _RichBlockKind.video:
+        await _pickSingleVisualBlock(kind);
+      case _RichBlockKind.animation:
+      case _RichBlockKind.audio:
+      case _RichBlockKind.voiceNote:
+        await _pickSingleFileBlock(kind);
+      case _RichBlockKind.document:
+        await _pickFiles();
+    }
   }
 
-  void _insertLink() {
-    _insertPlaceholder('https://example.com');
+  Future<void> _pickSingleVisualBlock(_RichBlockKind kind) async {
+    final picked = await AppAssetPicker.pickDetailed(
+      context,
+      type: kind == _RichBlockKind.photo
+          ? AppAssetPickerType.image
+          : AppAssetPickerType.video,
+      maxAssets: 1,
+    );
+    if (!mounted || picked.assets.isEmpty) return;
+    final attachment = _attachmentFromAppPickedAsset(picked.assets.first);
+    _insertStructuredBlock(
+      _RichContentBlock.attachment(attachment, kind: kind),
+    );
+  }
+
+  Future<void> _pickSingleFileBlock(_RichBlockKind kind) async {
+    final extensions = switch (kind) {
+      _RichBlockKind.animation => const ['gif', 'webm', 'mp4'],
+      _RichBlockKind.voiceNote => const ['ogg', 'opus', 'm4a'],
+      _ => const ['mp3', 'm4a', 'aac', 'flac', 'wav', 'ogg', 'opus'],
+    };
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: extensions,
+    );
+    if (!mounted || result == null || result.files.single.path == null) return;
+    final attachmentKind = kind == _RichBlockKind.animation
+        ? OutgoingAttachmentKind.animation
+        : OutgoingAttachmentKind.audio;
+    _insertStructuredBlock(
+      _RichContentBlock.attachment(
+        OutgoingAttachment(
+          path: result.files.single.path!,
+          kind: attachmentKind,
+        ),
+        kind: kind,
+      ),
+    );
   }
 
   @override
@@ -611,22 +914,32 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-                return SingleChildScrollView(
+                return ReorderableListView.builder(
+                  buildDefaultDragHandles: false,
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.manual,
                   padding: EdgeInsets.only(bottom: 18 + keyboardInset),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (var index = 0; index < _blocks.length; index++)
-                          _contentBlock(c, constraints.maxHeight, index),
-                      ],
+                  itemCount: _blocks.length,
+                  onReorderItem: _reorderBlock,
+                  proxyDecorator: (child, index, animation) => Material(
+                    type: MaterialType.transparency,
+                    child: FadeTransition(
+                      opacity: Tween<double>(begin: 0.82, end: 1).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
+                      child: child,
                     ),
                   ),
+                  itemBuilder: (context, index) {
+                    final block = _blocks[index];
+                    return KeyedSubtree(
+                      key: ValueKey(block.id),
+                      child: _draggableBlock(c, constraints.maxHeight, index),
+                    );
+                  },
                 );
               },
             ),
@@ -654,11 +967,102 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     );
   }
 
+  void _reorderBlock(int oldIndex, int newIndex) {
+    if (oldIndex == newIndex) return;
+    setState(() {
+      final block = _blocks.removeAt(oldIndex);
+      _blocks.insert(newIndex, block);
+    });
+  }
+
+  void _moveBlock(int blockId, int offset) {
+    final index = _blocks.indexWhere((block) => block.id == blockId);
+    if (index < 0) return;
+    final target = index + offset;
+    if (target < 0 || target >= _blocks.length) return;
+    setState(() {
+      final block = _blocks.removeAt(index);
+      _blocks.insert(target, block);
+    });
+  }
+
+  void _removeBlockById(int blockId) {
+    final index = _blocks.indexWhere((block) => block.id == blockId);
+    if (index < 0) return;
+    setState(() {
+      final removed = _blocks.removeAt(index);
+      _disposeBlock(removed);
+      if (_blocks.isEmpty || !_blocks.any((block) => block.text != null)) {
+        final text = _createTextBlock('');
+        final insertionIndex = index.clamp(0, _blocks.length);
+        _blocks.insert(insertionIndex, _RichContentBlock.text(text));
+        _activeTextBlock = text;
+      }
+    });
+  }
+
+  Future<void> _showBlockActions(Offset anchor, int blockId) async {
+    final index = _blocks.indexWhere((block) => block.id == blockId);
+    if (index < 0) return;
+    final action = await showGeneralDialog<_RichBlockAction>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: AppStringKeys.countryPickerCancel.l10n(context),
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 150),
+      pageBuilder: (dialogContext, _, _) => _RichBlockActionMenu(
+        anchor: anchor,
+        canMoveUp: index > 0,
+        canMoveDown: index < _blocks.length - 1,
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _RichBlockAction.moveUp:
+        _moveBlock(blockId, -1);
+      case _RichBlockAction.moveDown:
+        _moveBlock(blockId, 1);
+      case _RichBlockAction.delete:
+        _removeBlockById(blockId);
+    }
+  }
+
+  Widget _draggableBlock(AppColors c, double availableHeight, int index) {
+    final blockId = _blocks[index].id;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ReorderableDragStartListener(
+          index: index,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (details) =>
+                unawaited(_showBlockActions(details.globalPosition, blockId)),
+            onLongPressStart: (details) =>
+                unawaited(_showBlockActions(details.globalPosition, blockId)),
+            child: Container(
+              width: 30,
+              constraints: const BoxConstraints(minHeight: 40),
+              alignment: Alignment.topCenter,
+              padding: const EdgeInsets.only(top: 11),
+              child: AppIcon(
+                HeroAppIcons.ellipsis,
+                size: 17,
+                color: c.textTertiary,
+              ),
+            ),
+          ),
+        ),
+        Expanded(child: _contentBlock(c, availableHeight, index)),
+      ],
+    );
+  }
+
   Widget _contentBlock(AppColors c, double availableHeight, int index) {
     final block = _blocks[index];
     final text = block.text;
     if (text != null) {
-      return _textEditor(c, availableHeight, text);
+      return _textEditor(c, availableHeight, text, index);
     }
     final attachment = block.attachment;
     if (attachment != null) {
@@ -669,13 +1073,21 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
       return _mathEditor(c, index, math);
     }
     final table = block.table;
-    if (table == null) return const SizedBox.shrink();
+    if (table == null) {
+      final group = block.mediaGroup;
+      if (group != null) return _mediaGroupEditor(c, index, group);
+      final generic = block.generic;
+      if (generic != null || block.kind == _RichBlockKind.divider) {
+        return _genericBlockEditor(c, index, block);
+      }
+      return const SizedBox.shrink();
+    }
     final tableNumber = _blocks
         .take(index + 1)
         .where((block) => block.table != null)
         .length;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(2, 2, 12, 2),
       child: _tableEditor(c, table, tableNumber),
     );
   }
@@ -684,29 +1096,256 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     AppColors c,
     double availableHeight,
     _RichTextBlock block,
+    int index,
   ) {
-    return SizedBox(
-      height: _textBlockHeight(block, availableHeight),
-      child: TextField(
-        controller: block.controller,
-        focusNode: block.focusNode,
-        autofocus: block == _blocks.first.text,
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        contextMenuBuilder: (context, editableTextState) {
-          return AdaptiveTextSelectionToolbar.editableText(
-            editableTextState: editableTextState,
-          );
+    final field = TextField(
+      controller: block.controller,
+      focusNode: block.focusNode,
+      autofocus: block == _blocks.first.text,
+      minLines: 1,
+      maxLines: null,
+      textAlign: block.kind == _RichBlockKind.pullQuotation
+          ? TextAlign.center
+          : TextAlign.start,
+      textAlignVertical: TextAlignVertical.top,
+      contextMenuBuilder: (context, editableTextState) =>
+          _richTextContextMenu(context, editableTextState, index),
+      style: TextStyle(
+        fontSize: switch (block.kind) {
+          _RichBlockKind.heading => 21,
+          _RichBlockKind.footer => 14,
+          _ => 16,
         },
-        style: TextStyle(fontSize: 16, height: 1.4, color: c.textPrimary),
-        decoration: InputDecoration(
-          contentPadding: const EdgeInsets.all(16),
-          border: InputBorder.none,
-          hintText: _hasAnyText ? null : widget.hintText.l10n(context),
-          hintStyle: TextStyle(color: c.textTertiary),
+        height: 1.3,
+        color: block.kind == _RichBlockKind.footer
+            ? c.textSecondary
+            : c.textPrimary,
+        fontFamily: block.kind == _RichBlockKind.preformatted
+            ? 'monospace'
+            : null,
+        fontStyle: block.kind == _RichBlockKind.pullQuotation
+            ? FontStyle.italic
+            : null,
+        fontWeight: block.kind == _RichBlockKind.heading
+            ? FontWeight.w600
+            : null,
+      ),
+      decoration: InputDecoration(
+        contentPadding: EdgeInsets.fromLTRB(
+          block.kind == _RichBlockKind.blockQuotation ? 10 : 4,
+          8,
+          block.kind == _RichBlockKind.blockQuotation ? 34 : 12,
+          6,
+        ),
+        border: InputBorder.none,
+        hintText: block.kind == _RichBlockKind.paragraph && !_hasAnyText
+            ? widget.hintText.l10n(context)
+            : block.kind.labelKey.l10n(context),
+        hintStyle: TextStyle(color: c.textTertiary),
+      ),
+    );
+    final editor = ConstrainedBox(
+      constraints: BoxConstraints(
+        minHeight: 38,
+        maxHeight: math.min(260, availableHeight),
+      ),
+      child: field,
+    );
+    return switch (block.kind) {
+      _RichBlockKind.blockQuotation => Padding(
+        padding: const EdgeInsets.fromLTRB(2, 2, 12, 2),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(7),
+          child: ColoredBox(
+            color: AppTheme.brand.withValues(alpha: 0.1),
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(width: 4, color: AppTheme.brand),
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        editor,
+                        Positioned(
+                          right: 8,
+                          top: 3,
+                          child: IgnorePointer(
+                            child: Text(
+                              '”',
+                              style: TextStyle(
+                                color: AppTheme.brand,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w700,
+                                height: 1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
+      _RichBlockKind.preformatted => Padding(
+        padding: const EdgeInsets.fromLTRB(2, 2, 12, 2),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: c.searchFill,
+            borderRadius: BorderRadius.circular(7),
+            border: Border.all(color: c.divider, width: 0.5),
+          ),
+          child: editor,
+        ),
+      ),
+      _RichBlockKind.pullQuotation => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 3, 12, 3),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.symmetric(
+              horizontal: BorderSide(color: c.divider, width: 0.5),
+            ),
+          ),
+          child: editor,
+        ),
+      ),
+      _ => editor,
+    };
+  }
+
+  Widget _richTextContextMenu(
+    BuildContext context,
+    EditableTextState editableTextState,
+    int blockIndex,
+  ) {
+    ContextMenuButtonItem? paste;
+    final items = <ContextMenuButtonItem>[];
+    for (final item in editableTextState.contextMenuButtonItems) {
+      if (item.type == ContextMenuButtonType.paste) {
+        paste = item;
+      } else {
+        items.add(item);
+      }
+    }
+    final copyIndex = items.indexWhere(
+      (item) => item.type == ContextMenuButtonType.copy,
+    );
+    var insertAt = copyIndex < 0 ? 0 : copyIndex + 1;
+    if (paste != null) items.insert(insertAt++, paste);
+    final selection = _blocks[blockIndex].text?.controller.selection;
+    if (selection?.isValid == true && selection?.isCollapsed == false) {
+      items.insert(
+        insertAt++,
+        ContextMenuButtonItem(
+          label: AppStringKeys.composerFormat.l10n(context),
+          onPressed: () => unawaited(
+            _showRichInlineFormatMenu(editableTextState, blockIndex),
+          ),
+        ),
+      );
+    }
+    items.insert(
+      insertAt,
+      ContextMenuButtonItem(
+        label: AppStringKeys.richTextComposerInsert.l10n(context),
+        onPressed: () =>
+            unawaited(_showRichBlockInsertMenu(editableTextState, blockIndex)),
+      ),
+    );
+    return AdaptiveTextSelectionToolbar.buttonItems(
+      anchors: editableTextState.contextMenuAnchors,
+      buttonItems: items,
+    );
+  }
+
+  Future<void> _showRichInlineFormatMenu(
+    EditableTextState editableTextState,
+    int blockIndex,
+  ) async {
+    if (blockIndex < 0 || blockIndex >= _blocks.length) return;
+    final textBlock = _blocks[blockIndex].text;
+    if (textBlock == null) return;
+    _activeTextBlock = textBlock;
+    final selection = textBlock.controller.selection;
+    if (!selection.isValid || selection.isCollapsed) return;
+    final start = math.min(selection.start, selection.end);
+    final end = math.max(selection.start, selection.end);
+    final anchor = editableTextState.contextMenuAnchors.primaryAnchor;
+    editableTextState.hideToolbar();
+    final action = await showGeneralDialog<_RichInlineFormatAction>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: AppStringKeys.countryPickerCancel.l10n(context),
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 150),
+      pageBuilder: (dialogContext, _, _) =>
+          _RichInlineFormatMenu(anchor: anchor),
+    );
+    if (!mounted || action == null) return;
+    textBlock.controller.selection = TextSelection(
+      baseOffset: start,
+      extentOffset: end,
+    );
+    if (action == _RichInlineFormatAction.link) {
+      final url = await _showRichValueDialog(
+        AppStringKeys.composerFormatLink,
+        AppStringKeys.composerFormatLinkPlaceholder,
+      );
+      if (!mounted || url == null || url.trim().isEmpty) return;
+      final parsed = Uri.tryParse(url.trim());
+      textBlock.controller.applyEntityFormat(start, end, {
+        '@type': 'textEntityTypeTextUrl',
+        'url': parsed?.hasScheme == true ? url.trim() : 'https://${url.trim()}',
+      });
+    } else {
+      textBlock.controller.toggleFormat(action.entityType);
+    }
+    textBlock.controller.selection = TextSelection(
+      baseOffset: start,
+      extentOffset: end,
+    );
+    textBlock.focusNode.requestFocus();
+  }
+
+  Future<void> _showRichBlockInsertMenu(
+    EditableTextState editableTextState,
+    int blockIndex,
+  ) async {
+    if (blockIndex < 0 || blockIndex >= _blocks.length) return;
+    final textBlock = _blocks[blockIndex].text;
+    if (textBlock != null) _activeTextBlock = textBlock;
+    final anchor = editableTextState.contextMenuAnchors.primaryAnchor;
+    editableTextState.hideToolbar();
+    await _showRichBlockInsertMenuAt(anchor);
+  }
+
+  Future<void> _showRichBlockInsertMenuAt(Offset anchor) async {
+    final kind = await showGeneralDialog<_RichBlockKind>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: AppStringKeys.countryPickerCancel.l10n(context),
+      barrierColor: Colors.black.withValues(alpha: 0.18),
+      transitionDuration: const Duration(milliseconds: 160),
+      pageBuilder: (dialogContext, _, _) =>
+          _RichBlockInsertMenu(anchor: anchor),
+    );
+    if (!mounted || kind == null) return;
+    await _insertBlockKind(kind);
+  }
+
+  Future<String?> _showRichValueDialog(String title, String hint) {
+    return showGeneralDialog<String>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: AppStringKeys.countryPickerCancel.l10n(context),
+      barrierColor: Colors.black.withValues(alpha: 0.36),
+      transitionDuration: const Duration(milliseconds: 160),
+      pageBuilder: (dialogContext, _, _) =>
+          _RichValueDialog(title: title, hint: hint),
     );
   }
 
@@ -714,14 +1353,335 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     (block) => block.text?.controller.text.trim().isNotEmpty ?? false,
   );
 
-  double _textBlockHeight(_RichTextBlock block, double availableHeight) {
-    final hasStructuredBlocks = _blocks.any(
-      (block) =>
-          block.table != null || block.math != null || block.attachment != null,
+  Widget _genericBlockEditor(AppColors c, int index, _RichContentBlock block) {
+    if (block.kind == _RichBlockKind.map) {
+      return _mapBlockEditor(c, index, block.generic!);
+    }
+    if (block.kind == _RichBlockKind.divider) {
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(4, 8, 12, 8),
+        child: Row(
+          children: [
+            Expanded(child: Divider(color: c.divider)),
+            _miniIconButton(
+              c,
+              icon: HeroAppIcons.trash,
+              label: AppStringKeys.richTextComposerRemoveBlock.l10n(context),
+              destructive: true,
+              onTap: () => _removeStructuredBlock(index),
+            ),
+          ],
+        ),
+      );
+    }
+    final draft = block.generic!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 2, 12, 2),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 8, 8, 8),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: c.divider, width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    block.kind.labelKey.l10n(context),
+                    style: AppTextStyle.callout(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
+                    ),
+                  ),
+                ),
+                _miniIconButton(
+                  c,
+                  icon: HeroAppIcons.trash,
+                  label: AppStringKeys.richTextComposerRemoveBlock.l10n(
+                    context,
+                  ),
+                  destructive: true,
+                  onTap: () => _removeStructuredBlock(index),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (block.kind == _RichBlockKind.anchor)
+              _compactBlockField(
+                c,
+                draft.primary,
+                AppStringKeys.richTextComposerAnchorName,
+              ),
+            if (block.kind == _RichBlockKind.details) ...[
+              _compactBlockField(
+                c,
+                draft.primary,
+                AppStringKeys.richTextComposerDetailsSummary,
+              ),
+              const SizedBox(height: 6),
+              _compactBlockField(
+                c,
+                draft.secondary,
+                AppStringKeys.richTextComposerDetailsContent,
+                maxLines: 4,
+              ),
+              const SizedBox(height: 6),
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => setState(() => draft.enabled = !draft.enabled),
+                child: Row(
+                  children: [
+                    AppIcon(
+                      draft.enabled
+                          ? HeroAppIcons.circleCheck
+                          : HeroAppIcons.circle,
+                      size: 19,
+                      color: draft.enabled ? AppTheme.brand : c.textTertiary,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      AppStringKeys.richTextComposerDetailsOpen.l10n(context),
+                      style: AppTextStyle.callout(c.textPrimary),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
     );
-    if (!hasStructuredBlocks && _blocks.length == 1) return availableHeight;
-    final lineCount = block.controller.text.split('\n').length;
-    return (86.0 + lineCount * 23.0).clamp(120.0, 260.0);
+  }
+
+  Future<void> _editMapBlock(int index, _RichGenericDraft draft) async {
+    final latitude = double.tryParse(draft.primary.text.trim()) ?? 39.9087;
+    final longitude = double.tryParse(draft.secondary.text.trim()) ?? 116.3975;
+    final picked = await Navigator.of(context).push<LocationPickerResult>(
+      MaterialPageRoute(
+        builder: (_) => LocationPickerView(
+          initial: LatLng(latitude, longitude),
+          initialZoom: draft.number.toDouble(),
+          returnCamera: true,
+        ),
+      ),
+    );
+    if (!mounted || picked == null || index >= _blocks.length) return;
+    setState(() {
+      draft.primary.text = picked.center.latitude.toStringAsFixed(6);
+      draft.secondary.text = picked.center.longitude.toStringAsFixed(6);
+      draft.number = picked.zoom.round().clamp(13, 20);
+    });
+  }
+
+  Widget _mapBlockEditor(AppColors c, int index, _RichGenericDraft draft) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 2, 12, 2),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => unawaited(_editMapBlock(index, draft)),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 68),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: c.divider, width: 0.5),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppTheme.brand.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: AppIcon(
+                  HeroAppIcons.locationPin,
+                  size: 22,
+                  color: AppTheme.brand,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      _RichBlockKind.map.labelKey.l10n(context),
+                      style: AppTextStyle.callout(
+                        c.textPrimary,
+                        weight: AppTextWeight.semibold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${draft.primary.text}, ${draft.secondary.text} · '
+                      '${AppStringKeys.richTextComposerMapZoom.l10n(context)} ${draft.number}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyle.caption(c.textSecondary),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              AppIcon(
+                HeroAppIcons.chevronRight,
+                size: 16,
+                color: c.textTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _compactBlockField(
+    AppColors c,
+    TextEditingController controller,
+    String hint, {
+    int maxLines = 1,
+    TextInputType? keyboardType,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: c.searchFill,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        keyboardType: keyboardType,
+        onChanged: (_) => setState(() {}),
+        style: AppTextStyle.callout(c.textPrimary),
+        decoration: InputDecoration(
+          isDense: true,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 9,
+          ),
+          hintText: hint.l10n(context),
+          hintStyle: AppTextStyle.callout(c.textTertiary),
+        ),
+      ),
+    );
+  }
+
+  Widget _mediaGroupEditor(AppColors c, int index, _RichMediaGroupDraft group) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 2, 12, 2),
+      child: Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: c.divider, width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    group.kind.labelKey.l10n(context),
+                    style: AppTextStyle.callout(
+                      c.textPrimary,
+                      weight: AppTextWeight.semibold,
+                    ),
+                  ),
+                ),
+                _textMiniButton(
+                  c,
+                  '+',
+                  _attachmentCount >= _maxAttachments
+                      ? null
+                      : () => unawaited(_pickMediaForGroup(index)),
+                ),
+                _miniIconButton(
+                  c,
+                  icon: HeroAppIcons.trash,
+                  label: AppStringKeys.richTextComposerRemoveBlock.l10n(
+                    context,
+                  ),
+                  destructive: true,
+                  onTap: () => _removeStructuredBlock(index),
+                ),
+              ],
+            ),
+            if (group.items.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              SizedBox(
+                height: 74,
+                child: ReorderableListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  buildDefaultDragHandles: false,
+                  itemCount: group.items.length,
+                  onReorderItem: (oldIndex, newIndex) {
+                    setState(() {
+                      final item = group.items.removeAt(oldIndex);
+                      group.items.insert(newIndex, item);
+                    });
+                  },
+                  itemBuilder: (context, mediaIndex) {
+                    final item = group.items[mediaIndex];
+                    return ReorderableDragStartListener(
+                      key: ValueKey('${item.path}-$mediaIndex'),
+                      index: mediaIndex,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: _attachmentPreview(
+                            c,
+                            item,
+                            width: 74,
+                            height: 74,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+            const SizedBox(height: 6),
+            _compactBlockField(
+              c,
+              group.caption,
+              AppStringKeys.imageEditCaptionInputPlaceholder,
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickMediaForGroup(int blockIndex) async {
+    if (blockIndex < 0 || blockIndex >= _blocks.length) return;
+    final group = _blocks[blockIndex].mediaGroup;
+    if (group == null) return;
+    final remaining = _maxAttachments - _attachmentCount;
+    if (remaining <= 0) return;
+    final picked = await AppAssetPicker.pickDetailed(
+      context,
+      type: AppAssetPickerType.imageAndVideo,
+      maxAssets: remaining,
+    );
+    if (!mounted || picked.assets.isEmpty) return;
+    setState(() {
+      group.items.addAll(picked.assets.map(_attachmentFromAppPickedAsset));
+    });
   }
 
   Widget _mathEditor(AppColors c, int index, _RichMathDraft math) {
@@ -841,46 +1801,14 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                     ),
                   ),
                 ),
-                _miniIconButton(
+                _textMiniButton(c, '+R', () => setState(table.addRow)),
+                const SizedBox(width: 4),
+                _textMiniButton(
                   c,
-                  icon: HeroAppIcons.plus,
-                  label: AppStringKeys.richTextComposerAddRow.l10n(context),
-                  onTap: () => setState(table.addRow),
-                ),
-                _miniIconButton(
-                  c,
-                  icon: HeroAppIcons.tableColumns,
-                  label: AppStringKeys.richTextComposerAddColumn.l10n(context),
-                  onTap: table.columnCount >= _RichTableDraft.maxColumns
+                  '+C',
+                  table.columnCount >= _RichTableDraft.maxColumns
                       ? null
                       : () => setState(table.addColumn),
-                ),
-                _miniIconButton(
-                  c,
-                  icon: HeroAppIcons.minus,
-                  label: AppStringKeys.richTextComposerRemoveRow.l10n(context),
-                  onTap: table.rowCount <= 2
-                      ? null
-                      : () => setState(table.removeRow),
-                ),
-                _miniIconButton(
-                  c,
-                  icon: HeroAppIcons.circleMinus,
-                  label: AppStringKeys.richTextComposerRemoveColumn.l10n(
-                    context,
-                  ),
-                  onTap: table.columnCount <= 2
-                      ? null
-                      : () => setState(table.removeColumn),
-                ),
-                _miniIconButton(
-                  c,
-                  icon: HeroAppIcons.trash,
-                  label: AppStringKeys.richTextComposerRemoveTable.l10n(
-                    context,
-                  ),
-                  destructive: true,
-                  onTap: () => _removeTable(table),
                 ),
               ],
             ),
@@ -933,6 +1861,36 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
       child: TextField(
         controller: table.cells[row][column],
         textInputAction: TextInputAction.next,
+        contextMenuBuilder: (context, editableTextState) {
+          final items = [...editableTextState.contextMenuButtonItems];
+          items.addAll([
+            ContextMenuButtonItem(
+              label: AppStringKeys.richTextComposerRemoveRow.l10n(context),
+              onPressed: () {
+                editableTextState.hideToolbar();
+                setState(() => table.removeRowAt(row));
+              },
+            ),
+            ContextMenuButtonItem(
+              label: AppStringKeys.richTextComposerRemoveColumn.l10n(context),
+              onPressed: () {
+                editableTextState.hideToolbar();
+                setState(() => table.removeColumnAt(column));
+              },
+            ),
+            ContextMenuButtonItem(
+              label: AppStringKeys.richTextComposerRemoveTable.l10n(context),
+              onPressed: () {
+                editableTextState.hideToolbar();
+                _removeTable(table);
+              },
+            ),
+          ]);
+          return AdaptiveTextSelectionToolbar.buttonItems(
+            anchors: editableTextState.contextMenuAnchors,
+            buttonItems: items,
+          );
+        },
         style: AppTextStyle.callout(
           c.textPrimary,
           weight: isHeader ? AppTextWeight.semibold : AppTextWeight.regular,
@@ -976,6 +1934,28 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     );
   }
 
+  Widget _textMiniButton(AppColors c, String label, VoidCallback? onTap) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 30),
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: 7),
+        decoration: BoxDecoration(
+          color: c.searchFill,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyle.caption(
+            onTap == null ? c.textTertiary : c.textPrimary,
+          ).copyWith(fontWeight: FontWeight.w600),
+        ),
+      ),
+    );
+  }
+
   Widget _toolbar(AppColors c) {
     return Container(
       height: 48,
@@ -987,119 +1967,74 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         children: [
-          ...[
-            _formatChip(
-              c,
-              AppStringKeys.richTextComposerFormatBoldMark.l10n(context),
-              'textEntityTypeBold',
-              AppStringKeys.richTextComposerFormatBold.l10n(context),
+          _actionChip(
+            c,
+            'P',
+            () => unawaited(_insertBlockKind(_RichBlockKind.paragraph)),
+          ),
+          _actionChip(
+            c,
+            'H',
+            () => unawaited(_insertBlockKind(_RichBlockKind.heading)),
+          ),
+          _actionChip(
+            c,
+            '•',
+            () => unawaited(_insertBlockKind(_RichBlockKind.list)),
+          ),
+          _iconButton(
+            c,
+            icon: HeroAppIcons.quoteLeft,
+            label: _RichBlockKind.blockQuotation.labelKey.l10n(context),
+            onTap: () =>
+                unawaited(_insertBlockKind(_RichBlockKind.blockQuotation)),
+          ),
+          _iconButton(
+            c,
+            icon: HeroAppIcons.tableCells,
+            label: AppStringKeys.richTextComposerInsertTable.l10n(context),
+            onTap: () => unawaited(_insertBlockKind(_RichBlockKind.table)),
+          ),
+          _actionChip(
+            c,
+            '∑',
+            () => unawaited(
+              _insertBlockKind(_RichBlockKind.mathematicalExpression),
             ),
-            _formatChip(
-              c,
-              AppStringKeys.richTextComposerFormatItalicMark.l10n(context),
-              'textEntityTypeItalic',
-              AppStringKeys.richTextComposerFormatItalic.l10n(context),
-            ),
-            _formatChip(
-              c,
-              AppStringKeys.richTextComposerFormatUnderlineMark.l10n(context),
-              'textEntityTypeUnderline',
-              AppStringKeys.richTextComposerFormatUnderline.l10n(context),
-            ),
-            _formatChip(
-              c,
-              AppStringKeys.richTextComposerFormatStrikethroughMark.l10n(
-                context,
-              ),
-              'textEntityTypeStrikethrough',
-              AppStringKeys.richTextComposerFormatStrikethrough.l10n(context),
-            ),
-          ],
-          _toolbarDivider(c),
-          ...[
-            _formatChip(
-              c,
-              '</>',
-              'textEntityTypeCode',
-              AppStringKeys.richTextComposerFormatCode.l10n(context),
-            ),
-            _formatChip(
-              c,
-              '||',
-              'textEntityTypeSpoiler',
-              AppStringKeys.richTextComposerFormatSpoiler.l10n(context),
-            ),
-            _formatChip(
-              c,
-              'M',
-              'textEntityTypeMarked',
-              AppStringKeys.richTextComposerFormatMarked.l10n(context),
-            ),
-            _formatChip(
-              c,
-              'x₂',
-              'textEntityTypeSubscript',
-              AppStringKeys.richTextComposerFormatSubscript.l10n(context),
-            ),
-            _formatChip(
-              c,
-              'x²',
-              'textEntityTypeSuperscript',
-              AppStringKeys.richTextComposerFormatSuperscript.l10n(context),
-            ),
-            _iconButton(
-              c,
-              icon: HeroAppIcons.quoteLeft,
-              label: AppStringKeys.messageActionQuote.l10n(context),
-              onTap: () => _toggleFormat(
-                'textEntityTypeBlockQuote',
-                AppStringKeys.messageActionQuote.l10n(context),
-              ),
-            ),
-            _iconButton(
-              c,
-              icon: HeroAppIcons.link,
-              label: AppStringKeys.sharedMediaLinks.l10n(context),
-              onTap: _insertLink,
-            ),
-          ],
-          _toolbarDivider(c),
-          ...[
-            _actionChip(
-              c,
-              _activeTextBlock.headingLevel == 0
-                  ? 'H'
-                  : 'H${_activeTextBlock.headingLevel}',
-              _insertHeading,
-            ),
-            _actionChip(c, '•', () => _insertList('- ')),
-            _actionChip(c, '1.', () => _insertList('1. ')),
-            _actionChip(c, '☑', () => _insertList('- [ ] ')),
-            _iconButton(
-              c,
-              icon: HeroAppIcons.code,
-              label: AppStringKeys.richTextComposerFormatCode.l10n(context),
-              onTap: _insertCodeBlock,
-            ),
-            _iconButton(
-              c,
-              icon: HeroAppIcons.tableCells,
-              label: AppStringKeys.richTextComposerInsertTable.l10n(context),
-              onTap: _insertTable,
-            ),
-            _actionChip(c, '∑', _insertMathBlock),
-          ],
+          ),
+          _iconButton(
+            c,
+            icon: HeroAppIcons.locationPin,
+            label: _RichBlockKind.map.labelKey.l10n(context),
+            onTap: () => unawaited(_insertBlockKind(_RichBlockKind.map)),
+          ),
+          _toolbarInsertButton(c),
         ],
       ),
     );
   }
 
-  Widget _toolbarDivider(AppColors c) {
-    return Container(
-      width: 1,
-      height: 22,
-      margin: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-      color: c.divider,
+  Widget _toolbarInsertButton(AppColors c) {
+    return Builder(
+      builder: (buttonContext) => GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () {
+          final box = buttonContext.findRenderObject() as RenderBox?;
+          if (box == null) return;
+          final anchor = box.localToGlobal(Offset(box.size.width / 2, 0));
+          unawaited(_showRichBlockInsertMenuAt(anchor));
+        },
+        child: Container(
+          width: 48,
+          height: 34,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: c.searchFill,
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: AppIcon(HeroAppIcons.ellipsis, size: 23, color: c.textPrimary),
+        ),
+      ),
     );
   }
 
@@ -1150,8 +2085,10 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     );
   }
 
-  int get _attachmentCount =>
-      _blocks.where((block) => block.attachment != null).length;
+  int get _attachmentCount => _blocks.fold<int>(0, (count, block) {
+    if (block.attachment != null) return count + 1;
+    return count + (block.mediaGroup?.items.length ?? 0);
+  });
 
   Widget _attachmentAction(
     AppColors c, {
@@ -1234,18 +2171,6 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _mediaOverlayAction(
-                        HeroAppIcons.arrowUp,
-                        blockIndex <= 0
-                            ? null
-                            : () => _moveBlock(blockIndex, blockIndex - 1),
-                      ),
-                      _mediaOverlayAction(
-                        HeroAppIcons.arrowDown,
-                        blockIndex >= _blocks.length - 1
-                            ? null
-                            : () => _moveBlock(blockIndex, blockIndex + 1),
-                      ),
-                      _mediaOverlayAction(
                         HeroAppIcons.trash,
                         () => _removeStructuredBlock(blockIndex),
                         destructive: true,
@@ -1321,35 +2246,12 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                 ],
               ),
             ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _miniIconButton(
-                  c,
-                  icon: HeroAppIcons.arrowUp,
-                  label: AppStringKeys.richTextComposerMoveUp.l10n(context),
-                  onTap: blockIndex <= 0
-                      ? null
-                      : () => _moveBlock(blockIndex, blockIndex - 1),
-                ),
-                _miniIconButton(
-                  c,
-                  icon: HeroAppIcons.arrowDown,
-                  label: AppStringKeys.richTextComposerMoveDown.l10n(context),
-                  onTap: blockIndex >= _blocks.length - 1
-                      ? null
-                      : () => _moveBlock(blockIndex, blockIndex + 1),
-                ),
-                _miniIconButton(
-                  c,
-                  icon: HeroAppIcons.trash,
-                  label: AppStringKeys.richTextComposerRemoveTable.l10n(
-                    context,
-                  ),
-                  destructive: true,
-                  onTap: () => _removeStructuredBlock(blockIndex),
-                ),
-              ],
+            _miniIconButton(
+              c,
+              icon: HeroAppIcons.trash,
+              label: AppStringKeys.richTextComposerRemoveBlock.l10n(context),
+              destructive: true,
+              onTap: () => _removeStructuredBlock(blockIndex),
             ),
           ],
         ),
@@ -1465,6 +2367,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     setState(() {
       _blocks[index] = _RichContentBlock.attachment(
         item.copyWith(path: result.path, clearPreviewBytes: true),
+        kind: _blocks[index].kind,
       );
     });
     if (result.caption.trim().isNotEmpty) {
@@ -1485,16 +2388,6 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     return _attachmentFromPickedMedia(
       asset.file,
     ).copyWith(previewBytes: asset.thumbnailBytes);
-  }
-
-  void _moveBlock(int from, int to) {
-    if (from < 0 || from >= _blocks.length || to < 0 || to >= _blocks.length) {
-      return;
-    }
-    setState(() {
-      final block = _blocks.removeAt(from);
-      _blocks.insert(to, block);
-    });
   }
 
   void _insertAttachmentsAfterActive(Iterable<OutgoingAttachment> attachments) {
@@ -1584,41 +2477,6 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     } catch (_) {}
   }
 
-  Widget _formatChip(
-    AppColors c,
-    String label,
-    String type,
-    String placeholder,
-  ) {
-    final active = _controller.selectionHasFormat(type);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _toggleFormat(type, placeholder),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        width: 34,
-        height: 34,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: active
-              ? AppTheme.brand.withValues(alpha: 0.14)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(6),
-          border: active
-              ? Border.all(color: AppTheme.brand.withValues(alpha: 0.5))
-              : null,
-        ),
-        child: Text(
-          label,
-          style: AppTextStyle.callout(
-            active ? AppTheme.brand : c.textPrimary,
-            weight: AppTextWeight.semibold,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _actionChip(AppColors c, String label, VoidCallback onTap) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -1660,5 +2518,406 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
         ),
       ),
     );
+  }
+}
+
+extension on _RichBlockKind {
+  String get labelKey => switch (this) {
+    _RichBlockKind.paragraph => AppStringKeys.richTextBlockParagraph,
+    _RichBlockKind.heading => AppStringKeys.richTextBlockHeading,
+    _RichBlockKind.preformatted => AppStringKeys.richTextBlockPreformatted,
+    _RichBlockKind.footer => AppStringKeys.richTextBlockFooter,
+    _RichBlockKind.divider => AppStringKeys.richTextBlockDivider,
+    _RichBlockKind.mathematicalExpression =>
+      AppStringKeys.richTextBlockMathematicalExpression,
+    _RichBlockKind.anchor => AppStringKeys.richTextBlockAnchor,
+    _RichBlockKind.list => AppStringKeys.richTextBlockList,
+    _RichBlockKind.blockQuotation => AppStringKeys.richTextBlockBlockQuotation,
+    _RichBlockKind.pullQuotation => AppStringKeys.richTextBlockPullQuotation,
+    _RichBlockKind.collage => AppStringKeys.richTextBlockCollage,
+    _RichBlockKind.slideshow => AppStringKeys.richTextBlockSlideshow,
+    _RichBlockKind.table => AppStringKeys.richTextBlockTable,
+    _RichBlockKind.details => AppStringKeys.richTextBlockDetails,
+    _RichBlockKind.map => AppStringKeys.richTextBlockMap,
+    _RichBlockKind.animation => AppStringKeys.richTextBlockAnimation,
+    _RichBlockKind.audio => AppStringKeys.richTextBlockAudio,
+    _RichBlockKind.photo => AppStringKeys.richTextBlockPhoto,
+    _RichBlockKind.video => AppStringKeys.richTextBlockVideo,
+    _RichBlockKind.voiceNote => AppStringKeys.richTextBlockVoiceNote,
+    _RichBlockKind.thinking => AppStringKeys.richTextBlockThinking,
+    _RichBlockKind.document => AppStringKeys.topicPostContentFile,
+  };
+
+  AppIconData get icon => switch (this) {
+    _RichBlockKind.paragraph => HeroAppIcons.font,
+    _RichBlockKind.heading => HeroAppIcons.hashtag,
+    _RichBlockKind.preformatted => HeroAppIcons.code,
+    _RichBlockKind.footer => HeroAppIcons.bars,
+    _RichBlockKind.divider => HeroAppIcons.minus,
+    _RichBlockKind.mathematicalExpression => HeroAppIcons.code,
+    _RichBlockKind.anchor => HeroAppIcons.link,
+    _RichBlockKind.list => HeroAppIcons.listCheck,
+    _RichBlockKind.blockQuotation => HeroAppIcons.quoteLeft,
+    _RichBlockKind.pullQuotation => HeroAppIcons.quoteLeft,
+    _RichBlockKind.collage => HeroAppIcons.images,
+    _RichBlockKind.slideshow => HeroAppIcons.tableColumns,
+    _RichBlockKind.table => HeroAppIcons.tableCells,
+    _RichBlockKind.details => HeroAppIcons.bars,
+    _RichBlockKind.map => HeroAppIcons.locationPin,
+    _RichBlockKind.animation => HeroAppIcons.gif,
+    _RichBlockKind.audio => HeroAppIcons.music,
+    _RichBlockKind.photo => HeroAppIcons.image,
+    _RichBlockKind.video => HeroAppIcons.play,
+    _RichBlockKind.voiceNote => HeroAppIcons.microphone,
+    _RichBlockKind.thinking => HeroAppIcons.comments,
+    _RichBlockKind.document => HeroAppIcons.file,
+  };
+}
+
+enum _RichInlineFormatAction {
+  quote('textEntityTypeBlockQuote'),
+  spoiler('textEntityTypeSpoiler'),
+  bold('textEntityTypeBold'),
+  italic('textEntityTypeItalic'),
+  monospace('textEntityTypeCode'),
+  link(''),
+  strikethrough('textEntityTypeStrikethrough'),
+  underline('textEntityTypeUnderline'),
+  codeBlock('textEntityTypePre');
+
+  const _RichInlineFormatAction(this.entityType);
+  final String entityType;
+
+  String get labelKey => switch (this) {
+    quote => AppStringKeys.messageActionQuote,
+    spoiler => AppStringKeys.richTextComposerFormatSpoiler,
+    bold => AppStringKeys.richTextComposerFormatBold,
+    italic => AppStringKeys.richTextComposerFormatItalic,
+    monospace => AppStringKeys.composerFormatMonospace,
+    link => AppStringKeys.composerFormatLink,
+    strikethrough => AppStringKeys.richTextComposerFormatStrikethrough,
+    underline => AppStringKeys.richTextComposerFormatUnderline,
+    codeBlock => AppStringKeys.composerFormatCodeBlock,
+  };
+}
+
+enum _RichBlockAction { moveUp, moveDown, delete }
+
+class _RichBlockActionMenu extends StatelessWidget {
+  const _RichBlockActionMenu({
+    required this.anchor,
+    required this.canMoveUp,
+    required this.canMoveDown,
+  });
+
+  final Offset anchor;
+  final bool canMoveUp;
+  final bool canMoveDown;
+
+  @override
+  Widget build(BuildContext context) {
+    return _RichAnchoredMenu(
+      anchor: anchor,
+      width: 184,
+      maxHeight: 150,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _RichMenuRow(
+            label: AppStringKeys.richTextComposerMoveUp.l10n(context),
+            onTap: canMoveUp
+                ? () => Navigator.of(context).pop(_RichBlockAction.moveUp)
+                : null,
+          ),
+          _RichMenuRow(
+            label: AppStringKeys.richTextComposerMoveDown.l10n(context),
+            onTap: canMoveDown
+                ? () => Navigator.of(context).pop(_RichBlockAction.moveDown)
+                : null,
+          ),
+          _RichMenuRow(
+            label: AppStringKeys.richTextComposerRemoveBlock.l10n(context),
+            destructive: true,
+            onTap: () => Navigator.of(context).pop(_RichBlockAction.delete),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RichInlineFormatMenu extends StatelessWidget {
+  const _RichInlineFormatMenu({required this.anchor});
+  final Offset anchor;
+
+  @override
+  Widget build(BuildContext context) {
+    return _RichAnchoredMenu(
+      anchor: anchor,
+      width: 232,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final action in _RichInlineFormatAction.values)
+            _RichMenuRow(
+              label: action.labelKey.l10n(context),
+              onTap: () => Navigator.of(context).pop(action),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RichBlockInsertMenu extends StatelessWidget {
+  const _RichBlockInsertMenu({required this.anchor});
+  final Offset anchor;
+
+  @override
+  Widget build(BuildContext context) {
+    final kinds = _RichBlockKind.values
+        .where((kind) => kind != _RichBlockKind.document)
+        .toList(growable: false);
+    final menuWidth = math.min(360.0, MediaQuery.sizeOf(context).width - 24);
+    return _RichAnchoredMenu(
+      anchor: anchor,
+      width: menuWidth,
+      maxHeight: 520,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+            child: Text(
+              AppStringKeys.richTextComposerInsert.l10n(context),
+              style: AppTextStyle.callout(
+                context.colors.textSecondary,
+                weight: AppTextWeight.semibold,
+              ),
+            ),
+          ),
+          Flexible(
+            child: SingleChildScrollView(
+              child: Wrap(
+                children: [
+                  for (final kind in kinds)
+                    SizedBox(
+                      width: (menuWidth - 12) / 2,
+                      child: _RichMenuRow(
+                        icon: kind.icon,
+                        label: kind.labelKey.l10n(context),
+                        compact: true,
+                        onTap: () => Navigator.of(context).pop(kind),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RichAnchoredMenu extends StatelessWidget {
+  const _RichAnchoredMenu({
+    required this.anchor,
+    required this.width,
+    required this.child,
+    this.maxHeight = 440,
+  });
+
+  final Offset anchor;
+  final double width;
+  final double maxHeight;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final media = MediaQuery.of(context);
+    final screen = media.size;
+    final left = (anchor.dx - width / 2)
+        .clamp(12.0, math.max(12.0, screen.width - width - 12))
+        .toDouble();
+    final top = (anchor.dy - maxHeight - 10)
+        .clamp(
+          media.padding.top + 8,
+          math.max(media.padding.top + 8, screen.height - maxHeight - 12),
+        )
+        .toDouble();
+    return Stack(
+      children: [
+        Positioned(
+          left: left,
+          top: top,
+          width: width,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              decoration: BoxDecoration(
+                color: c.card,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: c.divider, width: 0.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.22),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RichMenuRow extends StatelessWidget {
+  const _RichMenuRow({
+    required this.label,
+    this.onTap,
+    this.compact = false,
+    this.destructive = false,
+    this.icon,
+  });
+  final String label;
+  final VoidCallback? onTap;
+  final bool compact;
+  final bool destructive;
+  final AppIconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: compact ? 48 : 44,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 18),
+            child: Row(
+              children: [
+                if (icon case final icon?) ...[
+                  AppIcon(
+                    icon,
+                    size: 18,
+                    color: onTap == null
+                        ? context.colors.textTertiary
+                        : AppTheme.brand,
+                  ),
+                  const SizedBox(width: 9),
+                ],
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: compact ? 14 : 16,
+                      color: onTap == null
+                          ? context.colors.textTertiary
+                          : destructive
+                          ? const Color(0xFFFF5A52)
+                          : context.colors.textPrimary,
+                      decoration: TextDecoration.none,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RichValueDialog extends StatefulWidget {
+  const _RichValueDialog({required this.title, required this.hint});
+  final String title;
+  final String hint;
+
+  @override
+  State<_RichValueDialog> createState() => _RichValueDialogState();
+}
+
+class _RichValueDialogState extends State<_RichValueDialog> {
+  final controller = TextEditingController();
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Center(
+      child: Container(
+        width: math.min(360, MediaQuery.sizeOf(context).width - 40),
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              widget.title.l10n(context),
+              style: AppTextStyle.title(c.textPrimary),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.url,
+              textInputAction: TextInputAction.done,
+              onSubmitted: _submit,
+              style: AppTextStyle.body(c.textPrimary),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: c.searchFill,
+                border: InputBorder.none,
+                hintText: widget.hint.l10n(context),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _submit(controller.text),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(
+                    AppStringKeys.composerFormatApply.l10n(context),
+                    style: AppTextStyle.callout(
+                      AppTheme.brand,
+                      weight: AppTextWeight.semibold,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _submit(String value) {
+    if (value.trim().isEmpty) return;
+    Navigator.of(context).pop(value.trim());
   }
 }
