@@ -68,9 +68,9 @@ class MessageActionMenu extends StatelessWidget {
 
   static const _surface = Color(0xFF2C2C2E);
   static const _destructive = Color(0xFFFF6961);
-  static const _horizontalPadding = 8.0;
-  static const _actionWidth = 68.0;
-  static const _visibleActionSlots = 3.5;
+  static const _horizontalPadding = 6.0;
+  static const _actionWidth = 58.0;
+  static const preferredWidth = 332.0;
   static const preferredHeight = 152.0;
 
   @visibleForTesting
@@ -80,18 +80,8 @@ class MessageActionMenu extends StatelessWidget {
     return (first: first, second: count - first);
   }
 
-  @visibleForTesting
-  static double viewportWidthForColumnCount(
-    int columnCount, {
-    required double availableWidth,
-  }) {
-    final columns = math.max(columnCount, 1);
-    final contentWidth = (columns * _actionWidth) + (_horizontalPadding * 2);
-    final visibleWidth =
-        (math.min(columns, _visibleActionSlots) * _actionWidth) +
-        (_horizontalPadding * 2);
-    return math.min(contentWidth, math.min(visibleWidth, availableWidth));
-  }
+  static double widthForAvailable(double availableWidth) =>
+      math.min(preferredWidth, availableWidth);
 
   bool get _isEditableTextMessage =>
       message.text.isNotEmpty &&
@@ -163,17 +153,15 @@ class MessageActionMenu extends StatelessWidget {
         final availableWidth = constraints.hasBoundedWidth
             ? constraints.maxWidth.clamp(0.0, maxWidth)
             : maxWidth;
-        final contentWidth =
+        final menuWidth = widthForAvailable(availableWidth);
+        final actionContentWidth =
             (math.max(columnCount, 1) * _actionWidth) +
             (_horizontalPadding * 2);
-        final menuWidth = viewportWidthForColumnCount(
-          columnCount,
-          availableWidth: availableWidth,
-        );
+        final contentWidth = math.max(menuWidth, actionContentWidth);
         return Container(
           key: const ValueKey('message-action-menu-surface'),
           width: menuWidth,
-          padding: const EdgeInsets.symmetric(vertical: 13),
+          padding: const EdgeInsets.symmetric(vertical: 11),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: _surface,
@@ -201,12 +189,12 @@ class MessageActionMenu extends StatelessWidget {
                   children: [
                     _ActionRow(actions: firstRow, onSelect: onSelect),
                     if (secondRow.isNotEmpty) ...[
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       Container(
                         height: 1,
                         color: Colors.white.withValues(alpha: 0.08),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 10),
                       _ActionRow(actions: secondRow, onSelect: onSelect),
                     ],
                   ],
@@ -262,7 +250,7 @@ class _ActionRow extends StatelessWidget {
                           ? MessageActionMenu._destructive
                           : Colors.white,
                     ),
-                  const SizedBox(height: 7),
+                  const SizedBox(height: 5),
                   Text(
                     telegramText(action.label),
                     maxLines: 1,

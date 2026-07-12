@@ -20,14 +20,9 @@ void main() {
     }
   });
 
-  test('wide menus expose half of the fourth action', () {
-    const actionWidth = 68.0;
-    const horizontalPadding = 16.0;
-    final viewport = MessageActionMenu.viewportWidthForColumnCount(
-      5,
-      availableWidth: 400,
-    );
-    expect(viewport, horizontalPadding + (actionWidth * 3.5));
+  test('action menu matches the compact reaction bar width', () {
+    expect(MessageActionMenu.widthForAvailable(400), 332);
+    expect(MessageActionMenu.widthForAvailable(300), 300);
   });
 
   test('+1 preserves sender by default and persists the override', () async {
@@ -40,9 +35,7 @@ void main() {
     expect(ThemeController(prefs).preserveSenderWhenRepeating, isFalse);
   });
 
-  testWidgets('message menu renders +1 in a narrow scroll viewport', (
-    tester,
-  ) async {
+  testWidgets('message menu renders +1 at reaction bar width', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final translation = TranslationController(prefs);
@@ -78,7 +71,7 @@ void main() {
       tester
           .getSize(find.byKey(const ValueKey('message-action-menu-surface')))
           .width,
-      254,
+      MessageActionMenu.preferredWidth,
     );
   });
 }

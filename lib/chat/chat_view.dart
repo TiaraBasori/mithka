@@ -4346,6 +4346,9 @@ class _ChatViewState extends State<ChatView> {
 
   Widget _quickReactionBar() {
     return Container(
+      width: MessageActionMenu.widthForAvailable(
+        MediaQuery.sizeOf(context).width - 24,
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2E),
@@ -4363,7 +4366,11 @@ class _ChatViewState extends State<ChatView> {
               onTap: () => _react(e),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                child: Text(e, style: const TextStyle(fontSize: 28)),
+                child: Text(
+                  e,
+                  textScaler: TextScaler.noScaling,
+                  style: const TextStyle(fontSize: 28),
+                ),
               ),
             ),
           // Expand → full (tabbed, for premium) reaction picker.
