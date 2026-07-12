@@ -15,6 +15,7 @@ import 'package:mithka/l10n/app_localizations.dart';
 
 import '../l10n/telegram_language_controller.dart';
 import '../notifications/notification_settings_payload.dart';
+import '../settings/blocked_user_service.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -2435,6 +2436,15 @@ class ChatViewModel extends ChangeNotifier {
           });
           notifyListeners();
         }
+
+      case 'updateBlockMessageSender':
+        // Invalidate blocked-user cache so the hide-on-block toggle
+        // takes effect immediately without app restart.
+        if (BlockedUserService.shared.enabled) {
+          unawaited(BlockedUserService.shared.loadBlockedUsers().then((_) {
+            _applyKeywordFilter();
+          }));
+        }
     }
   }
 
@@ -2791,8 +2801,27 @@ class ChatViewModel extends ChangeNotifier {
     messages =
         _allMessages.where((message) => !_isBlockedMessage(message)).toList()
           ..sort((a, b) => a.id.compareTo(b.id));
+    _markBlockedUserMessages();
     _markBlockedMessagesReadThroughVisibleBoundary();
     notifyListeners();
+  }
+
+  /// Mark messages from Telegram-blocked users so the renderer can show a
+  /// compact placeholder instead of the full bubble.
+  void _markBlockedUserMessages() {
+    final svc = BlockedUserService.shared;
+    if (!svc.enabled) {
+      for (final m in messages) {
+        m.blockedByUser = false;
+      }
+      return;
+    }
+    for (final m in messages) {
+      m.blockedByUser = !m.isOutgoing &&
+          !m.isService &&
+          m.senderId != null &&
+          svc.isBlocked(m.senderId!);
+    }
   }
 
   void _markBlockedMessagesReadThroughVisibleBoundary() {
