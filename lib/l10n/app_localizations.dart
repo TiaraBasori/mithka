@@ -1623,7 +1623,11 @@ abstract final class AppStrings {
     Map<String, Object?> placeholders,
   ) {
     if (placeholders.isEmpty) return value;
-    var result = value;
+    // Normalise fullwidth ％／＄ used in some CJK Telegram language
+    // packs so the replacement patterns below can match.
+    var result = value
+        .replaceAll('％', '%')
+        .replaceAll('＄', '\$');
     placeholders.forEach((placeholder, replacement) {
       final replacementText = '$replacement';
       result = result.replaceAll('{$placeholder}', replacementText);
@@ -1640,7 +1644,7 @@ abstract final class AppStrings {
   }
 
   static final _unresolvedPlaceholderPattern = RegExp(
-    r'\{value\d+\}|%\d+\$[@sd]|%[sd@]',
+    r'\{value\d+\}|[%％]\d+[\$＄][@sd]|[%％][sd@]',
   );
 
   static bool _hasUnresolvedPlaceholder(String value) =>
