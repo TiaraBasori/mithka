@@ -65,18 +65,15 @@ enum UnreadBadgeOverflowMode {
   };
 }
 
-enum GroupAssistantPlacement {
-  top(AppStringKeys.themeGroupAssistantTopCollapsed, HeroAppIcons.arrowUp),
-  chronological(
-    AppStringKeys.themeGroupAssistantSortByTime,
-    HeroAppIcons.clock,
-  ),
-  secondScreen(
-    AppStringKeys.themeGroupAssistantSecondPageFirst,
+enum ArchivedChatsDisplayMode {
+  pullDown(
+    AppStringKeys.appearanceArchivedChatsPullDown,
     HeroAppIcons.arrowDown,
-  );
+  ),
+  always(AppStringKeys.appearanceArchivedChatsAlways, HeroAppIcons.inbox),
+  hidden(AppStringKeys.appearanceArchivedChatsHidden, HeroAppIcons.eyeSlash);
 
-  const GroupAssistantPlacement(this.label, this._icon);
+  const ArchivedChatsDisplayMode(this.label, this._icon);
   final String label;
   final AppIconData _icon;
 
@@ -854,9 +851,9 @@ class ThemeController extends ChangeNotifier {
     _groupImageMessages = _prefs.getBool(_groupImageMessagesKey) ?? true;
     _showChannelsTab = _prefs.getBool(_showChannelsTabKey) ?? false;
     _showMomentsTab = _prefs.getBool(_showMomentsTabKey) ?? true;
-    _groupAssistantPlacement = GroupAssistantPlacement.values.firstWhere(
-      (m) => m.name == _prefs.getString(_groupAssistantPlacementKey),
-      orElse: () => GroupAssistantPlacement.secondScreen,
+    _archivedChatsDisplayMode = ArchivedChatsDisplayMode.values.firstWhere(
+      (mode) => mode.name == _prefs.getString(_archivedChatsDisplayModeKey),
+      orElse: () => ArchivedChatsDisplayMode.pullDown,
     );
     _unreadBadgeMode = UnreadBadgeMode.values.firstWhere(
       (m) => m.name == _prefs.getString(_unreadBadgeModeKey),
@@ -903,7 +900,7 @@ class ThemeController extends ChangeNotifier {
   static const _groupImageMessagesKey = 'groupImageMessages';
   static const _showChannelsTabKey = 'showChannelsTab';
   static const _showMomentsTabKey = 'showMomentsTab';
-  static const _groupAssistantPlacementKey = 'groupAssistantPlacement';
+  static const _archivedChatsDisplayModeKey = 'archivedChatsDisplayMode';
   static const _unreadBadgeModeKey = 'unreadBadgeMode';
   static const _unreadBadgeOverflowModeKey = 'unreadBadgeOverflowMode';
 
@@ -942,7 +939,7 @@ class ThemeController extends ChangeNotifier {
   bool _groupImageMessages = true;
   bool _showChannelsTab = false;
   bool _showMomentsTab = true;
-  late GroupAssistantPlacement _groupAssistantPlacement;
+  late ArchivedChatsDisplayMode _archivedChatsDisplayMode;
   late UnreadBadgeMode _unreadBadgeMode;
   late UnreadBadgeOverflowMode _unreadBadgeOverflowMode;
 
@@ -1003,8 +1000,8 @@ class ThemeController extends ChangeNotifier {
   bool get groupImageMessages => _groupImageMessages;
   bool get showChannelsTab => _showChannelsTab;
   bool get showMomentsTab => _showMomentsTab;
-  GroupAssistantPlacement get groupAssistantPlacement =>
-      _groupAssistantPlacement;
+  ArchivedChatsDisplayMode get archivedChatsDisplayMode =>
+      _archivedChatsDisplayMode;
   UnreadBadgeMode get unreadBadgeMode => _unreadBadgeMode;
   bool get unreadBadgeShowsChatCount =>
       _unreadBadgeMode == UnreadBadgeMode.chats;
@@ -1411,9 +1408,9 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  set groupAssistantPlacement(GroupAssistantPlacement value) {
-    _groupAssistantPlacement = value;
-    _prefs.setString(_groupAssistantPlacementKey, value.name);
+  set archivedChatsDisplayMode(ArchivedChatsDisplayMode value) {
+    _archivedChatsDisplayMode = value;
+    _prefs.setString(_archivedChatsDisplayModeKey, value.name);
     notifyListeners();
   }
 

@@ -102,7 +102,7 @@ class ChatListView extends StatefulWidget {
 
 class _ChatListViewState extends State<ChatListView> {
   final ChatListViewModel _model = ChatListViewModel();
-  late ScrollController _scrollController = _newScrollController();
+  late final ScrollController _scrollController = _newScrollController();
   String _meName = AppStringKeys.chatMeLabel;
   TdFileRef? _mePhoto;
   int _meStatusId = 0; // current emoji status, shown after the name
@@ -110,7 +110,6 @@ class _ChatListViewState extends State<ChatListView> {
   int? _meId;
   StreamSubscription? _userSub;
   int? _openSwipeChat;
-  int _lastVisibleRows = 1;
   bool _showPlusMenu = false;
   bool _showFilterMenu = false;
   int? _pendingScrollToFirstUnreadRequest;
@@ -121,7 +120,8 @@ class _ChatListViewState extends State<ChatListView> {
   int _lastHandledMarkAllReadRequest = 0;
   int _pendingScrollAttempts = 0;
   bool _toggleUnreadTargetNext = true;
-  bool _didApplyTopAssistantInitialOffset = false;
+  bool _archiveRevealed = false;
+  double _archivePullDistance = 0;
 
   ScrollController _newScrollController({double initialScrollOffset = 0}) {
     return ScrollController(initialScrollOffset: initialScrollOffset)
@@ -426,23 +426,9 @@ class _ChatListViewState extends State<ChatListView> {
     final chatIndex = chats.indexWhere((chat) => chat.showsRedUnreadIndicator);
     if (chatIndex < 0) return null;
 
-    var itemIndex = chatIndex;
-    if (_model.isAllFilter && _model.archived.isNotEmpty) {
-      final placement = context.read<ThemeController>().groupAssistantPlacement;
-      final assistantIndex = _assistantInsertionIndex(
-        chats,
-        _lastVisibleRows,
-        placement,
-      );
-      if (assistantIndex <= chatIndex) itemIndex++;
-    }
-
     final rowH = context.read<ThemeController>().rowHeight + 0.5;
-    final searchOffset = context.read<ThemeController>().showChatListSearch
-        ? AppSpacing.md + AppMetric.searchHeight + AppSpacing.sm
-        : 0.0;
     return math.min(
-      searchOffset + itemIndex * rowH,
+      chatIndex * rowH,
       _scrollController.position.maxScrollExtent,
     );
   }
@@ -768,125 +754,135 @@ class _ChatListViewState extends State<ChatListView> {
     final c = context.colors;
     final theme = context.watch<ThemeController>();
     final showSearch = theme.showChatListSearch;
-    final assistantPlacement = theme.groupAssistantPlacement;
+    final archiveMode = theme.archivedChatsDisplayMode;
     return Container(
       color: c.background,
       child: LayoutBuilder(
         builder: (context, geo) {
-          final rowH = context.watch<ThemeController>().rowHeight + 0.5;
-          final visibleRows = math.max(1, (geo.maxHeight / rowH).ceil());
-          _lastVisibleRows = visibleRows;
+          final rowH = theme.rowHeight + 0.5;
+          final searchHeight = showSearch
+              ? AppSpacing.md + AppMetric.searchHeight + AppSpacing.sm
+              : 0.0;
+          final visibleRows = math.max(
+            1,
+            ((geo.maxHeight - searchHeight) / rowH).ceil(),
+          );
           final chats = _model.chats;
+          final hasArchive = _model.isAllFilter && _model.archived.isNotEmpty;
+          final showArchive =
+              hasArchive &&
+              (archiveMode == ArchivedChatsDisplayMode.always ||
+                  (archiveMode == ArchivedChatsDisplayMode.pullDown &&
+                      _archiveRevealed));
+
+          Widget list;
           if (chats.isEmpty && _model.isInitialLoading) {
-            return ListView.builder(
+            list = ListView.builder(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
               padding: EdgeInsets.zero,
-              itemCount: visibleRows + (showSearch ? 1 : 0),
-              itemBuilder: (context, i) {
-                if (showSearch && i == 0) return _searchPill();
-                return const _ChatRowPlaceholder();
-              },
+              itemCount: visibleRows,
+              itemBuilder: (context, i) => const _ChatRowPlaceholder(),
             );
-          }
-          if (chats.isEmpty) {
-            final searchHeight = showSearch
-                ? AppSpacing.md + AppMetric.searchHeight + AppSpacing.sm
-                : 0.0;
-            return ListView(
+          } else if (chats.isEmpty) {
+            list = ListView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
               padding: EdgeInsets.zero,
               children: [
-                if (showSearch) _searchPill(),
                 SizedBox(
-                  height: math.max(180, geo.maxHeight - searchHeight),
+                  height: math.max(180, geo.maxHeight - searchHeight - rowH),
                   child: _emptyChatList(),
                 ),
               ],
             );
-          }
-          final hasArchive = _model.isAllFilter && _model.archived.isNotEmpty;
-          final topAssistant =
-              hasArchive && assistantPlacement == GroupAssistantPlacement.top;
-          if (!topAssistant) _didApplyTopAssistantInitialOffset = false;
-          final assistantIndex = _assistantInsertionIndex(
-            chats,
-            visibleRows,
-            assistantPlacement,
-          );
-
-          if (topAssistant &&
-              !_didApplyTopAssistantInitialOffset &&
-              !_scrollController.hasClients) {
-            _didApplyTopAssistantInitialOffset = true;
-            _scrollController.removeListener(_onScroll);
-            _scrollController.dispose();
-            _scrollController = _newScrollController(initialScrollOffset: rowH);
-          } else if (topAssistant && !_didApplyTopAssistantInitialOffset) {
-            _didApplyTopAssistantInitialOffset = true;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (!mounted || !_scrollController.hasClients) return;
-              final max = _scrollController.position.maxScrollExtent;
-              if (_scrollController.position.pixels < rowH * 0.5) {
-                _scrollController.jumpTo(math.min(rowH, max));
-              }
-            });
+          } else {
+            list = ListView.builder(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: EdgeInsets.zero,
+              itemCount: chats.length,
+              itemBuilder: (context, index) => _swipeRow(chats[index]),
+            );
           }
 
-          final showInlineAssistant = !topAssistant && hasArchive;
-          final itemCount =
-              chats.length +
-              (topAssistant ? 1 : 0) +
-              (showSearch ? 1 : 0) +
-              (showInlineAssistant ? 1 : 0);
-          final list = ListView.builder(
-            controller: _scrollController,
-            padding:
-                EdgeInsets.zero, // header already consumed the top safe-area
-            itemCount: itemCount,
-            itemBuilder: (context, index) => _chatListItem(
-              index: index,
-              chats: chats,
-              showSearch: showSearch,
-              topAssistant: topAssistant,
-              showInlineAssistant: showInlineAssistant,
-              assistantIndex: assistantIndex,
+          list = NotificationListener<ScrollNotification>(
+            onNotification: (notification) => _handleArchivePull(
+              notification,
+              enabled:
+                  hasArchive &&
+                  archiveMode == ArchivedChatsDisplayMode.pullDown,
+              rowHeight: rowH,
             ),
+            child: list,
           );
           if (!theme.chatListFolderSwipeSwitching ||
               _model.filters.length < 2) {
-            return list;
+            // No horizontal folder gesture wrapper is needed.
+          } else {
+            list = GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onHorizontalDragEnd: (details) =>
+                  _switchFolderBySwipe(details.primaryVelocity),
+              child: list,
+            );
           }
-          return GestureDetector(
-            behavior: HitTestBehavior.translucent,
-            onHorizontalDragEnd: (details) =>
-                _switchFolderBySwipe(details.primaryVelocity),
-            child: list,
+
+          return Column(
+            children: [
+              if (showSearch) _searchPill(),
+              if (hasArchive && archiveMode != ArchivedChatsDisplayMode.hidden)
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: showArchive
+                      ? SizedBox(height: rowH, child: _assistantRow())
+                      : const SizedBox(width: double.infinity),
+                ),
+              Expanded(child: list),
+            ],
           );
         },
       ),
     );
   }
 
-  Widget _chatListItem({
-    required int index,
-    required List<ChatSummary> chats,
-    required bool showSearch,
-    required bool topAssistant,
-    required bool showInlineAssistant,
-    required int assistantIndex,
+  bool _handleArchivePull(
+    ScrollNotification notification, {
+    required bool enabled,
+    required double rowHeight,
   }) {
-    var chatIndex = index;
-    if (topAssistant) {
-      if (chatIndex == 0) return _assistantRow();
-      chatIndex -= 1;
+    if (!enabled) return false;
+    if (notification is ScrollStartNotification) {
+      _archivePullDistance = 0;
+    } else if (notification is OverscrollNotification &&
+        notification.overscroll < 0) {
+      _archivePullDistance += -notification.overscroll;
+      if (!_archiveRevealed && _archivePullDistance >= rowHeight * 0.45) {
+        setState(() => _archiveRevealed = true);
+      }
+    } else if (notification is ScrollUpdateNotification) {
+      if (notification.metrics.pixels < 0) {
+        _archivePullDistance = math.max(
+          _archivePullDistance,
+          -notification.metrics.pixels,
+        );
+        if (!_archiveRevealed && _archivePullDistance >= rowHeight * 0.45) {
+          setState(() => _archiveRevealed = true);
+        }
+      } else if (_archiveRevealed &&
+          notification.metrics.pixels > rowHeight * 0.5) {
+        setState(() => _archiveRevealed = false);
+      }
     }
-    if (showSearch) {
-      if (chatIndex == 0) return _searchPill();
-      chatIndex -= 1;
-    }
-    if (showInlineAssistant) {
-      if (chatIndex == assistantIndex) return _assistantRow();
-      if (chatIndex > assistantIndex) chatIndex -= 1;
-    }
-    return _swipeRow(chats[chatIndex]);
+    return false;
   }
 
   void _switchFolderBySwipe(double? velocity) {
@@ -905,33 +901,6 @@ class _ChatListViewState extends State<ChatListView> {
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
     );
-  }
-
-  int _assistantInsertionIndex(
-    List<ChatSummary> chats,
-    int visibleRows,
-    GroupAssistantPlacement placement,
-  ) {
-    if (chats.isEmpty) return 0;
-    return switch (placement) {
-      GroupAssistantPlacement.top => 0,
-      GroupAssistantPlacement.secondScreen => math.min(
-        visibleRows + 1,
-        chats.length,
-      ),
-      GroupAssistantPlacement.chronological => _chronologicalAssistantIndex(
-        chats,
-      ),
-    };
-  }
-
-  int _chronologicalAssistantIndex(List<ChatSummary> chats) {
-    final archiveDate = _model.archived.isEmpty
-        ? 0
-        : _model.archived.first.date;
-    if (archiveDate <= 0) return chats.length;
-    final index = chats.indexWhere((chat) => chat.date < archiveDate);
-    return index < 0 ? chats.length : index;
   }
 
   Widget _swipeRow(ChatSummary chat) {
@@ -1059,7 +1028,7 @@ class _ChatListViewState extends State<ChatListView> {
           ),
         ),
       ),
-      child: GroupAssistantRow(
+      child: ArchivedChatsRow(
         archived: _model.archived,
         onClearUnread: _model.markAllRead,
       ),

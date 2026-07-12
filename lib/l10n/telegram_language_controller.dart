@@ -93,6 +93,11 @@ class TelegramLanguagePackOption {
 class TelegramLanguageController extends ChangeNotifier {
   TelegramLanguageController._();
 
+  @visibleForTesting
+  TelegramLanguageController.test({Map<String, String> strings = const {}}) {
+    _strings.addAll(strings);
+  }
+
   static final shared = TelegramLanguageController._();
   static const _selectedPackKey = 'telegram.language_pack_id';
   static const _targetOption = 'localization_target';
@@ -219,7 +224,8 @@ class TelegramLanguageController extends ChangeNotifier {
     final telegramKey = _telegramKeyForAppKey[appFallbackKey];
     final template = telegramKey == null ? null : _strings[telegramKey];
     if (template == null || template.trim().isEmpty) return null;
-    return _interpolate(template, placeholders);
+    final result = _interpolate(template, placeholders);
+    return _hasUnresolvedPlaceholder(result) ? null : result;
   }
 
   String raw(String telegramKey, String fallback) {
@@ -421,9 +427,7 @@ class TelegramLanguageController extends ChangeNotifier {
     // Some CJK Telegram language packs use fullwidth ％ (U+FF05) and
     // ＄ (U+FF04) in printf-style format specifiers. Normalise them to
     // ASCII so the replacement patterns below can match.
-    var result = template
-        .replaceAll('％', '%')
-        .replaceAll('＄', '\$');
+    var result = template.replaceAll('％', '%').replaceAll('＄', '\$');
     placeholders.forEach((key, value) {
       final replacement = '$value';
       result = result
@@ -452,6 +456,13 @@ class TelegramLanguageController extends ChangeNotifier {
     }
     return result;
   }
+
+  static final _unresolvedPlaceholderPattern = RegExp(
+    r'\{value\d+\}|%\d+\$[@sd]|%[sd@]',
+  );
+
+  static bool _hasUnresolvedPlaceholder(String value) =>
+      _unresolvedPlaceholderPattern.hasMatch(value);
 
   static bool _sameLocale(Locale? a, Locale? b) =>
       a?.languageCode == b?.languageCode &&
@@ -600,6 +611,7 @@ const _telegramKeyForAppKey = <String, String>{
   AppStringKeys.chatInfoLeaveGroup: 'LeaveMegaMenu',
   AppStringKeys.chatInfoLoadFoldersFailed: 'ErrorOccurred',
   AppStringKeys.chatInfoManageGroup: 'ManageGroup',
+  AppStringKeys.chatInfoMoveToGroupAssistant: 'Archive',
   AppStringKeys.chatInfoNewFolder: 'FilterNew',
   AppStringKeys.chatInfoNotSearchable: 'NoResult',
   AppStringKeys.chatInfoPin: 'PinToTop',
@@ -624,6 +636,8 @@ const _telegramKeyForAppKey = <String, String>{
   AppStringKeys.chatListMarkUnread: 'MarkAsUnread',
   AppStringKeys.chatListNoChats: 'FilterNoChats',
   AppStringKeys.chatListUnpin: 'UnpinFromTop',
+  AppStringKeys.archivedChatsGroupAssistant: 'ArchivedChats',
+  AppStringKeys.appearanceArchivedChats: 'ArchivedChats',
   AppStringKeys.chatLoadingTopics: 'Loading',
   AppStringKeys.chatMembersRemoveFailedPermission: 'ErrorOccurred',
   AppStringKeys.chatMembersTitleWithCount: 'Members',

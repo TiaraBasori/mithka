@@ -12,13 +12,13 @@ import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/notifications/scope_notification_settings.dart';
 import 'package:provider/provider.dart';
 
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
 import '../components/icon_grid.dart';
 import '../components/photo_avatar.dart';
-import 'package:mithka/notifications/scope_notification_settings.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/telegram_language_controller.dart';
@@ -29,13 +29,13 @@ import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
-import 'telegram_rich_text.dart';
 import 'add_members_view.dart';
 import 'chat_members_view.dart';
 import 'chat_search_view.dart';
 import 'group_management_view.dart';
 import 'pinned_messages_view.dart';
 import 'shared_media_view.dart';
+import 'telegram_rich_text.dart';
 
 class ChatMember {
   ChatMember(this.id, this.name, this.photo);
@@ -647,7 +647,6 @@ class _ChatInfoViewState extends State<ChatInfoView> {
       (width / 70).floor().clamp(5, 12).toInt();
 
   Widget _togglesCard() {
-    final showGroupAssistant = _vm.isMuted || _vm.isArchived;
     return SettingsCard(
       children: [
         SettingsSwitchRow(
@@ -665,16 +664,14 @@ class _ChatInfoViewState extends State<ChatInfoView> {
           height: 52,
           leadingInset: 14,
         ),
-        if (showGroupAssistant) ...[
-          const InsetDivider(leadingInset: 14),
-          SettingsSwitchRow(
-            title: AppStrings.t(AppStringKeys.chatInfoMoveToGroupAssistant),
-            value: _vm.isArchived,
-            onChanged: _vm.setArchived,
-            height: 52,
-            leadingInset: 14,
-          ),
-        ],
+        const InsetDivider(leadingInset: 14),
+        SettingsSwitchRow(
+          title: AppStrings.t(AppStringKeys.chatInfoMoveToGroupAssistant),
+          value: _vm.isArchived,
+          onChanged: _vm.setArchived,
+          height: 52,
+          leadingInset: 14,
+        ),
         const InsetDivider(leadingInset: 14),
         SettingsRow(
           title: AppStrings.t(AppStringKeys.chatInfoAutoDeleteMessages),
@@ -1271,21 +1268,32 @@ class ChatInfoViewModel extends ChangeNotifier {
     // URL pattern (http/https)
     final urlPattern = RegExp(r'https?://[^\s]+');
     // Email pattern
-    final emailPattern = RegExp(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
+    final emailPattern = RegExp(
+      r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
+    );
     // @username pattern
     final mentionPattern = RegExp(r'@[a-zA-Z0-9_]{5,}');
 
-    void addMatches(RegExp pattern, String entityType, {String? url, int? userId}) {
+    void addMatches(
+      RegExp pattern,
+      String entityType, {
+      String? url,
+      int? userId,
+    }) {
       for (final match in pattern.allMatches(text)) {
         // Avoid overlapping entities
-        if (entities.any((e) => match.start < e.end && match.end > e.offset)) continue;
-        entities.add(MessageTextEntity(
-          offset: match.start,
-          length: match.end - match.start,
-          type: entityType,
-          url: url,
-          userId: userId,
-        ));
+        if (entities.any((e) => match.start < e.end && match.end > e.offset)) {
+          continue;
+        }
+        entities.add(
+          MessageTextEntity(
+            offset: match.start,
+            length: match.end - match.start,
+            type: entityType,
+            url: url,
+            userId: userId,
+          ),
+        );
       }
     }
 

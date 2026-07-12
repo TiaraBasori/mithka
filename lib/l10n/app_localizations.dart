@@ -215,6 +215,11 @@ abstract final class AppStringKeys {
   static const appearanceCacheFiles = 'appearanceCacheFiles';
   static const appearanceCacheRefreshed = 'appearanceCacheRefreshed';
   static const appearanceCapUnreadCountAt99 = 'appearanceCapUnreadCountAt99';
+  static const appearanceArchivedChats = 'appearanceArchivedChats';
+  static const appearanceArchivedChatsAlways = 'appearanceArchivedChatsAlways';
+  static const appearanceArchivedChatsHidden = 'appearanceArchivedChatsHidden';
+  static const appearanceArchivedChatsPullDown =
+      'appearanceArchivedChatsPullDown';
   static const appearanceChatFolders = 'appearanceChatFolders';
   static const appearanceChatFoldersHidden = 'appearanceChatFoldersHidden';
   static const appearanceChatFoldersMenu = 'appearanceChatFoldersMenu';
@@ -1625,9 +1630,7 @@ abstract final class AppStrings {
     if (placeholders.isEmpty) return value;
     // Normalise fullwidth ％／＄ used in some CJK Telegram language
     // packs so the replacement patterns below can match.
-    var result = value
-        .replaceAll('％', '%')
-        .replaceAll('＄', '\$');
+    var result = value.replaceAll('％', '%').replaceAll('＄', '\$');
     placeholders.forEach((placeholder, replacement) {
       final replacementText = '$replacement';
       result = result.replaceAll('{$placeholder}', replacementText);

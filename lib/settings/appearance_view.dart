@@ -350,6 +350,17 @@ class DisplaySettingsView extends StatelessWidget {
                     ),
                     icon: HeroAppIcons.folder.data,
                   ),
+                  _navigationRow(
+                    context,
+                    AppStrings.t(AppStringKeys.appearanceArchivedChats),
+                    AppStrings.t(theme.archivedChatsDisplayMode.label),
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ArchivedChatsSettingsView(),
+                      ),
+                    ),
+                    icon: HeroAppIcons.inbox.data,
+                  ),
                   _toggleRow(
                     context,
                     HeroAppIcons.magnifyingGlass.data,
@@ -411,21 +422,6 @@ class DisplaySettingsView extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xl),
                 _label(
                   context,
-                  AppStrings.t(AppStringKeys.appearanceGroupAssistantPosition),
-                ),
-                _card(context, [
-                  for (final m in GroupAssistantPlacement.values)
-                    _choiceRow(
-                      context,
-                      m.icon,
-                      m.label,
-                      theme.groupAssistantPlacement == m,
-                      () => theme.groupAssistantPlacement = m,
-                    ),
-                ]),
-                const SizedBox(height: AppSpacing.xl),
-                _label(
-                  context,
                   AppStrings.t(AppStringKeys.appearanceUnreadBadge),
                 ),
                 _card(context, [
@@ -457,14 +453,6 @@ class DisplaySettingsView extends StatelessWidget {
 
   Widget _card(BuildContext context, List<Widget> rows) =>
       const AppearanceView()._card(context, rows);
-
-  Widget _choiceRow(
-    BuildContext context,
-    IconData icon,
-    String label,
-    bool selected,
-    VoidCallback onTap,
-  ) => const AppearanceView()._choiceRow(context, icon, label, selected, onTap);
 
   Widget _toggleRow(
     BuildContext context,
@@ -522,6 +510,49 @@ class ChatFolderSettingsView extends StatelessWidget {
                       mode.label,
                       theme.chatFolderDisplayMode == mode,
                       () => theme.chatFolderDisplayMode = mode,
+                    ),
+                ]),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ArchivedChatsSettingsView extends StatelessWidget {
+  const ArchivedChatsSettingsView({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final theme = context.watch<ThemeController>();
+    return Scaffold(
+      backgroundColor: c.groupedBackground,
+      body: Column(
+        children: [
+          NavHeader(
+            title: AppStrings.t(AppStringKeys.appearanceArchivedChats),
+            onBack: () => Navigator.of(context).pop(),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.xl,
+                AppSpacing.lg,
+                AppSpacing.section,
+              ),
+              children: [
+                const AppearanceView()._card(context, [
+                  for (final mode in ArchivedChatsDisplayMode.values)
+                    const AppearanceView()._choiceRow(
+                      context,
+                      mode.icon,
+                      mode.label,
+                      theme.archivedChatsDisplayMode == mode,
+                      () => theme.archivedChatsDisplayMode = mode,
                     ),
                 ]),
               ],

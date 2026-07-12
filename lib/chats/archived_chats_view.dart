@@ -1,9 +1,8 @@
 //
 //  archived_chats_view.dart
 //
-//  The reference "群助手": Telegram Archive chats folded behind a single entry.
-//  GroupAssistantRow is the collapsed row shown in the 消息 list; tapping it
-//  pushes ArchivedChatsView. Port of the Swift `ArchivedChatsView`.
+//  Telegram archived chats folded behind a dedicated entry. The row is
+//  revealed below search by pulling down, then opens ArchivedChatsView.
 //
 
 import 'package:flutter/material.dart';
@@ -19,9 +18,8 @@ import '../theme/date_text.dart';
 import '../theme/theme_controller.dart';
 import 'chat_row_view.dart';
 
-/// Collapsed "群助手" entry summarizing archived chats.
-class GroupAssistantRow extends StatelessWidget {
-  const GroupAssistantRow({
+class ArchivedChatsRow extends StatelessWidget {
+  const ArchivedChatsRow({
     super.key,
     required this.archived,
     this.onClearUnread,
@@ -43,37 +41,18 @@ class GroupAssistantRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Row(
         children: [
-          SizedBox(
+          Container(
             width: avatarSize,
             height: avatarSize,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Container(
-                  width: avatarSize,
-                  height: avatarSize,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFF9D2E),
-                    shape: BoxShape.circle,
-                  ),
-                  child: AppIcon(
-                    HeroAppIcons.solidMessage,
-                    size: theme.scaled(22),
-                    color: Colors.white,
-                  ),
-                ),
-                if (_totalUnread > 0)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: UnreadBadge(
-                      count: _totalUnread,
-                      muted: true,
-                      onClear: onClearUnread,
-                    ),
-                  ),
-              ],
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.listHeaderTint,
+              shape: BoxShape.circle,
+            ),
+            child: AppIcon(
+              HeroAppIcons.inbox,
+              size: theme.scaled(23),
+              color: c.linkBlue,
             ),
           ),
           const SizedBox(width: AppSpacing.lg),
@@ -99,16 +78,20 @@ class GroupAssistantRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          Padding(
-            padding: const EdgeInsets.only(top: 13),
-            child: Text(
+          if (_totalUnread > 0)
+            UnreadBadge(
+              count: _totalUnread,
+              muted: true,
+              onClear: onClearUnread,
+            )
+          else
+            Text(
               DateText.listLabel(_latest?.date ?? 0),
               style: TextStyle(
                 fontSize: AppTextSize.caption,
                 color: c.textTertiary,
               ),
             ),
-          ),
         ],
       ),
     );
