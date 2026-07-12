@@ -302,7 +302,7 @@ class _UnreadBadgeMorphPainter extends CustomPainter {
       oldDelegate.broken != broken;
 }
 
-/// Group role tag: owner = yellow, admin = teal, member = purple.
+/// Group role tag: owner = yellow, admin = teal, member = purple, channel = pink.
 class RoleTag extends StatelessWidget {
   const RoleTag({super.key, required this.role, this.title});
   final MemberRole role;
@@ -312,6 +312,7 @@ class RoleTag extends StatelessWidget {
     MemberRole.owner => const Color(0xFFFFB300),
     MemberRole.admin => const Color(0xFF16B0A0),
     MemberRole.member => const Color(0xFF9B7BE8),
+    MemberRole.channel => const Color(0xFFE85D9E),
   };
 
   String get _label {
@@ -320,6 +321,7 @@ class RoleTag extends StatelessWidget {
       MemberRole.owner => AppStrings.t(AppStringKeys.commonUiGroupOwner),
       MemberRole.admin => AppStrings.t(AppStringKeys.groupManagementLogAdmin),
       MemberRole.member => AppStrings.t(AppStringKeys.groupManagementMembers),
+      MemberRole.channel => AppStrings.t(AppStringKeys.tabChannels),
     };
   }
 

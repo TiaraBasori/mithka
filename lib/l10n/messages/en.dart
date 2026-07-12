@@ -134,6 +134,7 @@ const enMessages = <String, String>{
   'appearanceShowEditAndReadMarks': "Show Edit and Read Marks",
   'appearanceAlwaysShowMessageTime': "Always show message time",
   'appearanceShowGroupMemberTitles': "Show Group Member Titles",
+  'appearanceShowPlainMemberRoleTags': "Show Plain Member Badges",
   'appearanceShowPremiumNameColor': "Show Premium Name Color",
   'appearanceShowPremiumStatusEmoji': "Show Premium Status Emoji",
   'appearanceShowUnreadChatCount': "Show Unread Chat Count",

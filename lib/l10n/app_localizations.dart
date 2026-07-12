@@ -280,6 +280,8 @@ abstract final class AppStringKeys {
       'appearanceAlwaysShowMessageTime';
   static const appearanceShowGroupMemberTitles =
       'appearanceShowGroupMemberTitles';
+  static const appearanceShowPlainMemberRoleTags =
+      'appearanceShowPlainMemberRoleTags';
   static const appearanceShowPremiumNameColor =
       'appearanceShowPremiumNameColor';
   static const appearanceShowPremiumStatusEmoji =

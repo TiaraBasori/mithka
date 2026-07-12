@@ -314,6 +314,15 @@ class DisplaySettingsView extends StatelessWidget {
                   ),
                   _toggleRow(
                     context,
+                    HeroAppIcons.idBadge.data,
+                    AppStrings.t(
+                      AppStringKeys.appearanceShowPlainMemberRoleTags,
+                    ),
+                    theme.showPlainMemberRoleTags,
+                    (v) => theme.showPlainMemberRoleTags = v,
+                  ),
+                  _toggleRow(
+                    context,
                     HeroAppIcons.images.data,
                     AppStrings.t(
                       AppStringKeys.appearanceMergeConsecutiveImages,

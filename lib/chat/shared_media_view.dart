@@ -1534,6 +1534,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         date: message.date,
         chatId: _sourceChatIdFor(message),
         senderName: message.senderName,
+        senderIsChat: message.senderIsChat,
         senderId: message.senderId,
         senderPhoto: message.senderPhoto,
         image: message.image,

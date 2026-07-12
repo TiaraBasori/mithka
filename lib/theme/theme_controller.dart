@@ -859,6 +859,7 @@ class ThemeController extends ChangeNotifier {
         _prefs.getBool(_displayOwnChatAsFavoritesKey) ?? false;
     _hideSidebarPhone = _prefs.getBool(_hideSidebarPhoneKey) ?? false;
     _showMemberTags = _prefs.getBool(_memberTagsKey) ?? false;
+    _showPlainMemberRoleTags = _prefs.getBool(_plainMemberRoleTagsKey) ?? false;
     _showPremiumNameColors = _prefs.getBool(_premiumNameColorsKey) ?? true;
     _showPremiumEmojiStatus = _prefs.getBool(_premiumEmojiStatusKey) ?? true;
     _showChatPremiumNameColors =
@@ -923,6 +924,7 @@ class ThemeController extends ChangeNotifier {
   static const _displayOwnChatAsFavoritesKey = 'displayOwnChatAsFavorites';
   static const _hideSidebarPhoneKey = 'hideSidebarPhone';
   static const _memberTagsKey = 'showMemberTags';
+  static const _plainMemberRoleTagsKey = 'showPlainMemberRoleTags';
   static const _premiumNameColorsKey = 'showPremiumNameColors';
   static const _premiumEmojiStatusKey = 'showPremiumEmojiStatus';
   static const _chatPremiumNameColorsKey = 'showChatPremiumNameColors';
@@ -965,6 +967,7 @@ class ThemeController extends ChangeNotifier {
   bool _displayOwnChatAsFavorites = false;
   bool _hideSidebarPhone = false;
   bool _showMemberTags = false;
+  bool _showPlainMemberRoleTags = false;
   bool _showPremiumNameColors = true;
   bool _showPremiumEmojiStatus = true;
   bool _showChatPremiumNameColors = true;
@@ -1032,6 +1035,7 @@ class ThemeController extends ChangeNotifier {
   bool get displayOwnChatAsFavorites => _displayOwnChatAsFavorites;
   bool get hideSidebarPhone => _hideSidebarPhone;
   bool get showMemberTags => _showMemberTags;
+  bool get showPlainMemberRoleTags => _showPlainMemberRoleTags;
   bool get showPremiumNameColors => _showPremiumNameColors;
   bool get showPremiumEmojiStatus => _showPremiumEmojiStatus;
   bool get showChatPremiumNameColors => _showChatPremiumNameColors;
@@ -1392,6 +1396,13 @@ class ThemeController extends ChangeNotifier {
   set showMemberTags(bool value) {
     _showMemberTags = value;
     _prefs.setBool(_memberTagsKey, value);
+    notifyListeners();
+  }
+
+  set showPlainMemberRoleTags(bool value) {
+    if (_showPlainMemberRoleTags == value) return;
+    _showPlainMemberRoleTags = value;
+    _prefs.setBool(_plainMemberRoleTagsKey, value);
     notifyListeners();
   }
 

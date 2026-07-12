@@ -143,6 +143,7 @@ const frMessages = <String, String>{
   'appearanceAlwaysShowMessageTime': "Toujours afficher l’heure du message",
   'appearanceShowGroupMemberTitles':
       "Afficher les titres des membres du groupe",
+  'appearanceShowPlainMemberRoleTags': "Afficher les badges de membre simples",
   'appearanceShowPremiumNameColor': "Afficher la couleur du nom Premium",
   'appearanceShowPremiumStatusEmoji': "Afficher l’emoji de statut Premium",
   'appearanceShowUnreadChatCount': "Afficher le nombre de discussions non lues",

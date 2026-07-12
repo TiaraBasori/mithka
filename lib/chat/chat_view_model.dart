@@ -3126,6 +3126,7 @@ class ChatViewModel extends ChangeNotifier {
       final existing = byId[message.id];
       if (existing != null) {
         message.senderName ??= existing.senderName;
+        message.senderIsChat = message.senderIsChat || existing.senderIsChat;
         message.senderPhoto ??= existing.senderPhoto;
         message.senderRole ??= existing.senderRole;
         message.senderTitle ??= existing.senderTitle;
@@ -3328,7 +3329,7 @@ class ChatViewModel extends ChangeNotifier {
   void _patchSender(_SenderInfo info, int senderId) {
     var changed = false;
     for (final m in messages) {
-      if (m.senderId != senderId || m.isOutgoing) continue;
+      if (m.senderId != senderId || (m.isOutgoing && !m.senderIsChat)) continue;
       if (m.senderName == info.name &&
           m.senderRole == info.role &&
           m.senderTitle == (info.title ?? m.senderTitle) &&
@@ -3364,7 +3365,9 @@ class ChatViewModel extends ChangeNotifier {
     if (!isGroup) return;
     final pending = <int>{};
     for (final message in batch) {
-      if (message.isOutgoing || message.isService) continue;
+      if ((message.isOutgoing && !message.senderIsChat) || message.isService) {
+        continue;
+      }
       final senderId = message.senderId;
       if (senderId == null) continue;
       final cached = _senderCache[senderId];
@@ -3534,14 +3537,14 @@ class ChatViewModel extends ChangeNotifier {
         info = _SenderInfo(
           chat.str('title') ?? telegramText(AppStringKeys.chatInfoGroupMembers),
           TDParse.smallPhoto(chat.obj('photo')),
-          MemberRole.member,
+          MemberRole.channel,
           null,
         );
       } catch (_) {
         info = _SenderInfo(
           telegramText(AppStringKeys.chatInfoGroupMembers),
           null,
-          MemberRole.member,
+          MemberRole.channel,
           null,
         );
       }

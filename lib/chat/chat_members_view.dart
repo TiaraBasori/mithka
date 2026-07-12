@@ -423,6 +423,16 @@ class _ChatMembersViewState extends State<ChatMembersView> {
   Widget _memberRow(GroupMember m) {
     final c = context.colors;
     final showMemberTags = context.watch<ThemeController>().showMemberTags;
+    final showPlainMemberRoleTags = context
+        .watch<ThemeController>()
+        .showPlainMemberRoleTags;
+    final showRole = switch (m.role) {
+      null => false,
+      MemberRole.member =>
+        showPlainMemberRoleTags ||
+            (showMemberTags && (m.title?.trim().isNotEmpty ?? false)),
+      _ => true,
+    };
     return SizedBox(
       height: 64,
       child: Padding(
@@ -451,7 +461,7 @@ class _ChatMembersViewState extends State<ChatMembersView> {
                           style: TextStyle(fontSize: 16, color: c.textPrimary),
                         ),
                       ),
-                      if (m.role != null) ...[
+                      if (showRole) ...[
                         const SizedBox(width: 6),
                         RoleTag(
                           role: m.role!,

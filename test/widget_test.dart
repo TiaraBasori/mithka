@@ -17,6 +17,7 @@ import 'package:mithka/chat/group_management_log_view.dart';
 import 'package:mithka/chat/media_album_layout.dart';
 import 'package:mithka/chat/message_bubble.dart';
 import 'package:mithka/chat/rich_text_composer_view.dart';
+import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_locale_controller.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/keyword_blocker.dart';
@@ -482,6 +483,86 @@ void main() {
     });
   });
 
+  group('MessageBubble sender roles', () {
+    testWidgets('hides plain member badges by default and allows opt-in', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+      final message = ChatMessage(
+        id: 31,
+        isOutgoing: false,
+        text: 'hello',
+        date: 1,
+        senderName: 'Member',
+        senderRole: MemberRole.member,
+      );
+
+      Future<void> pump() => tester.pumpWidget(
+        ChangeNotifierProvider<ThemeController>.value(
+          value: theme,
+          child: MaterialApp(
+            home: Scaffold(
+              body: MessageBubble(
+                message: message,
+                peerTitle: 'Group',
+                isGroup: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await pump();
+      expect(theme.showPlainMemberRoleTags, isFalse);
+      expect(find.byType(RoleTag), findsNothing);
+
+      theme.showPlainMemberRoleTags = true;
+      await tester.pump();
+      expect(find.byType(RoleTag), findsOneWidget);
+      expect(prefs.getBool('showPlainMemberRoleTags'), isTrue);
+    });
+
+    testWidgets('shows a channel identity with a pink channel badge', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+      final message = ChatMessage(
+        id: 32,
+        isOutgoing: true,
+        senderIsChat: true,
+        text: 'channel post',
+        date: 1,
+        senderName: 'News Channel',
+        senderRole: MemberRole.channel,
+      );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ThemeController>.value(
+          value: theme,
+          child: MaterialApp(
+            home: Scaffold(
+              body: MessageBubble(
+                message: message,
+                peerTitle: 'Group',
+                isGroup: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final tag = tester.widget<RoleTag>(find.byType(RoleTag));
+      expect(tag.role, MemberRole.channel);
+      expect(find.text('News Channel'), findsOneWidget);
+    });
+  });
+
   group('JSON helpers', () {
     test('management log resolves modern and legacy actor ids', () {
       expect(
@@ -502,6 +583,24 @@ void main() {
   });
 
   group('ChatMessage album visual media', () {
+    test('keeps messageSenderChat identity through parsing', () {
+      final message = TDParse.message({
+        '@type': 'message',
+        'id': 30,
+        'date': 1,
+        'is_outgoing': true,
+        'sender_id': {'@type': 'messageSenderChat', 'chat_id': '-100123'},
+        'content': {
+          '@type': 'messageText',
+          'text': {'@type': 'formattedText', 'text': 'channel post'},
+        },
+      });
+
+      expect(message, isNotNull);
+      expect(message!.senderIsChat, isTrue);
+      expect(message.senderId, -100123);
+    });
+
     test(
       'includes photos and videos, excludes thumbnail-only placeholders',
       () {

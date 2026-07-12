@@ -131,6 +131,7 @@ const koMessages = <String, String>{
   'appearanceShowEditAndReadMarks': "수정 및 읽음 표시 보이기",
   'appearanceAlwaysShowMessageTime': "메시지 시간 항상 표시",
   'appearanceShowGroupMemberTitles': "그룹 멤버 직함 표시",
+  'appearanceShowPlainMemberRoleTags': "일반 멤버 배지 표시",
   'appearanceShowPremiumNameColor': "Premium 이름 색상 표시",
   'appearanceShowPremiumStatusEmoji': "Premium 상태 emoji 표시",
   'appearanceShowUnreadChatCount': "읽지 않은 채팅 수 표시",

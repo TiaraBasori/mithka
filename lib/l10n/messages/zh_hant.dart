@@ -129,6 +129,7 @@ const zhHantMessages = <String, String>{
   'appearanceShowEditAndReadMarks': "顯示編輯與已讀標記",
   'appearanceAlwaysShowMessageTime': "一律顯示訊息時間",
   'appearanceShowGroupMemberTitles': "顯示群組成員頭銜",
+  'appearanceShowPlainMemberRoleTags': "顯示一般成員標籤",
   'appearanceShowPremiumNameColor': "顯示 Premium 名稱顏色",
   'appearanceShowPremiumStatusEmoji': "顯示 Premium 狀態 emoji",
   'appearanceShowUnreadChatCount': "顯示未讀聊天數",

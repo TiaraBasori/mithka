@@ -131,6 +131,7 @@ const jaMessages = <String, String>{
   'appearanceShowEditAndReadMarks': "編集済み・既読マークを表示",
   'appearanceAlwaysShowMessageTime': "メッセージ時刻を常に表示",
   'appearanceShowGroupMemberTitles': "グループメンバーの肩書きを表示",
+  'appearanceShowPlainMemberRoleTags': "一般メンバーバッジを表示",
   'appearanceShowPremiumNameColor': "Premium の名前色を表示",
   'appearanceShowPremiumStatusEmoji': "Premium のステータス emoji を表示",
   'appearanceShowUnreadChatCount': "未読チャット数を表示",

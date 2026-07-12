@@ -201,7 +201,7 @@ class _MessageBubbleState extends State<MessageBubble>
             ),
             Transform.translate(
               offset: Offset(_swipeX, 0),
-              child: _row(message.isOutgoing),
+              child: _row(message.isOutgoing && !message.senderIsChat),
             ),
           ],
         );
@@ -240,6 +240,14 @@ class _MessageBubbleState extends State<MessageBubble>
     final c = context.colors;
     final theme = context.watch<ThemeController>();
     final showMemberTags = theme.showMemberTags;
+    final showSenderRole = switch (message.senderRole) {
+      null => false,
+      MemberRole.member =>
+        theme.showPlainMemberRoleTags ||
+            (showMemberTags &&
+                (message.senderTitle?.trim().isNotEmpty ?? false)),
+      _ => true,
+    };
     final premiumNameColor =
         theme.showChatPremiumNameColors && message.senderIsPremium
         ? _senderAccentColor(message.senderAccentColorId)
@@ -353,7 +361,7 @@ class _MessageBubbleState extends State<MessageBubble>
                           padding: const EdgeInsets.only(left: 4, bottom: 3),
                           child: Row(
                             children: [
-                              if (message.senderRole != null) ...[
+                              if (showSenderRole) ...[
                                 RoleTag(
                                   role: message.senderRole!,
                                   title: showMemberTags ? senderTitle : null,

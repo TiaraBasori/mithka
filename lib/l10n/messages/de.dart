@@ -142,6 +142,7 @@ const deMessages = <String, String>{
       "Bearbeitet- und Gelesen-Markierungen anzeigen",
   'appearanceAlwaysShowMessageTime': "Nachrichtenzeit immer anzeigen",
   'appearanceShowGroupMemberTitles': "Titel von Gruppenmitgliedern anzeigen",
+  'appearanceShowPlainMemberRoleTags': "Einfache Mitgliederabzeichen anzeigen",
   'appearanceShowPremiumNameColor': "Premium-Namensfarbe anzeigen",
   'appearanceShowPremiumStatusEmoji': "Premium-Status-emoji anzeigen",
   'appearanceShowUnreadChatCount': "Anzahl ungelesener Chats anzeigen",

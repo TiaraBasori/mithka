@@ -274,7 +274,7 @@ class MessageReaction {
 }
 
 /// A sender's role in a group/channel.
-enum MemberRole { owner, admin, member }
+enum MemberRole { owner, admin, member, channel }
 
 class ChatSummary {
   ChatSummary({
@@ -344,6 +344,7 @@ class ChatMessage {
     required this.date,
     this.chatId,
     this.senderName,
+    this.senderIsChat = false,
     this.isService = false,
     this.isCall = false,
     this.callIsVideo = false,
@@ -400,6 +401,7 @@ class ChatMessage {
   final int date;
   int? chatId;
   String? senderName;
+  bool senderIsChat;
   bool isService;
   bool isCall; // messageCall — a call log; not reactable
   bool callIsVideo; // messageCall.is_video
@@ -463,6 +465,7 @@ class ChatMessage {
   int
   commentCount; // channel discussion replies/comments, when TDLib exposes it
   int? lastCommentMessageId;
+
   /// When true, this message is from a Telegram-blocked user and the
   /// "hide blocked user messages" feature is on.
   bool blockedByUser;
@@ -888,6 +891,7 @@ abstract final class TDParse {
         callDuration: callDuration,
         contentType: content?.type,
         senderId: senderId,
+        senderIsChat: sender?.type == 'messageSenderChat',
         senderTitle:
             _cleanString(message.str('sender_tag')) ??
             _cleanString(message.str('author_signature')),
