@@ -2461,7 +2461,7 @@ class _ChatViewState extends State<ChatView> {
           if (opened) return;
         }
         if (!mounted) return;
-        showToast(context, '小程序暂时无法启动');
+        showToast(context, 'Mini App 暂时无法启动');
         return;
       }
       await openLink(context, url);
@@ -4133,7 +4133,7 @@ class _ChatViewState extends State<ChatView> {
 
   Widget _headerTitleBlock(String subtitle, bool actionActive) {
     final c = context.colors;
-    final title = Text(
+    final titleText = Text(
       _vm.headerTitle,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
@@ -4143,6 +4143,15 @@ class _ChatViewState extends State<ChatView> {
         color: c.textPrimary,
       ),
     );
+    final title = _vm.isSecretChat
+        ? Row(
+            children: [
+              AppIcon(HeroAppIcons.lock, size: 15, color: c.textSecondary),
+              const SizedBox(width: 5),
+              Expanded(child: titleText),
+            ],
+          )
+        : titleText;
     final content = Column(
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,

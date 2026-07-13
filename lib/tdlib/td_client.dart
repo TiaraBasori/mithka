@@ -962,7 +962,7 @@ class TdClient {
         'use_file_database': true,
         'use_chat_info_database': true,
         'use_message_database': true,
-        'use_secret_chats': false,
+        'use_secret_chats': true,
         'api_id': useCustomApi ? api.apiId : Secrets.apiId,
         'api_hash': useCustomApi ? api.apiHash.trim() : Secrets.apiHash,
         'system_language_code': _safeSystemLanguageCode(),

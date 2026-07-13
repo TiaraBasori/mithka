@@ -231,6 +231,11 @@ const jaMessages = <String, String>{
   'chatBlockUserMessage':
       "この送信者をブロックし、メッセージを審査用に報告して、このチャットからその送信者のメッセージをすぐに非表示にしますか？",
   'chatBlockUserTitle': "迷惑ユーザーをブロックしますか？",
+  'secretChatStart': "開始",
+  'secretChatStartFailed': "シークレットチャットを作成できませんでした: {value1}",
+  'secretChatStartMessage':
+      "シークレットチャットのメッセージはエンドツーエンドで暗号化され、作成した端末でのみ読むことができます。",
+  'secretChatStartTitle': "シークレットチャットを開始しますか？",
   'chatForwardedToName': "{value1}に転送しました",
   'chatForwardFailed': "転送に失敗しました：{value1}",
   'chatForwardProtected': "このメッセージは保護されているため転送できません",

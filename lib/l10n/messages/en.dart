@@ -284,6 +284,11 @@ const enMessages = <String, String>{
   'chatBlockUserMessage':
       "Block this sender, report the message for review, and remove their messages from this chat immediately?",
   'chatBlockUserTitle': "Block abusive user?",
+  'secretChatStart': "Start",
+  'secretChatStartFailed': "Could not create secret chat: {value1}",
+  'secretChatStartMessage':
+      "Messages in secret chats are end-to-end encrypted and can only be read on the devices that created them.",
+  'secretChatStartTitle': "Start a Secret Chat?",
   'chatForwardedToName': "Forwarded to {value1}",
   'chatForwardFailed': "Forward failed: {value1}",
   'chatForwardProtected': "This message is protected and can’t be forwarded",

@@ -19,6 +19,7 @@ import 'package:mithka/chat/group_management_log_view.dart';
 import 'package:mithka/chat/media_album_layout.dart';
 import 'package:mithka/chat/message_bubble.dart';
 import 'package:mithka/chat/rich_text_composer_view.dart';
+import 'package:mithka/chat/secret_chat_service.dart';
 import 'package:mithka/chat/sponsored_messages_cache.dart';
 import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/ui_components.dart';
@@ -1075,6 +1076,46 @@ void main() {
 
       expect(merged, hasLength(1));
       expect(merged.single.id, 42);
+    });
+  });
+
+  group('SecretChatService', () {
+    test('creates and validates a TDLib secret chat', () async {
+      Map<String, dynamic>? request;
+      final result = await SecretChatService.create(
+        42,
+        query: (value) async {
+          request = value;
+          return {
+            '@type': 'chat',
+            'id': '-123',
+            'title': 'Ada',
+            'type': {
+              '@type': 'chatTypeSecret',
+              'secret_chat_id': 17,
+              'user_id': 42,
+            },
+          };
+        },
+      );
+
+      expect(request, {'@type': 'createNewSecretChat', 'user_id': 42});
+      expect(result.id, -123);
+      expect(result.title, 'Ada');
+    });
+
+    test('rejects a non-secret TDLib response', () async {
+      await expectLater(
+        SecretChatService.create(
+          42,
+          query: (_) async => {
+            '@type': 'chat',
+            'id': '-123',
+            'type': {'@type': 'chatTypePrivate', 'user_id': 42},
+          },
+        ),
+        throwsFormatException,
+      );
     });
   });
 

@@ -75,6 +75,14 @@ class ChatRowView extends StatelessWidget {
               children: [
                 Row(
                   children: [
+                    if (chat.kind == ChatKind.secret) ...[
+                      AppIcon(
+                        HeroAppIcons.lock,
+                        size: 14,
+                        color: c.textSecondary,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                    ],
                     Flexible(
                       child: Text(
                         asFavorites

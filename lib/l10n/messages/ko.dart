@@ -231,6 +231,10 @@ const koMessages = <String, String>{
   'chatBlockUserMessage':
       "이 발신자를 차단하고 메시지를 검토 대상으로 신고하며 이 채팅에서 해당 발신자의 메시지를 즉시 숨길까요?",
   'chatBlockUserTitle': "악성 사용자를 차단할까요?",
+  'secretChatStart': "시작",
+  'secretChatStartFailed': "비밀 대화를 만들 수 없음: {value1}",
+  'secretChatStartMessage': "비밀 대화의 메시지는 종단 간 암호화되며 대화를 만든 기기에서만 읽을 수 있습니다.",
+  'secretChatStartTitle': "비밀 대화를 시작할까요?",
   'chatForwardedToName': "{value1}에 전달됨",
   'chatForwardFailed': "전달 실패: {value1}",
   'chatForwardProtected': "이 메시지는 보호되어 전달할 수 없습니다",

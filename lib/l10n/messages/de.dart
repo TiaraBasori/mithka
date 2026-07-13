@@ -248,6 +248,12 @@ const deMessages = <String, String>{
   'chatBlockUserMessage':
       "Diesen Absender blockieren, die Nachricht zur Prüfung melden und seine Nachrichten sofort aus diesem Chat entfernen?",
   'chatBlockUserTitle': "Missbräuchlichen Nutzer blockieren?",
+  'secretChatStart': "Starten",
+  'secretChatStartFailed':
+      "Geheimer Chat konnte nicht erstellt werden: {value1}",
+  'secretChatStartMessage':
+      "Nachrichten in geheimen Chats sind Ende-zu-Ende-verschlüsselt und können nur auf den Geräten gelesen werden, auf denen sie erstellt wurden.",
+  'secretChatStartTitle': "Geheimen Chat starten?",
   'chatForwardedToName': "Weitergeleitet an {value1}",
   'chatForwardFailed': "Weiterleiten fehlgeschlagen: {value1}",
   'chatForwardProtected':

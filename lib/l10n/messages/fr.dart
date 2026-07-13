@@ -251,6 +251,12 @@ const frMessages = <String, String>{
   'chatBlockUserMessage':
       "Bloquer cet expéditeur, signaler le message pour examen et retirer immédiatement ses messages de ce chat ?",
   'chatBlockUserTitle': "Bloquer un utilisateur abusif ?",
+  'secretChatStart': "Démarrer",
+  'secretChatStartFailed':
+      "Impossible de créer la discussion secrète : {value1}",
+  'secretChatStartMessage':
+      "Les messages des discussions secrètes sont chiffrés de bout en bout et ne peuvent être lus que sur les appareils qui les ont créées.",
+  'secretChatStartTitle': "Démarrer une discussion secrète ?",
   'chatForwardedToName': "Transféré à {value1}",
   'chatForwardFailed': "Échec du transfert : {value1}",
   'chatForwardProtected':

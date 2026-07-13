@@ -245,6 +245,11 @@ const esMessages = <String, String>{
   'chatBlockUserMessage':
       "¿Bloquear a este remitente, reportar el mensaje para revisión y quitar sus mensajes de este chat de inmediato?",
   'chatBlockUserTitle': "¿Bloquear usuario abusivo?",
+  'secretChatStart': "Iniciar",
+  'secretChatStartFailed': "No se pudo crear el chat secreto: {value1}",
+  'secretChatStartMessage':
+      "Los mensajes de los chats secretos están cifrados de extremo a extremo y solo se pueden leer en los dispositivos donde se crearon.",
+  'secretChatStartTitle': "¿Iniciar un chat secreto?",
   'chatForwardedToName': "Reenviado a {value1}",
   'chatForwardFailed': "No se pudo reenviar: {value1}",
   'chatForwardProtected': "Este mensaje está protegido y no se puede reenviar",

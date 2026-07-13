@@ -36,9 +36,11 @@ class _TdVideoStreamServer {
   HttpServer? _server;
   String? _path;
   int _total = 0;
+  int _downloadedPrefix = 0;
   Future<void> _downloadQueue = Future<void>.value();
 
   static const _chunkSize = 2 * 1024 * 1024;
+  static const _nativeMetadataChunkSize = 4 * 1024 * 1024;
 
   Future<Uri?> start() async {
     try {
@@ -61,12 +63,6 @@ class _TdVideoStreamServer {
         _updateFileInfo(file);
       } catch (_) {}
     }
-    if (_total <= 0 && _path != null && _path!.isNotEmpty) {
-      try {
-        final localSize = await File(_path!).length();
-        if (localSize > 0) _total = localSize;
-      } catch (_) {}
-    }
     if (_total <= 0) return null;
 
     _server = await HttpServer.bind(
@@ -83,6 +79,41 @@ class _TdVideoStreamServer {
     _server = null;
   }
 
+  /// Prefetch MP4 metadata at the end of a partially downloaded file so the
+  /// player can read its index without waiting for preceding video bytes.
+  Future<String?> prepareNativeFile() async {
+    if (_total <= 0) return null;
+    final prefixEnd = math.min(_total - 1, _chunkSize - 1);
+    if (!await _ensureRange(0, prefixEnd)) return null;
+
+    final tailStart = math.max(0, _total - _nativeMetadataChunkSize);
+    final tail = await _downloadPlaybackRange(tailStart, _total - tailStart);
+    if (tail == null) return null;
+    _updateFileInfo(tail);
+
+    final path = _path;
+    if (path == null || path.isEmpty) return null;
+    final localFile = File(path);
+    return await localFile.exists() ? path : null;
+  }
+
+  void startBackgroundDownload() {
+    unawaited(
+      TdClient.shared
+          .query({
+            '@type': 'downloadFile',
+            'file_id': fileId,
+            'priority': 32,
+            'offset': 0,
+            'limit': 0,
+            'synchronous': false,
+          })
+          .then<void>(_updateFileInfo, onError: _ignoreDownloadError),
+    );
+  }
+
+  static void _ignoreDownloadError(Object _) {}
+
   void _updateFileInfo(Map<String, dynamic> file) {
     final expected = file.integer('expected_size') ?? 0;
     final size = file.integer('size') ?? 0;
@@ -91,6 +122,12 @@ class _TdVideoStreamServer {
     }
     final path = file.obj('local')?.str('path');
     if (path != null && path.isNotEmpty) _path = path;
+    final local = file.obj('local');
+    final prefix = local?.integer('downloaded_prefix_size') ?? 0;
+    if (prefix > _downloadedPrefix) _downloadedPrefix = prefix;
+    if (local?.boolean('is_downloading_completed') == true && _total > 0) {
+      _downloadedPrefix = _total;
+    }
   }
 
   Future<void> _primePlaybackFile() async {
@@ -125,43 +162,24 @@ class _TdVideoStreamServer {
         return;
       }
 
-      if (request.method == 'HEAD') {
-        request.response
-          ..statusCode = HttpStatus.ok
-          ..contentLength = _total;
-        await request.response.close();
-        return;
-      }
-
       final rangeHeader = request.headers.value(HttpHeaders.rangeHeader);
-      if (rangeHeader == null || !rangeHeader.startsWith('bytes=')) {
-        await _handleWholeRequest(request);
+      final range = rangeHeader == null ? null : _requestedRange(rangeHeader);
+      if (rangeHeader != null && range == null) {
+        request.response
+          ..statusCode = HttpStatus.requestedRangeNotSatisfiable
+          ..headers.set(HttpHeaders.contentRangeHeader, 'bytes */$_total');
+        await request.response.close();
         return;
       }
-
-      final (start, end) = _requestedRange(request);
-      final ok = await _ensureRange(start, end);
-      if (!ok || _path == null) {
-        request.response.statusCode = HttpStatus.serviceUnavailable;
+      final (start, end) = range ?? (0, _total - 1);
+      final partial = range != null;
+      if (request.method == 'HEAD') {
+        _writeRangeHeaders(request.response, start, end, partial);
         await request.response.close();
         return;
       }
 
-      final bytes = await _readRange(start, end);
-      if (bytes.isEmpty) {
-        request.response.statusCode = HttpStatus.serviceUnavailable;
-        await request.response.close();
-        return;
-      }
-      request.response
-        ..statusCode = HttpStatus.partialContent
-        ..contentLength = bytes.length;
-      request.response.headers.set(
-        HttpHeaders.contentRangeHeader,
-        'bytes $start-${start + bytes.length - 1}/$_total',
-      );
-      request.response.add(bytes);
-      await request.response.close();
+      await _streamRange(request, start, end, partial: partial);
     } catch (_) {
       // The player may cancel a range request after headers were sent. Do not
       // attempt to mutate that response again; just finish it if it is open.
@@ -178,46 +196,73 @@ class _TdVideoStreamServer {
     }
   }
 
-  Future<void> _handleWholeRequest(HttpRequest request) async {
-    request.response.statusCode = HttpStatus.ok;
-    var start = 0;
-    while (start < _total) {
-      final end = math.min(_total - 1, start + _chunkSize - 1);
-      final ok = await _ensureRange(start, end);
-      if (!ok || _path == null) break;
-      final bytes = await _readRange(start, end);
-      if (bytes.isEmpty) break;
+  void _writeRangeHeaders(
+    HttpResponse response,
+    int start,
+    int end,
+    bool partial,
+  ) {
+    response
+      ..statusCode = partial ? HttpStatus.partialContent : HttpStatus.ok
+      ..contentLength = end - start + 1;
+    if (partial) {
+      response.headers.set(
+        HttpHeaders.contentRangeHeader,
+        'bytes $start-$end/$_total',
+      );
+    }
+  }
+
+  /// Delivers exactly the range advertised in the response header. AVFoundation
+  /// validates it strictly, so a smaller response must never be used as a
+  /// shortcut for a larger requested range.
+  Future<void> _streamRange(
+    HttpRequest request,
+    int start,
+    int end, {
+    required bool partial,
+  }) async {
+    _writeRangeHeaders(request.response, start, end, partial);
+    var offset = start;
+    while (offset <= end) {
+      final chunkEnd = math.min(end, offset + _chunkSize - 1);
+      final ok = await _ensureRange(offset, chunkEnd);
+      if (!ok || _path == null) {
+        throw const HttpException('Video bytes are not available');
+      }
+      final bytes = await _readRange(offset, chunkEnd);
+      if (bytes.length != chunkEnd - offset + 1) {
+        throw const HttpException('Video range was only partially downloaded');
+      }
       request.response.add(bytes);
       await request.response.flush();
-      start += bytes.length;
+      offset += bytes.length;
     }
     await request.response.close();
   }
 
-  (int, int) _requestedRange(HttpRequest request) {
-    final header = request.headers.value(HttpHeaders.rangeHeader);
+  (int, int)? _requestedRange(String header) {
+    if (!header.startsWith('bytes=')) return null;
     var start = 0;
     int? requestedEnd;
-    if (header != null && header.startsWith('bytes=')) {
-      final value = header.substring('bytes='.length).split(',').first.trim();
-      final parts = value.split('-');
-      if (parts.first.isEmpty && parts.length > 1) {
-        final suffixLength = int.tryParse(parts[1]) ?? 0;
-        if (suffixLength > 0) {
-          start = math.max(0, _total - suffixLength);
-          requestedEnd = _total - 1;
-        }
-      } else {
-        start = int.tryParse(parts.first) ?? 0;
-        if (parts.length > 1 && parts[1].isNotEmpty) {
-          requestedEnd = int.tryParse(parts[1]);
-        }
+    final value = header.substring('bytes='.length).split(',').first.trim();
+    final parts = value.split('-');
+    if (parts.length != 2) return null;
+    if (parts.first.isEmpty) {
+      final suffixLength = int.tryParse(parts[1]) ?? 0;
+      if (suffixLength <= 0) return null;
+      start = math.max(0, _total - suffixLength);
+      requestedEnd = _total - 1;
+    } else {
+      start = int.tryParse(parts.first) ?? -1;
+      if (start < 0 || start >= _total) return null;
+      if (parts[1].isNotEmpty) {
+        requestedEnd = int.tryParse(parts[1]);
       }
     }
-    start = start.clamp(0, math.max(0, _total - 1));
     final end = math.min(
-      math.max(start, requestedEnd ?? (start + _chunkSize - 1)),
-      math.min(_total - 1, start + _chunkSize - 1),
+      math.max(start, requestedEnd ?? (_total - 1)),
+      _total - 1,
     );
     return (start, end);
   }
@@ -261,14 +306,7 @@ class _TdVideoStreamServer {
     final deadline = DateTime.now().add(const Duration(seconds: 45));
     while (DateTime.now().isBefore(deadline)) {
       try {
-        final path = _path;
-        if (path != null && path.isNotEmpty) {
-          final localFile = File(path);
-          if (await localFile.exists()) {
-            final available = await localFile.length();
-            if (available > start) return true;
-          }
-        }
+        if (_downloadedPrefix > end) return true;
         final file = await TdClient.shared.query({
           '@type': 'getFile',
           'file_id': fileId,
@@ -283,10 +321,14 @@ class _TdVideoStreamServer {
   Future<List<int>> _readRange(int start, int end) async {
     final path = _path;
     if (path == null || path.isEmpty) return const [];
+    if (_downloadedPrefix <= start) return const [];
     final file = File(path);
     final available = await file.length();
     if (available <= start) return const [];
-    final readableEnd = math.min(end, available - 1);
+    final readableEnd = math.min(
+      end,
+      math.min(available - 1, _downloadedPrefix - 1),
+    );
     final raf = await file.open();
     try {
       await raf.setPosition(start);
@@ -473,6 +515,25 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       setState(() => _failed = true);
       showToast(context, AppStringKeys.videoPlayerLoadFailed);
       return;
+    }
+    if (Platform.isIOS) {
+      final nativePath = await server.prepareNativeFile();
+      if (!mounted) {
+        unawaited(server.close());
+        return;
+      }
+      if (nativePath != null) {
+        server.startBackgroundDownload();
+        _localPath = nativePath;
+        final initialized = await _initializeFromFile(nativePath);
+        if (initialized || !mounted) {
+          if (initialized) {
+            unawaited(server.close());
+            _streamServer = null;
+          }
+          return;
+        }
+      }
     }
     _localPath = uri.toString();
     final initialized = await _initializeFromUri(uri);

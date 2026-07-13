@@ -115,10 +115,10 @@ bool _shouldUseFvp() {
     return false;
   }
   if (defaultTargetPlatform == TargetPlatform.iOS) {
-    // AVFoundation owns the drawable lifecycle when iOS changes display scale,
-    // resolution, or external-screen attachment. FVP/MDK can retain textures
-    // from the old Flutter surface and crash while the surface is rebuilt.
-    return false;
+    // The platform player requires a complete HTTP response for a range
+    // request, which prevents progressive playback of TDLib's sparse files.
+    // MDK can seek to the MP4 metadata range and decode while TDLib downloads.
+    return true;
   }
   return true;
 }

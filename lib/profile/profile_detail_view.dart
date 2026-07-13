@@ -23,6 +23,9 @@ import '../chat/chat_search_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
 import '../chat/full_image_viewer.dart';
+import '../chat/secret_chat_service.dart';
+import '../chat/sticker_item.dart';
+import '../chat/sticker_preview.dart';
 import '../chat/telegram_rich_text.dart';
 import '../chat/voice_audio.dart';
 import '../components/app_icons.dart';
@@ -38,6 +41,7 @@ import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import 'profile_gifts.dart';
 
 class ProfileDetailView extends StatefulWidget {
   const ProfileDetailView({
@@ -71,6 +75,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   String _location = '';
   String _businessHours = '';
   int _giftCount = 0;
+  List<StickerItem> _gifts = const [];
   List<int> _postStoryIds = const [];
   List<int> _archivedStoryIds = const [];
   String _musicTitle = '';
@@ -84,6 +89,9 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   String _firstName = '';
   String _lastName = '';
   String _rawPhone = '';
+  bool _isBot = false;
+  bool _hasLoadedUser = false;
+  bool _isCreatingSecretChat = false;
 
   @override
   void initState() {
@@ -125,6 +133,8 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
           _isOnline = TDParse.isUserOnline(user);
           _isPremium = user.boolean('is_premium') ?? false;
           _isContact = _isMe || (user.boolean('is_contact') ?? false);
+          _isBot = user.obj('type')?.type == 'userTypeBot';
+          _hasLoadedUser = true;
           _emojiStatusId =
               user.obj('emoji_status')?.obj('type')?.int64('custom_emoji_id') ??
               user.obj('emoji_status')?.int64('custom_emoji_id') ??
@@ -140,6 +150,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       });
       if (mounted) {
         final business = full.obj('business_info');
+        final giftCount = full.integer('gift_count') ?? 0;
         setState(() {
           _bio = full.obj('bio')?.str('text') ?? '';
           _bioEntities = TDParse.textEntities(full.obj('bio'));
@@ -149,11 +160,12 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
             business?.obj('local_opening_hours') ??
                 business?.obj('opening_hours'),
           );
-          _giftCount = full.integer('gift_count') ?? 0;
+          _giftCount = giftCount;
           _musicTitle = _isMe
               ? _defaultOwnMusicTitle
               : _extractMusicTitle(full, _bio);
         });
+        if (giftCount > 0) unawaited(_loadGifts());
         await _resolveMusicCandidate(_musicTitle);
       }
     } catch (_) {}
@@ -188,6 +200,34 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       if (!mounted || chatId == null) return;
       setState(() => _chatId = chatId);
       unawaited(_loadStoryCollections(chatId));
+    } catch (_) {}
+  }
+
+  Future<void> _loadGifts() async {
+    try {
+      final response = await TdClient.shared.query({
+        '@type': 'getReceivedGifts',
+        'business_connection_id': '',
+        'owner_id': {'@type': 'messageSenderUser', 'user_id': widget.userId},
+        'collection_id': 0,
+        'exclude_unsaved': true,
+        'exclude_saved': false,
+        'exclude_unlimited': false,
+        'exclude_upgradable': false,
+        'exclude_non_upgradable': false,
+        'exclude_upgraded': false,
+        'exclude_without_colors': false,
+        'exclude_hosted': false,
+        'sort_by_price': false,
+        'offset': '',
+        'limit': 12,
+      });
+      final gifts = parseReceivedGiftStickers(response);
+      if (!mounted) return;
+      setState(() {
+        _giftCount = response.integer('total_count') ?? _giftCount;
+        _gifts = gifts;
+      });
     } catch (_) {}
   }
 
@@ -262,6 +302,38 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
         builder: (_) => ChatView(chatId: cid, title: _name),
       ),
     );
+  }
+
+  Future<void> _startSecretChat() async {
+    if (_isMe || _isBot || _isCreatingSecretChat) return;
+    final confirmed = await confirmDialog(
+      context,
+      title: AppStringKeys.secretChatStartTitle,
+      message: AppStringKeys.secretChatStartMessage,
+      confirmText: AppStringKeys.secretChatStart,
+    );
+    if (!mounted || !confirmed || _isCreatingSecretChat) return;
+
+    setState(() => _isCreatingSecretChat = true);
+    try {
+      final secretChat = await SecretChatService.create(widget.userId);
+      if (!mounted) return;
+      final title = secretChat.title.isNotEmpty ? secretChat.title : _name;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ChatView(chatId: secretChat.id, title: title),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.secretChatStartFailed, {'value1': error}),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isCreatingSecretChat = false);
+    }
   }
 
   void _changeAvatar() {
@@ -419,6 +491,10 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                   Container(height: 12, color: c.groupedBackground),
                   _photosCard(),
                 ],
+                if (_gifts.isNotEmpty) ...[
+                  Container(height: 12, color: c.groupedBackground),
+                  _giftsCard(),
+                ],
                 if (_hasProfileCollections) ...[
                   Container(height: 12, color: c.groupedBackground),
                   _profileCollectionsCard(),
@@ -450,9 +526,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   ];
 
   bool get _hasProfileCollections =>
-      _giftCount > 0 ||
-      _postStoryIds.isNotEmpty ||
-      _archivedStoryIds.isNotEmpty;
+      _postStoryIds.isNotEmpty || _archivedStoryIds.isNotEmpty;
 
   static const _defaultOwnMusicTitle = 'SEKAI NO OWARI - The Peak';
 
@@ -876,17 +950,6 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       rows.add(row);
     }
 
-    if (_giftCount > 0) {
-      addRow(
-        _profileRow(
-          HeroAppIcons.star.data,
-          AppStrings.t(AppStringKeys.profileDetailGifts),
-          trailing: _giftCount.toString(),
-          onTap: null,
-          showChevron: false,
-        ),
-      );
-    }
     if (_postStoryIds.isNotEmpty) {
       addRow(
         _profileRow(
@@ -1178,6 +1241,9 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                   AppStrings.t(AppStringKeys.profileDetailSendMessage),
                   primary: true,
                   onTap: _openChat,
+                  onLongPress: _hasLoadedUser && !_isMe && !_isBot
+                      ? _startSecretChat
+                      : null,
                 ),
               ),
             ],
@@ -1191,10 +1257,12 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
     String label, {
     required bool primary,
     required VoidCallback onTap,
+    VoidCallback? onLongPress,
   }) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         height: 44,
         alignment: Alignment.center,
@@ -1287,6 +1355,60 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
         width: s,
         height: s,
         child: TDImage(photo: _photos[i], cornerRadius: 10),
+      ),
+    );
+  }
+
+  Widget _giftsCard() {
+    final c = context.colors;
+    final count = _giftCount > 0 ? _giftCount : _gifts.length;
+    return Container(
+      decoration: BoxDecoration(
+        color: c.card,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                AppStrings.t(AppStringKeys.profileDetailGifts),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: c.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$count',
+                style: TextStyle(fontSize: 13, color: c.textSecondary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            height: 78,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: EdgeInsets.zero,
+              itemCount: _gifts.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 8),
+              itemBuilder: (context, index) => Container(
+                width: 78,
+                height: 78,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: c.groupedBackground,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: StickerPreview(item: _gifts[index], cornerRadius: 8),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

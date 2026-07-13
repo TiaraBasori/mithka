@@ -239,6 +239,7 @@ class ChatViewModel extends ChangeNotifier {
   String telegramTosRestrictionText = '';
   bool _chatCanSend = true; // chat-wide default can_send_basic_messages
   bool peerIsBot = false;
+  bool isSecretChat = false;
   bool botStartSent = false;
   BotMenuInfo? botMenu;
   List<BotCommandOption> botCommands = const [];
@@ -1788,6 +1789,7 @@ class ChatViewModel extends ChangeNotifier {
     _applyRemoteDraft(chat.obj('draft_message'), force: true, notify: false);
     final kind = TDParse.chatKind(chat);
     isGroup = kind == ChatKind.group || kind == ChatKind.channel;
+    isSecretChat = kind == ChatKind.secret;
     _primeLastMessage(chat);
     if (isTelegramTosRestricted) {
       notifyListeners();
@@ -1809,6 +1811,7 @@ class ChatViewModel extends ChangeNotifier {
     final type = chat.obj('type');
     switch (type?.type) {
       case 'chatTypePrivate':
+      case 'chatTypeSecret':
         peerUserId = type?.int64('user_id');
         final uid = peerUserId;
         if (uid != null) {
@@ -1832,8 +1835,10 @@ class ChatViewModel extends ChangeNotifier {
               return;
             }
           }
-          unawaited(_loadPrivatePaidMessageInfo(uid));
-          if (peerIsBot) await _loadBotInfo(uid);
+          if (type?.type == 'chatTypePrivate') {
+            unawaited(_loadPrivatePaidMessageInfo(uid));
+            if (peerIsBot) await _loadBotInfo(uid);
+          }
         }
       case 'chatTypeBasicGroup':
         final gid = type?.int64('basic_group_id');

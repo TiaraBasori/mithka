@@ -397,6 +397,10 @@ abstract final class AppStringKeys {
   static const chatBlockUserFailed = 'chatBlockUserFailed';
   static const chatBlockUserMessage = 'chatBlockUserMessage';
   static const chatBlockUserTitle = 'chatBlockUserTitle';
+  static const secretChatStart = 'secretChatStart';
+  static const secretChatStartFailed = 'secretChatStartFailed';
+  static const secretChatStartMessage = 'secretChatStartMessage';
+  static const secretChatStartTitle = 'secretChatStartTitle';
   static const chatForwardedToName = 'chatForwardedToName';
   static const chatForwardFailed = 'chatForwardFailed';
   static const chatForwardProtected = 'chatForwardProtected';
