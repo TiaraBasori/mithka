@@ -13,14 +13,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-import 'scope_notification_settings.dart';
 
 import '../app/chat_deep_link_controller.dart';
 import '../l10n/telegram_language_controller.dart';
+import '../settings/country_message_filter.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import 'scope_notification_settings.dart';
 
 class NotificationController with WidgetsBindingObserver {
   NotificationController._();
@@ -122,7 +123,9 @@ class NotificationController with WidgetsBindingObserver {
     if (chatId == null || messageId == null || content == null) return;
 
     final chat = await _chat(chatId);
-    if (chat == null || _isMuted(chat)) return;
+    if (chat == null || _isMuted(chat) || await _isCountryFiltered(chat)) {
+      return;
+    }
 
     final title = chat.str('title') ?? 'Mithka';
     final body = _notificationText(content);
@@ -176,7 +179,25 @@ class NotificationController with WidgetsBindingObserver {
   }
 
   bool _isMuted(Map<String, dynamic> chat) {
-      return ScopeNotificationSettings.shared.isMuted(chat);
+    return ScopeNotificationSettings.shared.isMuted(chat);
+  }
+
+  Future<bool> _isCountryFiltered(Map<String, dynamic> chat) async {
+    final type = chat.obj('type');
+    if (type?.type != 'chatTypePrivate' && type?.type != 'chatTypeSecret') {
+      return false;
+    }
+    final userId = type?.int64('user_id');
+    if (userId == null) return false;
+    try {
+      final user = await _client.query({'@type': 'getUser', 'user_id': userId});
+      return CountryMessageFilter.shared.matchesUser(
+        isContact: user.boolean('is_contact') ?? false,
+        phoneNumber: user.str('phone_number'),
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   String _notificationText(Map<String, dynamic> content) {

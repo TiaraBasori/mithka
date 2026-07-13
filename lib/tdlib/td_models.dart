@@ -349,6 +349,8 @@ class ChatSummary {
     this.isMarkedUnread = false,
     this.draftText = '',
     this.peerUserId,
+    this.peerIsContact = false,
+    this.peerPhoneNumber,
     this.peerIsPremium = false,
     this.peerAccentColorId = -1,
     this.peerEmojiStatusId = 0,
@@ -375,6 +377,8 @@ class ChatSummary {
   bool isMarkedUnread; // "标为未读" with no unread count
   String draftText; // unsent draft; shown as "[草稿]" prefix when non-empty
   int? peerUserId; // private/secret chat peer, used for chat-list Premium UI
+  bool peerIsContact;
+  String? peerPhoneNumber;
   bool peerIsPremium;
   int peerAccentColorId;
   int peerEmojiStatusId;

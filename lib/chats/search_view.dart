@@ -22,6 +22,7 @@ import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
 import 'chat_row_view.dart';
+import 'mini_apps_page.dart';
 
 class SearchView extends StatefulWidget {
   const SearchView({super.key});
@@ -170,6 +171,9 @@ class _SearchViewState extends State<SearchView> {
 
   Widget _results() {
     final c = context.colors;
+    if (_tab == _SearchTab.miniApps) {
+      return MiniAppsSearchTab(query: _query);
+    }
     final hits = _vm.resultsFor(_tab);
     final allowEmptyQuery = _tab != _SearchTab.chats;
     if (_query.trim().isEmpty && !allowEmptyQuery) {
@@ -427,6 +431,7 @@ class _SearchViewState extends State<SearchView> {
 
 enum _SearchTab {
   chats,
+  miniApps,
   posts,
   media,
   links,
@@ -436,6 +441,7 @@ enum _SearchTab {
 
   String get label => switch (this) {
     _SearchTab.chats => AppStrings.t(AppStringKeys.audioSearchChatTab),
+    _SearchTab.miniApps => '小程序',
     _SearchTab.posts => telegramText(
       AppStringKeys.chatSearchMessageResultLabel,
     ).replaceAll('[', '').replaceAll(']', ''),
@@ -448,6 +454,7 @@ enum _SearchTab {
 
   String? get filter => switch (this) {
     _SearchTab.chats => null,
+    _SearchTab.miniApps => null,
     _SearchTab.posts => 'searchMessagesFilterEmpty',
     _SearchTab.media => 'searchMessagesFilterPhotoAndVideo',
     _SearchTab.links => 'searchMessagesFilterUrl',
@@ -471,6 +478,12 @@ class _SearchViewModel extends ChangeNotifier {
   void search(String q, _SearchTab tab) {
     final trimmed = q.trim();
     _currentQuery = trimmed;
+    if (tab == _SearchTab.miniApps) {
+      _results[tab] = const [];
+      _loading.remove(tab);
+      notifyListeners();
+      return;
+    }
     if (trimmed.isEmpty && tab == _SearchTab.chats) {
       _results[tab] = [];
       notifyListeners();

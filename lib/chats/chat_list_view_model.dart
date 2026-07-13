@@ -13,6 +13,7 @@ import 'package:flutter/foundation.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import '../notifications/scope_notification_settings.dart';
+import '../settings/country_message_filter.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/chat_membership.dart';
 import '../tdlib/json_helpers.dart';
@@ -31,6 +32,7 @@ class ChatFilterOption {
 class ChatListViewModel extends ChangeNotifier {
   List<ChatSummary> _chats = [];
   List<ChatSummary> _archived = [];
+  List<ChatSummary> _filtered = [];
   List<ChatFilterOption> _filters = const [
     ChatFilterOption(title: AppStringKeys.topicChatAllFilter),
   ];
@@ -43,6 +45,7 @@ class ChatListViewModel extends ChangeNotifier {
 
   List<ChatSummary> get chats => _chats;
   List<ChatSummary> get archived => _archived;
+  List<ChatSummary> get filtered => _filtered;
   List<ChatFilterOption> get filters => _filters;
   ChatFilterOption get selectedFilter => _selectedFilter;
   bool get isAllFilter => _selectedFilter.isAll;
@@ -75,6 +78,7 @@ class ChatListViewModel extends ChangeNotifier {
   void onAppear() {
     if (_listening) return;
     _listening = true;
+    CountryMessageFilter.shared.addListener(_scheduleResort);
     _subscribe();
     _loadFilters();
     _loadChats(_initialPageSize);
@@ -90,12 +94,13 @@ class ChatListViewModel extends ChangeNotifier {
     for (final s in _map.values) {
       s.isSavedMessages = s.peerUserId == value;
     }
-    notifyListeners();
+    _resort();
   }
 
   @override
   void dispose() {
     _listening = false;
+    CountryMessageFilter.shared.removeListener(_scheduleResort);
     _sub?.cancel();
     _resortTimer?.cancel();
     super.dispose();
@@ -708,17 +713,26 @@ class ChatListViewModel extends ChangeNotifier {
     final all = _map.values
         .where((c) => _joinedChatCache[c.id] ?? true)
         .toList();
-    _archived = all.where((c) => c.archiveOrder > 0).toList()
+    final filteredIds = {
+      for (final chat in all)
+        if (_isCountryFiltered(chat)) chat.id,
+    };
+    _filtered = all.where((chat) => filteredIds.contains(chat.id)).toList()
+      ..sort(_compare);
+    final visible = all
+        .where((chat) => !filteredIds.contains(chat.id))
+        .toList(growable: false);
+    _archived = visible.where((c) => c.archiveOrder > 0).toList()
       ..sort(
         (a, b) => a.archiveOrder != b.archiveOrder
             ? b.archiveOrder.compareTo(a.archiveOrder)
             : b.date.compareTo(a.date),
       );
     if (_selectedFilter.folderId == null) {
-      _chats = all.where((c) => c.order > 0).toList()..sort(_compare);
+      _chats = visible.where((c) => c.order > 0).toList()..sort(_compare);
     } else {
       final folderOrders = _folderOrders[_selectedFilter.folderId] ?? const {};
-      _chats = all.where((c) => (folderOrders[c.id] ?? 0) > 0).toList()
+      _chats = visible.where((c) => (folderOrders[c.id] ?? 0) > 0).toList()
         ..sort((a, b) {
           final ao = folderOrders[a.id] ?? 0;
           final bo = folderOrders[b.id] ?? 0;
@@ -749,6 +763,14 @@ class ChatListViewModel extends ChangeNotifier {
     return b.id.compareTo(a.id);
   }
 
+  bool _isCountryFiltered(ChatSummary chat) {
+    if (chat.isSavedMessages || chat.peerUserId == null) return false;
+    return CountryMessageFilter.shared.matchesUser(
+      isContact: chat.peerIsContact,
+      phoneNumber: chat.peerPhoneNumber,
+    );
+  }
+
   // MARK: - Chat-list Premium display metadata (private chats)
 
   void _resolvePeerIfNeeded(ChatSummary summary) {
@@ -771,6 +793,8 @@ class ChatListViewModel extends ChangeNotifier {
     if (userId == null) return;
     var changed = false;
     final isPremium = user.boolean('is_premium') ?? false;
+    final isContact = user.boolean('is_contact') ?? false;
+    final phoneNumber = user.str('phone_number');
     final accent = user.integer('accent_color_id') ?? -1;
     final status =
         user.obj('emoji_status')?.obj('type')?.int64('custom_emoji_id') ??
@@ -779,16 +803,20 @@ class ChatListViewModel extends ChangeNotifier {
     for (final chat in _map.values) {
       if (chat.peerUserId != userId) continue;
       if (chat.peerIsPremium == isPremium &&
+          chat.peerIsContact == isContact &&
+          chat.peerPhoneNumber == phoneNumber &&
           chat.peerAccentColorId == accent &&
           chat.peerEmojiStatusId == status) {
         continue;
       }
       chat.peerIsPremium = isPremium;
+      chat.peerIsContact = isContact;
+      chat.peerPhoneNumber = phoneNumber;
       chat.peerAccentColorId = accent;
       chat.peerEmojiStatusId = status;
       changed = true;
     }
-    if (changed) notifyListeners();
+    if (changed) _scheduleResort();
   }
 
   // MARK: - Last-message sender resolution (groups & channels)

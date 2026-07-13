@@ -39,6 +39,7 @@ import 'notifications/push_device_registrar.dart';
 import 'settings/app_icon_controller.dart';
 import 'settings/auto_download_media_controller.dart';
 import 'settings/blocked_user_service.dart';
+import 'settings/country_message_filter.dart';
 import 'settings/developer_mode_controller.dart';
 import 'settings/keyword_blocker.dart';
 import 'settings/translation_controller.dart';
@@ -93,6 +94,7 @@ Future<void> _bootstrapAndRunApp() async {
   ]);
   final prefs = await SharedPreferences.getInstance();
   KeywordBlocker.shared.initialize(prefs);
+  CountryMessageFilter.shared.initialize(prefs);
   MusicPlayerController.shared.initialize(prefs);
   // Preload Telegram blocked-user list so chat filters have data right away.
   unawaited(BlockedUserService.shared.loadBlockedUsers());

@@ -37,7 +37,7 @@ import '../theme/theme_controller.dart';
 import 'archived_chats_view.dart';
 import 'chat_list_view_model.dart';
 import 'chat_row_view.dart';
-import 'mini_apps_page.dart';
+import 'filtered_chats_view.dart';
 import 'qr_scanner_view.dart';
 import 'search_view.dart';
 
@@ -125,13 +125,11 @@ class _ChatListViewState extends State<ChatListView> {
   bool _toggleUnreadTargetNext = true;
   bool _archiveRevealed = false;
   double _archivePullDistance = 0;
-  double _miniAppsPullDistance = 0;
+  double _refreshPullDistance = 0;
   bool _isRefreshing = false;
-  bool _miniAppsExpanded = false;
   int _lastVisibleRows = 1;
 
   static const double _refreshPullThreshold = 72;
-  static const double _miniAppsPullThreshold = 168;
 
   ScrollController _newScrollController({double initialScrollOffset = 0}) {
     return ScrollController(initialScrollOffset: initialScrollOffset)
@@ -447,6 +445,7 @@ class _ChatListViewState extends State<ChatListView> {
     if (chatIndex < 0) return null;
 
     var itemIndex = chatIndex;
+    if (_model.isAllFilter && _model.filtered.isNotEmpty) itemIndex++;
     final archiveMode = context
         .read<ThemeController>()
         .archivedChatsDisplayMode;
@@ -493,7 +492,6 @@ class _ChatListViewState extends State<ChatListView> {
         }
       });
     }
-    final drawerHeight = _miniAppsDrawerHeight(context);
     return Stack(
       clipBehavior: Clip.none,
       children: [
@@ -509,28 +507,11 @@ class _ChatListViewState extends State<ChatListView> {
             ],
           ),
         ),
-        if (_miniAppsExpanded)
-          Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            child: SizedBox(
-              height: drawerHeight,
-              child: MiniAppsDrawer(
-                progress: 1,
-                onCollapse: () => setState(() => _miniAppsExpanded = false),
-              ),
-            ),
-          ),
         if (_showPlusMenu) _plusMenuOverlay(),
         if (folderMode == ChatFolderDisplayMode.menu && _showFilterMenu)
           _filterMenuOverlay(),
       ],
     );
-  }
-
-  double _miniAppsDrawerHeight(BuildContext context) {
-    return math.min(MediaQuery.sizeOf(context).height * 0.46, 390);
   }
 
   // MARK: - Header
@@ -821,6 +802,7 @@ class _ChatListViewState extends State<ChatListView> {
           );
           _lastVisibleRows = visibleRows;
           final chats = _model.chats;
+          final hasFiltered = _model.isAllFilter && _model.filtered.isNotEmpty;
           final hasArchive = _model.isAllFilter && _model.archived.isNotEmpty;
           final showPulledDownArchive =
               hasArchive &&
@@ -833,7 +815,10 @@ class _ChatListViewState extends State<ChatListView> {
           final showInlineArchive = hasArchive && archiveMode.isInline;
 
           Widget list;
-          if (chats.isEmpty && _model.isInitialLoading && !showInlineArchive) {
+          if (chats.isEmpty &&
+              _model.isInitialLoading &&
+              !showInlineArchive &&
+              !hasFiltered) {
             list = ListView.builder(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(
@@ -843,7 +828,7 @@ class _ChatListViewState extends State<ChatListView> {
               itemCount: visibleRows,
               itemBuilder: (context, i) => const _ChatRowPlaceholder(),
             );
-          } else if (chats.isEmpty && !showInlineArchive) {
+          } else if (chats.isEmpty && !showInlineArchive && !hasFiltered) {
             list = ListView(
               controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(
@@ -864,14 +849,21 @@ class _ChatListViewState extends State<ChatListView> {
                 parent: BouncingScrollPhysics(),
               ),
               padding: EdgeInsets.zero,
-              itemCount: chats.length + (showInlineArchive ? 1 : 0),
+              itemCount:
+                  chats.length +
+                  (showInlineArchive ? 1 : 0) +
+                  (hasFiltered ? 1 : 0),
               itemBuilder: (context, index) {
-                if (showInlineArchive && index == archiveIndex) {
+                if (hasFiltered && index == 0) {
+                  return _filteredChatsRow();
+                }
+                final listIndex = hasFiltered ? index - 1 : index;
+                if (showInlineArchive && listIndex == archiveIndex) {
                   return _assistantRow();
                 }
-                final chatIndex = showInlineArchive && index > archiveIndex
-                    ? index - 1
-                    : index;
+                final chatIndex = showInlineArchive && listIndex > archiveIndex
+                    ? listIndex - 1
+                    : listIndex;
                 return _swipeRow(chats[chatIndex]);
               },
             );
@@ -930,25 +922,23 @@ class _ChatListViewState extends State<ChatListView> {
       enabled: archiveEnabled,
       rowHeight: rowHeight,
     );
-    if (_miniAppsExpanded || _isRefreshing) return false;
+    if (_isRefreshing) return false;
 
     if (notification is ScrollStartNotification) {
-      _miniAppsPullDistance = 0;
+      _refreshPullDistance = 0;
     } else if (notification is OverscrollNotification &&
         notification.overscroll < 0) {
-      _miniAppsPullDistance += -notification.overscroll;
+      _refreshPullDistance += -notification.overscroll;
     } else if (notification is ScrollUpdateNotification &&
         notification.metrics.pixels < 0) {
-      _miniAppsPullDistance = math.max(
-        _miniAppsPullDistance,
+      _refreshPullDistance = math.max(
+        _refreshPullDistance,
         -notification.metrics.pixels,
       );
     } else if (notification is ScrollEndNotification) {
-      final pull = _miniAppsPullDistance;
-      _miniAppsPullDistance = 0;
-      if (pull >= _miniAppsPullThreshold) {
-        setState(() => _miniAppsExpanded = true);
-      } else if (pull >= _refreshPullThreshold) {
+      final pull = _refreshPullDistance;
+      _refreshPullDistance = 0;
+      if (pull >= _refreshPullThreshold) {
         unawaited(_refreshChats());
       }
     }
@@ -1141,6 +1131,23 @@ class _ChatListViewState extends State<ChatListView> {
       ),
       child: ArchivedChatsRow(
         archived: _model.archived,
+        onClearUnread: _model.markAllRead,
+      ),
+    );
+  }
+
+  Widget _filteredChatsRow() {
+    return GestureDetector(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FilteredChatsView(
+            chats: _model.filtered,
+            onClearUnread: _model.markRead,
+          ),
+        ),
+      ),
+      child: FilteredChatsRow(
+        chats: _model.filtered,
         onClearUnread: _model.markAllRead,
       ),
     );

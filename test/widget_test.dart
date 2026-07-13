@@ -23,6 +23,7 @@ import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_locale_controller.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/settings/country_message_filter.dart';
 import 'package:mithka/settings/keyword_blocker.dart';
 import 'package:mithka/settings/translation_controller.dart';
 import 'package:mithka/tdlib/json_helpers.dart';
@@ -1991,6 +1992,30 @@ void main() {
       expect(blocker.matches('code 12345 please'), isTrue);
       expect(blocker.matches('HELLO     WORLD'), isTrue);
       expect(blocker.matches('normal message'), isFalse);
+    });
+  });
+
+  group('CountryMessageFilter', () {
+    test('matches only selected-country non-contacts', () async {
+      SharedPreferences.setMockInitialValues({
+        'countryMessageFilter.selectedCountries': ['JP', 'US'],
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final filter = CountryMessageFilter()..initialize(prefs);
+
+      expect(
+        filter.matchesUser(isContact: false, phoneNumber: '+81 90 1234 5678'),
+        isTrue,
+      );
+      expect(
+        filter.matchesUser(isContact: true, phoneNumber: '+81 90 1234 5678'),
+        isFalse,
+      );
+      expect(
+        filter.matchesUser(isContact: false, phoneNumber: '+44 20 7946 0958'),
+        isFalse,
+      );
+      expect(filter.matchesUser(isContact: false), isFalse);
     });
   });
 
