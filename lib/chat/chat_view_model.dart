@@ -129,6 +129,10 @@ class BotMenuInfo {
   final String url;
 
   bool get isWebApp => type == 'botMenuButton' && url.isNotEmpty;
+  bool get isLegacyMenuUrl => url.startsWith('menu://');
+  String get webAppUrl => isLegacyMenuUrl ? '' : url;
+  String get actionTitle =>
+      isLegacyMenuUrl || text.trim().isEmpty ? 'Open' : text.trim();
   bool get opensCommands =>
       type == 'botMenuButtonCommands' || type == 'botMenuButtonDefault';
 }
@@ -1982,6 +1986,21 @@ class ChatViewModel extends ChangeNotifier {
       user.obj('type')?.type == 'userTypeBot' ||
       user.obj('type')?.type == 'userTypeRegularBot' ||
       user.boolean('is_bot') == true;
+
+  Future<int?> webAppBotUserId(ChatMessage? message) async {
+    if (peerIsBot && peerUserId != null) return peerUserId;
+    final senderId = message?.senderId;
+    if (senderId == null || senderId <= 0) return null;
+    try {
+      final user = await _client.query({
+        '@type': 'getUser',
+        'user_id': senderId,
+      });
+      return _isBotUser(user) ? senderId : null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   Future<void> _loadBotInfo(int userId) async {
     try {

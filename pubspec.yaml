@@ -79,6 +79,9 @@ dependencies:
   wechat_assets_picker: ^10.1.2
   photo_manager: ^3.10.0
   flutter_secure_storage: ^10.3.1
+  webview_flutter: ^4.14.0
+  webview_flutter_android: ^4.13.0
+  webview_flutter_wkwebview: ^3.26.0
 
 dev_dependencies:
   flutter_test:

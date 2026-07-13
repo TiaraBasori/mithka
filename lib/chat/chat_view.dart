@@ -69,6 +69,7 @@ import 'outgoing_attachment.dart';
 import 'rich_text_composer_view.dart';
 import 'sticker_set_detail_view.dart';
 import 'sticker_viewer.dart';
+import 'telegram_mini_app_view.dart';
 import 'video_player_view.dart';
 
 class _MessageDeleteOptions {
@@ -2415,6 +2416,24 @@ class _ChatViewState extends State<ChatView> {
   ) async {
     final url = button.url;
     if (url != null && url.isNotEmpty) {
+      if (button.isWebApp) {
+        final botUserId = await _vm.webAppBotUserId(message);
+        if (!mounted) return;
+        if (botUserId != null) {
+          final opened = await openTelegramMiniApp(
+            context,
+            chatId: _vm.chatId,
+            botUserId: botUserId,
+            url: url,
+            title: button.text,
+            keyboardButtonText: button.isReplyKeyboard ? button.text : null,
+          );
+          if (opened) return;
+        }
+        if (!mounted) return;
+        showToast(context, '小程序暂时无法启动');
+        return;
+      }
       await openLink(context, url);
       return;
     }

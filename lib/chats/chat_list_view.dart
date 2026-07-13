@@ -37,6 +37,7 @@ import '../theme/theme_controller.dart';
 import 'archived_chats_view.dart';
 import 'chat_list_view_model.dart';
 import 'chat_row_view.dart';
+import 'mini_apps_page.dart';
 import 'qr_scanner_view.dart';
 import 'search_view.dart';
 
@@ -124,7 +125,13 @@ class _ChatListViewState extends State<ChatListView> {
   bool _toggleUnreadTargetNext = true;
   bool _archiveRevealed = false;
   double _archivePullDistance = 0;
+  double _miniAppsPullDistance = 0;
+  bool _isRefreshing = false;
+  bool _miniAppsExpanded = false;
   int _lastVisibleRows = 1;
+
+  static const double _refreshPullThreshold = 72;
+  static const double _miniAppsPullThreshold = 168;
 
   ScrollController _newScrollController({double initialScrollOffset = 0}) {
     return ScrollController(initialScrollOffset: initialScrollOffset)
@@ -486,7 +493,9 @@ class _ChatListViewState extends State<ChatListView> {
         }
       });
     }
+    final drawerHeight = _miniAppsDrawerHeight(context);
     return Stack(
+      clipBehavior: Clip.none,
       children: [
         Container(
           color: c.background,
@@ -500,11 +509,28 @@ class _ChatListViewState extends State<ChatListView> {
             ],
           ),
         ),
+        if (_miniAppsExpanded)
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: SizedBox(
+              height: drawerHeight,
+              child: MiniAppsDrawer(
+                progress: 1,
+                onCollapse: () => setState(() => _miniAppsExpanded = false),
+              ),
+            ),
+          ),
         if (_showPlusMenu) _plusMenuOverlay(),
         if (folderMode == ChatFolderDisplayMode.menu && _showFilterMenu)
           _filterMenuOverlay(),
       ],
     );
+  }
+
+  double _miniAppsDrawerHeight(BuildContext context) {
+    return math.min(MediaQuery.sizeOf(context).height * 0.46, 390);
   }
 
   // MARK: - Header
@@ -852,9 +878,9 @@ class _ChatListViewState extends State<ChatListView> {
           }
 
           list = NotificationListener<ScrollNotification>(
-            onNotification: (notification) => _handleArchivePull(
+            onNotification: (notification) => _handleChatListPull(
               notification,
-              enabled:
+              archiveEnabled:
                   hasArchive &&
                   archiveMode == ArchivedChatsDisplayMode.pullDown,
               rowHeight: rowH,
@@ -892,6 +918,51 @@ class _ChatListViewState extends State<ChatListView> {
         },
       ),
     );
+  }
+
+  bool _handleChatListPull(
+    ScrollNotification notification, {
+    required bool archiveEnabled,
+    required double rowHeight,
+  }) {
+    _handleArchivePull(
+      notification,
+      enabled: archiveEnabled,
+      rowHeight: rowHeight,
+    );
+    if (_miniAppsExpanded || _isRefreshing) return false;
+
+    if (notification is ScrollStartNotification) {
+      _miniAppsPullDistance = 0;
+    } else if (notification is OverscrollNotification &&
+        notification.overscroll < 0) {
+      _miniAppsPullDistance += -notification.overscroll;
+    } else if (notification is ScrollUpdateNotification &&
+        notification.metrics.pixels < 0) {
+      _miniAppsPullDistance = math.max(
+        _miniAppsPullDistance,
+        -notification.metrics.pixels,
+      );
+    } else if (notification is ScrollEndNotification) {
+      final pull = _miniAppsPullDistance;
+      _miniAppsPullDistance = 0;
+      if (pull >= _miniAppsPullThreshold) {
+        setState(() => _miniAppsExpanded = true);
+      } else if (pull >= _refreshPullThreshold) {
+        unawaited(_refreshChats());
+      }
+    }
+    return false;
+  }
+
+  Future<void> _refreshChats() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    try {
+      await _model.refresh();
+    } finally {
+      if (mounted) setState(() => _isRefreshing = false);
+    }
   }
 
   bool _handleArchivePull(
@@ -1346,9 +1417,7 @@ class ChatFilterMenu extends StatelessWidget {
                   child: Row(
                     children: [
                       AppIcon(
-                        filter.isAll
-                            ? HeroAppIcons.inbox
-                            : HeroAppIcons.folder,
+                        filter.isAll ? HeroAppIcons.inbox : HeroAppIcons.folder,
                         size: AppIconSize.lg + 1,
                         color: c.textPrimary,
                       ),

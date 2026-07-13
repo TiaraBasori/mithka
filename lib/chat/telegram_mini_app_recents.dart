@@ -1,0 +1,450 @@
+//
+//  telegram_mini_app_recents.dart
+//
+//  Stores the user's recently opened Telegram Mini Apps. Only the original bot
+//  launch URL is persisted; TDLib-authenticated Web App URLs are never stored.
+//
+
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../tdlib/json_helpers.dart';
+import '../tdlib/td_client.dart';
+import '../tdlib/td_models.dart';
+
+class TelegramMiniAppRecent {
+  const TelegramMiniAppRecent({
+    required this.title,
+    required this.url,
+    required this.botUserId,
+    required this.chatId,
+    required this.updatedAt,
+    this.keyboardButtonText,
+    this.mainWebApp = false,
+    this.startParameter = '',
+    this.webAppShortName = '',
+    this.allowWriteAccess = false,
+    this.photo,
+  });
+
+  final String title;
+  final String url;
+  final int botUserId;
+  final int chatId;
+  final int updatedAt;
+  final String? keyboardButtonText;
+  final bool mainWebApp;
+  final String startParameter;
+  final String webAppShortName;
+  final bool allowWriteAccess;
+  final TdFileRef? photo;
+
+  Map<String, dynamic> toJson() => {
+    'title': title,
+    'url': url,
+    'botUserId': botUserId,
+    'chatId': chatId,
+    'updatedAt': updatedAt,
+    if (mainWebApp) 'mainWebApp': true,
+    if (startParameter.isNotEmpty) 'startParameter': startParameter,
+    if (webAppShortName.isNotEmpty) 'webAppShortName': webAppShortName,
+    if (allowWriteAccess) 'allowWriteAccess': true,
+    if (photo != null) 'photoFileId': photo!.id,
+    if (keyboardButtonText != null && keyboardButtonText!.isNotEmpty)
+      'keyboardButtonText': keyboardButtonText,
+  };
+
+  static TelegramMiniAppRecent? fromJson(Object? value) {
+    if (value is! Map) return null;
+    final title = value['title'] as String?;
+    final url = value['url'] as String?;
+    final botUserId = _asInt(value['botUserId']);
+    final chatId = _asInt(value['chatId']);
+    final mainWebApp = value['mainWebApp'] == true;
+    final shortName = value['webAppShortName'] as String? ?? '';
+    if (title == null ||
+        title.isEmpty ||
+        url == null ||
+        (!mainWebApp && shortName.isEmpty && url.isEmpty) ||
+        botUserId == null ||
+        chatId == null) {
+      return null;
+    }
+    final photoFileId = _asInt(value['photoFileId']);
+    return TelegramMiniAppRecent(
+      title: title,
+      url: url,
+      botUserId: botUserId,
+      chatId: chatId,
+      updatedAt: _asInt(value['updatedAt']) ?? 0,
+      keyboardButtonText: value['keyboardButtonText'] as String?,
+      mainWebApp: mainWebApp,
+      startParameter: value['startParameter'] as String? ?? '',
+      webAppShortName: shortName,
+      allowWriteAccess: value['allowWriteAccess'] == true,
+      photo: photoFileId == null ? null : TdFileRef(id: photoFileId),
+    );
+  }
+
+  static int? _asInt(Object? value) {
+    if (value is int) return value;
+    if (value is double) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+}
+
+abstract final class TelegramMiniAppRecents {
+  static const _key = 'telegramMiniAppRecents.v1';
+  static const _limit = 12;
+
+  static Future<List<TelegramMiniAppRecent>> load() async {
+    final stored = await _loadStored();
+    final used = await _discoverUsedWebAppBots();
+    final discovered = await _discoverBotMenuApps();
+    return _merge(stored, [...used, ...discovered]);
+  }
+
+  static Future<List<TelegramMiniAppRecent>> search(String rawQuery) async {
+    final query = rawQuery.trim();
+    if (query.isEmpty) return load();
+
+    final linkTarget = await _webAppTargetFromQuery(query);
+    if (linkTarget == null) {
+      final recents = await load();
+      final lower = query.toLowerCase();
+      return recents
+          .where(
+            (app) =>
+                app.title.toLowerCase().contains(lower) ||
+                app.url.toLowerCase().contains(lower) ||
+                app.webAppShortName.toLowerCase().contains(lower),
+          )
+          .toList();
+    }
+
+    return _searchTelegramWebApp(linkTarget);
+  }
+
+  static Future<List<TelegramMiniAppRecent>> _loadStored() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_key);
+    if (raw == null || raw.isEmpty) return const [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return const [];
+      final recents =
+          decoded
+              .map(TelegramMiniAppRecent.fromJson)
+              .whereType<TelegramMiniAppRecent>()
+              .toList()
+            ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+      return recents.take(_limit).toList();
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Future<List<TelegramMiniAppRecent>> _discoverBotMenuApps() async {
+    try {
+      final chats = await TdClient.shared.query({
+        '@type': 'getChats',
+        'chat_list': {'@type': 'chatListMain'},
+        'limit': 80,
+      });
+      final ids = chats.int64Array('chat_ids') ?? const <int>[];
+      final apps = <TelegramMiniAppRecent>[];
+      for (final chatId in ids) {
+        try {
+          final chat = await TdClient.shared.query({
+            '@type': 'getChat',
+            'chat_id': chatId,
+          });
+          final type = chat.obj('type');
+          if (type?.type != 'chatTypePrivate') continue;
+          final userId = type?.int64('user_id');
+          if (userId == null) continue;
+          final full = await TdClient.shared.query({
+            '@type': 'getUserFullInfo',
+            'user_id': userId,
+          });
+          final menu = full.obj('bot_info')?.obj('menu_button');
+          if (menu?.type != 'botMenuButton') continue;
+          final url = menu?.str('url')?.trim() ?? '';
+          if (url.isEmpty) continue;
+          final text = menu?.str('text')?.trim() ?? '';
+          final title = text.isNotEmpty
+              ? text
+              : (chat.str('title')?.trim().isNotEmpty == true
+                    ? chat.str('title')!.trim()
+                    : '小程序');
+          apps.add(
+            TelegramMiniAppRecent(
+              title: title,
+              url: url,
+              botUserId: userId,
+              chatId: chatId,
+              updatedAt: 0,
+              photo: TDParse.smallPhoto(chat.obj('photo')),
+            ),
+          );
+        } catch (_) {}
+      }
+      return apps;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Future<List<TelegramMiniAppRecent>> _discoverUsedWebAppBots() async {
+    try {
+      final chats = await TdClient.shared.query({
+        '@type': 'getTopChats',
+        'category': {'@type': 'topChatCategoryWebAppBots'},
+        'limit': _limit,
+      });
+      final ids = chats.int64Array('chat_ids') ?? const <int>[];
+      final apps = <TelegramMiniAppRecent>[];
+      for (final chatId in ids) {
+        try {
+          final chat = await TdClient.shared.query({
+            '@type': 'getChat',
+            'chat_id': chatId,
+          });
+          final type = chat.obj('type');
+          if (type?.type != 'chatTypePrivate') continue;
+          final userId = type?.int64('user_id');
+          if (userId == null) continue;
+          final title = chat.str('title')?.trim();
+          apps.add(
+            TelegramMiniAppRecent(
+              title: title == null || title.isEmpty ? '小程序' : title,
+              url: '',
+              botUserId: userId,
+              chatId: chatId,
+              updatedAt: 0,
+              mainWebApp: true,
+              photo: TDParse.smallPhoto(chat.obj('photo')),
+            ),
+          );
+        } catch (_) {}
+      }
+      return apps;
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static List<TelegramMiniAppRecent> _merge(
+    List<TelegramMiniAppRecent> stored,
+    List<TelegramMiniAppRecent> discovered,
+  ) {
+    final seen = <String>{};
+    final merged = <TelegramMiniAppRecent>[];
+    void add(TelegramMiniAppRecent app) {
+      final key = app.mainWebApp
+          ? '${app.botUserId}:main:${app.startParameter}'
+          : app.webAppShortName.isNotEmpty
+          ? '${app.botUserId}:web:${app.webAppShortName}:${app.startParameter}'
+          : '${app.botUserId}:${app.url}';
+      if (seen.add(key)) merged.add(app);
+    }
+
+    for (final app in stored) {
+      add(app);
+    }
+    for (final app in discovered) {
+      add(app);
+    }
+    return merged.take(_limit).toList();
+  }
+
+  static Future<void> record({
+    required String title,
+    required String url,
+    required int botUserId,
+    required int chatId,
+    String? keyboardButtonText,
+    bool mainWebApp = false,
+    String startParameter = '',
+    String webAppShortName = '',
+    bool allowWriteAccess = false,
+    TdFileRef? photo,
+  }) async {
+    final cleanTitle = title.trim().isEmpty ? '小程序' : title.trim();
+    final cleanUrl = url.trim();
+    if (cleanUrl.isEmpty && !mainWebApp && webAppShortName.isEmpty) return;
+
+    final current = await _loadStored();
+    final next = <TelegramMiniAppRecent>[
+      TelegramMiniAppRecent(
+        title: cleanTitle,
+        url: cleanUrl,
+        botUserId: botUserId,
+        chatId: chatId,
+        keyboardButtonText: keyboardButtonText,
+        mainWebApp: mainWebApp,
+        startParameter: startParameter,
+        webAppShortName: webAppShortName,
+        allowWriteAccess: allowWriteAccess,
+        photo: photo,
+        updatedAt: DateTime.now().millisecondsSinceEpoch,
+      ),
+      for (final item in current)
+        if (!(item.botUserId == botUserId &&
+            item.url == cleanUrl &&
+            item.mainWebApp == mainWebApp &&
+            item.startParameter == startParameter &&
+            item.webAppShortName == webAppShortName))
+          item,
+    ].take(_limit).toList();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      _key,
+      jsonEncode(next.map((item) => item.toJson()).toList()),
+    );
+  }
+
+  static Future<List<TelegramMiniAppRecent>> _searchTelegramWebApp(
+    _WebAppTarget target,
+  ) async {
+    try {
+      final chat = await TdClient.shared.query({
+        '@type': 'searchPublicChat',
+        'username': target.botUsername,
+      });
+      final chatId = chat.int64('id') ?? 0;
+      final type = chat.obj('type');
+      if (type?.type != 'chatTypePrivate') return const [];
+      final botUserId = type?.int64('user_id');
+      if (botUserId == null) return const [];
+      final chatTitle = chat.str('title')?.trim();
+      final chatPhoto = TDParse.smallPhoto(chat.obj('photo'));
+      if (target.mainWebApp) {
+        return [
+          TelegramMiniAppRecent(
+            title: chatTitle == null || chatTitle.isEmpty
+                ? target.botUsername
+                : chatTitle,
+            url: '',
+            botUserId: botUserId,
+            chatId: chatId,
+            updatedAt: DateTime.now().millisecondsSinceEpoch,
+            mainWebApp: true,
+            startParameter: target.startParameter,
+            photo: chatPhoto,
+          ),
+        ];
+      }
+
+      final found = await TdClient.shared.query({
+        '@type': 'searchWebApp',
+        'bot_user_id': botUserId,
+        'web_app_short_name': target.webAppShortName,
+      });
+      final webApp = found.obj('web_app');
+      if (webApp == null) return const [];
+      final title = webApp.str('title')?.trim();
+      final shortName = webApp.str('short_name') ?? target.webAppShortName;
+      return [
+        TelegramMiniAppRecent(
+          title: title == null || title.isEmpty ? shortName : title,
+          url: 'https://t.me/${target.botUsername}/$shortName',
+          botUserId: botUserId,
+          chatId: chatId,
+          updatedAt: DateTime.now().millisecondsSinceEpoch,
+          startParameter: target.startParameter,
+          webAppShortName: shortName,
+          allowWriteAccess: found.boolean('request_write_access') ?? false,
+          photo: _webAppPhoto(webApp.obj('photo')) ?? chatPhoto,
+        ),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Future<_WebAppTarget?> _webAppTargetFromQuery(String query) async {
+    final normalized = _normalizeTelegramLinkQuery(query);
+    if (normalized != null) {
+      try {
+        final type = await TdClient.shared.query({
+          '@type': 'getInternalLinkType',
+          'link': normalized,
+        });
+        switch (type.type) {
+          case 'internalLinkTypeWebApp':
+            return _WebAppTarget(
+              botUsername: type.str('bot_username') ?? '',
+              webAppShortName: type.str('web_app_short_name') ?? '',
+              startParameter: type.str('start_parameter') ?? '',
+            );
+          case 'internalLinkTypeMainWebApp':
+            return _WebAppTarget(
+              botUsername: type.str('bot_username') ?? '',
+              startParameter: type.str('start_parameter') ?? '',
+              mainWebApp: true,
+            );
+        }
+      } catch (_) {}
+    }
+
+    final bare = query
+        .replaceFirst(RegExp(r'^@'), '')
+        .replaceFirst(RegExp(r'^https?://', caseSensitive: false), '')
+        .replaceFirst(
+          RegExp(r'^(t\.me|telegram\.me)/', caseSensitive: false),
+          '',
+        )
+        .split('?')
+        .first
+        .split('#')
+        .first;
+    final parts = bare.split('/').where((part) => part.isNotEmpty).toList();
+    if (parts.length < 2) return null;
+    return _WebAppTarget(botUsername: parts[0], webAppShortName: parts[1]);
+  }
+
+  static String? _normalizeTelegramLinkQuery(String query) {
+    final lower = query.toLowerCase();
+    if (lower.startsWith('tg:') ||
+        lower.startsWith('https://t.me/') ||
+        lower.startsWith('http://t.me/') ||
+        lower.startsWith('https://telegram.me/') ||
+        lower.startsWith('http://telegram.me/')) {
+      return query;
+    }
+    if (RegExp(r'^[a-zA-Z0-9_]{3,}/[a-zA-Z0-9_]+').hasMatch(query)) {
+      return 'https://t.me/$query';
+    }
+    return null;
+  }
+
+  static TdFileRef? _webAppPhoto(Map<String, dynamic>? photo) {
+    if (photo == null) return null;
+    final miniThumb = TDParse.decodeMiniThumb(photo.obj('minithumbnail'));
+    final sizes = photo.objects('sizes') ?? const <Map<String, dynamic>>[];
+    if (sizes.isEmpty) return null;
+    final sorted = [...sizes]
+      ..sort(
+        (a, b) => (b.integer('width') ?? 0).compareTo(a.integer('width') ?? 0),
+      );
+    return TDParse.fileRef(sorted.first.obj('photo'), miniThumb: miniThumb);
+  }
+}
+
+class _WebAppTarget {
+  const _WebAppTarget({
+    required this.botUsername,
+    this.webAppShortName = '',
+    this.startParameter = '',
+    this.mainWebApp = false,
+  });
+
+  final String botUsername;
+  final String webAppShortName;
+  final String startParameter;
+  final bool mainWebApp;
+}
