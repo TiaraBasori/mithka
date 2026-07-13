@@ -187,6 +187,9 @@ PODS:
   - video_player_avfoundation (0.0.1):
     - Flutter
     - FlutterMacOS
+  - webview_flutter_wkwebview (0.0.1):
+    - Flutter
+    - FlutterMacOS
 
 DEPENDENCIES:
   - apple_maps_flutter (from `.symlinks/plugins/apple_maps_flutter/ios`)
@@ -213,6 +216,7 @@ DEPENDENCIES:
   - TgVoipWebrtc (from `LocalPods/tgvoip`)
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
   - video_player_avfoundation (from `.symlinks/plugins/video_player_avfoundation/darwin`)
+  - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
 SPEC REPOS:
   trunk:
@@ -282,6 +286,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/url_launcher_ios/ios"
   video_player_avfoundation:
     :path: ".symlinks/plugins/video_player_avfoundation/darwin"
+  webview_flutter_wkwebview:
+    :path: ".symlinks/plugins/webview_flutter_wkwebview/darwin"
 
 SPEC CHECKSUMS:
   apple_maps_flutter: 2237d66a8e242082a2d88134af372f7b3375d7a6
@@ -324,6 +330,7 @@ SPEC CHECKSUMS:
   TgVoipWebrtc: f652492658e07add6d04f559286fc59ed7664b6c
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
   video_player_avfoundation: 3453f792138786248960ca029747fcd9f318ef52
+  webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d
 
 PODFILE CHECKSUM: 34ef99ab0d48e228acac44396987dac795a78ec5
 

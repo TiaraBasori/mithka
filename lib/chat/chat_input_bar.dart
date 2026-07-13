@@ -53,12 +53,20 @@ import 'rich_message_source.dart';
 import 'rich_text_composer_view.dart';
 import 'sticker_preview.dart';
 import 'sticker_store.dart';
+import 'telegram_mini_app_view.dart';
 
 enum _Panel { none, function, emoji, sticker, voice }
 
 enum _ClipboardImageAction { cancel, edit, richText, send }
 
 enum _RichTextSendMode { premium, botRelay }
+
+class _ReplyKeyboard {
+  const _ReplyKeyboard({required this.message, required this.rows});
+
+  final ChatMessage message;
+  final List<List<MessageButton>> rows;
+}
 
 class MentionQuery {
   const MentionQuery({
@@ -590,6 +598,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final replyKeyboard = _activeReplyKeyboard();
     return Container(
       color: c.inputBarBackground,
       child: SafeArea(
@@ -599,8 +608,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
           children: [
             if (vm.replyTo != null) _replyBanner(vm.replyTo!),
             if (_mentionCandidates.isNotEmpty) _mentionMenu(),
-            _inputRow(),
-            _iconStrip(),
+            _inputRow(replyKeyboard),
+            if (replyKeyboard != null)
+              _replyKeyboardPanel(replyKeyboard)
+            else
+              _iconStrip(),
             if (_panel == _Panel.function) _functionPanel(),
             if (_panel == _Panel.emoji) _emojiPanel(),
             if (_panel == _Panel.sticker) _stickerPanel(),
@@ -799,11 +811,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
     );
   }
 
-  void _showBotMenu() {
+  void _showBotMenu({bool forceMenu = false}) {
     final commands = vm.botCommands;
     final menu = vm.botMenu;
-    if ((menu?.isWebApp ?? false) && commands.isEmpty) {
-      unawaited(openLink(context, menu!.url));
+    if (!(menu?.isWebApp ?? false) && commands.isEmpty) return;
+    if (!forceMenu && (menu?.isWebApp ?? false)) {
+      unawaited(_openBotMenuWebApp(menu!));
       return;
     }
     showModalBottomSheet<void>(
@@ -825,21 +838,19 @@ class _ChatInputBarState extends State<ChatInputBar> {
               children: [
                 if (menu?.isWebApp ?? false) ...[
                   _botMenuRow(
-                    icon: HeroAppIcons.tableCells.data,
-                    title: menu!.text.isEmpty
-                        ? AppStrings.t(AppStringKeys.composerOpenMenu)
-                        : menu.text,
-                    subtitle: menu.url,
+                    icon: HeroAppIcons.tableCells,
+                    title: menu!.actionTitle,
+                    subtitle: menu.isLegacyMenuUrl ? '' : menu.url,
                     onTap: () {
                       Navigator.of(context).pop();
-                      unawaited(openLink(context, menu.url));
+                      unawaited(_openBotMenuWebApp(menu));
                     },
                   ),
                   if (commands.isNotEmpty) const InsetDivider(leadingInset: 56),
                 ],
                 for (var i = 0; i < commands.length; i++) ...[
                   _botMenuRow(
-                    icon: HeroAppIcons.ban.data,
+                    icon: HeroAppIcons.ban,
                     title: '/${commands[i].command}',
                     subtitle: commands[i].description,
                     onTap: () {
@@ -858,8 +869,27 @@ class _ChatInputBarState extends State<ChatInputBar> {
     );
   }
 
+  Future<void> _openBotMenuWebApp(BotMenuInfo menu) async {
+    final botUserId = vm.peerUserId;
+    if (botUserId == null) {
+      if (!menu.isLegacyMenuUrl && menu.webAppUrl.isNotEmpty) {
+        await openLink(context, menu.webAppUrl);
+      }
+      return;
+    }
+    final opened = await openTelegramMiniApp(
+      context,
+      chatId: vm.chatId,
+      botUserId: botUserId,
+      url: menu.url,
+      title: menu.actionTitle,
+      menuWebApp: true,
+    );
+    if (!opened && mounted) showToast(context, '小程序暂时无法启动');
+  }
+
   Widget _botMenuRow({
-    required IconData icon,
+    required AppIconData icon,
     required String title,
     required String subtitle,
     required VoidCallback onTap,
@@ -874,7 +904,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(
             children: [
-              Icon(icon, size: 22, color: AppTheme.brand),
+              AppIcon(icon, size: 22, color: AppTheme.brand),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -955,21 +985,88 @@ class _ChatInputBarState extends State<ChatInputBar> {
     );
   }
 
-  Widget _inputRow() {
+  _ReplyKeyboard? _activeReplyKeyboard() {
+    for (final message in vm.messages.reversed) {
+      final rows = message.buttonRows
+          .map((row) => row.where((button) => button.isReplyKeyboard).toList())
+          .where((row) => row.isNotEmpty)
+          .toList();
+      if (rows.isNotEmpty) return _ReplyKeyboard(message: message, rows: rows);
+    }
+    return null;
+  }
+
+  MessageButton? _webAppButton(_ReplyKeyboard? keyboard) {
+    if (keyboard == null) return null;
+    for (final row in keyboard.rows) {
+      for (final button in row) {
+        if (button.isWebApp && (button.url?.isNotEmpty ?? false)) {
+          return button;
+        }
+      }
+    }
+    return null;
+  }
+
+  Future<void> _openReplyKeyboardWebApp(
+    _ReplyKeyboard keyboard,
+    MessageButton button,
+  ) async {
+    final url = button.url;
+    if (url == null || url.isEmpty) return;
+    final botUserId = await vm.webAppBotUserId(keyboard.message);
+    if (!mounted) return;
+    if (botUserId == null) {
+      showToast(context, '小程序暂时无法启动');
+      return;
+    }
+    final opened = await openTelegramMiniApp(
+      context,
+      chatId: vm.chatId,
+      botUserId: botUserId,
+      url: url,
+      title: button.text,
+      keyboardButtonText: button.text,
+    );
+    if (!opened && mounted) showToast(context, '小程序暂时无法启动');
+  }
+
+  void _pressReplyKeyboardButton(
+    _ReplyKeyboard keyboard,
+    MessageButton button,
+  ) {
+    if (button.isWebApp) {
+      unawaited(_openReplyKeyboardWebApp(keyboard, button));
+      return;
+    }
+    if (button.type == 'keyboardButtonTypeText') {
+      vm.sendKeyboardButtonText(button.text);
+      widget.onMessageSent();
+      return;
+    }
+    showToast(context, AppStringKeys.chatButtonUnsupported);
+  }
+
+  Widget _inputRow(_ReplyKeyboard? replyKeyboard) {
     final c = context.colors;
     final hasText = _hasText;
     final sender = vm.selectedMessageSender;
+    final webAppButton = _webAppButton(replyKeyboard);
     return Padding(
       padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          if (vm.peerIsBot &&
+          if (webAppButton != null && replyKeyboard != null) ...[
+            _replyKeyboardMiniAppAction(replyKeyboard, webAppButton),
+            const SizedBox(width: 8),
+          ] else if (vm.peerIsBot &&
               (vm.botCommands.isNotEmpty ||
                   (vm.botMenu?.isWebApp ?? false))) ...[
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: _showBotMenu,
+              onLongPress: () => _showBotMenu(forceMenu: true),
               child: Container(
                 width: 36,
                 height: 36,
@@ -1167,6 +1264,117 @@ class _ChatInputBarState extends State<ChatInputBar> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _replyKeyboardMiniAppAction(
+    _ReplyKeyboard keyboard,
+    MessageButton button,
+  ) {
+    final c = context.colors;
+    return Semantics(
+      button: true,
+      label: button.text,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => unawaited(_openReplyKeyboardWebApp(keyboard, button)),
+        onLongPress: () => _showBotMenu(forceMenu: true),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 156),
+          child: Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.brand,
+              borderRadius: BorderRadius.circular(19),
+              border: Border.all(
+                color: c.inputBarBackground.withValues(alpha: 0.72),
+                width: 2,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const AppIcon(
+                  HeroAppIcons.square,
+                  size: 18,
+                  color: Colors.white,
+                ),
+                const SizedBox(width: 7),
+                Flexible(
+                  child: Text(
+                    button.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _replyKeyboardPanel(_ReplyKeyboard keyboard) {
+    final c = context.colors;
+    return Container(
+      constraints: const BoxConstraints(maxHeight: 330),
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+      decoration: BoxDecoration(
+        color: c.panelBackground,
+        border: Border(top: BorderSide(color: c.divider, width: 0.5)),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            for (final row in keyboard.rows) ...[
+              Row(
+                children: [
+                  for (var index = 0; index < row.length; index++) ...[
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () =>
+                            _pressReplyKeyboardButton(keyboard, row[index]),
+                        child: Container(
+                          height: 48,
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          decoration: BoxDecoration(
+                            color: c.card,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            row[index].text,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: c.textPrimary,
+                              fontSize: AppTextSize.body,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (index < row.length - 1) const SizedBox(width: 8),
+                  ],
+                ],
+              ),
+              if (!identical(row, keyboard.rows.last))
+                const SizedBox(height: 8),
+            ],
+          ],
+        ),
       ),
     );
   }
