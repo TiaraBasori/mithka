@@ -10,7 +10,9 @@
 //
 
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../theme/theme_controller.dart';
 import 'custom_emoji.dart';
 
 typedef _Emoji = ({int id, String fallback});
@@ -380,7 +382,7 @@ class EmojiTextEditingController extends TextEditingController {
       spans.add(
         TextSpan(
           text: text.substring(start, end),
-          style: _entityStyle(active, style),
+          style: _entityStyle(context, active, style),
         ),
       );
     }
@@ -544,11 +546,13 @@ class EmojiTextEditingController extends TextEditingController {
   }
 
   TextStyle? _entityStyle(
+    BuildContext context,
     List<_ComposerTextEntity> active,
     TextStyle? baseStyle,
   ) {
     var style = baseStyle;
     final decorations = <TextDecoration>[];
+    var useCodeFont = false;
     for (final entity in active) {
       switch (entity.typeName) {
         case 'textEntityTypeBold':
@@ -566,9 +570,7 @@ class EmojiTextEditingController extends TextEditingController {
         case 'textEntityTypeCode':
         case 'textEntityTypePre':
         case 'textEntityTypePreCode':
-          style = (style ?? const TextStyle()).copyWith(
-            fontFamily: 'monospace',
-          );
+          useCodeFont = true;
         case 'textEntityTypeSpoiler':
           final color = style?.color ?? Colors.black;
           style = (style ?? const TextStyle()).copyWith(
@@ -587,6 +589,10 @@ class EmojiTextEditingController extends TextEditingController {
         decorationColor: style?.color,
       );
     }
-    return style;
+    return useCodeFont
+        ? context.read<ThemeController>().codeTextStyle(
+            style ?? const TextStyle(),
+          )
+        : style;
   }
 }

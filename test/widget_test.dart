@@ -1,5 +1,6 @@
 // Unit tests for the ported pure logic (date formatting, JSON helpers, parsing).
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
@@ -17,6 +18,7 @@ import 'package:mithka/chat/group_management_log_view.dart';
 import 'package:mithka/chat/media_album_layout.dart';
 import 'package:mithka/chat/message_bubble.dart';
 import 'package:mithka/chat/rich_text_composer_view.dart';
+import 'package:mithka/chat/sponsored_messages_cache.dart';
 import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_locale_controller.dart';
@@ -1304,6 +1306,67 @@ void main() {
     });
   });
 
+  group('SponsoredMessagesCache', () {
+    test('caches an account and channel response for five minutes', () async {
+      var now = DateTime(2026, 7, 13, 12);
+      final cache = SponsoredMessagesCache(now: () => now);
+      var calls = 0;
+      Future<Map<String, dynamic>> fetch() async {
+        calls++;
+        return {
+          '@type': 'sponsoredMessages',
+          'messages': [
+            {'@type': 'sponsoredMessage', 'message_id': calls},
+          ],
+        };
+      }
+
+      final first = await cache.retrieve(cacheKey: '0:-1001', fetch: fetch);
+      now = now.add(const Duration(minutes: 4, seconds: 59));
+      final cached = await cache.retrieve(cacheKey: '0:-1001', fetch: fetch);
+      now = now.add(const Duration(seconds: 2));
+      final refreshed = await cache.retrieve(cacheKey: '0:-1001', fetch: fetch);
+
+      expect(calls, 2);
+      expect(cached, same(first));
+      expect(refreshed.response['messages'], [
+        {'@type': 'sponsoredMessage', 'message_id': 2},
+      ]);
+    });
+
+    test('refreshes an open chat even while the result is cached', () async {
+      final cache = SponsoredMessagesCache();
+      var calls = 0;
+      Future<Map<String, dynamic>> fetch() async {
+        calls++;
+        return {'@type': 'sponsoredMessages', 'messages': const []};
+      }
+
+      await cache.retrieve(cacheKey: '0:-1001', fetch: fetch);
+      await cache.retrieve(cacheKey: '0:-1001', refresh: true, fetch: fetch);
+
+      expect(calls, 2);
+    });
+
+    test('coalesces simultaneous requests for the same channel', () async {
+      final gate = Completer<Map<String, dynamic>>();
+      final cache = SponsoredMessagesCache();
+      var calls = 0;
+
+      Future<Map<String, dynamic>> fetch() {
+        calls++;
+        return gate.future;
+      }
+
+      final first = cache.retrieve(cacheKey: '0:-1001', fetch: fetch);
+      final second = cache.retrieve(cacheKey: '0:-1001', fetch: fetch);
+      gate.complete({'@type': 'sponsoredMessages', 'messages': const []});
+
+      expect(await first, same(await second));
+      expect(calls, 1);
+    });
+  });
+
   group('TDParse.messageText', () {
     test('photo with no caption uses localized placeholder', () {
       final content = <String, dynamic>{'@type': 'messagePhoto'};
@@ -1979,9 +2042,37 @@ void main() {
       );
 
       expect(style.fontFamily, 'My Mono');
-      expect(style.fontFamilyFallback, contains('My Mono'));
+      expect(style.fontFamilyFallback, isNot(contains('My Mono')));
       expect(style.fontFamilyFallback!.length, greaterThan(1));
     });
+
+    test(
+      'code font fallback prioritizes mono, emoji, then normal text',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'monospaceFontChoice': 'custom',
+          'customMonospaceFontFamily': 'My Mono',
+          'fontFallbackChain': ['My Normal', 'Normal Fallback'],
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final theme = ThemeController(prefs);
+        addTearDown(theme.dispose);
+
+        final style = theme.codeTextStyle(
+          const TextStyle(fontFamilyFallback: ['Wrong Normal']),
+        );
+        final fallbacks = style.fontFamilyFallback!;
+        final emojiIndex = fallbacks.indexOf(
+          theme.emojiFontChoice.fontFamilies.first,
+        );
+        final normalIndex = fallbacks.indexOf('My Normal');
+
+        expect(style.fontFamily, 'My Mono');
+        expect(emojiIndex, greaterThanOrEqualTo(0));
+        expect(normalIndex, greaterThan(emojiIndex));
+        expect(fallbacks, isNot(contains('Wrong Normal')));
+      },
+    );
   });
 
   group('EmojiFontChoice', () {

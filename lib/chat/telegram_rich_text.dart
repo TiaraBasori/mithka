@@ -2,11 +2,13 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:provider/provider.dart';
 
 import '../components/toast.dart';
 import '../l10n/app_localizations.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import '../theme/theme_controller.dart';
 import 'custom_emoji.dart';
 import 'link_handler.dart';
 
@@ -257,7 +259,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     TextStyle baseStyle,
     Color linkColor,
   ) {
-    final style = _entityStyle(active, baseStyle, linkColor);
+    final style = _entityStyle(context, active, baseStyle, linkColor);
     final customEmojiId = _customEmojiId(active);
     if (customEmojiId != null) {
       return [
@@ -357,6 +359,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
   }
 
   TextStyle _entityStyle(
+    BuildContext context,
     List<MessageTextEntity> active,
     TextStyle baseStyle,
     Color linkColor,
@@ -364,6 +367,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     var style = baseStyle;
     final decorations = <TextDecoration>[];
     var fontFeatures = const <FontFeature>[];
+    var useCodeFont = false;
     for (final entity in active) {
       switch (entity.type) {
         case 'textEntityTypeBold':
@@ -377,7 +381,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
         case 'textEntityTypeCode':
         case 'textEntityTypePre':
         case 'textEntityTypePreCode':
-          style = style.copyWith(fontFamily: 'monospace');
+          useCodeFont = true;
         case 'textEntityTypeSpoiler':
           final color = style.color ?? Colors.black;
           style = style.copyWith(
@@ -416,7 +420,9 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     if (fontFeatures.isNotEmpty) {
       style = style.copyWith(fontFeatures: fontFeatures);
     }
-    return style;
+    return useCodeFont
+        ? context.read<ThemeController>().codeTextStyle(style)
+        : style;
   }
 
   int? _customEmojiId(List<MessageTextEntity> active) {

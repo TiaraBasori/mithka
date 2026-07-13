@@ -745,17 +745,18 @@ enum AppMonospaceFontChoice {
         ? GoogleFonts.getFont(googleFamily!, textStyle: base)
         : base.copyWith(fontFamily: fontFamily);
     final selectedCustomFamily = customGoogleFamily ?? custom;
+    final primaryFamily = withFamily.fontFamily?.trim();
     return withFamily.copyWith(
+      // ThemeController appends emoji and normal-text fallbacks after this
+      // monospace-only portion of the chain.
       fontFamilyFallback: _dedupe([
         if (isCustom &&
             selectedCustomFamily != null &&
             selectedCustomFamily.isNotEmpty)
           selectedCustomFamily,
-        ...?withFamily.fontFamilyFallback,
         fontFamily,
         ..._platformMonospaceFontFallback(),
-        ...AppFontChoice._platformFontFallback(),
-      ]),
+      ]).where((family) => family != primaryFamily).toList(growable: false),
     );
   }
 
@@ -1071,15 +1072,22 @@ class ThemeController extends ChangeNotifier {
   double get avatarSize => AppMetric.avatarSize;
   double get navHeaderHeight => AppMetric.navHeaderHeight;
   double scaled(double base) => base;
-  List<String> effectiveFontFamilyChain([TextStyle? base]) {
+  List<String> _normalFontFamilyChain([TextStyle? base]) {
     final textFamilies = _fontFallbackChain.isNotEmpty
         ? _fontFallbackChain
         : [AppFontChoice._platformFontFamily()];
     return dedupeFontFamilies([
+      ...textFamilies,
+      ...AppFontChoice._platformFontFallback(),
+    ]);
+  }
+
+  List<String> effectiveFontFamilyChain([TextStyle? base]) {
+    final textFamilies = _normalFontFamilyChain(base);
+    return dedupeFontFamilies([
       textFamilies.first,
       ..._emojiFontChoice.fontFamilies,
       ...textFamilies.skip(1),
-      ...AppFontChoice._platformFontFallback(),
     ]);
   }
 
@@ -1128,8 +1136,19 @@ class ThemeController extends ChangeNotifier {
     );
   }
 
-  TextStyle codeTextStyle(TextStyle base) => _monospaceFontChoice
-      .applyTextStyle(base, customFamily: _customMonospaceFontFamily);
+  TextStyle codeTextStyle(TextStyle base) {
+    final code = _monospaceFontChoice.applyTextStyle(
+      base,
+      customFamily: _customMonospaceFontFamily,
+    );
+    return code.copyWith(
+      fontFamilyFallback: dedupeFontFamilies([
+        ...?code.fontFamilyFallback,
+        ..._emojiFontChoice.fontFamilies,
+        ..._normalFontFamilyChain(base),
+      ]),
+    );
+  }
 
   static String? _googleFamilyFor(String family) {
     final storedGoogleFamily = decodeGoogleFontFamily(family);

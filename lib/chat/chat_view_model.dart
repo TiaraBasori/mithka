@@ -26,6 +26,7 @@ import 'forward_options.dart';
 import 'gif_item.dart';
 import 'outgoing_attachment.dart';
 import 'rich_message_source.dart';
+import 'sponsored_messages_cache.dart';
 import 'sticker_item.dart';
 
 class _SenderInfo {
@@ -246,7 +247,12 @@ class ChatViewModel extends ChangeNotifier {
   int messageAutoDeleteTime = 0;
   int paidMessageStarCount = 0;
 
+  /// Loaded for channels and bot chats, but not yet rendered in the transcript.
+  SponsoredMessagesSnapshot? sponsoredMessages;
+
   final TdClient _client = TdClient.shared;
+  static final SponsoredMessagesCache _sponsoredMessagesCache =
+      SponsoredMessagesCache();
   StreamSubscription? _sub;
   bool _isLoadingOlder = false;
   bool _hasOlderHistory = true;
@@ -1873,8 +1879,29 @@ class ChatViewModel extends ChangeNotifier {
       forumTopicsLoading = false;
       forumTopics = const [];
     }
+    if (isChannel || peerIsBot) {
+      unawaited(_retrieveSponsoredMessages());
+    }
     notifyListeners();
     unawaited(_loadPinnedMessage());
+  }
+
+  Future<void> _retrieveSponsoredMessages() async {
+    final cacheKey = '${_client.activeSlot}:$chatId';
+    try {
+      final snapshot = await _sponsoredMessagesCache.retrieve(
+        cacheKey: cacheKey,
+        refresh: true,
+        fetch: () => _client.query({
+          '@type': 'getChatSponsoredMessages',
+          'chat_id': chatId,
+        }),
+      );
+      if (_isDisposed) return;
+      sponsoredMessages = snapshot;
+    } catch (_) {
+      // Sponsorship retrieval must never prevent a channel from opening.
+    }
   }
 
   void _primeLastMessage(Map<String, dynamic> chat) {

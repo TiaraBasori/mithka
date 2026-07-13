@@ -8,11 +8,13 @@ import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 
 import '../components/app_icons.dart';
 import '../components/toast.dart';
 import '../media/app_asset_picker.dart';
 import '../theme/app_theme.dart';
+import '../theme/theme_controller.dart';
 import 'emoji_text_controller.dart';
 import 'image_edit_view.dart';
 import 'location_picker_view.dart';
@@ -1155,6 +1157,21 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
     _RichTextBlock block,
     int index,
   ) {
+    final baseStyle = TextStyle(
+      fontSize: switch (block.kind) {
+        _RichBlockKind.heading => 21,
+        _RichBlockKind.footer => 14,
+        _ => 16,
+      },
+      height: 1.3,
+      color: block.kind == _RichBlockKind.footer
+          ? c.textSecondary
+          : c.textPrimary,
+      fontStyle: block.kind == _RichBlockKind.pullQuotation
+          ? FontStyle.italic
+          : null,
+      fontWeight: block.kind == _RichBlockKind.heading ? FontWeight.w600 : null,
+    );
     final field = TextField(
       controller: block.controller,
       focusNode: block.focusNode,
@@ -1167,26 +1184,9 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
       textAlignVertical: TextAlignVertical.top,
       contextMenuBuilder: (context, editableTextState) =>
           _richTextContextMenu(context, editableTextState, index),
-      style: TextStyle(
-        fontSize: switch (block.kind) {
-          _RichBlockKind.heading => 21,
-          _RichBlockKind.footer => 14,
-          _ => 16,
-        },
-        height: 1.3,
-        color: block.kind == _RichBlockKind.footer
-            ? c.textSecondary
-            : c.textPrimary,
-        fontFamily: block.kind == _RichBlockKind.preformatted
-            ? 'monospace'
-            : null,
-        fontStyle: block.kind == _RichBlockKind.pullQuotation
-            ? FontStyle.italic
-            : null,
-        fontWeight: block.kind == _RichBlockKind.heading
-            ? FontWeight.w600
-            : null,
-      ),
+      style: block.kind == _RichBlockKind.preformatted
+          ? context.watch<ThemeController>().codeTextStyle(baseStyle)
+          : baseStyle,
       decoration: InputDecoration(
         contentPadding: EdgeInsets.fromLTRB(
           block.kind == _RichBlockKind.blockQuotation ? 10 : 4,
