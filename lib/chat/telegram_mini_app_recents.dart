@@ -16,6 +16,7 @@ import '../tdlib/td_models.dart';
 class TelegramMiniAppRecent {
   const TelegramMiniAppRecent({
     required this.title,
+    this.botTitle = '',
     required this.url,
     required this.botUserId,
     required this.chatId,
@@ -29,6 +30,7 @@ class TelegramMiniAppRecent {
   });
 
   final String title;
+  final String botTitle;
   final String url;
   final int botUserId;
   final int chatId;
@@ -40,8 +42,30 @@ class TelegramMiniAppRecent {
   final bool allowWriteAccess;
   final TdFileRef? photo;
 
+  String get displayTitle => botTitle.trim().isEmpty ? title : botTitle.trim();
+
+  TelegramMiniAppRecent withBotIdentity({String? botTitle, TdFileRef? photo}) {
+    return TelegramMiniAppRecent(
+      title: title,
+      botTitle: botTitle?.trim().isNotEmpty == true
+          ? botTitle!.trim()
+          : this.botTitle,
+      url: url,
+      botUserId: botUserId,
+      chatId: chatId,
+      updatedAt: updatedAt,
+      keyboardButtonText: keyboardButtonText,
+      mainWebApp: mainWebApp,
+      startParameter: startParameter,
+      webAppShortName: webAppShortName,
+      allowWriteAccess: allowWriteAccess,
+      photo: photo ?? this.photo,
+    );
+  }
+
   Map<String, dynamic> toJson() => {
     'title': title,
+    if (botTitle.isNotEmpty) 'botTitle': botTitle,
     'url': url,
     'botUserId': botUserId,
     'chatId': chatId,
@@ -74,6 +98,7 @@ class TelegramMiniAppRecent {
     final photoFileId = _asInt(value['photoFileId']);
     return TelegramMiniAppRecent(
       title: title,
+      botTitle: value['botTitle'] as String? ?? '',
       url: url,
       botUserId: botUserId,
       chatId: chatId,
@@ -103,7 +128,7 @@ abstract final class TelegramMiniAppRecents {
     final stored = await _loadStored();
     final used = await _discoverUsedWebAppBots();
     final discovered = await _discoverBotMenuApps();
-    return _merge(stored, [...used, ...discovered]);
+    return _merge(stored, [...discovered, ...used]);
   }
 
   static Future<List<TelegramMiniAppRecent>> search(String rawQuery) async {
@@ -118,6 +143,7 @@ abstract final class TelegramMiniAppRecents {
           .where(
             (app) =>
                 app.title.toLowerCase().contains(lower) ||
+                app.displayTitle.toLowerCase().contains(lower) ||
                 app.url.toLowerCase().contains(lower) ||
                 app.webAppShortName.toLowerCase().contains(lower),
           )
@@ -174,14 +200,11 @@ abstract final class TelegramMiniAppRecents {
           final url = menu?.str('url')?.trim() ?? '';
           if (url.isEmpty) continue;
           final text = menu?.str('text')?.trim() ?? '';
-          final title = text.isNotEmpty
-              ? text
-              : (chat.str('title')?.trim().isNotEmpty == true
-                    ? chat.str('title')!.trim()
-                    : '小程序');
+          final botTitle = chat.str('title')?.trim() ?? '';
           apps.add(
             TelegramMiniAppRecent(
-              title: title,
+              title: text.isEmpty ? 'Mini App' : text,
+              botTitle: botTitle.isEmpty ? 'Mini App' : botTitle,
               url: url,
               botUserId: userId,
               chatId: chatId,
@@ -219,7 +242,8 @@ abstract final class TelegramMiniAppRecents {
           final title = chat.str('title')?.trim();
           apps.add(
             TelegramMiniAppRecent(
-              title: title == null || title.isEmpty ? '小程序' : title,
+              title: title == null || title.isEmpty ? 'Mini App' : title,
+              botTitle: title == null || title.isEmpty ? 'Mini App' : title,
               url: '',
               botUserId: userId,
               chatId: chatId,
@@ -240,24 +264,7 @@ abstract final class TelegramMiniAppRecents {
     List<TelegramMiniAppRecent> stored,
     List<TelegramMiniAppRecent> discovered,
   ) {
-    final seen = <String>{};
-    final merged = <TelegramMiniAppRecent>[];
-    void add(TelegramMiniAppRecent app) {
-      final key = app.mainWebApp
-          ? '${app.botUserId}:main:${app.startParameter}'
-          : app.webAppShortName.isNotEmpty
-          ? '${app.botUserId}:web:${app.webAppShortName}:${app.startParameter}'
-          : '${app.botUserId}:${app.url}';
-      if (seen.add(key)) merged.add(app);
-    }
-
-    for (final app in stored) {
-      add(app);
-    }
-    for (final app in discovered) {
-      add(app);
-    }
-    return merged.take(_limit).toList();
+    return mergeTelegramMiniAppRecents(stored, discovered);
   }
 
   static Future<void> record({
@@ -272,14 +279,26 @@ abstract final class TelegramMiniAppRecents {
     bool allowWriteAccess = false,
     TdFileRef? photo,
   }) async {
-    final cleanTitle = title.trim().isEmpty ? '小程序' : title.trim();
+    final cleanTitle = title.trim().isEmpty ? 'Mini App' : title.trim();
     final cleanUrl = url.trim();
     if (cleanUrl.isEmpty && !mainWebApp && webAppShortName.isEmpty) return;
+
+    var botTitle = '';
+    var botPhoto = photo;
+    try {
+      final chat = await TdClient.shared.query({
+        '@type': 'getChat',
+        'chat_id': chatId,
+      });
+      botTitle = chat.str('title')?.trim() ?? '';
+      botPhoto = TDParse.smallPhoto(chat.obj('photo')) ?? botPhoto;
+    } catch (_) {}
 
     final current = await _loadStored();
     final next = <TelegramMiniAppRecent>[
       TelegramMiniAppRecent(
         title: cleanTitle,
+        botTitle: botTitle,
         url: cleanUrl,
         botUserId: botUserId,
         chatId: chatId,
@@ -288,16 +307,11 @@ abstract final class TelegramMiniAppRecents {
         startParameter: startParameter,
         webAppShortName: webAppShortName,
         allowWriteAccess: allowWriteAccess,
-        photo: photo,
+        photo: botPhoto,
         updatedAt: DateTime.now().millisecondsSinceEpoch,
       ),
       for (final item in current)
-        if (!(item.botUserId == botUserId &&
-            item.url == cleanUrl &&
-            item.mainWebApp == mainWebApp &&
-            item.startParameter == startParameter &&
-            item.webAppShortName == webAppShortName))
-          item,
+        if (item.botUserId != botUserId) item,
     ].take(_limit).toList();
 
     final prefs = await SharedPreferences.getInstance();
@@ -328,6 +342,9 @@ abstract final class TelegramMiniAppRecents {
             title: chatTitle == null || chatTitle.isEmpty
                 ? target.botUsername
                 : chatTitle,
+            botTitle: chatTitle == null || chatTitle.isEmpty
+                ? target.botUsername
+                : chatTitle,
             url: '',
             botUserId: botUserId,
             chatId: chatId,
@@ -351,6 +368,9 @@ abstract final class TelegramMiniAppRecents {
       return [
         TelegramMiniAppRecent(
           title: title == null || title.isEmpty ? shortName : title,
+          botTitle: chatTitle == null || chatTitle.isEmpty
+              ? target.botUsername
+              : chatTitle,
           url: 'https://t.me/${target.botUsername}/$shortName',
           botUserId: botUserId,
           chatId: chatId,
@@ -358,7 +378,7 @@ abstract final class TelegramMiniAppRecents {
           startParameter: target.startParameter,
           webAppShortName: shortName,
           allowWriteAccess: found.boolean('request_write_access') ?? false,
-          photo: _webAppPhoto(webApp.obj('photo')) ?? chatPhoto,
+          photo: chatPhoto,
         ),
       ];
     } catch (_) {
@@ -421,18 +441,34 @@ abstract final class TelegramMiniAppRecents {
     }
     return null;
   }
+}
 
-  static TdFileRef? _webAppPhoto(Map<String, dynamic>? photo) {
-    if (photo == null) return null;
-    final miniThumb = TDParse.decodeMiniThumb(photo.obj('minithumbnail'));
-    final sizes = photo.objects('sizes') ?? const <Map<String, dynamic>>[];
-    if (sizes.isEmpty) return null;
-    final sorted = [...sizes]
-      ..sort(
-        (a, b) => (b.integer('width') ?? 0).compareTo(a.integer('width') ?? 0),
-      );
-    return TDParse.fileRef(sorted.first.obj('photo'), miniThumb: miniThumb);
+List<TelegramMiniAppRecent> mergeTelegramMiniAppRecents(
+  List<TelegramMiniAppRecent> stored,
+  List<TelegramMiniAppRecent> discovered, {
+  int limit = 12,
+}) {
+  final merged = <TelegramMiniAppRecent>[];
+  final indexByBot = <int, int>{};
+
+  for (final app in stored) {
+    if (indexByBot.containsKey(app.botUserId)) continue;
+    indexByBot[app.botUserId] = merged.length;
+    merged.add(app);
   }
+  for (final app in discovered) {
+    final index = indexByBot[app.botUserId];
+    if (index == null) {
+      indexByBot[app.botUserId] = merged.length;
+      merged.add(app);
+      continue;
+    }
+    merged[index] = merged[index].withBotIdentity(
+      botTitle: app.displayTitle,
+      photo: app.photo,
+    );
+  }
+  return merged.take(limit).toList();
 }
 
 class _WebAppTarget {

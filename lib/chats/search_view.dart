@@ -441,7 +441,7 @@ enum _SearchTab {
 
   String get label => switch (this) {
     _SearchTab.chats => AppStrings.t(AppStringKeys.audioSearchChatTab),
-    _SearchTab.miniApps => '小程序',
+    _SearchTab.miniApps => 'Mini App',
     _SearchTab.posts => telegramText(
       AppStringKeys.chatSearchMessageResultLabel,
     ).replaceAll('[', '').replaceAll(']', ''),
