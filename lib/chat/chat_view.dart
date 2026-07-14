@@ -5055,12 +5055,12 @@ class _ChatViewState extends State<ChatView> {
     final first = group.first;
     final outgoing = first.isOutgoing;
     final avatarTitle = outgoing
-        ? _vm.meName
+        ? (first.senderIsChat ? (first.senderName ?? _vm.meName) : _vm.meName)
         : (_vm.isGroup && (first.senderName?.isNotEmpty ?? false))
         ? first.senderName!
         : _vm.peerTitle;
     final avatarPhoto = outgoing
-        ? _vm.mePhoto
+        ? (first.senderIsChat ? first.senderPhoto : _vm.mePhoto)
         : (_vm.isGroup ? first.senderPhoto : _vm.peerPhoto);
     ChatMessage? captionMessage;
     for (final message in group) {

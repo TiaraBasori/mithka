@@ -24,6 +24,7 @@ import 'package:mithka/chat/secret_chat_service.dart';
 import 'package:mithka/chat/sponsored_messages_cache.dart';
 import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/keyboard_dismiss_on_tap.dart';
+import 'package:mithka/components/photo_avatar.dart';
 import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_locale_controller.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -1471,7 +1472,7 @@ void main() {
       expect(prefs.getBool('showPlainMemberRoleTags'), isTrue);
     });
 
-    testWidgets('shows a channel identity with a pink channel badge', (
+    testWidgets('shows an incoming channel identity with a channel badge', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
@@ -1480,7 +1481,7 @@ void main() {
       addTearDown(theme.dispose);
       final message = ChatMessage(
         id: 32,
-        isOutgoing: true,
+        isOutgoing: false,
         senderIsChat: true,
         text: 'channel post',
         date: 1,
@@ -1506,6 +1507,50 @@ void main() {
       final tag = tester.widget<RoleTag>(find.byType(RoleTag));
       expect(tag.role, MemberRole.channel);
       expect(find.text('News Channel'), findsOneWidget);
+    });
+
+    testWidgets('shows an outgoing channel identity on the right', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+      final message = ChatMessage(
+        id: 33,
+        isOutgoing: true,
+        senderIsChat: true,
+        text: 'channel post',
+        date: 1,
+        senderName: 'News Channel',
+        senderRole: MemberRole.channel,
+      );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ThemeController>.value(
+          value: theme,
+          child: MaterialApp(
+            home: Scaffold(
+              body: MessageBubble(
+                message: message,
+                peerTitle: 'Group',
+                isGroup: true,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final avatar = tester.widget<PhotoAvatar>(find.byType(PhotoAvatar));
+      expect(avatar.title, 'News Channel');
+      expect(
+        tester.getCenter(find.byType(PhotoAvatar)).dx,
+        greaterThan(
+          tester
+              .getCenter(find.byKey(const ValueKey('messageTapTarget-33')))
+              .dx,
+        ),
+      );
     });
   });
 

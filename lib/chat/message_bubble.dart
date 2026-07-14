@@ -234,7 +234,7 @@ class _MessageBubbleState extends State<MessageBubble>
             ),
             Transform.translate(
               offset: Offset(_swipeX, 0),
-              child: _row(message.isOutgoing && !message.senderIsChat),
+              child: _row(message.isOutgoing),
             ),
           ],
         );
@@ -290,6 +290,12 @@ class _MessageBubbleState extends State<MessageBubble>
         message.senderIsPremium &&
         message.senderEmojiStatusId != 0;
     final senderTitle = message.senderTitle?.trim();
+    final outgoingAvatarTitle = message.senderIsChat
+        ? (message.senderName ?? widget.meName)
+        : widget.meName.l10n(context);
+    final outgoingAvatarPhoto = message.senderIsChat
+        ? message.senderPhoto
+        : widget.mePhoto;
     final alwaysShowTime = theme.alwaysShowMessageTime;
     final body = GestureDetector(
       key: _bubbleKey,
@@ -375,8 +381,8 @@ class _MessageBubbleState extends State<MessageBubble>
                   behavior: HitTestBehavior.opaque,
                   onTap: () => widget.onAvatarTap?.call(message),
                   child: PhotoAvatar(
-                    title: widget.meName.l10n(context),
-                    photo: widget.mePhoto,
+                    title: outgoingAvatarTitle,
+                    photo: outgoingAvatarPhoto,
                     size: 38,
                   ),
                 ),
