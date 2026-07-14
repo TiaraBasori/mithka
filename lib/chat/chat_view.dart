@@ -706,6 +706,7 @@ class _ChatViewState extends State<ChatView> {
   final _transcriptViewportKey = GlobalKey();
   final Map<int, GlobalKey> _entryVisibilityKeys = <int, GlobalKey>{};
   Map<int, _TranscriptEntry> _trackedTranscriptEntries = const {};
+  final Set<int> _reportedVisibleMessageIds = <int>{};
   bool _unreadProgressUpdateScheduled = false;
   ChatMessage? _actionTarget;
   Rect? _actionRect; // global bounds of the long-pressed bubble
@@ -1012,7 +1013,11 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _scheduleUnreadProgressUpdate() {
-    if (_unreadProgressUpdateScheduled || !mounted) return;
+    if (_unreadProgressUpdateScheduled ||
+        !_initialTranscriptReady ||
+        !mounted) {
+      return;
+    }
     _unreadProgressUpdateScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _unreadProgressUpdateScheduled = false;
@@ -1029,6 +1034,7 @@ class _ChatViewState extends State<ChatView> {
     final viewportOrigin = viewportRenderObject.localToGlobal(Offset.zero);
     final viewportRect = viewportOrigin & viewportRenderObject.size;
     var changed = false;
+    final newlyVisible = <ChatMessage>[];
 
     for (final entry in _trackedTranscriptEntries.entries) {
       final itemContext = _entryVisibilityKeys[entry.key]?.currentContext;
@@ -1042,6 +1048,9 @@ class _ChatViewState extends State<ChatView> {
 
       for (final message in entry.value.messages) {
         if (message.isOutgoing || message.isService) continue;
+        if (_reportedVisibleMessageIds.add(message.id)) {
+          newlyVisible.add(message);
+        }
         changed =
             _unreadProgress.markVisible(
               messageId: message.id,
@@ -1049,6 +1058,10 @@ class _ChatViewState extends State<ChatView> {
             ) ||
             changed;
       }
+    }
+
+    if (newlyVisible.isNotEmpty) {
+      _vm.markVisibleMessagesViewed(newlyVisible);
     }
 
     if (changed && mounted) setState(() {});
@@ -3822,7 +3835,13 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _openUnreadMention() async {
     if (_openingUnreadMention || _vm.unreadMentionCount <= 0) return;
     setState(() => _openingUnreadMention = true);
-    await _vm.openNextUnreadMention();
+    final messageId = await _vm.openNextUnreadMention();
+    if (messageId != null && mounted) {
+      await _scrollToMessage(messageId);
+      if (_vm.messages.any((message) => message.id == messageId)) {
+        await _vm.markUnreadMentionRead(messageId);
+      }
+    }
     if (mounted) setState(() => _openingUnreadMention = false);
   }
 
@@ -4621,7 +4640,10 @@ class _ChatViewState extends State<ChatView> {
       await _ensureMessageVisible(messageId, pinnedJump: pinnedJump);
       return;
     }
-    final loaded = await _vm.loadAroundMessage(messageId);
+    final loaded = await _vm.loadAroundMessage(
+      messageId,
+      scrollToTarget: false,
+    );
     if (!loaded || !mounted) return;
     await _ensureMessageVisible(messageId, pinnedJump: pinnedJump);
   }

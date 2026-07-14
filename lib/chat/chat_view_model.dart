@@ -51,6 +51,10 @@ class _SenderInfo {
   final int emojiStatusId;
 }
 
+@visibleForTesting
+int unreadMentionCountAfterReading(int currentCount, int readCount) =>
+    math.max(0, currentCount - math.max(0, readCount));
+
 class _MessageSendResult {
   const _MessageSendResult.success() : error = null;
   const _MessageSendResult.failure(this.error);
@@ -268,6 +272,7 @@ class ChatViewModel extends ChangeNotifier {
   bool _markReadInFlight = false;
   bool _restoredFromSession = false;
   final Set<int> _blockedReadIds = {};
+  final Set<int> _locallyViewedMentionIds = {};
   final Set<int> _blockedSenderIds = {};
   final Set<int> _discardedPendingMessageIds = {};
   final Set<int> _settledPendingMessageIds = {};
@@ -2452,7 +2457,7 @@ class ChatViewModel extends ChangeNotifier {
     return messages.any((m) => m.id == messageId);
   }
 
-  Future<bool> openNextUnreadMention() async {
+  Future<int?> openNextUnreadMention() async {
     try {
       final response = await _client.query({
         '@type': 'searchChatMessages',
@@ -2461,32 +2466,112 @@ class ChatViewModel extends ChangeNotifier {
         'sender_id': null,
         'from_message_id': 0,
         'offset': 0,
-        'limit': 1,
+        'limit': math.min(
+          100,
+          math.max(10, unreadMentionCount + _locallyViewedMentionIds.length),
+        ),
         'filter': {'@type': 'searchMessagesFilterUnreadMention'},
       });
       final rawMessages =
           response.objects('messages') ?? const <Map<String, dynamic>>[];
+      if (rawMessages.isEmpty) {
+        _setUnreadMentionCount(0, emitLocalUpdate: true);
+        return null;
+      }
       final mentions = rawMessages
           .map(TDParse.message)
           .whereType<ChatMessage>()
+          .where((message) => !_locallyViewedMentionIds.contains(message.id))
           .toList();
       final mention = mentions.isEmpty ? null : mentions.first;
-      if (mention == null) {
-        unreadMentionCount = 0;
-        notifyListeners();
-        return false;
-      }
-      final loaded = await loadAroundMessage(mention.id);
-      if (!loaded) return false;
-      _client.send({
+      return mention?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Reports the exact messages that entered the viewport. TDLib tracks
+  /// unread mentions independently from the ordinary inbox boundary, so only
+  /// advancing `last_read_inbox_message_id` leaves `unread_mention_count`
+  /// behind. Sending the concrete IDs clears both states correctly.
+  void markVisibleMessagesViewed(Iterable<ChatMessage> visibleMessages) {
+    final incoming = visibleMessages
+        .where((message) => !message.isOutgoing && !message.isService)
+        .toList(growable: false);
+    if (incoming.isEmpty) return;
+    _client.send({
+      '@type': 'viewMessages',
+      'chat_id': chatId,
+      'message_ids': incoming.map((message) => message.id).toList(),
+      'force_read': true,
+    });
+    _consumeViewedMentions(
+      incoming
+          .where((message) => message.containsUnreadMention)
+          .map((message) => message.id),
+    );
+  }
+
+  /// Marks the mention selected by the blue @ control after the view has
+  /// scrolled it into place. Awaiting TDLib prevents a quick second tap from
+  /// resolving the same mention again.
+  Future<void> markUnreadMentionRead(int messageId) async {
+    try {
+      await _client.query({
         '@type': 'viewMessages',
         'chat_id': chatId,
-        'message_ids': [mention.id],
+        'message_ids': [messageId],
         'force_read': true,
       });
-      return true;
     } catch (_) {
-      return false;
+      return;
+    }
+    _consumeViewedMentions([messageId], force: true);
+  }
+
+  void _consumeViewedMentions(Iterable<int> messageIds, {bool force = false}) {
+    final candidates = messageIds
+        .where((id) => id > 0 && !_locallyViewedMentionIds.contains(id))
+        .toSet();
+    if (candidates.isEmpty) return;
+    final unreadIds = force
+        ? candidates
+        : _allMessages
+              .where(
+                (message) =>
+                    candidates.contains(message.id) &&
+                    message.containsUnreadMention,
+              )
+              .map((message) => message.id)
+              .toSet();
+    if (unreadIds.isEmpty) return;
+
+    _locallyViewedMentionIds.addAll(unreadIds);
+    while (_locallyViewedMentionIds.length > 512) {
+      _locallyViewedMentionIds.remove(_locallyViewedMentionIds.first);
+    }
+    for (final message in _allMessages) {
+      if (unreadIds.contains(message.id)) {
+        message.containsUnreadMention = false;
+      }
+    }
+    _setUnreadMentionCount(
+      unreadMentionCountAfterReading(unreadMentionCount, unreadIds.length),
+      emitLocalUpdate: true,
+    );
+  }
+
+  void _setUnreadMentionCount(int count, {bool emitLocalUpdate = false}) {
+    final next = math.max(0, count);
+    final changed = unreadMentionCount != next;
+    unreadMentionCount = next;
+    if (changed) notifyListeners();
+    if (emitLocalUpdate) {
+      _client.emitLocalUpdate({
+        '@type': 'updateChatUnreadMentionCount',
+        'chat_id': chatId,
+        'unread_mention_count': next,
+      });
     }
   }
 
@@ -2700,9 +2785,9 @@ class ChatViewModel extends ChangeNotifier {
 
       case 'updateChatUnreadMentionCount':
         if (update.int64('chat_id') != chatId) return;
-        unreadMentionCount =
-            update.integer('unread_mention_count') ?? unreadMentionCount;
-        notifyListeners();
+        _setUnreadMentionCount(
+          update.integer('unread_mention_count') ?? unreadMentionCount,
+        );
 
       case 'updateMessageSendSucceeded':
         if (update.int64('chat_id') != chatId) return;
@@ -3328,6 +3413,11 @@ class ChatViewModel extends ChangeNotifier {
 
   void _merge(List<ChatMessage> incoming) {
     if (incoming.isEmpty) return;
+    for (final message in incoming) {
+      if (_locallyViewedMentionIds.contains(message.id)) {
+        message.containsUnreadMention = false;
+      }
+    }
     _allMessages = mergeChatMessages(
       _allMessages,
       incoming,

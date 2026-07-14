@@ -412,6 +412,7 @@ class ChatMessage {
     this.callDuration = 0,
     this.contentType,
     this.restrictionReason,
+    this.containsUnreadMention = false,
     this.senderId,
     this.senderPhoto,
     this.image,
@@ -482,6 +483,7 @@ class ChatMessage {
   /// TDLib's message-level restriction reason. When present, the original
   /// content must be replaced by this server-provided explanation.
   String? restrictionReason;
+  bool containsUnreadMention;
   int? senderId;
   TdFileRef? senderPhoto;
   TdFileRef? image; // photo / sticker / video-thumb / gif
@@ -983,6 +985,8 @@ abstract final class TDParse {
         callDuration: callDuration,
         contentType: isContentRestricted ? 'messageText' : content?.type,
         restrictionReason: restrictionReason,
+        containsUnreadMention:
+            message.boolean('contains_unread_mention') ?? false,
         senderId: senderId,
         senderIsChat: sender?.type == 'messageSenderChat',
         senderTitle:
