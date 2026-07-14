@@ -10,6 +10,7 @@ import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../theme/app_theme.dart';
 import 'chat_sticker_set_picker_view.dart';
+import 'chat_theme_view.dart';
 import 'chat_wallpaper_view.dart';
 
 class GroupAppearanceView extends StatefulWidget {
@@ -328,6 +329,21 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
     );
   }
 
+  void _openTheme() {
+    if (!widget.canChangeInfo) {
+      _explainLock(0);
+      return;
+    }
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, _, _) =>
+            ChatThemeView(chatId: widget.chatId, chatTitle: widget.title),
+        transitionsBuilder: (_, animation, _, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -481,6 +497,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
         AppStringKeys.groupAppearanceStickers,
         onTap: () => _pickStickerSet(customEmoji: false),
       ),
+      _row(AppStringKeys.chatThemeTitle, onTap: _openTheme),
       _row(AppStringKeys.groupAppearanceWallpaper, onTap: _openWallpaper),
     ];
     return Container(

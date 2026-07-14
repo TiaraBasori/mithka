@@ -327,12 +327,21 @@ msgOutBg: #f3b4bd;
       controller.appColorsFor(Brightness.dark).bubbleIncoming.toARGB32(),
       0xFF22313B,
     );
+    expect(
+      controller.appColorsFor(Brightness.light).background.toARGB32(),
+      0xFF101820,
+    );
 
     final restored = ThemeController(prefs);
     expect(restored.cloudTheme?.slug, 'MountainSolitude');
     expect(restored.cloudTheme?.outgoingColor?.toARGB32(), 0xFFF3B4BD);
     expect(restored.cloudTheme?.incomingColor?.toARGB32(), 0xFF22313B);
     expect(restored.cloudTheme?.wallpaper?.colors, [0x101820]);
+
+    restored.clearCloudTheme();
+    expect(restored.cloudTheme, isNull);
+    expect(restored.mode, AppearanceMode.system);
+    expect(restored.brandColor.toARGB32(), 0xFF0099FF);
   });
 }
 

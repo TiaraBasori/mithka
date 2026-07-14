@@ -914,6 +914,8 @@ class ThemeController extends ChangeNotifier {
   static const _modeKey = 'appearanceMode';
   static const _brandKey = 'brandColor';
   static const _cloudThemeKey = 'telegramCloudTheme';
+  static const _preCloudThemeModeKey = 'preTelegramCloudThemeMode';
+  static const _preCloudThemeBrandKey = 'preTelegramCloudThemeBrand';
   static const _fontChoiceKey = 'fontChoice';
   static const _cjkFontChoiceKey = 'cjkFontChoice';
   static const _customPrimaryFontFamilyKey = 'customPrimaryFontFamily';
@@ -1006,10 +1008,10 @@ class ThemeController extends ChangeNotifier {
   TelegramCloudTheme? get cloudTheme => _cloudTheme;
   AppColors appColorsFor(Brightness brightness) {
     final theme = _cloudTheme;
-    if (theme != null &&
-        (theme.isDark ? Brightness.dark : Brightness.light) == brightness) {
-      return theme.appColors;
-    }
+    // A selected .attheme is the global UI theme. Its palette remains the
+    // source of truth during the brightness transition as well, avoiding a
+    // frame where the stock palette flashes through after applying a theme.
+    if (theme != null) return theme.appColors;
     return brightness == Brightness.dark ? AppColors.dark : AppColors.light;
   }
 
@@ -1205,6 +1207,10 @@ class ThemeController extends ChangeNotifier {
   }
 
   void installCloudTheme(TelegramCloudTheme theme) {
+    if (_cloudTheme == null) {
+      _prefs.setString(_preCloudThemeModeKey, _mode.name);
+      _prefs.setInt(_preCloudThemeBrandKey, _brandColor.toARGB32());
+    }
     _cloudTheme = theme;
     _mode = theme.isDark ? AppearanceMode.dark : AppearanceMode.light;
     _brandColor = theme.accentColor;
@@ -1215,10 +1221,29 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearCloudTheme() {
+    if (_cloudTheme == null) return;
+    _clearCloudTheme();
+    notifyListeners();
+  }
+
   void _clearCloudTheme() {
     if (_cloudTheme == null) return;
     _cloudTheme = null;
     _prefs.remove(_cloudThemeKey);
+    _mode = AppearanceMode.values.firstWhere(
+      (value) => value.name == _prefs.getString(_preCloudThemeModeKey),
+      orElse: () => AppearanceMode.system,
+    );
+    _brandColor = Color(
+      _prefs.getInt(_preCloudThemeBrandKey) ??
+          (0xFF000000 | AppTheme.defaultBrand),
+    );
+    _prefs.setString(_modeKey, _mode.name);
+    _prefs.setInt(_brandKey, _brandColor.toARGB32());
+    _prefs.remove(_preCloudThemeModeKey);
+    _prefs.remove(_preCloudThemeBrandKey);
+    AppTheme.applyBrand(_brandColor);
   }
 
   set fontChoice(AppFontChoice value) {

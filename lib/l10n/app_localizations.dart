@@ -491,6 +491,10 @@ abstract final class AppStringKeys {
       'chatWallpaperThemesSharedWithChat';
   static const chatWallpaperTitle = 'chatWallpaperTitle';
   static const chatThemeChanged = 'chatThemeChanged';
+  static const chatThemeApply = 'chatThemeApply';
+  static const chatThemeChoose = 'chatThemeChoose';
+  static const chatThemeSaveFailed = 'chatThemeSaveFailed';
+  static const chatThemeTitle = 'chatThemeTitle';
   static const cloudThemeApply = 'cloudThemeApply';
   static const cloudThemeLoadFailed = 'cloudThemeLoadFailed';
   static const cloudThemeOfficialDescription = 'cloudThemeOfficialDescription';
@@ -993,6 +997,16 @@ abstract final class AppStringKeys {
   static const generalRepeatPreserveSender = 'generalRepeatPreserveSender';
   static const generalStorage = 'generalStorage';
   static const generalTitle = 'generalTitle';
+  static const globalThemeColors = 'globalThemeColors';
+  static const globalThemeColorsFrom = 'globalThemeColorsFrom';
+  static const globalThemeDefault = 'globalThemeDefault';
+  static const globalThemeDescription = 'globalThemeDescription';
+  static const globalThemeImport = 'globalThemeImport';
+  static const globalThemeLoading = 'globalThemeLoading';
+  static const globalThemePreview = 'globalThemePreview';
+  static const globalThemeReset = 'globalThemeReset';
+  static const globalThemeTitle = 'globalThemeTitle';
+  static const globalWallpaperTitle = 'globalWallpaperTitle';
   static const groupManagementAdminApprovalRequired =
       'groupManagementAdminApprovalRequired';
   static const groupAppearanceBoostLevel = 'groupAppearanceBoostLevel';

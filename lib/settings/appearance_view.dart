@@ -25,6 +25,7 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../theme/app_theme.dart';
 import '../theme/emoji_font_catalog.dart';
+import '../theme/global_theme_view.dart';
 import '../theme/system_font_catalog.dart';
 import '../theme/theme_controller.dart';
 import 'app_icon_controller.dart';
@@ -67,14 +68,30 @@ class AppearanceView extends StatelessWidget {
                     ),
                 ]),
                 const SizedBox(height: AppSpacing.xl),
+                _label(context, AppStrings.t(AppStringKeys.globalThemeTitle)),
+                _card(context, [
+                  _navigationRow(
+                    context,
+                    AppStrings.t(AppStringKeys.globalThemeTitle),
+                    theme.cloudTheme?.title ??
+                        AppStrings.t(AppStringKeys.globalThemeDefault),
+                    () => Navigator.of(context).push(
+                      PageRouteBuilder<void>(
+                        pageBuilder: (_, _, _) => const GlobalThemeView(),
+                      ),
+                    ),
+                    icon: HeroAppIcons.palette.data,
+                  ),
+                ]),
+                const SizedBox(height: AppSpacing.xl),
                 _label(
                   context,
-                  AppStrings.t(AppStringKeys.chatWallpaperGlobalTitle),
+                  AppStrings.t(AppStringKeys.globalWallpaperTitle),
                 ),
                 _card(context, [
                   _navigationRow(
                     context,
-                    AppStrings.t(AppStringKeys.chatWallpaperGlobalTitle),
+                    AppStrings.t(AppStringKeys.globalWallpaperTitle),
                     null,
                     () => Navigator.of(context).push(
                       PageRouteBuilder<void>(
@@ -652,6 +669,63 @@ extension _DisplayAppearanceHelpers on AppearanceView {
 
   Widget _colorCard(BuildContext context, ThemeController theme) {
     final c = context.colors;
+    final cloudTheme = theme.cloudTheme;
+    if (cloudTheme != null) {
+      final colors = cloudTheme.appColors;
+      final palette = <Color>[
+        colors.background,
+        colors.card,
+        colors.navBar,
+        colors.linkBlue,
+        cloudTheme.incomingColor ?? colors.bubbleIncoming,
+        cloudTheme.outgoingColor ?? cloudTheme.accentColor,
+      ];
+      return Container(
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+        ),
+        padding: const EdgeInsets.all(AppSpacing.xxl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              context.l10n.t(AppStringKeys.globalThemeColorsFrom, {
+                'value1': cloudTheme.title,
+              }),
+              style: TextStyle(
+                fontSize: AppTextSize.body,
+                color: c.textSecondary,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Wrap(
+              spacing: _colorSwatchGap,
+              runSpacing: AppSpacing.xl * 0.9,
+              children: [
+                for (final color in palette)
+                  Container(
+                    width: _colorSwatchSize,
+                    height: _colorSwatchSize,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0x22000000)),
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
     final selected = theme.brandColor.toARGB32();
     return Container(
       decoration: BoxDecoration(
