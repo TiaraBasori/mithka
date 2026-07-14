@@ -93,8 +93,8 @@ class _ChatInfoViewState extends State<ChatInfoView> {
 
   void _openChatFolders() {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) =>
+      PageRouteBuilder<void>(
+        pageBuilder: (_, _, _) =>
             ChatFolderMembershipView(chatId: widget.chatId, title: _vm.title),
       ),
     );
@@ -814,10 +814,16 @@ class ChatFolderMembershipView extends StatefulWidget {
     super.key,
     required this.chatId,
     required this.title,
+    this.query,
+    this.folderUpdate,
+    this.updates,
   });
 
   final int chatId;
   final String title;
+  final Future<Map<String, dynamic>> Function(Map<String, dynamic>)? query;
+  final Map<String, dynamic>? Function()? folderUpdate;
+  final Stream<Map<String, dynamic>>? updates;
 
   @override
   State<ChatFolderMembershipView> createState() =>
@@ -844,28 +850,41 @@ class _FolderMembership {
 }
 
 class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
-  final _client = TdClient.shared;
   final List<_FolderMembership> _folders = [];
+  late final Future<Map<String, dynamic>> Function(Map<String, dynamic>)
+  _query = widget.query ?? TdClient.shared.query;
+  late final Map<String, dynamic>? Function() _folderUpdate =
+      widget.folderUpdate ?? (() => TdClient.shared.latestChatFoldersUpdate);
+  StreamSubscription<Map<String, dynamic>>? _folderSubscription;
   bool _loading = true;
-  String? _error;
+  bool _showCreatePrompt = false;
+  int _loadGeneration = 0;
 
   @override
   void initState() {
     super.initState();
+    _folderSubscription = (widget.updates ?? TdClient.shared.subscribe())
+        .listen((update) {
+          if (update.type == 'updateChatFolders') {
+            _load(folderSnapshot: update);
+          }
+        });
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _folderSubscription?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({Map<String, dynamic>? folderSnapshot}) async {
+    final generation = ++_loadGeneration;
+    if (_folders.isEmpty && mounted) setState(() => _loading = true);
+
+    final activeFolderIds = <int>{};
     try {
-      final chat = await _client.query({
-        '@type': 'getChat',
-        'chat_id': widget.chatId,
-      });
-      final activeFolderIds = <int>{};
+      final chat = await _query({'@type': 'getChat', 'chat_id': widget.chatId});
       for (final pos
           in chat.objects('positions') ?? const <Map<String, dynamic>>[]) {
         final list = pos.obj('list');
@@ -874,8 +893,19 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
           if (id != null) activeFolderIds.add(id);
         }
       }
+    } catch (error) {
+      debugPrint('Unable to read chat folder positions: $error');
+    }
 
-      final infos = await _client.query({'@type': 'getChatFolders'});
+    final infos = folderSnapshot ?? _folderUpdate();
+    if (infos == null) {
+      if (mounted && generation == _loadGeneration) {
+        setState(() => _loading = false);
+      }
+      return;
+    }
+
+    try {
       final raw =
           infos.objects('chat_folders') ??
           infos.objects('chat_folder_infos') ??
@@ -886,11 +916,13 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
         if (id == null) continue;
         Map<String, dynamic>? folder;
         try {
-          folder = await _client.query({
+          folder = await _query({
             '@type': 'getChatFolder',
             'chat_folder_id': id,
           });
-        } catch (_) {}
+        } catch (error) {
+          debugPrint('Unable to read chat folder $id: $error');
+        }
         if (folder == null) {
           loaded.add(
             _FolderMembership(
@@ -920,19 +952,17 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
           ),
         );
       }
-      if (!mounted) return;
+      if (!mounted || generation != _loadGeneration) return;
       setState(() {
         _folders
           ..clear()
           ..addAll(loaded);
         _loading = false;
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-        _error = AppStrings.t(AppStringKeys.chatInfoLoadFoldersFailed);
-      });
+    } catch (error) {
+      debugPrint('Unable to refresh chat folders: $error');
+      if (!mounted || generation != _loadGeneration) return;
+      setState(() => _loading = false);
     }
   }
 
@@ -968,7 +998,7 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
     final wasAutoSelected = item.autoSelected;
     final updated = _folderWithMembership(item, value);
     try {
-      await _client.query({
+      await _query({
         '@type': 'editChatFolder',
         'chat_folder_id': item.id,
         'folder': updated,
@@ -1041,97 +1071,91 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
     };
   }
 
-  Future<void> _createFolder() async {
-    final controller = TextEditingController();
-    final title = await showDialog<String>(
-      context: context,
-      builder: (context) {
-        final c = context.colors;
-        return AlertDialog(
-          backgroundColor: c.card,
-          title: Text(
-            AppStrings.t(AppStringKeys.chatInfoCreateFolderTitle),
-            style: TextStyle(color: c.textPrimary),
-          ),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              hintText: AppStrings.t(AppStringKeys.chatInfoFolderNameLabel),
-            ),
-            onSubmitted: (value) => Navigator.of(context).pop(value.trim()),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: Text(AppStrings.t(AppStringKeys.countryPickerCancel)),
-            ),
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(controller.text.trim()),
-              child: Text(AppStrings.t(AppStringKeys.chatInfoCreate)),
-            ),
-          ],
-        );
-      },
-    );
-    controller.dispose();
-    if (title == null || title.isEmpty) return;
+  void _openCreateFolderPrompt() {
+    if (_showCreatePrompt) return;
+    setState(() => _showCreatePrompt = true);
+  }
 
+  Future<void> _createFolder(String title) async {
+    final normalizedTitle = title.trim();
+    if (normalizedTitle.isEmpty) return;
     setState(() {
+      _showCreatePrompt = false;
       _loading = true;
-      _error = null;
     });
+    final folder = _chatFolderPayload(
+      {'@type': 'chatFolder', 'title': normalizedTitle},
+      includedChatIds: {widget.chatId},
+      excludedChatIds: const <int>{},
+    );
     try {
-      await _client.query({
+      final info = await _query({
         '@type': 'createChatFolder',
-        'folder': _chatFolderPayload(
-          {'@type': 'chatFolder', 'title': title},
-          includedChatIds: {widget.chatId},
-          excludedChatIds: const <int>{},
-        ),
+        'folder': folder,
       });
-      await _load();
+      if (!mounted) return;
+      final id = info.integer('id') ?? info.integer('chat_folder_id');
+      setState(() {
+        if (id != null && !_folders.any((item) => item.id == id)) {
+          _folders.add(
+            _FolderMembership(
+              id: id,
+              title: normalizedTitle,
+              folder: folder,
+              selected: true,
+              autoSelected: false,
+            ),
+          );
+        }
+        _loading = false;
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() => _loading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(AppStrings.t(AppStringKeys.chatInfoCreateFolderFailed)),
-        ),
-      );
+      showToast(context, AppStringKeys.chatInfoCreateFolderFailed);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Scaffold(
-      backgroundColor: c.groupedBackground,
-      body: Column(
+    return ColoredBox(
+      color: c.groupedBackground,
+      child: Stack(
         children: [
-          NavHeader(
-            title: AppStrings.t(AppStringKeys.chatInfoChatFolders),
-            onBack: () => Navigator.of(context).pop(),
-            trailing: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _loading ? null : _createFolder,
-              child: Padding(
-                padding: const EdgeInsets.all(4),
-                child: AppIcon(
-                  HeroAppIcons.plus,
-                  size: 24,
-                  color: c.textPrimary,
+          Column(
+            children: [
+              NavHeader(
+                title: AppStrings.t(AppStringKeys.chatInfoChatFolders),
+                onBack: () => Navigator.of(context).pop(),
+                trailing: GestureDetector(
+                  key: const ValueKey('chat-folder-add'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _loading ? null : _openCreateFolderPrompt,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: AppIcon(
+                      HeroAppIcons.plus,
+                      size: 24,
+                      color: _loading ? c.textTertiary : c.textPrimary,
+                    ),
+                  ),
                 ),
               ),
+              Expanded(
+                child: _loading && _folders.isEmpty
+                    ? const Center(child: _ChatFolderSpinner())
+                    : _body(),
+              ),
+            ],
+          ),
+          if (_showCreatePrompt)
+            Positioned.fill(
+              child: _CreateChatFolderPrompt(
+                onCancel: () => setState(() => _showCreatePrompt = false),
+                onCreate: _createFolder,
+              ),
             ),
-          ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator.adaptive())
-                : _body(),
-          ),
         ],
       ),
     );
@@ -1139,24 +1163,22 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
 
   Widget _body() {
     final c = context.colors;
-    if (_error != null) {
-      return Center(
-        child: Text(_error!, style: TextStyle(color: c.textSecondary)),
-      );
-    }
     if (_folders.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            AppIcon(HeroAppIcons.folder, size: 42, color: c.textTertiary),
+            const SizedBox(height: 12),
             Text(
               AppStrings.t(AppStringKeys.chatInfoNoFolders),
-              style: TextStyle(color: c.textSecondary),
+              style: TextStyle(color: c.textSecondary, fontSize: 15),
             ),
-            const SizedBox(height: 12),
-            CupertinoButton.filled(
-              onPressed: _createFolder,
-              child: Text(AppStrings.t(AppStringKeys.chatInfoNewFolder)),
+            const SizedBox(height: 18),
+            _ChatFolderAction(
+              key: const ValueKey('chat-folder-empty-create'),
+              label: AppStrings.t(AppStringKeys.chatInfoNewFolder),
+              onTap: _openCreateFolderPrompt,
             ),
           ],
         ),
@@ -1212,26 +1234,352 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
               ),
             ),
             if (item.saving)
-              const SizedBox(
-                width: 28,
-                height: 28,
-                child: Padding(
-                  padding: EdgeInsets.all(5),
-                  child: CircularProgressIndicator.adaptive(strokeWidth: 2),
-                ),
-              )
+              const SizedBox(width: 28, child: _ChatFolderSpinner(size: 18))
             else
               Opacity(
                 opacity: item.editable ? 1 : 0.45,
-                child: CupertinoSwitch(
+                child: _ChatFolderToggle(
                   value: item.selected,
-                  activeTrackColor: AppTheme.brand,
                   onChanged: item.editable
                       ? (value) => _toggle(item, value)
                       : null,
                 ),
               ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatFolderAction extends StatelessWidget {
+  const _ChatFolderAction({
+    super.key,
+    required this.label,
+    required this.onTap,
+  });
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          height: 42,
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          decoration: BoxDecoration(
+            color: AppTheme.brand,
+            borderRadius: BorderRadius.circular(21),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Color(0xFFFFFFFF),
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatFolderToggle extends StatelessWidget {
+  const _ChatFolderToggle({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      toggled: value,
+      enabled: onChanged != null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onChanged == null ? null : () => onChanged!(!value),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          width: 50,
+          height: 30,
+          padding: const EdgeInsets.all(2),
+          decoration: BoxDecoration(
+            color: value ? AppTheme.brand : context.colors.textTertiary,
+            borderRadius: BorderRadius.circular(15),
+          ),
+          child: AnimatedAlign(
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+            child: Container(
+              width: 26,
+              height: 26,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFFFFF),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x30000000),
+                    blurRadius: 3,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatFolderSpinner extends StatefulWidget {
+  const _ChatFolderSpinner({this.size = 26});
+
+  final double size;
+
+  @override
+  State<_ChatFolderSpinner> createState() => _ChatFolderSpinnerState();
+}
+
+class _ChatFolderSpinnerState extends State<_ChatFolderSpinner>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 850),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RotationTransition(
+      turns: _controller,
+      child: AppIcon(
+        HeroAppIcons.circleNotch,
+        size: widget.size,
+        color: AppTheme.brand,
+      ),
+    );
+  }
+}
+
+class _CreateChatFolderPrompt extends StatefulWidget {
+  const _CreateChatFolderPrompt({
+    required this.onCancel,
+    required this.onCreate,
+  });
+
+  final VoidCallback onCancel;
+  final ValueChanged<String> onCreate;
+
+  @override
+  State<_CreateChatFolderPrompt> createState() =>
+      _CreateChatFolderPromptState();
+}
+
+class _CreateChatFolderPromptState extends State<_CreateChatFolderPrompt> {
+  late final TextEditingController _controller = TextEditingController()
+    ..addListener(_handleChanged);
+  final FocusNode _focusNode = FocusNode();
+
+  bool get _canCreate => _controller.text.trim().isNotEmpty;
+
+  void _handleChanged() => setState(() {});
+
+  void _submit() {
+    if (_canCreate) widget.onCreate(_controller.text);
+  }
+
+  @override
+  void dispose() {
+    _controller
+      ..removeListener(_handleChanged)
+      ..dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    return GestureDetector(
+      key: const ValueKey('chat-folder-create-prompt'),
+      behavior: HitTestBehavior.opaque,
+      onTap: widget.onCancel,
+      child: ColoredBox(
+        color: const Color(0x99000000),
+        child: AnimatedPadding(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + keyboardInset),
+          child: Center(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: Container(
+                width: 360,
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+                decoration: BoxDecoration(
+                  color: c.card,
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x30000000),
+                      blurRadius: 28,
+                      offset: Offset(0, 12),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      AppStrings.t(AppStringKeys.chatInfoCreateFolderTitle),
+                      style: TextStyle(
+                        color: c.textPrimary,
+                        fontSize: 19,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      height: 46,
+                      alignment: Alignment.centerLeft,
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      decoration: BoxDecoration(
+                        color: c.searchFill,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Stack(
+                        alignment: Alignment.centerLeft,
+                        children: [
+                          if (_controller.text.isEmpty)
+                            IgnorePointer(
+                              child: Text(
+                                AppStrings.t(
+                                  AppStringKeys.chatInfoFolderNameLabel,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: c.textTertiary,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
+                          EditableText(
+                            key: const ValueKey('chat-folder-name-input'),
+                            controller: _controller,
+                            focusNode: _focusNode,
+                            autofocus: true,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _submit(),
+                            style: TextStyle(
+                              color: c.textPrimary,
+                              fontSize: 15,
+                            ),
+                            cursorColor: AppTheme.brand,
+                            backgroundCursorColor: c.textTertiary,
+                            selectionColor: AppTheme.brand.withValues(
+                              alpha: 0.2,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        _ChatFolderPromptAction(
+                          label: AppStrings.t(
+                            AppStringKeys.countryPickerCancel,
+                          ),
+                          color: c.textSecondary,
+                          onTap: widget.onCancel,
+                        ),
+                        const SizedBox(width: 8),
+                        _ChatFolderPromptAction(
+                          key: const ValueKey('chat-folder-create-submit'),
+                          label: AppStrings.t(AppStringKeys.chatInfoCreate),
+                          color: const Color(0xFFFFFFFF),
+                          fillColor: AppTheme.brand,
+                          enabled: _canCreate,
+                          onTap: _submit,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatFolderPromptAction extends StatelessWidget {
+  const _ChatFolderPromptAction({
+    super.key,
+    required this.label,
+    required this.color,
+    required this.onTap,
+    this.fillColor,
+    this.enabled = true,
+  });
+
+  final String label;
+  final Color color;
+  final Color? fillColor;
+  final VoidCallback onTap;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? onTap : null,
+        child: Opacity(
+          opacity: enabled ? 1 : 0.38,
+          child: Container(
+            height: 38,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 17),
+            decoration: BoxDecoration(
+              color: fillColor,
+              borderRadius: BorderRadius.circular(19),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
         ),
       ),
     );

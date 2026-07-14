@@ -115,11 +115,6 @@ class ChatListViewModel extends ChangeNotifier {
   void _loadFilters() {
     final cached = _client.latestChatFoldersUpdate;
     if (cached != null) _applyChatFolders(cached);
-
-    _client
-        .query({'@type': 'getChatFolders'})
-        .then(_applyChatFolders)
-        .catchError((_) {});
   }
 
   void _applyChatFolders(Map<String, dynamic> object) {
