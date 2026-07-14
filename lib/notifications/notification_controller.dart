@@ -9,6 +9,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -21,6 +22,7 @@ import '../settings/keyword_blocker.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import 'notification_target.dart';
 import 'scope_notification_settings.dart';
 
 class NotificationController with WidgetsBindingObserver {
@@ -33,6 +35,9 @@ class NotificationController with WidgetsBindingObserver {
     description: 'Incoming Mithka messages',
     importance: Importance.high,
   );
+  static const _notificationTapChannel = MethodChannel(
+    'mithka/notification_tap',
+  );
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -42,6 +47,8 @@ class NotificationController with WidgetsBindingObserver {
   bool _ready = false;
   bool _notificationsAvailable = true;
   int _notificationSeed = 0;
+  NotificationTarget? _lastOpenedTarget;
+  DateTime? _lastOpenedAt;
 
   Future<void> start() async {
     if (_ready) return;
@@ -64,6 +71,17 @@ class NotificationController with WidgetsBindingObserver {
       ),
       onDidReceiveNotificationResponse: _openNotification,
     );
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      _notificationTapChannel.setMethodCallHandler(_handleNativeTap);
+      try {
+        final initial = await _notificationTapChannel
+            .invokeMapMethod<String, dynamic>('getInitialNotification');
+        if (initial != null) _openRemoteNotification(initial);
+      } on PlatformException catch (error) {
+        debugPrint('Initial notification tap lookup failed: $error');
+      }
+    }
 
     final launch = await _plugin.getNotificationAppLaunchDetails();
     if (launch?.didNotificationLaunchApp ?? false) {
@@ -130,7 +148,11 @@ class NotificationController with WidgetsBindingObserver {
     final title = chat.str('title') ?? 'Mithka';
     final body = _notificationText(content);
     if (KeywordBlocker.shared.matches(body)) return;
-    final payload = jsonEncode({'chat_id': chatId, 'message_id': messageId});
+    final payload = jsonEncode({
+      'chat_id': chatId,
+      'message_id': messageId,
+      'title': title,
+    });
 
     _notificationSeed = (_notificationSeed + 1) & 0x7fffffff;
     try {
@@ -207,32 +229,39 @@ class NotificationController with WidgetsBindingObserver {
         : text;
   }
 
-  Future<void> _openNotification(NotificationResponse? response) async {
-    final payload = response?.payload;
-    if (payload == null || payload.isEmpty) return;
-
-    final data = _decodePayload(payload);
-    final chatId = data?.int64('chat_id');
-    final messageId = data?.int64('message_id');
-    if (chatId == null) return;
-
-    final chat = await _chat(chatId);
-    final title = chat?.str('title') ?? 'Mithka';
-
-    ChatDeepLinkController.shared.openChat(
-      chatId: chatId,
-      title: title,
-      messageId: messageId,
-    );
+  void _openNotification(NotificationResponse? response) {
+    final target = NotificationTarget.fromLocalPayload(response?.payload);
+    if (target != null) _openTarget(target);
   }
 
-  Map<String, dynamic>? _decodePayload(String payload) {
-    try {
-      final decoded = jsonDecode(payload);
-      return decoded is Map<String, dynamic> ? decoded : null;
-    } catch (_) {
-      return null;
+  Future<dynamic> _handleNativeTap(MethodCall call) async {
+    if (call.method != 'notificationTap') return;
+    _openRemoteNotification(call.arguments);
+  }
+
+  void _openRemoteNotification(Object? userInfo) {
+    final target = NotificationTarget.fromRemoteUserInfo(userInfo);
+    if (target != null) _openTarget(target);
+  }
+
+  void _openTarget(NotificationTarget target) {
+    final now = DateTime.now();
+    final previous = _lastOpenedTarget;
+    if (previous?.chatId == target.chatId &&
+        previous?.messageId == target.messageId &&
+        now.difference(
+              _lastOpenedAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+            ) <
+            const Duration(seconds: 2)) {
+      return;
     }
+    _lastOpenedTarget = target;
+    _lastOpenedAt = now;
+    ChatDeepLinkController.shared.openChat(
+      chatId: target.chatId,
+      title: target.title ?? 'Mithka',
+      messageId: target.messageId,
+    );
   }
 
   Future<void> stop() async {
@@ -240,5 +269,8 @@ class NotificationController with WidgetsBindingObserver {
     await _sub?.cancel();
     _sub = null;
     _ready = false;
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      _notificationTapChannel.setMethodCallHandler(null);
+    }
   }
 }

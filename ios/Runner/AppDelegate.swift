@@ -8,12 +8,15 @@ import Sentry
 import SwiftUI
 import Translation
 import UIKit
+import UserNotifications
 
 @main
 @MainActor
 @objc class AppDelegate: FlutterAppDelegate, @preconcurrency FlutterImplicitEngineDelegate {
   private var nativeTranslationBridge: AnyObject?
   private var pushChannel: FlutterMethodChannel?
+  private var notificationTapChannel: FlutterMethodChannel?
+  private var pendingNotificationTap: [String: Any]?
   private var apnsDeviceToken: String?
   private var didRegisterFlutterPlugins = false
   private var systemPictureInPictureBridge: SystemPictureInPictureBridge?
@@ -26,6 +29,16 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     configureNativeSentryIfNeeded()
+    // flutter_local_notifications registers through FlutterAppDelegate. iOS
+    // only forwards tap callbacks to it when the app delegate is explicitly
+    // installed as the notification-center delegate.
+    UNUserNotificationCenter.current().delegate = self
+    if
+      let userInfo = launchOptions?[.remoteNotification] as? [AnyHashable: Any],
+      Self.containsVisibleAlert(userInfo)
+    {
+      pendingNotificationTap = Self.stringKeyed(userInfo)
+    }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 
@@ -342,6 +355,21 @@ import UIKit
       result(self?.apnsDeviceToken)
     }
 
+    let notificationTapChannel = FlutterMethodChannel(
+      name: "mithka/notification_tap",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    self.notificationTapChannel = notificationTapChannel
+    notificationTapChannel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "getInitialNotification" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let pending = self?.pendingNotificationTap
+      self?.pendingNotificationTap = nil
+      result(pending)
+    }
+
     let systemPiPBridge = SystemPictureInPictureBridge(
       messenger: engineBridge.applicationRegistrar.messenger()
     )
@@ -432,6 +460,48 @@ import UIKit
   ) {
     pushChannel?.invokeMethod("registrationError", arguments: error.localizedDescription)
     super.application(application, didFailToRegisterForRemoteNotificationsWithError: error)
+  }
+
+  override func userNotificationCenter(
+    _ center: UNUserNotificationCenter,
+    didReceive response: UNNotificationResponse,
+    withCompletionHandler completionHandler: @escaping () -> Void
+  ) {
+    let userInfo = response.notification.request.content.userInfo
+    if Self.isFlutterLocalNotification(userInfo) {
+      super.userNotificationCenter(
+        center,
+        didReceive: response,
+        withCompletionHandler: completionHandler
+      )
+      return
+    }
+
+    let payload = Self.stringKeyed(userInfo)
+    pendingNotificationTap = payload
+    notificationTapChannel?.invokeMethod("notificationTap", arguments: payload)
+    completionHandler()
+  }
+
+  private static func isFlutterLocalNotification(_ userInfo: [AnyHashable: Any]) -> Bool {
+    userInfo["NotificationId"] != nil &&
+      userInfo["presentAlert"] != nil &&
+      userInfo["presentSound"] != nil &&
+      userInfo["presentBadge"] != nil &&
+      userInfo["payload"] != nil
+  }
+
+  private static func containsVisibleAlert(_ userInfo: [AnyHashable: Any]) -> Bool {
+    guard let aps = userInfo["aps"] as? [String: Any] else { return false }
+    return aps["alert"] != nil
+  }
+
+  private static func stringKeyed(_ userInfo: [AnyHashable: Any]) -> [String: Any] {
+    var result: [String: Any] = [:]
+    for (key, value) in userInfo {
+      result[String(describing: key)] = value
+    }
+    return result
   }
 }
 
