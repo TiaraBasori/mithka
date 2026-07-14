@@ -11,6 +11,35 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  testWidgets('file filters render below media tabs and photos are separate', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final theme = ThemeController(prefs);
+    addTearDown(theme.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ThemeController>.value(
+        value: theme,
+        child: const MaterialApp(
+          locale: Locale('en'),
+          localizationsDelegates: [AppLocalizations.delegate],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: SharedMediaView(chatId: 1, title: 'Files', initialTab: 1),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Photos'), findsOneWidget);
+    expect(find.text('Photos & Videos'), findsNothing);
+    expect(
+      tester.getCenter(find.text('All')).dy,
+      greaterThan(tester.getCenter(find.text('File')).dy),
+    );
+  });
+
   testWidgets('music hub has playlist and music tabs with source chats', (
     tester,
   ) async {

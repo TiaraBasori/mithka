@@ -1040,6 +1040,7 @@ const koMessages = <String, String>{
   'sharedMediaNoMatches': "일치하는 결과가 없습니다",
   'sharedMediaNotDownloadedSize': "다운로드 안 됨 · {value1}",
   'sharedMediaPhotosAndVideos': "사진 및 동영상",
+  'sharedMediaPhotos': "사진",
   'sharedMediaSearchFilesHint': "파일 이름, 채팅 또는 보낸 사람 검색",
   'sharedMediaSearchVideosHint': "동영상, 그룹, 이름 또는 #해시태그 검색",
   'sharedMediaVideos': "동영상",

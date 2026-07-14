@@ -1520,6 +1520,7 @@ abstract final class AppStringKeys {
   static const sharedMediaNoMatches = 'sharedMediaNoMatches';
   static const sharedMediaNotDownloadedSize = 'sharedMediaNotDownloadedSize';
   static const sharedMediaPhotosAndVideos = 'sharedMediaPhotosAndVideos';
+  static const sharedMediaPhotos = 'sharedMediaPhotos';
   static const sharedMediaSearchFilesHint = 'sharedMediaSearchFilesHint';
   static const sharedMediaSearchVideosHint = 'sharedMediaSearchVideosHint';
   static const sharedMediaVideos = 'sharedMediaVideos';

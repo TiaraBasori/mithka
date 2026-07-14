@@ -1026,6 +1026,7 @@ const zhHantMessages = <String, String>{
   'sharedMediaNoMatches': "沒有符合的內容",
   'sharedMediaNotDownloadedSize': "未下載 · {value1}",
   'sharedMediaPhotosAndVideos': "相片與影片",
+  'sharedMediaPhotos': "相片",
   'sharedMediaSearchFilesHint': "搜尋檔案名稱、聊天或傳送者",
   'sharedMediaSearchVideosHint': "搜尋影片、群組、名稱或 #hashtag",
   'sharedMediaVideos': "影片",

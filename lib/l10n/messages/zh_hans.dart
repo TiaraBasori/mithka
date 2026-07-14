@@ -1026,6 +1026,7 @@ const zhHansMessages = <String, String>{
   'sharedMediaNoMatches': "没有匹配的内容",
   'sharedMediaNotDownloadedSize': "未下载 · {value1}",
   'sharedMediaPhotosAndVideos': "图片视频",
+  'sharedMediaPhotos': "图片",
   'sharedMediaSearchFilesHint': "搜索文件名、聊天或发送人",
   'sharedMediaSearchVideosHint': "搜索视频、群组、名称或 #hashtag",
   'sharedMediaVideos': "视频",

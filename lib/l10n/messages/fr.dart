@@ -1120,6 +1120,7 @@ const frMessages = <String, String>{
   'sharedMediaNoMatches': "Aucun résultat correspondant",
   'sharedMediaNotDownloadedSize': "Non téléchargé · {value1}",
   'sharedMediaPhotosAndVideos': "Photos et vidéos",
+  'sharedMediaPhotos': "Photos",
   'sharedMediaSearchFilesHint':
       "Rechercher par nom de fichier, conversation ou expéditeur",
   'sharedMediaSearchVideosHint':

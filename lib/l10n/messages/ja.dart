@@ -1041,6 +1041,7 @@ const jaMessages = <String, String>{
   'sharedMediaNoMatches': "一致する結果はありません",
   'sharedMediaNotDownloadedSize': "未ダウンロード · {value1}",
   'sharedMediaPhotosAndVideos': "写真と動画",
+  'sharedMediaPhotos': "写真",
   'sharedMediaSearchFilesHint': "ファイル名、チャット、送信者を検索",
   'sharedMediaSearchVideosHint': "動画、グループ、名前、#ハッシュタグを検索",
   'sharedMediaVideos': "動画",

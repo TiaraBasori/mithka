@@ -1127,6 +1127,7 @@ const enMessages = <String, String>{
   'sharedMediaNoMatches': "No matching results",
   'sharedMediaNotDownloadedSize': "Not downloaded · {value1}",
   'sharedMediaPhotosAndVideos': "Photos & Videos",
+  'sharedMediaPhotos': "Photos",
   'sharedMediaSearchFilesHint': "Search file names, chats, or senders",
   'sharedMediaSearchVideosHint': "Search videos, groups, names, or #hashtags",
   'sharedMediaVideos': "Videos",

@@ -91,8 +91,8 @@ class SharedMediaView extends StatefulWidget {
 class _SharedMediaViewState extends State<SharedMediaView> {
   static const _tabs = [
     _MediaTab(
-      AppStringKeys.sharedMediaPhotosAndVideos,
-      'searchMessagesFilterPhotoAndVideo',
+      AppStringKeys.sharedMediaPhotos,
+      'searchMessagesFilterPhoto',
       true,
     ),
     _MediaTab(
@@ -433,6 +433,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           _header(),
           if (!_isMusicHub || _musicHubTab == _MusicHubTab.music) _toolbar(),
           if (!widget.lockedTab) _tabStrip(),
+          if ((!_isMusicHub || _musicHubTab == _MusicHubTab.music) &&
+              _showsFileFilters)
+            _fileFilterBar(),
           Expanded(
             child: _isMusicHub && _musicHubTab == _MusicHubTab.playlists
                 ? _musicSourcesBody()
@@ -821,84 +824,82 @@ class _SharedMediaViewState extends State<SharedMediaView> {
 
   Widget _toolbar() {
     final c = context.colors;
-    final showFileFilters = _tabs[_tab].videoOnly || _tab == 1;
     return Container(
       color: c.navBar,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-      child: Column(
-        children: [
-          Container(
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: c.searchFill,
-              borderRadius: BorderRadius.circular(9),
+      child: Container(
+        height: 36,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: c.searchFill,
+          borderRadius: BorderRadius.circular(9),
+        ),
+        child: Row(
+          children: [
+            AppIcon(
+              HeroAppIcons.magnifyingGlass,
+              size: 15,
+              color: c.textTertiary,
             ),
-            child: Row(
-              children: [
-                AppIcon(
-                  HeroAppIcons.magnifyingGlass,
-                  size: 15,
+            const SizedBox(width: 7),
+            Expanded(
+              child: TextField(
+                controller: _search,
+                autocorrect: false,
+                textInputAction: TextInputAction.search,
+                style: TextStyle(fontSize: 15, color: c.textPrimary),
+                decoration: InputDecoration(
+                  hintText: _tabs[_tab].videoOnly
+                      ? AppStrings.t(AppStringKeys.sharedMediaSearchVideosHint)
+                      : AppStrings.t(AppStringKeys.sharedMediaSearchFilesHint),
+                  border: InputBorder.none,
+                  isCollapsed: true,
+                ),
+                onChanged: _onSearchChanged,
+              ),
+            ),
+            if (_search.text.isNotEmpty)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _search.clear();
+                  _onSearchChanged('');
+                },
+                child: AppIcon(
+                  HeroAppIcons.xmark,
+                  size: 16,
                   color: c.textTertiary,
                 ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: TextField(
-                    controller: _search,
-                    autocorrect: false,
-                    textInputAction: TextInputAction.search,
-                    style: TextStyle(fontSize: 15, color: c.textPrimary),
-                    decoration: InputDecoration(
-                      hintText: _tabs[_tab].videoOnly
-                          ? AppStrings.t(
-                              AppStringKeys.sharedMediaSearchVideosHint,
-                            )
-                          : AppStrings.t(
-                              AppStringKeys.sharedMediaSearchFilesHint,
-                            ),
-                      border: InputBorder.none,
-                      isCollapsed: true,
-                    ),
-                    onChanged: _onSearchChanged,
-                  ),
-                ),
-                if (_search.text.isNotEmpty)
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: () {
-                      _search.clear();
-                      _onSearchChanged('');
-                    },
-                    child: AppIcon(
-                      HeroAppIcons.xmark,
-                      size: 16,
-                      color: c.textTertiary,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          if (showFileFilters) ...[
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                _filterChip(
-                  telegramText(AppStringKeys.sharedMediaFilterAll),
-                  _SharedMediaFileFilter.all,
-                ),
-                const SizedBox(width: 8),
-                _filterChip(
-                  telegramText(AppStringKeys.sharedMediaFilterDownloaded),
-                  _SharedMediaFileFilter.downloaded,
-                ),
-                const SizedBox(width: 8),
-                _filterChip(
-                  telegramText(AppStringKeys.sharedMediaFilterNotDownloaded),
-                  _SharedMediaFileFilter.notDownloaded,
-                ),
-              ],
-            ),
+              ),
           ],
+        ),
+      ),
+    );
+  }
+
+  bool get _showsFileFilters => _tabs[_tab].videoOnly || _tab == 1;
+
+  Widget _fileFilterBar() {
+    final c = context.colors;
+    return Container(
+      color: c.navBar,
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      child: Row(
+        children: [
+          _filterChip(
+            telegramText(AppStringKeys.sharedMediaFilterAll),
+            _SharedMediaFileFilter.all,
+          ),
+          const SizedBox(width: 8),
+          _filterChip(
+            telegramText(AppStringKeys.sharedMediaFilterDownloaded),
+            _SharedMediaFileFilter.downloaded,
+          ),
+          const SizedBox(width: 8),
+          _filterChip(
+            telegramText(AppStringKeys.sharedMediaFilterNotDownloaded),
+            _SharedMediaFileFilter.notDownloaded,
+          ),
         ],
       ),
     );

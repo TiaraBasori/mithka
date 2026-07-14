@@ -1110,6 +1110,7 @@ const esMessages = <String, String>{
   'sharedMediaNoMatches': "Sin resultados",
   'sharedMediaNotDownloadedSize': "Sin descargar · {value1}",
   'sharedMediaPhotosAndVideos': "Fotos y videos",
+  'sharedMediaPhotos': "Fotos",
   'sharedMediaSearchFilesHint': "Buscar nombres de archivo, chats o remitentes",
   'sharedMediaSearchVideosHint': "Buscar vídeos, grupos, nombres o #hashtags",
   'sharedMediaVideos': "Videos",

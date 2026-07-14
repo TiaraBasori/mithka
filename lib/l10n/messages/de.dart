@@ -1119,6 +1119,7 @@ const deMessages = <String, String>{
   'sharedMediaNoMatches': "Keine Treffer",
   'sharedMediaNotDownloadedSize': "Nicht heruntergeladen · {value1}",
   'sharedMediaPhotosAndVideos': "Fotos und Videos",
+  'sharedMediaPhotos': "Fotos",
   'sharedMediaSearchFilesHint': "Dateinamen, Chats oder Absender suchen",
   'sharedMediaSearchVideosHint': "Videos, Gruppen, Namen oder #Hashtags suchen",
   'sharedMediaVideos': "Videos",
