@@ -455,7 +455,27 @@ void main() {
       final title = find.byKey(const ValueKey('rich-table-title'));
       expect(title, findsOneWidget);
       expect(tester.widget<TextField>(title).controller?.text, 'Table 1');
+      final addRowControl = find.byKey(const ValueKey('rich-table-add-row'));
+      expect(
+        tester.getCenter(addRowControl).dy,
+        moreOrLessEquals(tester.getCenter(title).dy),
+      );
+      await tester.enterText(
+        title,
+        'A table name that is deliberately long enough to require its own row '
+        'while keeping every table control visible and easy to use',
+      );
+      await tester.pump();
+      expect(
+        tester.getTopLeft(addRowControl).dy,
+        greaterThan(tester.getBottomLeft(title).dy),
+      );
       await tester.enterText(title, 'Quarterly <Plan>');
+      await tester.pump();
+      expect(
+        tester.getCenter(addRowControl).dy,
+        moreOrLessEquals(tester.getCenter(title).dy),
+      );
 
       final tableStyleButton = find.byKey(
         const ValueKey('rich-table-style-button'),
@@ -624,21 +644,16 @@ void main() {
       await tester.pump();
       expect(find.text('Borderless'), findsOneWidget);
       expect(find.text('Striped table'), findsNothing);
-      final horizontalAlignmentY = [
+      expect(find.text('Header cell'), findsNothing);
+      for (final removedAction in [
         'Align left',
         'Align center',
         'Align right',
-      ].map((label) => tester.getCenter(find.text(label)).dy).toList();
-      final verticalAlignmentY = [
         'Align top',
         'Align middle',
         'Align bottom',
-      ].map((label) => tester.getCenter(find.text(label)).dy).toList();
-      for (final y in horizontalAlignmentY.skip(1)) {
-        expect(y, moreOrLessEquals(horizontalAlignmentY.first));
-      }
-      for (final y in verticalAlignmentY.skip(1)) {
-        expect(y, moreOrLessEquals(verticalAlignmentY.first));
+      ]) {
+        expect(find.text(removedAction), findsNothing);
       }
       final addRow = find.text('Add row above');
       expect(addRow, findsOneWidget);
