@@ -478,6 +478,52 @@ void main() {
   });
 
   group('ChatInputBar', () {
+    testWidgets('more panel paints the bottom safe area with its background', (
+      tester,
+    ) async {
+      final vm = ChatViewModel(
+        chatId: 1,
+        title: 'Test chat',
+        markReadOnOpen: false,
+      );
+      addTearDown(vm.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(padding: EdgeInsets.only(bottom: 34)),
+            child: Scaffold(
+              body: Align(
+                alignment: Alignment.bottomCenter,
+                child: ChatInputBar(
+                  vm: vm,
+                  onStartCall: (_) {},
+                  onMessageSent: () {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final safeAreaBackground = find.byKey(
+        const ValueKey('chat-input-safe-area-background'),
+      );
+      final colors = tester.element(safeAreaBackground).colors;
+      expect(
+        tester.widget<ColoredBox>(safeAreaBackground).color,
+        colors.inputBarBackground,
+      );
+
+      await tester.tap(find.byIcon(HeroAppIcons.circlePlus.data));
+      await tester.pump();
+
+      expect(
+        tester.widget<ColoredBox>(safeAreaBackground).color,
+        colors.panelBackground,
+      );
+    });
+
     testWidgets('offers paste even when Flutter omits its paste action', (
       tester,
     ) async {

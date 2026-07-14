@@ -601,25 +601,35 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final replyKeyboard = _activeReplyKeyboard();
-    return Container(
-      color: c.inputBarBackground,
+    final replyKeyboardPanelVisible =
+        replyKeyboard != null && _replyKeyboardVisible && !_hasText;
+    final bottomSurfaceColor =
+        _panel != _Panel.none || replyKeyboardPanelVisible
+        ? c.panelBackground
+        : c.inputBarBackground;
+    return ColoredBox(
+      key: const ValueKey('chat-input-safe-area-background'),
+      color: bottomSurfaceColor,
       child: SafeArea(
         top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (vm.replyTo != null) _replyBanner(vm.replyTo!),
-            if (_mentionCandidates.isNotEmpty) _mentionMenu(),
-            _inputRow(replyKeyboard),
-            if (replyKeyboard != null && _replyKeyboardVisible && !_hasText)
-              _replyKeyboardPanel(replyKeyboard)
-            else
-              _iconStrip(),
-            if (_panel == _Panel.function) _functionPanel(),
-            if (_panel == _Panel.emoji) _emojiPanel(),
-            if (_panel == _Panel.sticker) _stickerPanel(),
-            if (_panel == _Panel.voice) _voicePanel(),
-          ],
+        child: ColoredBox(
+          color: c.inputBarBackground,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (vm.replyTo != null) _replyBanner(vm.replyTo!),
+              if (_mentionCandidates.isNotEmpty) _mentionMenu(),
+              _inputRow(replyKeyboard),
+              if (replyKeyboardPanelVisible)
+                _replyKeyboardPanel(replyKeyboard)
+              else
+                _iconStrip(),
+              if (_panel == _Panel.function) _functionPanel(),
+              if (_panel == _Panel.emoji) _emojiPanel(),
+              if (_panel == _Panel.sticker) _stickerPanel(),
+              if (_panel == _Panel.voice) _voicePanel(),
+            ],
+          ),
         ),
       ),
     );
