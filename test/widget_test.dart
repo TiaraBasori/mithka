@@ -457,6 +457,27 @@ void main() {
       expect(tester.widget<TextField>(title).controller?.text, 'Table 1');
       await tester.enterText(title, 'Quarterly <Plan>');
 
+      final tableStyleButton = find.byKey(
+        const ValueKey('rich-table-style-button'),
+      );
+      expect(tableStyleButton, findsOneWidget);
+      await tester.tap(tableStyleButton);
+      await tester.pumpAndSettle();
+      expect(find.text('Borderless'), findsOneWidget);
+      expect(find.text('Striped table'), findsNothing);
+      final borderlessToggle = find.byKey(
+        const ValueKey('rich-table-borderless-toggle'),
+      );
+      expect(
+        find.descendant(
+          of: borderlessToggle,
+          matching: find.byIcon(HeroAppIcons.check.data),
+        ),
+        findsNothing,
+      );
+      await tester.tap(borderlessToggle);
+      await tester.pumpAndSettle();
+
       final textFieldCount = find.byType(TextField).evaluate().length;
       final firstCell = find.byKey(const ValueKey('rich-table-cell-0-0'));
       final firstCellController =
@@ -554,6 +575,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Change Table'));
       await tester.pump();
+      expect(find.text('Borderless'), findsOneWidget);
+      expect(find.text('Striped table'), findsNothing);
       final addRow = find.text('Add row above');
       expect(addRow, findsOneWidget);
       await tester.ensureVisible(addRow);
@@ -570,6 +593,9 @@ void main() {
           .where((segment) => segment.isHtml)
           .map((segment) => segment.html)
           .join();
+      expect(html, contains('<table><caption>'));
+      expect(html, isNot(contains('<table bordered')));
+      expect(html, isNot(contains('striped')));
       expect(html, contains('<caption>Quarterly &lt;Plan&gt;</caption>'));
       expect(
         html,
