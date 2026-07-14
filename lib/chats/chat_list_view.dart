@@ -103,9 +103,16 @@ class ChatListView extends StatefulWidget {
   State<ChatListView> createState() => _ChatListViewState();
 }
 
-class _ChatListViewState extends State<ChatListView> {
+class _ChatListViewState extends State<ChatListView>
+    with SingleTickerProviderStateMixin {
+  static const _folderTransitionDuration = Duration(milliseconds: 210);
+  static const _folderTransitionDistance = 22.0;
+
   final ChatListViewModel _model = ChatListViewModel();
   late final ScrollController _scrollController = _newScrollController();
+  late final AnimationController _folderTransitionController;
+  late final CurvedAnimation _folderTransition;
+  double _folderTransitionDirection = 1;
   String _meName = AppStringKeys.chatMeLabel;
   TdFileRef? _mePhoto;
   int _meStatusId = 0; // current emoji status, shown after the name
@@ -140,6 +147,15 @@ class _ChatListViewState extends State<ChatListView> {
   @override
   void initState() {
     super.initState();
+    _folderTransitionController = AnimationController(
+      vsync: this,
+      duration: _folderTransitionDuration,
+      value: 1,
+    );
+    _folderTransition = CurvedAnimation(
+      parent: _folderTransitionController,
+      curve: Curves.easeOutCubic,
+    );
     _model.onAppear();
     _model.addListener(_onModel);
     widget.controller?.addListener(_onControllerRequest);
@@ -187,6 +203,8 @@ class _ChatListViewState extends State<ChatListView> {
   void dispose() {
     _userSub?.cancel();
     widget.controller?.removeListener(_onControllerRequest);
+    _folderTransition.dispose();
+    _folderTransitionController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _model.removeListener(_onModel);
@@ -339,7 +357,41 @@ class _ChatListViewState extends State<ChatListView> {
 
   void _selectFilter(ChatFilterOption filter) {
     setState(() => _showFilterMenu = false);
+    _switchToFilter(filter);
+  }
+
+  void _switchToFilter(ChatFilterOption filter) {
+    final currentFolderId = _model.selectedFilter.folderId;
+    if (filter.folderId == currentFolderId) return;
+
+    final filters = _model.filters;
+    final currentIndex = filters.indexWhere(
+      (candidate) => candidate.folderId == currentFolderId,
+    );
+    final targetIndex = filters.indexWhere(
+      (candidate) => candidate.folderId == filter.folderId,
+    );
+    final direction = currentIndex >= 0 && targetIndex >= 0
+        ? (targetIndex > currentIndex ? 1.0 : -1.0)
+        : 1.0;
+
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+    setState(() {
+      _folderTransitionDirection = direction;
+      _openSwipeChat = null;
+      _archiveRevealed = false;
+      _archivePullDistance = 0;
+      _archiveDragOffset = 0;
+      _refreshPullDistance = 0;
+    });
     _model.selectFilter(filter);
+    if (MediaQuery.maybeOf(context)?.disableAnimations ?? false) {
+      _folderTransitionController.value = 1;
+    } else {
+      _folderTransitionController.forward(from: 0);
+    }
   }
 
   void _onControllerRequest() {
@@ -670,6 +722,10 @@ class _ChatListViewState extends State<ChatListView> {
   Widget _chatFolderTabs() {
     final c = context.colors;
     final selectedFolderId = _model.selectedFilter.folderId;
+    final transitionDuration =
+        MediaQuery.maybeOf(context)?.disableAnimations ?? false
+        ? Duration.zero
+        : _folderTransitionDuration;
     return Container(
       height: 44,
       decoration: BoxDecoration(
@@ -719,7 +775,9 @@ class _ChatListViewState extends State<ChatListView> {
                     ],
                   ),
                   const SizedBox(height: 7),
-                  Container(
+                  AnimatedContainer(
+                    duration: transitionDuration,
+                    curve: Curves.easeOutCubic,
                     width: 38,
                     height: 4,
                     decoration: BoxDecoration(
@@ -891,6 +949,7 @@ class _ChatListViewState extends State<ChatListView> {
               child: list,
             );
           }
+          list = _folderSwitchTransition(list);
 
           return Column(
             children: [
@@ -1038,17 +1097,39 @@ class _ChatListViewState extends State<ChatListView> {
     if (current < 0) return;
     final next = velocity < 0 ? current + 1 : current - 1;
     if (next < 0 || next >= filters.length) return;
-    _model.selectFilter(filters[next]);
-    _scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
+    _switchToFilter(filters[next]);
+  }
+
+  Widget _folderSwitchTransition(Widget child) {
+    // Keep one ListView mounted: retaining outgoing and incoming children would
+    // attach the shared scroll controller to both during the transition.
+    return ClipRect(
+      child: AnimatedBuilder(
+        animation: _folderTransition,
+        child: child,
+        builder: (context, child) {
+          final progress = _folderTransition.value;
+          return Opacity(
+            opacity: 0.78 + 0.22 * progress,
+            child: Transform.translate(
+              offset: Offset(
+                _folderTransitionDirection *
+                    _folderTransitionDistance *
+                    (1 - progress),
+                0,
+              ),
+              child: child,
+            ),
+          );
+        },
+      ),
     );
   }
 
   Widget _swipeRow(ChatSummary chat) {
     if (context.watch<ThemeController>().disableChatListSwipeActions) {
       return GestureDetector(
+        key: ValueKey(chat.id),
         behavior: HitTestBehavior.opaque,
         onTap: () => _openChat(chat),
         child: ChatRowView(
@@ -1094,6 +1175,7 @@ class _ChatListViewState extends State<ChatListView> {
             ),
           ];
     return ChatSwipeRow(
+      key: ValueKey(chat.id),
       rowId: chat.id,
       openRowId: _openSwipeChat,
       onOpenChanged: (id) => setState(() => _openSwipeChat = id),
