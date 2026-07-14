@@ -99,6 +99,35 @@ import UIKit
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     clipboardChannel.setMethodCallHandler { call, result in
+      if call.method == "readImageUri" {
+        guard
+          let arguments = call.arguments as? [String: Any],
+          let uri = arguments["uri"] as? String,
+          let url = URL(string: uri),
+          url.isFileURL
+        else {
+          result(nil)
+          return
+        }
+        do {
+          let data = try Data(contentsOf: url)
+          guard !data.isEmpty else {
+            result(nil)
+            return
+          }
+          let mimeType = arguments["mimeType"] as? String ?? "image/png"
+          result(["mimeType": mimeType, "data": FlutterStandardTypedData(bytes: data)])
+        } catch {
+          result(
+            FlutterError(
+              code: "clipboard_unavailable",
+              message: error.localizedDescription,
+              details: nil
+            )
+          )
+        }
+        return
+      }
       guard call.method == "readImage" else {
         result(FlutterMethodNotImplemented)
         return

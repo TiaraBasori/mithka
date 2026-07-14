@@ -612,7 +612,7 @@ void main() {
       );
     });
 
-    testWidgets('offers paste even when Flutter omits its paste action', (
+    testWidgets('pastes images from menus, shortcuts, and inserted content', (
       tester,
     ) async {
       const clipboardChannel = MethodChannel('mithka/clipboard');
@@ -621,8 +621,12 @@ void main() {
       );
       final messenger =
           TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      final clipboardMethods = <String>[];
       messenger.setMockMethodCallHandler(clipboardChannel, (call) async {
-        if (call.method != 'readImage') return null;
+        clipboardMethods.add(call.method);
+        if (call.method != 'readImage' && call.method != 'readImageUri') {
+          return null;
+        }
         return <String, dynamic>{
           'mimeType': 'image/png',
           'data': base64Decode(
@@ -641,7 +645,10 @@ void main() {
         messenger.setMockMethodCallHandler(pathProviderChannel, null);
       });
       final vm = ChatViewModel(chatId: 1, title: 'Test', markReadOnOpen: false);
-      addTearDown(vm.dispose);
+      var vmDisposed = false;
+      addTearDown(() {
+        if (!vmDisposed) vm.dispose();
+      });
 
       await tester.pumpWidget(
         MaterialApp(
@@ -683,19 +690,52 @@ void main() {
       expect(pasteItems, hasLength(1));
 
       await tester.runAsync(() async {
-        pasteItems.single.onPressed?.call();
+        Actions.invoke(
+          tester.element(
+            find.descendant(
+              of: textFieldFinder,
+              matching: find.byType(EditableText),
+            ),
+          ),
+          const PasteTextIntent(SelectionChangedCause.keyboard),
+        );
         await Future<void>.delayed(const Duration(milliseconds: 100));
       });
       await tester.pumpAndSettle();
-
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Edit in rich text'), findsOneWidget);
       expect(find.text('Send'), findsOneWidget);
       expect(find.byType(Image), findsOneWidget);
-      final preview = tester.widget<GestureDetector>(
+      expect(
         find.byKey(const ValueKey('clipboardImagePreview')),
+        findsOneWidget,
       );
-      expect(preview.onTap, isNotNull);
+
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        textField.contentInsertionConfiguration!.onContentInserted(
+          const KeyboardInsertedContent(
+            mimeType: 'image/png',
+            uri: 'content://mithka/pasted-image',
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('clipboardImagePreview')),
+        findsOneWidget,
+      );
+      expect(
+        clipboardMethods.where((method) => method == 'readImage'),
+        hasLength(1),
+      );
+      expect(clipboardMethods, contains('readImageUri'));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      vm.dispose();
+      vmDisposed = true;
     });
 
     testWidgets(

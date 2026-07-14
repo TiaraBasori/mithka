@@ -5,6 +5,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.ClipDescription
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.util.Log
@@ -173,23 +174,37 @@ class MainActivity : FlutterActivity() {
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mithka/clipboard")
             .setMethodCallHandler { call, result ->
-                if (call.method != "readImage") {
-                    result.notImplemented()
-                    return@setMethodCallHandler
+                var clipboardDescription: ClipDescription? = null
+                val requestedMimeType: String?
+                val uri = when (call.method) {
+                    "readImage" -> {
+                        val clipboard =
+                            getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = clipboard.primaryClip
+                        if (clip == null || clip.itemCount == 0) {
+                            result.success(null)
+                            return@setMethodCallHandler
+                        }
+                        clipboardDescription = clip.description
+                        requestedMimeType = null
+                        clip.getItemAt(0).uri
+                    }
+                    "readImageUri" -> {
+                        requestedMimeType = call.argument<String>("mimeType")
+                        call.argument<String>("uri")?.let(Uri::parse)
+                    }
+                    else -> {
+                        result.notImplemented()
+                        return@setMethodCallHandler
+                    }
                 }
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = clipboard.primaryClip
-                if (clip == null || clip.itemCount == 0) {
-                    result.success(null)
-                    return@setMethodCallHandler
-                }
-                val uri = clip.getItemAt(0).uri
                 if (uri == null) {
                     result.success(null)
                     return@setMethodCallHandler
                 }
                 val mimeType = contentResolver.getType(uri)
-                    ?: clip.description?.getMimeType(0)
+                    ?: requestedMimeType
+                    ?: clipboardDescription?.getMimeType(0)
                     ?: "image/png"
                 if (!mimeType.startsWith("image/")) {
                     result.success(null)

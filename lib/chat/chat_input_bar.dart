@@ -1151,6 +1151,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       },
                       child: Actions(
                         actions: {
+                          PasteTextIntent: CallbackAction<PasteTextIntent>(
+                            onInvoke: (_) {
+                              unawaited(_handlePaste());
+                              return null;
+                            },
+                          ),
                           _SendComposerIntent:
                               CallbackAction<_SendComposerIntent>(
                                 onInvoke: (_) {
@@ -1602,7 +1608,13 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Future<void> _sendInsertedImage(KeyboardInsertedContent content) async {
     if (!content.mimeType.toLowerCase().startsWith('image/')) return;
-    final data = content.data;
+    var data = content.data;
+    var mimeType = content.mimeType;
+    if (data == null || data.isEmpty) {
+      final image = await _readInsertedImage(content.uri, content.mimeType);
+      data = image?.data;
+      mimeType = image?.mimeType ?? mimeType;
+    }
     if (data == null || data.isEmpty) {
       if (mounted) {
         showToast(
@@ -1613,8 +1625,29 @@ class _ChatInputBarState extends State<ChatInputBar> {
       return;
     }
     _focus.unfocus();
-    await _handlePastedImage(data, content.mimeType);
+    await _handlePastedImage(data, mimeType);
     _restoreKeyboardFocus();
+  }
+
+  Future<_ClipboardImage?> _readInsertedImage(
+    String uri,
+    String mimeType,
+  ) async {
+    if (uri.isEmpty) return null;
+    try {
+      final image = await _clipboardChannel.invokeMapMethod<String, dynamic>(
+        'readImageUri',
+        <String, dynamic>{'uri': uri, 'mimeType': mimeType},
+      );
+      final data = image?['data'];
+      if (data is! Uint8List || data.isEmpty) return null;
+      return (
+        data: data,
+        mimeType: (image?['mimeType'] as String?) ?? mimeType,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<_ClipboardImage?> _readClipboardImage() async {
