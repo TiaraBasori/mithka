@@ -7,6 +7,7 @@
 //
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import '../components/app_icons.dart';
 import 'app_theme.dart';
 import 'emoji_font_catalog.dart';
 import 'system_font_catalog.dart';
+import 'telegram_cloud_theme.dart';
 
 enum AppearanceMode {
   system(AppStringKeys.appLocaleFollowSystem, HeroAppIcons.circleHalfStroke),
@@ -803,6 +805,14 @@ class ThemeController extends ChangeNotifier {
     _brandColor = Color(
       _prefs.getInt(_brandKey) ?? (0xFF000000 | AppTheme.defaultBrand),
     );
+    try {
+      final encodedTheme = _prefs.getString(_cloudThemeKey);
+      _cloudTheme = encodedTheme == null
+          ? null
+          : TelegramCloudTheme.fromJson(jsonDecode(encodedTheme));
+    } catch (_) {
+      _cloudTheme = null;
+    }
     _fontChoice = AppFontChoice.values.firstWhere(
       (m) => m.name == _prefs.getString(_fontChoiceKey),
       orElse: () => AppFontChoice.system,
@@ -903,6 +913,7 @@ class ThemeController extends ChangeNotifier {
 
   static const _modeKey = 'appearanceMode';
   static const _brandKey = 'brandColor';
+  static const _cloudThemeKey = 'telegramCloudTheme';
   static const _fontChoiceKey = 'fontChoice';
   static const _cjkFontChoiceKey = 'cjkFontChoice';
   static const _customPrimaryFontFamilyKey = 'customPrimaryFontFamily';
@@ -952,6 +963,7 @@ class ThemeController extends ChangeNotifier {
   final SharedPreferences _prefs;
   late AppearanceMode _mode;
   late Color _brandColor;
+  TelegramCloudTheme? _cloudTheme;
   late AppFontChoice _fontChoice;
   late AppFontChoice _cjkFontChoice;
   late String _customPrimaryFontFamily;
@@ -991,6 +1003,16 @@ class ThemeController extends ChangeNotifier {
   AppearanceMode get mode => _mode;
   ThemeMode get themeMode => _mode.themeMode;
   Color get brandColor => _brandColor;
+  TelegramCloudTheme? get cloudTheme => _cloudTheme;
+  AppColors appColorsFor(Brightness brightness) {
+    final theme = _cloudTheme;
+    if (theme != null &&
+        (theme.isDark ? Brightness.dark : Brightness.light) == brightness) {
+      return theme.appColors;
+    }
+    return brightness == Brightness.dark ? AppColors.dark : AppColors.light;
+  }
+
   AppFontChoice get fontChoice => _fontChoice;
   AppFontChoice get cjkFontChoice => _cjkFontChoice;
   String get customPrimaryFontFamily => _customPrimaryFontFamily;
@@ -1167,6 +1189,7 @@ class ThemeController extends ChangeNotifier {
   }
 
   set mode(AppearanceMode value) {
+    _clearCloudTheme();
     _mode = value;
     _prefs.setString(_modeKey, value.name);
     notifyListeners();
@@ -1174,10 +1197,28 @@ class ThemeController extends ChangeNotifier {
 
   /// The app's accent / brand color. Persisted and applied app-wide.
   set brandColor(Color value) {
+    _clearCloudTheme();
     _brandColor = value;
     _prefs.setInt(_brandKey, value.toARGB32());
     AppTheme.applyBrand(value);
     notifyListeners();
+  }
+
+  void installCloudTheme(TelegramCloudTheme theme) {
+    _cloudTheme = theme;
+    _mode = theme.isDark ? AppearanceMode.dark : AppearanceMode.light;
+    _brandColor = theme.accentColor;
+    _prefs.setString(_cloudThemeKey, jsonEncode(theme.toJson()));
+    _prefs.setString(_modeKey, _mode.name);
+    _prefs.setInt(_brandKey, _brandColor.toARGB32());
+    AppTheme.applyBrand(_brandColor);
+    notifyListeners();
+  }
+
+  void _clearCloudTheme() {
+    if (_cloudTheme == null) return;
+    _cloudTheme = null;
+    _prefs.remove(_cloudThemeKey);
   }
 
   set fontChoice(AppFontChoice value) {

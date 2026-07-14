@@ -44,6 +44,7 @@ import '../tdlib/td_image_loader.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
+import '../theme/telegram_cloud_theme.dart';
 import '../theme/theme_controller.dart';
 import 'chat_auto_scroll_policy.dart';
 import 'chat_info_view.dart';
@@ -747,6 +748,8 @@ class _ChatViewState extends State<ChatView> {
   bool _backSwipePopping = false;
   bool _loadingOlderFromScroll = false;
   bool _maintainSessionScrollAnchor = false;
+  ChatThemeStyle? _resolvedChatThemeStyle;
+  TelegramCloudTheme? _resolvedCloudTheme;
   bool _sessionAnchorMaintenanceScheduled = false;
   bool _openingUnreadMention = false;
   bool _exitStatePrepared = false;
@@ -3404,13 +3407,48 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
+  ChatWallpaper? _effectiveWallpaper() {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final chatWallpaper = _wallpaperController.wallpaperFor(
+      widget.chatId,
+      dark: dark,
+    );
+    if (chatWallpaper != null) return chatWallpaper;
+    final cloudWallpaper = _resolvedCloudTheme?.wallpaper;
+    return cloudWallpaper == null
+        ? null
+        : _wallpaperController.resolvedWallpaper(cloudWallpaper);
+  }
+
+  Color? _effectiveOutgoingColor() {
+    final chatColor = _resolvedChatThemeStyle?.outgoingColor;
+    return chatColor ?? _resolvedCloudTheme?.outgoingColor;
+  }
+
+  Color? _effectiveOutgoingTextColor() =>
+      _resolvedChatThemeStyle?.outgoingTextColor ??
+      _resolvedCloudTheme?.outgoingTextColor;
+
+  Color? _effectiveIncomingColor() =>
+      _resolvedChatThemeStyle?.incomingColor ??
+      _resolvedCloudTheme?.incomingColor;
+
+  Color? _effectiveIncomingTextColor() =>
+      _resolvedChatThemeStyle?.incomingTextColor ??
+      _resolvedCloudTheme?.incomingTextColor;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final themeController = context.watch<ThemeController>();
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    _resolvedCloudTheme = themeController.cloudTheme;
+    _resolvedChatThemeStyle = _wallpaperController.themeStyleFor(
+      widget.chatId,
+      dark: dark,
+    );
     // Keep blocked-user hiding toggle in sync with theme.
-    BlockedUserService.shared.enabled = context
-        .watch<ThemeController>()
-        .hideBlockedUserMessages;
+    BlockedUserService.shared.enabled = themeController.hideBlockedUserMessages;
     final hideSafetyNotice = context.watch<SafetyNoticeController>().disabled;
     final showSafetyNotice = shouldShowSafetyNotice(
       restricted: _vm.isTelegramTosRestricted,
@@ -3431,11 +3469,9 @@ class _ChatViewState extends State<ChatView> {
         backgroundColor: c.inputBarBackground,
         resizeToAvoidBottomInset: true,
         body: ChatWallpaperBackground(
-          wallpaper: _wallpaperController.wallpaperFor(
-            widget.chatId,
-            dark: Theme.of(context).brightness == Brightness.dark,
-          ),
+          wallpaper: _effectiveWallpaper(),
           fallbackColor: c.chatBackground,
+          brightness: Theme.of(context).brightness,
           child: ChatMediaDropRegion(
             enabled: _vm.canSendMessages && !_isSelecting,
             onImagesDropped: _previewAndSendDroppedImages,
@@ -3731,12 +3767,7 @@ class _ChatViewState extends State<ChatView> {
     return IgnorePointer(
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color:
-              _wallpaperController.wallpaperFor(
-                    widget.chatId,
-                    dark: Theme.of(context).brightness == Brightness.dark,
-                  ) ==
-                  null
+          color: _effectiveWallpaper() == null
               ? c.chatBackground
               : const Color(0x00000000),
         ),
@@ -4791,12 +4822,7 @@ class _ChatViewState extends State<ChatView> {
     final messages = _transcriptCacheMessages ?? _vm.messages;
     _scheduleUnreadProgressUpdate();
     return Container(
-      color:
-          _wallpaperController.wallpaperFor(
-                widget.chatId,
-                dark: Theme.of(context).brightness == Brightness.dark,
-              ) ==
-              null
+      color: _effectiveWallpaper() == null
           ? context.colors.chatBackground
           : const Color(0x00000000),
       child: NotificationListener<UserScrollNotification>(
@@ -4878,13 +4904,10 @@ class _ChatViewState extends State<ChatView> {
                       onBotCommandTap: _sendCommand,
                       onHashtagTap: _openHashtagSearch,
                       isRead: _vm.isRead(message),
-                      outgoingBubbleColor: _wallpaperController
-                          .themeStyleFor(
-                            widget.chatId,
-                            dark:
-                                Theme.of(context).brightness == Brightness.dark,
-                          )
-                          ?.outgoingColor,
+                      outgoingBubbleColor: _effectiveOutgoingColor(),
+                      outgoingBubbleTextColor: _effectiveOutgoingTextColor(),
+                      incomingBubbleColor: _effectiveIncomingColor(),
+                      incomingBubbleTextColor: _effectiveIncomingTextColor(),
                       onToggleReaction: (r) => _vm.toggleReaction(message, r),
                       onShowReactionUsers: _showReactionUsers,
                       onRedial: _startCall,
@@ -5164,16 +5187,16 @@ class _ChatViewState extends State<ChatView> {
     required double maxWidth,
   }) {
     final c = context.colors;
-    final themedOutgoing = _wallpaperController
-        .themeStyleFor(
-          widget.chatId,
-          dark: Theme.of(context).brightness == Brightness.dark,
-        )
-        ?.outgoingColor;
+    final themedOutgoing = _effectiveOutgoingColor();
+    final themedIncoming = _effectiveIncomingColor();
     final outgoingColor = themedOutgoing ?? AppTheme.bubbleOutgoing;
-    final outgoingTextColor = outgoingColor.computeLuminance() > 0.64
-        ? const Color(0xFF171717)
-        : AppTheme.bubbleOutgoingText;
+    final outgoingTextColor =
+        _effectiveOutgoingTextColor() ??
+        (outgoingColor.computeLuminance() > 0.64
+            ? const Color(0xFF171717)
+            : AppTheme.bubbleOutgoingText);
+    final incomingTextColor =
+        _effectiveIncomingTextColor() ?? c.bubbleIncomingText;
     final visible = group.take(9).toList();
     const padding = 4.0;
     final layout = buildTelegramMediaAlbumLayout(
@@ -5194,7 +5217,7 @@ class _ChatViewState extends State<ChatView> {
       constraints: BoxConstraints(maxWidth: layout.width + padding * 2),
       padding: const EdgeInsets.all(padding),
       decoration: BoxDecoration(
-        color: outgoing ? outgoingColor : c.bubbleIncoming,
+        color: outgoing ? outgoingColor : themedIncoming ?? c.bubbleIncoming,
         borderRadius: BorderRadius.circular(8),
         border: outgoing ? null : Border.all(color: c.divider, width: 0.5),
       ),
@@ -5235,7 +5258,7 @@ class _ChatViewState extends State<ChatView> {
                   style: TextStyle(
                     fontSize: 15,
                     height: 1.25,
-                    color: outgoing ? outgoingTextColor : c.textPrimary,
+                    color: outgoing ? outgoingTextColor : incomingTextColor,
                   ),
                 ),
               ),

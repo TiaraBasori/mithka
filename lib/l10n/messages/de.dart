@@ -326,6 +326,10 @@ const deMessages = <String, String>{
   'chatWallpaperThemesShared': "Themen gelten für beide Nutzer",
   'chatWallpaperTitle': "Chat-Thema und Hintergrund",
   'chatThemeChanged': "Chat-Thema geändert",
+  'cloudThemeApply': "Design anwenden",
+  'cloudThemeLoadFailed': "Dieses Telegram-Design konnte nicht geladen werden",
+  'cloudThemeOfficialDescription': "Offizielles Telegram-Cloud-Design",
+  'cloudThemePreviewTitle': "Designvorschau",
   'chatInlineSwitchButtonUnsupported':
       "Inline-Umschaltflächen werden noch nicht unterstützt",
   'chatJoinGroup': "Gruppe beitreten",

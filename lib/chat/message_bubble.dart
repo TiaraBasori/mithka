@@ -81,6 +81,9 @@ class MessageBubble extends StatefulWidget {
     this.onRedial,
     this.isRead = false,
     this.outgoingBubbleColor,
+    this.outgoingBubbleTextColor,
+    this.incomingBubbleColor,
+    this.incomingBubbleTextColor,
   });
 
   final ChatMessage message;
@@ -118,6 +121,9 @@ class MessageBubble extends StatefulWidget {
   onRedial; // tap a call log to redial (bool = isVideo)
   final bool isRead; // outgoing message read by the peer (two delivery dots)
   final Color? outgoingBubbleColor;
+  final Color? outgoingBubbleTextColor;
+  final Color? incomingBubbleColor;
+  final Color? incomingBubbleTextColor;
 
   @override
   State<MessageBubble> createState() => _MessageBubbleState();
@@ -186,9 +192,17 @@ class _MessageBubbleState extends State<MessageBubble>
   Color get _outgoingBubbleColor =>
       widget.outgoingBubbleColor ?? AppTheme.bubbleOutgoing;
 
-  Color get _outgoingTextColor => _outgoingBubbleColor.computeLuminance() > 0.64
-      ? const Color(0xFF171717)
-      : AppTheme.bubbleOutgoingText;
+  Color get _outgoingTextColor =>
+      widget.outgoingBubbleTextColor ??
+      (_outgoingBubbleColor.computeLuminance() > 0.64
+          ? const Color(0xFF171717)
+          : AppTheme.bubbleOutgoingText);
+
+  Color get _incomingBubbleColor =>
+      widget.incomingBubbleColor ?? context.colors.bubbleIncoming;
+
+  Color get _incomingTextColor =>
+      widget.incomingBubbleTextColor ?? context.colors.bubbleIncomingText;
 
   double _bubbleMaxWidth() {
     final width = _layoutWidth ?? MediaQuery.sizeOf(context).width;
@@ -803,7 +817,9 @@ class _MessageBubbleState extends State<MessageBubble>
     final c = context.colors;
     final fg = outgoing ? AppTheme.brand : c.linkBlue;
     return Material(
-      color: outgoing ? Colors.white.withValues(alpha: 0.92) : c.bubbleIncoming,
+      color: outgoing
+          ? Colors.white.withValues(alpha: 0.92)
+          : _incomingBubbleColor,
       borderRadius: BorderRadius.circular(6),
       child: InkWell(
         borderRadius: BorderRadius.circular(6),
@@ -846,7 +862,7 @@ class _MessageBubbleState extends State<MessageBubble>
       constraints: BoxConstraints(maxWidth: _bubbleMaxWidth()),
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 11),
       decoration: BoxDecoration(
-        color: outgoing ? _outgoingBubbleColor : c.bubbleIncoming,
+        color: outgoing ? _outgoingBubbleColor : _incomingBubbleColor,
         borderRadius: BorderRadius.circular(10),
         border: outgoing ? null : Border.all(color: c.divider, width: 0.5),
       ),
@@ -891,7 +907,7 @@ class _MessageBubbleState extends State<MessageBubble>
 
   Widget _textBubble(String text, bool outgoing) {
     final c = context.colors;
-    final baseColor = outgoing ? _outgoingTextColor : c.bubbleIncomingText;
+    final baseColor = outgoing ? _outgoingTextColor : _incomingTextColor;
     final linkColor = outgoing ? _outgoingTextColor : c.linkBlue;
     for (final r in _linkRecognizers) {
       r.dispose();
@@ -909,7 +925,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 ? const EdgeInsets.symmetric(horizontal: 10, vertical: 7)
                 : const EdgeInsets.symmetric(horizontal: 12, vertical: 9)),
       decoration: BoxDecoration(
-        color: outgoing ? _outgoingBubbleColor : c.bubbleIncoming,
+        color: outgoing ? _outgoingBubbleColor : _incomingBubbleColor,
         borderRadius: BorderRadius.circular(6),
         border: outgoing ? null : Border.all(color: c.divider, width: 0.5),
       ),
@@ -1735,7 +1751,7 @@ class _MessageBubbleState extends State<MessageBubble>
     final c = context.colors;
     final isVideo = message.callIsVideo;
     final connected = message.callDuration > 0;
-    final baseColor = outgoing ? _outgoingTextColor : c.bubbleIncomingText;
+    final baseColor = outgoing ? _outgoingTextColor : _incomingTextColor;
 
     String label;
     bool missed = false;
@@ -1771,7 +1787,7 @@ class _MessageBubbleState extends State<MessageBubble>
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
-          color: outgoing ? _outgoingBubbleColor : c.bubbleIncoming,
+          color: outgoing ? _outgoingBubbleColor : _incomingBubbleColor,
           borderRadius: BorderRadius.circular(6),
           border: outgoing ? null : Border.all(color: c.divider, width: 0.5),
         ),
@@ -1918,9 +1934,7 @@ class _MessageBubbleState extends State<MessageBubble>
   }
 
   Color _replyQuoteBackground(bool outgoing) {
-    final base = outgoing
-        ? _outgoingBubbleColor
-        : context.colors.bubbleIncoming;
+    final base = outgoing ? _outgoingBubbleColor : _incomingBubbleColor;
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Color.lerp(base, dark ? Colors.white : Colors.black, 0.10)!;
   }
@@ -2749,11 +2763,11 @@ class _MessageBubbleState extends State<MessageBubble>
     }
 
     final c = context.colors;
-    final baseColor = outgoing ? _outgoingTextColor : c.bubbleIncomingText;
+    final baseColor = outgoing ? _outgoingTextColor : _incomingTextColor;
     final linkColor = outgoing ? _outgoingTextColor : c.linkBlue;
     return Container(
       decoration: BoxDecoration(
-        color: outgoing ? _outgoingBubbleColor : c.bubbleIncoming,
+        color: outgoing ? _outgoingBubbleColor : _incomingBubbleColor,
         borderRadius: BorderRadius.circular(8),
         border: outgoing ? null : Border.all(color: c.divider, width: 0.5),
       ),
@@ -2963,7 +2977,7 @@ class _MessageBubbleState extends State<MessageBubble>
           width: 210,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
           decoration: BoxDecoration(
-            color: outgoing ? _outgoingBubbleColor : c.bubbleIncoming,
+            color: outgoing ? _outgoingBubbleColor : _incomingBubbleColor,
             borderRadius: BorderRadius.circular(6),
             border: outgoing ? null : Border.all(color: c.divider, width: 0.5),
           ),
@@ -3107,7 +3121,7 @@ class _MessageBubbleState extends State<MessageBubble>
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
-                      color: c.bubbleIncomingText,
+                      color: _incomingTextColor,
                     ),
                   ),
                   if (location.address?.isNotEmpty ?? false) ...[
@@ -3180,7 +3194,7 @@ class _MessageBubbleState extends State<MessageBubble>
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 15,
-                            color: c.bubbleIncomingText,
+                            color: _incomingTextColor,
                           ),
                         ),
                         const SizedBox(height: 6),

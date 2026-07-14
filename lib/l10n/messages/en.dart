@@ -360,6 +360,10 @@ const enMessages = <String, String>{
   'chatWallpaperThemesShared': "Themes are shared with both users",
   'chatWallpaperTitle': "Chat Theme & Wallpaper",
   'chatThemeChanged': "Chat theme changed",
+  'cloudThemeApply': "Apply theme",
+  'cloudThemeLoadFailed': "Couldn’t load this Telegram theme",
+  'cloudThemeOfficialDescription': "Official Telegram cloud theme",
+  'cloudThemePreviewTitle': "Theme Preview",
   'chatInlineSwitchButtonUnsupported':
       "Inline switch buttons aren’t supported yet",
   'chatJoinGroup': "Join group",

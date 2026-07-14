@@ -472,6 +472,10 @@ abstract final class AppStringKeys {
   static const chatWallpaperThemesShared = 'chatWallpaperThemesShared';
   static const chatWallpaperTitle = 'chatWallpaperTitle';
   static const chatThemeChanged = 'chatThemeChanged';
+  static const cloudThemeApply = 'cloudThemeApply';
+  static const cloudThemeLoadFailed = 'cloudThemeLoadFailed';
+  static const cloudThemeOfficialDescription = 'cloudThemeOfficialDescription';
+  static const cloudThemePreviewTitle = 'cloudThemePreviewTitle';
   static const chatInlineSwitchButtonUnsupported =
       'chatInlineSwitchButtonUnsupported';
   static const chatJoinGroup = 'chatJoinGroup';
