@@ -32,6 +32,7 @@ import '../theme/theme_controller.dart';
 import 'add_members_view.dart';
 import 'chat_members_view.dart';
 import 'chat_search_view.dart';
+import 'chat_wallpaper_view.dart';
 import 'group_management_view.dart';
 import 'pinned_messages_view.dart';
 import 'shared_media_view.dart';
@@ -95,6 +96,15 @@ class _ChatInfoViewState extends State<ChatInfoView> {
       MaterialPageRoute(
         builder: (_) =>
             ChatFolderMembershipView(chatId: widget.chatId, title: _vm.title),
+      ),
+    );
+  }
+
+  void _openWallpaper() {
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, _, _) =>
+            ChatWallpaperView(chatId: widget.chatId, chatTitle: _vm.title),
       ),
     );
   }
@@ -428,6 +438,11 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                     ChatSearchView(chatId: widget.chatId, title: widget.title),
               ),
             ),
+          ),
+          const InsetDivider(leadingInset: 14),
+          _infoRow(
+            AppStrings.t(AppStringKeys.chatWallpaperTitle),
+            _openWallpaper,
           ),
           const InsetDivider(leadingInset: 14),
           _infoRow(

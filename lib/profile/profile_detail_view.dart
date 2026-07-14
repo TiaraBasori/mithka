@@ -21,6 +21,7 @@ import '../call/call_manager.dart';
 import '../chat/audio_search_view.dart';
 import '../chat/chat_search_view.dart';
 import '../chat/chat_view.dart';
+import '../chat/chat_wallpaper.dart';
 import '../chat/custom_emoji.dart';
 import '../chat/full_image_viewer.dart';
 import '../chat/secret_chat_service.dart';
@@ -92,18 +93,26 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   bool _isBot = false;
   bool _hasLoadedUser = false;
   bool _isCreatingSecretChat = false;
+  final ChatWallpaperController _wallpaperController =
+      ChatWallpaperController.shared;
 
   @override
   void initState() {
     super.initState();
+    _wallpaperController.addListener(_onWallpaperChanged);
     _name = widget.name;
     _load();
   }
 
   @override
   void dispose() {
+    _wallpaperController.removeListener(_onWallpaperChanged);
     _musicPlayer.dispose();
     super.dispose();
+  }
+
+  void _onWallpaperChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _load() async {
@@ -199,6 +208,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       final chatId = chat.int64('id');
       if (!mounted || chatId == null) return;
       setState(() => _chatId = chatId);
+      unawaited(_wallpaperController.load(chatId));
       unawaited(_loadStoryCollections(chatId));
     } catch (_) {}
   }
@@ -478,42 +488,56 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final wallpaper = _chatId == null
+        ? null
+        : _wallpaperController.wallpaperFor(_chatId!);
     return Scaffold(
       backgroundColor: c.card,
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: [
-                _header(),
-                if (_photos.isNotEmpty) ...[
-                  Container(height: 12, color: c.groupedBackground),
-                  _photosCard(),
+      body: ChatWallpaperBackground(
+        wallpaper: wallpaper,
+        fallbackColor: c.card,
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  _header(),
+                  if (_photos.isNotEmpty) ...[
+                    _profileGap(wallpaper != null),
+                    _photosCard(),
+                  ],
+                  if (_gifts.isNotEmpty) ...[
+                    _profileGap(wallpaper != null),
+                    _giftsCard(),
+                  ],
+                  if (_hasProfileCollections) ...[
+                    _profileGap(wallpaper != null),
+                    _profileCollectionsCard(),
+                  ],
+                  _profileGap(wallpaper != null),
+                  _profileToolsCard(),
+                  if (_infoRows.isNotEmpty) ...[
+                    _profileGap(wallpaper != null),
+                    _infoCard(),
+                  ],
+                  const SizedBox(height: 24),
                 ],
-                if (_gifts.isNotEmpty) ...[
-                  Container(height: 12, color: c.groupedBackground),
-                  _giftsCard(),
-                ],
-                if (_hasProfileCollections) ...[
-                  Container(height: 12, color: c.groupedBackground),
-                  _profileCollectionsCard(),
-                ],
-                Container(height: 12, color: c.groupedBackground),
-                _profileToolsCard(),
-                if (_infoRows.isNotEmpty) ...[
-                  Container(height: 12, color: c.groupedBackground),
-                  _infoCard(),
-                ],
-                const SizedBox(height: 24),
-              ],
+              ),
             ),
-          ),
-          _bottomBar(),
-        ],
+            _bottomBar(),
+          ],
+        ),
       ),
     );
   }
+
+  Widget _profileGap(bool transparent) => ColoredBox(
+    color: transparent
+        ? const Color(0x00000000)
+        : context.colors.groupedBackground,
+    child: const SizedBox(height: 12),
+  );
 
   List<(String, String)> get _infoRows => [
     if (_bio.isNotEmpty) (AppStrings.t(AppStringKeys.profileDetailBio), _bio),
@@ -903,6 +927,22 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   }
 
   Widget _cover(double h) {
+    final chatId = _chatId;
+    final wallpaper = chatId == null
+        ? null
+        : _wallpaperController.wallpaperFor(chatId);
+    if (wallpaper != null) {
+      return SizedBox(
+        height: h,
+        width: double.infinity,
+        child: ChatWallpaperBackground(
+          wallpaper: wallpaper,
+          fallbackColor: context.colors.chatBackground,
+          imageScrim: const Color(0x26000000),
+          child: const ColoredBox(color: Color(0x10000000)),
+        ),
+      );
+    }
     if (_photo != null) {
       return SizedBox(
         height: h,

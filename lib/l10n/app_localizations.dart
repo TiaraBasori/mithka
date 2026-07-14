@@ -456,6 +456,15 @@ abstract final class AppStringKeys {
   static const chatInfoRemove = 'chatInfoRemove';
   static const chatInfoSearchHistory = 'chatInfoSearchHistory';
   static const chatInfoTitle = 'chatInfoTitle';
+  static const chatWallpaperApply = 'chatWallpaperApply';
+  static const chatWallpaperChoose = 'chatWallpaperChoose';
+  static const chatWallpaperDefault = 'chatWallpaperDefault';
+  static const chatWallpaperPhoto = 'chatWallpaperPhoto';
+  static const chatWallpaperPickFailed = 'chatWallpaperPickFailed';
+  static const chatWallpaperPreviewIncoming = 'chatWallpaperPreviewIncoming';
+  static const chatWallpaperPreviewOutgoing = 'chatWallpaperPreviewOutgoing';
+  static const chatWallpaperSaveFailed = 'chatWallpaperSaveFailed';
+  static const chatWallpaperTitle = 'chatWallpaperTitle';
   static const chatInlineSwitchButtonUnsupported =
       'chatInlineSwitchButtonUnsupported';
   static const chatJoinGroup = 'chatJoinGroup';

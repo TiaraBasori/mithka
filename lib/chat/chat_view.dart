@@ -52,6 +52,7 @@ import 'chat_picker_view.dart';
 import 'chat_search_view.dart';
 import 'chat_unread_progress.dart';
 import 'chat_view_model.dart';
+import 'chat_wallpaper.dart';
 import 'custom_emoji.dart';
 import 'emoji_store.dart';
 import 'emoji_text_controller.dart';
@@ -760,6 +761,8 @@ class _ChatViewState extends State<ChatView> {
   static final Map<int, _ChatScrollSnapshot> _sessionScrollSnapshots = {};
   static final Map<int, _ChatSessionRenderState> _sessionRenderStates = {};
   late final ChatAutoScrollPolicy _autoScrollPolicy;
+  final ChatWallpaperController _wallpaperController =
+      ChatWallpaperController.shared;
 
   double _messageMediaMaxWidth([double? chatWidth]) {
     final width = chatWidth ?? MediaQuery.sizeOf(context).width;
@@ -769,6 +772,8 @@ class _ChatViewState extends State<ChatView> {
   @override
   void initState() {
     super.initState();
+    _wallpaperController.addListener(_onWallpaperChanged);
+    unawaited(_wallpaperController.load(widget.chatId));
     _openAtLatest = context.read<ThemeController>().openChatsAtLatest;
     _sessionRenderState = widget.initialMessageId == null
         ? _sessionRenderStates[widget.chatId]
@@ -2039,6 +2044,7 @@ class _ChatViewState extends State<ChatView> {
   @override
   void dispose() {
     _prepareExitState();
+    _wallpaperController.removeListener(_onWallpaperChanged);
     _tabBarVisibility?.releaseChatSuppression();
     _bannerTimer?.cancel();
     _readSyncTimer?.cancel();
@@ -2047,6 +2053,10 @@ class _ChatViewState extends State<ChatView> {
     _vm.dispose();
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _onWallpaperChanged() {
+    if (mounted) setState(() {});
   }
 
   bool _needsUnreadDivider(int index, {List<ChatMessage>? messages}) {
@@ -3384,8 +3394,9 @@ class _ChatViewState extends State<ChatView> {
       Scaffold(
         backgroundColor: c.inputBarBackground,
         resizeToAvoidBottomInset: true,
-        body: ColoredBox(
-          color: c.chatBackground,
+        body: ChatWallpaperBackground(
+          wallpaper: _wallpaperController.wallpaperFor(widget.chatId),
+          fallbackColor: c.chatBackground,
           child: ChatMediaDropRegion(
             enabled: _vm.canSendMessages && !_isSelecting,
             onImagesDropped: _previewAndSendDroppedImages,
@@ -3686,7 +3697,11 @@ class _ChatViewState extends State<ChatView> {
     }
     return IgnorePointer(
       child: DecoratedBox(
-        decoration: BoxDecoration(color: c.chatBackground),
+        decoration: BoxDecoration(
+          color: _wallpaperController.wallpaperFor(widget.chatId) == null
+              ? c.chatBackground
+              : const Color(0x00000000),
+        ),
         child: ListView(
           physics: const NeverScrollableScrollPhysics(),
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -4738,7 +4753,9 @@ class _ChatViewState extends State<ChatView> {
     final messages = _transcriptCacheMessages ?? _vm.messages;
     _scheduleUnreadProgressUpdate();
     return Container(
-      color: context.colors.chatBackground,
+      color: _wallpaperController.wallpaperFor(widget.chatId) == null
+          ? context.colors.chatBackground
+          : const Color(0x00000000),
       child: NotificationListener<UserScrollNotification>(
         onNotification: _onTranscriptUserScroll,
         child: ListView.builder(
