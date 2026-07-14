@@ -811,6 +811,8 @@ const jaMessages = <String, String>{
   'myAlbumNoPhotos': "写真はありません",
   'netemoMusicLabel': "Netemo music",
   'notificationGroupMessages': "グループメッセージ",
+  'notificationInAppBanners': "アプリ内メッセージバナー",
+  'notificationNewMessage': "新しいメッセージ",
   'notificationPreview': "通知プレビュー",
   'notificationPrivateMessages': "プライベートメッセージ",
   'notificationSound': "サウンド",

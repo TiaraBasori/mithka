@@ -889,6 +889,8 @@ const enMessages = <String, String>{
   'myAlbumNoPhotos': "No photos yet",
   'netemoMusicLabel': "Netemo music",
   'notificationGroupMessages': "Group messages",
+  'notificationInAppBanners': "In-app message banners",
+  'notificationNewMessage': "New message",
   'notificationPreview': "Notification preview",
   'notificationPrivateMessages': "Private messages",
   'notificationSound': "Sound",

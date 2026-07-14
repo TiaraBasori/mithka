@@ -35,6 +35,7 @@ import 'components/keyboard_dismiss_on_tap.dart';
 import 'l10n/app_locale_controller.dart';
 import 'l10n/app_localizations.dart';
 import 'l10n/telegram_language_controller.dart';
+import 'notifications/in_app_notification_banner.dart';
 import 'notifications/notification_controller.dart';
 import 'notifications/push_device_registrar.dart';
 import 'platform/firebase_configuration.dart';
@@ -249,7 +250,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     unawaited(_telegramLanguage.initialize(widget.prefs));
     unawaited(_appIcons.initialize());
     unawaited(_accounts.recoverPendingAddOnStartup(_auth));
-    NotificationController.shared.start();
+    NotificationController.shared.start(widget.prefs);
     PushDeviceRegistrar.shared.start();
   }
 
@@ -373,6 +374,11 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
                         builder: (_) => const GlobalMusicPlayerOverlay(),
                       ),
                     ],
+                  ),
+                  Positioned.fill(
+                    child: InAppNotificationBannerHost(
+                      controller: NotificationController.shared,
+                    ),
                   ),
                 ],
               );

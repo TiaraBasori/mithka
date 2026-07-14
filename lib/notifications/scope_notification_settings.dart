@@ -1,8 +1,8 @@
 //  scope_notification_settings.dart
 //  Cached scope-level notification settings (mute_for) used to compute effective mute state.
 
-import 'package:mithka/tdlib/td_client.dart';
 import 'package:mithka/tdlib/json_helpers.dart';
+import 'package:mithka/tdlib/td_client.dart';
 import 'package:mithka/tdlib/td_models.dart' show ChatKind;
 
 class ScopeNotificationSettings {
@@ -14,6 +14,7 @@ class ScopeNotificationSettings {
   static const _channel = 'notificationSettingsScopeChannelChats';
 
   final Map<String, int> _muteFor = {};
+  final Map<String, bool> _showPreview = {};
 
   /// Loads mute_for values for all three scopes from TDLib.
   Future<void> load() async {
@@ -25,8 +26,10 @@ class ScopeNotificationSettings {
           'scope': {'@type': scope},
         });
         _muteFor[scope] = s.integer('mute_for') ?? 0;
+        _showPreview[scope] = s.boolean('show_preview') ?? true;
       } catch (_) {
         _muteFor[scope] = _muteFor[scope] ?? 0;
+        _showPreview[scope] = _showPreview[scope] ?? true;
       }
     }
   }
@@ -34,6 +37,10 @@ class ScopeNotificationSettings {
   /// Updates the cached mute_for for a scope (called after user changes settings).
   void update(String scope, int muteFor) {
     _muteFor[scope] = muteFor;
+  }
+
+  void updateShowPreview(String scope, bool showPreview) {
+    _showPreview[scope] = showPreview;
   }
 
   /// Returns cached mute_for for a stored scope identifier.
@@ -80,5 +87,13 @@ class ScopeNotificationSettings {
         ? getMuteForScope(_scopeForChat(chat))
         : (settings?.integer('mute_for') ?? 0);
     return muteFor > 0;
+  }
+
+  bool showPreview(Map<String, dynamic> chat) {
+    final settings = chat.obj('notification_settings');
+    final useDefault = settings?.boolean('use_default_show_preview') ?? true;
+    return useDefault
+        ? (_showPreview[_scopeForChat(chat)] ?? true)
+        : (settings?.boolean('show_preview') ?? true);
   }
 }

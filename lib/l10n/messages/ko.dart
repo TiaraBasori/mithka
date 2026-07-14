@@ -809,6 +809,8 @@ const koMessages = <String, String>{
   'myAlbumNoPhotos': "사진이 없습니다",
   'netemoMusicLabel': "Netemo music",
   'notificationGroupMessages': "그룹 메시지",
+  'notificationInAppBanners': "앱 내 메시지 배너",
+  'notificationNewMessage': "새 메시지",
   'notificationPreview': "알림 미리보기",
   'notificationPrivateMessages': "개인 메시지",
   'notificationSound': "소리",

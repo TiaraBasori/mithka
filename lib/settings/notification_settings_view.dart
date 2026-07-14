@@ -8,12 +8,13 @@
 
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
+import '../notifications/notification_controller.dart';
+import '../notifications/scope_notification_settings.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../theme/app_theme.dart';
@@ -97,6 +98,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
 
   void _toggleMute(String scope, bool on) {
     setState(() => _settings[scope]?['mute_for'] = on ? 0 : _muteForever);
+    ScopeNotificationSettings.shared.update(scope, on ? 0 : _muteForever);
     _push(scope);
   }
 
@@ -104,6 +106,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
     setState(() {
       for (final scope in const [_private, _group, _channel]) {
         _settings[scope]?['show_preview'] = on;
+        ScopeNotificationSettings.shared.updateShowPreview(scope, on);
       }
     });
     unawaited(
@@ -146,7 +149,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                 children: [
                   _card([
                     _toggle(
-                      HeroAppIcons.circleUser.data,
+                      HeroAppIcons.circleUser,
                       const Color(0xFF3C8CF0),
                       AppStrings.t(AppStringKeys.notificationPrivateMessages),
                       _enabled(_private),
@@ -154,7 +157,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                     ),
                     const InsetDivider(leadingInset: 56),
                     _toggle(
-                      HeroAppIcons.users.data,
+                      HeroAppIcons.users,
                       const Color(0xFF16B05A),
                       AppStrings.t(AppStringKeys.notificationGroupMessages),
                       _enabled(_group),
@@ -162,7 +165,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                     ),
                     const InsetDivider(leadingInset: 56),
                     _toggle(
-                      HeroAppIcons.grip.data,
+                      HeroAppIcons.grip,
                       const Color(0xFFFF9D2E),
                       AppStrings.t(AppStringKeys.topicChatChannelMessages),
                       _enabled(_channel),
@@ -172,7 +175,22 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                   const SizedBox(height: 14),
                   _card([
                     _toggle(
-                      HeroAppIcons.file.data,
+                      HeroAppIcons.bell,
+                      const Color(0xFF3C8CF0),
+                      AppStrings.t(AppStringKeys.notificationInAppBanners),
+                      NotificationController.shared.inAppBannersEnabled,
+                      (v) {
+                        setState(() {});
+                        unawaited(
+                          NotificationController.shared.setInAppBannersEnabled(
+                            v,
+                          ),
+                        );
+                      },
+                    ),
+                    const InsetDivider(leadingInset: 56),
+                    _toggle(
+                      HeroAppIcons.file,
                       const Color(0xFF8E7BFF),
                       AppStrings.t(AppStringKeys.notificationPreview),
                       _allPreviewsEnabled,
@@ -180,7 +198,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                     ),
                     const InsetDivider(leadingInset: 56),
                     _toggle(
-                      HeroAppIcons.volumeHigh.data,
+                      HeroAppIcons.volumeHigh,
                       const Color(0xFFF5A623),
                       AppStrings.t(AppStringKeys.notificationSound),
                       _hasSound(_private),
@@ -205,7 +223,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
   );
 
   Widget _toggle(
-    IconData icon,
+    AppIconData icon,
     Color color,
     String title,
     bool value,
@@ -225,17 +243,59 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                 color: color,
                 borderRadius: BorderRadius.circular(7),
               ),
-              child: Icon(icon, size: 15, color: Colors.white),
+              child: AppIcon(icon, size: 15, color: Colors.white),
             ),
             const SizedBox(width: 12),
             Text(title, style: TextStyle(fontSize: 16, color: c.textPrimary)),
             const Spacer(),
-            CupertinoSwitch(
-              value: value,
-              activeTrackColor: AppTheme.brand,
-              onChanged: onChanged,
-            ),
+            _NotificationToggle(value: value, onChanged: onChanged),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationToggle extends StatelessWidget {
+  const _NotificationToggle({required this.value, required this.onChanged});
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        curve: Curves.easeOut,
+        width: 50,
+        height: 30,
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: value ? AppTheme.brand : context.colors.textTertiary,
+          borderRadius: BorderRadius.circular(15),
+        ),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOut,
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 26,
+            height: 26,
+            decoration: const BoxDecoration(
+              color: Color(0xFFFFFFFF),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Color(0x30000000),
+                  blurRadius: 3,
+                  offset: Offset(0, 1),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

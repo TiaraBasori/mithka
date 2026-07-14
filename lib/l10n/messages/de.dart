@@ -878,6 +878,8 @@ const deMessages = <String, String>{
   'myAlbumNoPhotos': "Noch keine Fotos",
   'netemoMusicLabel': "Netemo music",
   'notificationGroupMessages': "Gruppennachrichten",
+  'notificationInAppBanners': "In-App-Nachrichtenbanner",
+  'notificationNewMessage': "Neue Nachricht",
   'notificationPreview': "Benachrichtigungsvorschau",
   'notificationPrivateMessages': "Private Nachrichten",
   'notificationSound': "Ton",

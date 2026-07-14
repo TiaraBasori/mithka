@@ -1,0 +1,137 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/app/chat_deep_link_controller.dart';
+import 'package:mithka/notifications/in_app_notification_banner.dart';
+import 'package:mithka/notifications/notification_controller.dart';
+import 'package:mithka/notifications/notification_target.dart';
+import 'package:mithka/notifications/scope_notification_settings.dart';
+import 'package:mithka/theme/app_theme.dart';
+
+void main() {
+  test('foreground messages use only the in-app surface', () {
+    expect(
+      notificationSurfaceFor(
+        lifecycleState: AppLifecycleState.resumed,
+        inAppBannersEnabled: true,
+        systemNotificationsAvailable: true,
+      ),
+      NotificationSurface.inApp,
+    );
+    expect(
+      notificationSurfaceFor(
+        lifecycleState: AppLifecycleState.resumed,
+        inAppBannersEnabled: false,
+        systemNotificationsAvailable: true,
+      ),
+      NotificationSurface.none,
+    );
+  });
+
+  test('background messages keep using the system notification surface', () {
+    expect(
+      notificationSurfaceFor(
+        lifecycleState: AppLifecycleState.paused,
+        inAppBannersEnabled: true,
+        systemNotificationsAvailable: true,
+      ),
+      NotificationSurface.system,
+    );
+    expect(
+      notificationSurfaceFor(
+        lifecycleState: AppLifecycleState.hidden,
+        inAppBannersEnabled: true,
+        systemNotificationsAvailable: false,
+      ),
+      NotificationSurface.none,
+    );
+  });
+
+  test('banner identity keeps the exact chat and message target', () {
+    const target = NotificationTarget(chatId: 42, messageId: 9001);
+    const banner = InAppNotificationBannerData(
+      target: target,
+      title: 'Chat',
+      body: 'Message',
+      photo: null,
+      squarePhoto: false,
+    );
+
+    expect(banner.key, '42:9001');
+    expect(banner.target.chatId, 42);
+    expect(banner.target.messageId, 9001);
+  });
+
+  test('scope preview setting hides text unless a chat overrides it', () {
+    final settings = ScopeNotificationSettings.shared;
+    const privateScope = 'notificationSettingsScopePrivateChats';
+    settings.updateShowPreview(privateScope, false);
+    addTearDown(() => settings.updateShowPreview(privateScope, true));
+
+    final inherited = <String, dynamic>{
+      '@type': 'chat',
+      'type': {'@type': 'chatTypePrivate', 'user_id': 7},
+      'notification_settings': {
+        '@type': 'chatNotificationSettings',
+        'use_default_show_preview': true,
+      },
+    };
+    final overridden = <String, dynamic>{
+      ...inherited,
+      'notification_settings': {
+        '@type': 'chatNotificationSettings',
+        'use_default_show_preview': false,
+        'show_preview': true,
+      },
+    };
+
+    expect(settings.showPreview(inherited), isFalse);
+    expect(settings.showPreview(overridden), isTrue);
+  });
+
+  testWidgets('banner opens the exact message and supports swipe dismissal', (
+    tester,
+  ) async {
+    final controller = NotificationController.shared;
+    addTearDown(controller.dismissInAppBanner);
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(
+          size: Size(390, 844),
+          padding: EdgeInsets.only(top: 47),
+        ),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Theme(
+            data: ThemeData(extensions: [AppColors.light]),
+            child: SizedBox.expand(
+              child: InAppNotificationBannerHost(controller: controller),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    const first = InAppNotificationBannerData(
+      target: NotificationTarget(chatId: 88, messageId: 1234, title: 'Alice'),
+      title: 'Alice',
+      body: 'Hello from the banner',
+      photo: null,
+      squarePhoto: false,
+    );
+    controller.presentInAppBannerForTesting(first);
+    await tester.pumpAndSettle();
+    expect(find.text('Hello from the banner'), findsOneWidget);
+
+    await tester.tap(find.text('Hello from the banner'));
+    await tester.pumpAndSettle();
+    final request = ChatDeepLinkController.shared.consumePending();
+    expect(request?.chatId, 88);
+    expect(request?.messageId, 1234);
+
+    controller.presentInAppBannerForTesting(first);
+    await tester.pumpAndSettle();
+    await tester.drag(find.text('Hello from the banner'), const Offset(0, -80));
+    await tester.pumpAndSettle();
+    expect(controller.inAppBanner, isNull);
+  });
+}

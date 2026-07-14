@@ -1273,6 +1273,8 @@ abstract final class AppStringKeys {
   static const myAlbumNoPhotos = 'myAlbumNoPhotos';
   static const netemoMusicLabel = 'netemoMusicLabel';
   static const notificationGroupMessages = 'notificationGroupMessages';
+  static const notificationInAppBanners = 'notificationInAppBanners';
+  static const notificationNewMessage = 'notificationNewMessage';
   static const notificationPreview = 'notificationPreview';
   static const notificationPrivateMessages = 'notificationPrivateMessages';
   static const notificationSound = 'notificationSound';

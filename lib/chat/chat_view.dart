@@ -30,6 +30,7 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/telegram_language_controller.dart';
 import '../media/app_asset_picker.dart';
+import '../notifications/notification_controller.dart';
 import '../profile/profile_detail_view.dart';
 import '../settings/blocked_user_service.dart';
 import '../settings/developer_mode_controller.dart';
@@ -749,6 +750,7 @@ class _ChatViewState extends State<ChatView> {
   bool _sessionAnchorMaintenanceScheduled = false;
   bool _openingUnreadMention = false;
   bool _exitStatePrepared = false;
+  bool _notificationVisibilityRegistered = false;
   VelocityTracker? _backSwipeVelocity;
   dc.TabBarVisibility? _tabBarVisibility;
 
@@ -830,6 +832,21 @@ class _ChatViewState extends State<ChatView> {
     // Load premium status early so the message menu can correctly hide the
     // emoji add/表情包 actions for non-premium users (the menu reads it).
     EmojiStore.shared.loadIfNeeded();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_notificationVisibilityRegistered) return;
+    _notificationVisibilityRegistered = true;
+    NotificationController.shared.registerVisibleChat(
+      this,
+      widget.chatId,
+      () =>
+          mounted &&
+          (ModalRoute.of(context)?.isCurrent ?? false) &&
+          TickerMode.valuesOf(context).enabled,
+    );
   }
 
   bool get _shouldRestoreSessionScroll {
@@ -2044,6 +2061,7 @@ class _ChatViewState extends State<ChatView> {
   @override
   void dispose() {
     _prepareExitState();
+    NotificationController.shared.unregisterVisibleChat(this);
     _wallpaperController.removeListener(_onWallpaperChanged);
     _tabBarVisibility?.releaseChatSuppression();
     _bannerTimer?.cancel();

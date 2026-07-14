@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app/chat_deep_link_controller.dart';
 import '../l10n/telegram_language_controller.dart';
@@ -25,7 +26,43 @@ import '../tdlib/td_models.dart';
 import 'notification_target.dart';
 import 'scope_notification_settings.dart';
 
-class NotificationController with WidgetsBindingObserver {
+enum NotificationSurface { none, inApp, system }
+
+@visibleForTesting
+NotificationSurface notificationSurfaceFor({
+  required AppLifecycleState lifecycleState,
+  required bool inAppBannersEnabled,
+  required bool systemNotificationsAvailable,
+}) {
+  if (lifecycleState == AppLifecycleState.resumed) {
+    return inAppBannersEnabled
+        ? NotificationSurface.inApp
+        : NotificationSurface.none;
+  }
+  return systemNotificationsAvailable
+      ? NotificationSurface.system
+      : NotificationSurface.none;
+}
+
+class InAppNotificationBannerData {
+  const InAppNotificationBannerData({
+    required this.target,
+    required this.title,
+    required this.body,
+    required this.photo,
+    required this.squarePhoto,
+  });
+
+  final NotificationTarget target;
+  final String title;
+  final String body;
+  final TdFileRef? photo;
+  final bool squarePhoto;
+
+  String get key => '${target.chatId}:${target.messageId ?? 0}';
+}
+
+class NotificationController with WidgetsBindingObserver, ChangeNotifier {
   NotificationController._();
   static final NotificationController shared = NotificationController._();
 
@@ -38,6 +75,7 @@ class NotificationController with WidgetsBindingObserver {
   static const _notificationTapChannel = MethodChannel(
     'mithka/notification_tap',
   );
+  static const _inAppBannersKey = 'mithka.notifications.inAppBanners.v1';
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
@@ -49,9 +87,19 @@ class NotificationController with WidgetsBindingObserver {
   int _notificationSeed = 0;
   NotificationTarget? _lastOpenedTarget;
   DateTime? _lastOpenedAt;
+  SharedPreferences? _preferences;
+  bool _inAppBannersEnabled = true;
+  InAppNotificationBannerData? _inAppBanner;
+  Timer? _inAppBannerTimer;
+  final Map<Object, _VisibleChatRegistration> _visibleChats = {};
 
-  Future<void> start() async {
+  bool get inAppBannersEnabled => _inAppBannersEnabled;
+  InAppNotificationBannerData? get inAppBanner => _inAppBanner;
+
+  Future<void> start(SharedPreferences preferences) async {
     if (_ready) return;
+    _preferences = preferences;
+    _inAppBannersEnabled = preferences.getBool(_inAppBannersKey) ?? true;
     WidgetsBinding.instance.addObserver(this);
     _state =
         WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
@@ -95,10 +143,11 @@ class NotificationController with WidgetsBindingObserver {
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(_androidChannel);
-    await requestPermissions();
-
     _sub = _client.subscribe().listen(_handle);
     _ready = true;
+    // Foreground banners don't require notification permission. Subscribe
+    // before asking so an OS permission sheet can't create a blind spot.
+    unawaited(requestPermissions());
   }
 
   Future<void> requestPermissions() async {
@@ -125,12 +174,11 @@ class NotificationController with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _state = state;
+    if (state != AppLifecycleState.resumed) dismissInAppBanner();
   }
 
   Future<void> _handle(Map<String, dynamic> update) async {
     if (update.type != 'updateNewMessage') return;
-    if (_state == AppLifecycleState.resumed) return;
-    if (!_notificationsAvailable) return;
 
     final raw = update.obj('message');
     if (raw == null || (raw.boolean('is_outgoing') ?? false)) return;
@@ -146,8 +194,39 @@ class NotificationController with WidgetsBindingObserver {
     }
 
     final title = chat.str('title') ?? 'Mithka';
-    final body = _notificationText(content);
-    if (KeywordBlocker.shared.matches(body)) return;
+    final messageText = _notificationText(content);
+    if (KeywordBlocker.shared.matches(messageText)) return;
+    final showPreview = ScopeNotificationSettings.shared.showPreview(chat);
+    final body = showPreview
+        ? messageText
+        : AppStrings.t(AppStringKeys.notificationNewMessage);
+    final surface = notificationSurfaceFor(
+      lifecycleState: _state,
+      inAppBannersEnabled: _inAppBannersEnabled,
+      systemNotificationsAvailable: _notificationsAvailable,
+    );
+    if (surface == NotificationSurface.inApp) {
+      if (_isChatVisible(chatId)) return;
+      final sender = showPreview ? await _senderLabel(raw, chat) : null;
+      _presentInAppBanner(
+        InAppNotificationBannerData(
+          target: NotificationTarget(
+            chatId: chatId,
+            messageId: messageId,
+            title: title,
+          ),
+          title: title,
+          body: sender == null || sender.isEmpty ? body : '$sender: $body',
+          photo: TDParse.smallPhoto(chat.obj('photo')),
+          squarePhoto: switch (TDParse.chatKind(chat)) {
+            ChatKind.group || ChatKind.channel => true,
+            _ => false,
+          },
+        ),
+      );
+      return;
+    }
+    if (surface != NotificationSurface.system) return;
     final payload = jsonEncode({
       'chat_id': chatId,
       'message_id': messageId,
@@ -229,6 +308,88 @@ class NotificationController with WidgetsBindingObserver {
         : text;
   }
 
+  Future<String?> _senderLabel(
+    Map<String, dynamic> message,
+    Map<String, dynamic> chat,
+  ) async {
+    final kind = TDParse.chatKind(chat);
+    if (kind != ChatKind.group && kind != ChatKind.channel) return null;
+    final sender = message.obj('sender_id');
+    try {
+      switch (sender?.type) {
+        case 'messageSenderUser':
+          final userId = sender?.int64('user_id');
+          if (userId == null) return null;
+          final user = await _client.query({
+            '@type': 'getUser',
+            'user_id': userId,
+          });
+          return TDParse.userName(user);
+        case 'messageSenderChat':
+          final senderChatId = sender?.int64('chat_id');
+          if (senderChatId == null) return null;
+          return (await _chat(senderChatId))?.str('title');
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> setInAppBannersEnabled(bool enabled) async {
+    if (_inAppBannersEnabled == enabled) return;
+    _inAppBannersEnabled = enabled;
+    if (!enabled) dismissInAppBanner();
+    notifyListeners();
+    await _preferences?.setBool(_inAppBannersKey, enabled);
+  }
+
+  void _presentInAppBanner(InAppNotificationBannerData banner) {
+    _inAppBannerTimer?.cancel();
+    _inAppBanner = banner;
+    notifyListeners();
+    _inAppBannerTimer = Timer(const Duration(seconds: 4), dismissInAppBanner);
+  }
+
+  @visibleForTesting
+  void presentInAppBannerForTesting(InAppNotificationBannerData banner) {
+    _presentInAppBanner(banner);
+  }
+
+  void dismissInAppBanner() {
+    _inAppBannerTimer?.cancel();
+    _inAppBannerTimer = null;
+    if (_inAppBanner == null) return;
+    _inAppBanner = null;
+    notifyListeners();
+  }
+
+  void openInAppBanner() {
+    final target = _inAppBanner?.target;
+    dismissInAppBanner();
+    if (target != null) _openTarget(target);
+  }
+
+  void registerVisibleChat(
+    Object owner,
+    int chatId,
+    bool Function() isVisible,
+  ) {
+    _visibleChats[owner] = _VisibleChatRegistration(chatId, isVisible);
+  }
+
+  void unregisterVisibleChat(Object owner) {
+    _visibleChats.remove(owner);
+  }
+
+  bool _isChatVisible(int chatId) {
+    for (final registration in _visibleChats.values) {
+      if (registration.chatId != chatId) continue;
+      try {
+        if (registration.isVisible()) return true;
+      } catch (_) {}
+    }
+    return false;
+  }
+
   void _openNotification(NotificationResponse? response) {
     final target = NotificationTarget.fromLocalPayload(response?.payload);
     if (target != null) _openTarget(target);
@@ -266,6 +427,8 @@ class NotificationController with WidgetsBindingObserver {
 
   Future<void> stop() async {
     WidgetsBinding.instance.removeObserver(this);
+    dismissInAppBanner();
+    _visibleChats.clear();
     await _sub?.cancel();
     _sub = null;
     _ready = false;
@@ -273,4 +436,11 @@ class NotificationController with WidgetsBindingObserver {
       _notificationTapChannel.setMethodCallHandler(null);
     }
   }
+}
+
+class _VisibleChatRegistration {
+  const _VisibleChatRegistration(this.chatId, this.isVisible);
+
+  final int chatId;
+  final bool Function() isVisible;
 }

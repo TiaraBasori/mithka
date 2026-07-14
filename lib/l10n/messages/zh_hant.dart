@@ -800,6 +800,8 @@ const zhHantMessages = <String, String>{
   'myAlbumNoPhotos': "暫無照片",
   'netemoMusicLabel': "Netemo music",
   'notificationGroupMessages': "群組訊息",
+  'notificationInAppBanners': "應用程式內訊息橫幅",
+  'notificationNewMessage': "新訊息",
   'notificationPreview': "通知預覽",
   'notificationPrivateMessages': "私人訊息",
   'notificationSound': "聲音",
