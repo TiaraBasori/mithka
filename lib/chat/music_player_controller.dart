@@ -51,6 +51,7 @@ class MusicPlayerController extends ChangeNotifier {
   int? _playbackSourceChatId;
   String _playbackSourceTitle = '';
   bool _playbackSourceIsPlaylist = false;
+  int _playbackSourceRevision = 0;
   bool playlistsLoading = false;
   MusicPlaybackMode mode = MusicPlaybackMode.sequence;
   bool hidden = true;
@@ -172,15 +173,23 @@ class MusicPlayerController extends ChangeNotifier {
     int chatId, {
     String? title,
   }) async {
-    _setPlaybackSource(
+    final sourceRevision = _setPlaybackSource(
       chatId: chatId,
       title: title ?? message.senderName,
       isPlaylist: false,
     );
-    play(message);
+    // Replace the previous source immediately. The full chat track list is
+    // loaded asynchronously, but an old playlist must never remain visible or
+    // become eligible for next-track playback in the meantime.
+    play(message, visibleQueue: [message]);
     try {
       final tracks = await _playlistService.loadTracks(chatId);
-      if (current?.music?.file?.id != message.music?.file?.id) return;
+      if (sourceRevision != _playbackSourceRevision ||
+          _playbackSourceChatId != chatId ||
+          _playbackSourceIsPlaylist ||
+          current?.music?.file?.id != message.music?.file?.id) {
+        return;
+      }
       final withCurrent =
           tracks.any((item) => item.music?.file?.id == message.music?.file?.id)
           ? tracks
@@ -313,6 +322,7 @@ class MusicPlayerController extends ChangeNotifier {
     hidden = true;
     collapsed = false;
     if (clearCurrent) {
+      _playbackSourceRevision++;
       current = null;
       queue = const [];
       _playbackSourceChatId = null;
@@ -321,14 +331,16 @@ class MusicPlayerController extends ChangeNotifier {
     }
   }
 
-  void _setPlaybackSource({
+  int _setPlaybackSource({
     required int chatId,
     required String? title,
     required bool isPlaylist,
   }) {
+    _playbackSourceRevision++;
     _playbackSourceChatId = chatId;
     _playbackSourceTitle = title?.trim() ?? '';
     _playbackSourceIsPlaylist = isPlaylist;
+    return _playbackSourceRevision;
   }
 
   List<ChatMessage> _dedupeMusic(List<ChatMessage> items) {
@@ -478,8 +490,66 @@ class GlobalMusicPlayerBar extends StatefulWidget {
 
 class _GlobalMusicPlayerBarState extends State<GlobalMusicPlayerBar> {
   double _dragX = 0;
+  bool _dragging = false;
+  bool _settling = false;
+  int _settleRevision = 0;
 
   MusicPlayerController get controller => MusicPlayerController.shared;
+
+  void _onHorizontalDragStart(DragStartDetails details) {
+    if (_settling) return;
+    _settleRevision++;
+    setState(() {
+      _dragging = true;
+      _dragX = 0;
+    });
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    if (_settling) return;
+    final width = MediaQuery.sizeOf(context).width;
+    setState(() {
+      _dragX = (_dragX + details.delta.dx).clamp(-width, width);
+    });
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    if (_settling) return;
+    final width = MediaQuery.sizeOf(context).width;
+    final velocity = details.primaryVelocity ?? 0;
+    final shouldClose = _dragX <= -width * 0.32 || velocity < -700;
+    final shouldCollapse = _dragX >= width * 0.32 || velocity > 700;
+    if (!shouldClose && !shouldCollapse) {
+      setState(() {
+        _dragging = false;
+        _dragX = 0;
+      });
+      return;
+    }
+
+    final revision = ++_settleRevision;
+    setState(() {
+      _dragging = false;
+      _settling = true;
+      _dragX = shouldClose ? -width : max(0.0, width - 60);
+    });
+    Future<void>.delayed(const Duration(milliseconds: 190), () {
+      if (!mounted || revision != _settleRevision) return;
+      if (shouldClose) {
+        controller.closeWidget();
+      } else {
+        controller.collapse();
+      }
+    });
+  }
+
+  void _onHorizontalDragCancel() {
+    if (_settling) return;
+    setState(() {
+      _dragging = false;
+      _dragX = 0;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -501,126 +571,187 @@ class _GlobalMusicPlayerBarState extends State<GlobalMusicPlayerBar> {
       if (total.inSeconds > 0)
         '${_duration(controller.position.inSeconds)} / ${_duration(total.inSeconds)}',
     ].join(' · ');
+    final width = MediaQuery.sizeOf(context).width;
+    final slideDuration = _dragging
+        ? Duration.zero
+        : const Duration(milliseconds: 190);
+    final closeReveal = width <= 0
+        ? 0.0
+        : (-_dragX / (width * 0.32)).clamp(0.0, 1.0);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onHorizontalDragStart: (_) => _dragX = 0,
-      onHorizontalDragUpdate: (details) => _dragX += details.delta.dx,
-      onHorizontalDragEnd: (details) {
-        final velocity = details.primaryVelocity ?? 0;
-        if (_dragX > 42 || velocity > 260) {
-          controller.collapse();
-        }
-        _dragX = 0;
-      },
-      onHorizontalDragCancel: () => _dragX = 0,
+      onHorizontalDragStart: _onHorizontalDragStart,
+      onHorizontalDragUpdate: _onHorizontalDragUpdate,
+      onHorizontalDragEnd: _onHorizontalDragEnd,
+      onHorizontalDragCancel: _onHorizontalDragCancel,
       child: SizedBox(
         width: double.infinity,
-        child: Container(
-          height: 70 + widget.bottomPadding,
-          padding: EdgeInsets.fromLTRB(14, 8, 10, 8 + widget.bottomPadding),
-          decoration: BoxDecoration(
-            color: c.background,
-            border: Border(top: BorderSide(color: c.divider, width: 0.5)),
-            boxShadow: [
-              BoxShadow(
-                color: _musicBlack.withValues(alpha: 0.08),
-                blurRadius: 18,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: Row(
+        height: 70 + widget.bottomPadding,
+        child: ClipRect(
+          child: Stack(
+            fit: StackFit.expand,
             children: [
-              _MusicCover(music: music, size: 46),
-              const SizedBox(width: 10),
-              Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _openOriginal(message),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _musicName(music),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(2),
-                        child: _MusicProgress(
-                          fraction: fraction,
-                          backgroundColor: c.searchFill,
-                        ),
-                      ),
-                      if (subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 4),
-                        Text(
-                          subtitle,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 11, color: c.textTertiary),
-                        ),
-                      ],
-                    ],
+              ColoredBox(color: c.background),
+              if (closeReveal > 0)
+                Opacity(
+                  opacity: closeReveal,
+                  child: Container(
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.only(right: 22),
+                    color: const Color(0xFFFF3B30),
+                    child: const AppIcon(
+                      HeroAppIcons.trash,
+                      size: 24,
+                      color: _musicWhite,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 6),
-              _MiniButton(
-                tooltip: _modeLabel(controller.mode),
-                onTap: controller.cycleMode,
-                child: _modeIconWidget(
-                  controller.mode,
-                  size: 20,
-                  color: controller.mode == MusicPlaybackMode.sequence
-                      ? c.textPrimary
-                      : musicPlayerAccent,
-                ),
-              ),
-              _MiniButton(
-                tooltip: controller.isPlaying
-                    ? AppStrings.t(AppStringKeys.musicPlayerPause)
-                    : AppStrings.t(AppStringKeys.musicPlayerPlay),
-                onTap: controller.toggleCurrent,
-                child: controller.isLoading
-                    ? _QqSpinner(size: 18, color: c.textSecondary)
-                    : AppIcon(
-                        controller.isPlaying
-                            ? HeroAppIcons.pause
-                            : HeroAppIcons.play,
-                        size: 20,
-                        color: c.textPrimary,
+              AnimatedSlide(
+                duration: slideDuration,
+                curve: Curves.easeOutCubic,
+                offset: Offset(width <= 0 ? 0 : _dragX / width, 0),
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(
+                    14,
+                    8,
+                    10,
+                    8 + widget.bottomPadding,
+                  ),
+                  decoration: BoxDecoration(
+                    color: c.background,
+                    border: Border(
+                      top: BorderSide(color: c.divider, width: 0.5),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: _musicBlack.withValues(alpha: 0.08),
+                        blurRadius: 18,
+                        offset: const Offset(0, -4),
                       ),
-              ),
-              _MiniButton(
-                tooltip: AppStrings.t(AppStringKeys.musicPlayerNextTrack),
-                onTap: controller.next,
-                child: AppIcon(
-                  const AppIconData(HeroiconsOutline.forward),
-                  size: 21,
-                  color: c.textPrimary,
-                ),
-              ),
-              _MiniButton(
-                tooltip: AppStrings.t(AppStringKeys.musicPlayerShowPlaylist),
-                onTap: () => _showMusicQueue(context, controller),
-                child: AppIcon(
-                  HeroAppIcons.listCheck,
-                  size: 21,
-                  color: c.textPrimary,
+                    ],
+                  ),
+                  child: _MusicPlayerBarContents(
+                    controller: controller,
+                    message: message,
+                    music: music,
+                    fraction: fraction,
+                    subtitle: subtitle,
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _MusicPlayerBarContents extends StatelessWidget {
+  const _MusicPlayerBarContents({
+    required this.controller,
+    required this.message,
+    required this.music,
+    required this.fraction,
+    required this.subtitle,
+  });
+
+  final MusicPlayerController controller;
+  final ChatMessage message;
+  final MessageMusic music;
+  final double fraction;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return Row(
+      children: [
+        _MusicCover(music: music, size: 46),
+        const SizedBox(width: 10),
+        Expanded(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _openOriginal(message),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _musicName(music),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: c.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: _MusicProgress(
+                    fraction: fraction,
+                    backgroundColor: c.searchFill,
+                  ),
+                ),
+                if (subtitle.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: c.textTertiary),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        _MiniButton(
+          tooltip: _modeLabel(controller.mode),
+          onTap: controller.cycleMode,
+          child: _modeIconWidget(
+            controller.mode,
+            size: 20,
+            color: controller.mode == MusicPlaybackMode.sequence
+                ? c.textPrimary
+                : musicPlayerAccent,
+          ),
+        ),
+        _MiniButton(
+          tooltip: controller.isPlaying
+              ? AppStrings.t(AppStringKeys.musicPlayerPause)
+              : AppStrings.t(AppStringKeys.musicPlayerPlay),
+          onTap: controller.toggleCurrent,
+          child: controller.isLoading
+              ? _QqSpinner(size: 18, color: c.textSecondary)
+              : AppIcon(
+                  controller.isPlaying ? HeroAppIcons.pause : HeroAppIcons.play,
+                  size: 20,
+                  color: c.textPrimary,
+                ),
+        ),
+        _MiniButton(
+          tooltip: AppStrings.t(AppStringKeys.musicPlayerNextTrack),
+          onTap: controller.next,
+          child: AppIcon(
+            const AppIconData(HeroiconsOutline.forward),
+            size: 21,
+            color: c.textPrimary,
+          ),
+        ),
+        _MiniButton(
+          tooltip: AppStrings.t(AppStringKeys.musicPlayerShowPlaylist),
+          onTap: () => _showMusicQueue(context, controller),
+          child: AppIcon(
+            HeroAppIcons.listCheck,
+            size: 21,
+            color: c.textPrimary,
+          ),
+        ),
+      ],
     );
   }
 }

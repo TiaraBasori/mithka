@@ -18,6 +18,7 @@ import 'package:mithka/chat/emoji_text_controller.dart';
 import 'package:mithka/chat/group_management_log_view.dart';
 import 'package:mithka/chat/media_album_layout.dart';
 import 'package:mithka/chat/message_bubble.dart';
+import 'package:mithka/chat/music_player_controller.dart';
 import 'package:mithka/chat/rich_text_composer_view.dart';
 import 'package:mithka/chat/secret_chat_service.dart';
 import 'package:mithka/chat/sponsored_messages_cache.dart';
@@ -37,7 +38,119 @@ import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+Future<MusicPlayerController> _pumpMusicPlayerBar(WidgetTester tester) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+  final theme = ThemeController(prefs);
+  final player = MusicPlayerController.shared;
+  final track = ChatMessage(
+    id: 101,
+    isOutgoing: false,
+    text: '',
+    date: 1,
+    chatId: 202,
+    senderName: 'Chat source',
+    music: MessageMusic(
+      title: 'Chat track',
+      performer: 'Artist',
+      duration: 180,
+      file: TdFileRef(id: 303),
+    ),
+  );
+  player
+    ..current = track
+    ..queue = [track]
+    ..hidden = false
+    ..collapsed = false;
+  addTearDown(() {
+    player
+      ..current = null
+      ..queue = const []
+      ..hidden = true
+      ..collapsed = false;
+    theme.dispose();
+  });
+
+  await tester.pumpWidget(
+    ChangeNotifierProvider<ThemeController>.value(
+      value: theme,
+      child: const MaterialApp(
+        locale: Locale('en'),
+        localizationsDelegates: [AppLocalizations.delegate],
+        supportedLocales: AppLocalizations.supportedLocales,
+        home: Scaffold(
+          body: Column(children: [Spacer(), GlobalMusicPlayerBar()]),
+        ),
+      ),
+    ),
+  );
+  return player;
+}
+
 void main() {
+  group('GlobalMusicPlayerBar', () {
+    testWidgets('preserves the swipe animation before minimizing', (
+      tester,
+    ) async {
+      final player = await _pumpMusicPlayerBar(tester);
+
+      final bar = find.byType(GlobalMusicPlayerBar);
+      final slide = find.descendant(
+        of: bar,
+        matching: find.byType(AnimatedSlide),
+      );
+      expect(find.text('Chat track'), findsOneWidget);
+      expect(player.collapsed, isFalse);
+
+      final gesture = await tester.startGesture(tester.getCenter(bar));
+      // The first movement wins the horizontal drag arena; the second one is
+      // the live drag delta rendered by the player.
+      await gesture.moveBy(const Offset(20, 0));
+      await tester.pump();
+      await gesture.moveBy(const Offset(280, 0));
+      await tester.pump();
+      expect(tester.widget<AnimatedSlide>(slide).offset.dx, greaterThan(0));
+      expect(player.collapsed, isFalse);
+
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 95));
+      expect(tester.widget<AnimatedSlide>(slide).offset.dx, greaterThan(0));
+      expect(player.collapsed, isFalse);
+
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(player.collapsed, isTrue);
+    });
+
+    testWidgets('left swipe stops playback after sliding the player away', (
+      tester,
+    ) async {
+      final player = await _pumpMusicPlayerBar(tester);
+      final bar = find.byType(GlobalMusicPlayerBar);
+      final slide = find.descendant(
+        of: bar,
+        matching: find.byType(AnimatedSlide),
+      );
+
+      final gesture = await tester.startGesture(tester.getCenter(bar));
+      await gesture.moveBy(const Offset(-20, 0));
+      await tester.pump();
+      await gesture.moveBy(const Offset(-280, 0));
+      await tester.pump();
+      expect(tester.widget<AnimatedSlide>(slide).offset.dx, lessThan(0));
+      expect(player.current, isNotNull);
+
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 95));
+      expect(tester.widget<AnimatedSlide>(slide).offset.dx, lessThan(0));
+      expect(player.current, isNotNull);
+
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(player.current, isNull);
+      expect(player.queue, isEmpty);
+      expect(player.hidden, isTrue);
+    });
+  });
+
   group('DateText', () {
     test('bubbleLabel pads to HH:mm', () {
       final unix = DateTime(2024, 6, 4, 9, 5).millisecondsSinceEpoch ~/ 1000;
