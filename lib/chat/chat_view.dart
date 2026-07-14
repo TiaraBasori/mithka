@@ -3431,7 +3431,10 @@ class _ChatViewState extends State<ChatView> {
         backgroundColor: c.inputBarBackground,
         resizeToAvoidBottomInset: true,
         body: ChatWallpaperBackground(
-          wallpaper: _wallpaperController.wallpaperFor(widget.chatId),
+          wallpaper: _wallpaperController.wallpaperFor(
+            widget.chatId,
+            dark: Theme.of(context).brightness == Brightness.dark,
+          ),
           fallbackColor: c.chatBackground,
           child: ChatMediaDropRegion(
             enabled: _vm.canSendMessages && !_isSelecting,
@@ -3728,7 +3731,12 @@ class _ChatViewState extends State<ChatView> {
     return IgnorePointer(
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: _wallpaperController.wallpaperFor(widget.chatId) == null
+          color:
+              _wallpaperController.wallpaperFor(
+                    widget.chatId,
+                    dark: Theme.of(context).brightness == Brightness.dark,
+                  ) ==
+                  null
               ? c.chatBackground
               : const Color(0x00000000),
         ),
@@ -4783,7 +4791,12 @@ class _ChatViewState extends State<ChatView> {
     final messages = _transcriptCacheMessages ?? _vm.messages;
     _scheduleUnreadProgressUpdate();
     return Container(
-      color: _wallpaperController.wallpaperFor(widget.chatId) == null
+      color:
+          _wallpaperController.wallpaperFor(
+                widget.chatId,
+                dark: Theme.of(context).brightness == Brightness.dark,
+              ) ==
+              null
           ? context.colors.chatBackground
           : const Color(0x00000000),
       child: NotificationListener<UserScrollNotification>(
@@ -4865,6 +4878,13 @@ class _ChatViewState extends State<ChatView> {
                       onBotCommandTap: _sendCommand,
                       onHashtagTap: _openHashtagSearch,
                       isRead: _vm.isRead(message),
+                      outgoingBubbleColor: _wallpaperController
+                          .themeStyleFor(
+                            widget.chatId,
+                            dark:
+                                Theme.of(context).brightness == Brightness.dark,
+                          )
+                          ?.outgoingColor,
                       onToggleReaction: (r) => _vm.toggleReaction(message, r),
                       onShowReactionUsers: _showReactionUsers,
                       onRedial: _startCall,
@@ -5144,6 +5164,16 @@ class _ChatViewState extends State<ChatView> {
     required double maxWidth,
   }) {
     final c = context.colors;
+    final themedOutgoing = _wallpaperController
+        .themeStyleFor(
+          widget.chatId,
+          dark: Theme.of(context).brightness == Brightness.dark,
+        )
+        ?.outgoingColor;
+    final outgoingColor = themedOutgoing ?? AppTheme.bubbleOutgoing;
+    final outgoingTextColor = outgoingColor.computeLuminance() > 0.64
+        ? const Color(0xFF171717)
+        : AppTheme.bubbleOutgoingText;
     final visible = group.take(9).toList();
     const padding = 4.0;
     final layout = buildTelegramMediaAlbumLayout(
@@ -5164,7 +5194,7 @@ class _ChatViewState extends State<ChatView> {
       constraints: BoxConstraints(maxWidth: layout.width + padding * 2),
       padding: const EdgeInsets.all(padding),
       decoration: BoxDecoration(
-        color: outgoing ? AppTheme.bubbleOutgoing : c.bubbleIncoming,
+        color: outgoing ? outgoingColor : c.bubbleIncoming,
         borderRadius: BorderRadius.circular(8),
         border: outgoing ? null : Border.all(color: c.divider, width: 0.5),
       ),
@@ -5205,9 +5235,7 @@ class _ChatViewState extends State<ChatView> {
                   style: TextStyle(
                     fontSize: 15,
                     height: 1.25,
-                    color: outgoing
-                        ? AppTheme.bubbleOutgoingText
-                        : c.textPrimary,
+                    color: outgoing ? outgoingTextColor : c.textPrimary,
                   ),
                 ),
               ),

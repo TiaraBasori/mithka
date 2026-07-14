@@ -490,7 +490,10 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
     final c = context.colors;
     final wallpaper = _chatId == null
         ? null
-        : _wallpaperController.wallpaperFor(_chatId!);
+        : _wallpaperController.wallpaperFor(
+            _chatId!,
+            dark: Theme.of(context).brightness == Brightness.dark,
+          );
     return Scaffold(
       backgroundColor: c.card,
       body: ChatWallpaperBackground(
@@ -930,7 +933,10 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
     final chatId = _chatId;
     final wallpaper = chatId == null
         ? null
-        : _wallpaperController.wallpaperFor(chatId);
+        : _wallpaperController.wallpaperFor(
+            chatId,
+            dark: Theme.of(context).brightness == Brightness.dark,
+          );
     if (wallpaper != null) {
       return SizedBox(
         height: h,

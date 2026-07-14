@@ -98,6 +98,7 @@ class TdClient {
   final StreamController<Map<String, dynamic>> _updates =
       StreamController.broadcast(sync: true);
   final Map<int, Map<String, dynamic>> _latestChatFoldersByClient = {};
+  final Map<int, Map<String, dynamic>> _latestEmojiChatThemesByClient = {};
 
   // Accounts
   final Map<int, int> _clientForSlot = {};
@@ -120,6 +121,8 @@ class TdClient {
   int? clientId(int slot) => _clientForSlot[slot];
   Map<String, dynamic>? get latestChatFoldersUpdate =>
       _latestChatFoldersByClient[_activeClientId];
+  Map<String, dynamic>? get latestEmojiChatThemesUpdate =>
+      _latestEmojiChatThemesByClient[_activeClientId];
 
   // MARK: - Lifecycle
 
@@ -279,6 +282,7 @@ class TdClient {
     }
     _slotForClient.remove(oldClientId);
     _latestChatFoldersByClient.remove(oldClientId);
+    _latestEmojiChatThemesByClient.remove(oldClientId);
     _proxyAppliedClients.remove(oldClientId);
     await deleteSlotData(slot);
 
@@ -839,6 +843,7 @@ class TdClient {
       _bindings.send(cid, jsonEncode({'@type': 'close'}));
       _slotForClient.remove(cid);
       _latestChatFoldersByClient.remove(cid);
+      _latestEmojiChatThemesByClient.remove(cid);
       _proxyAppliedClients.remove(cid);
     }
   }
@@ -894,6 +899,9 @@ class TdClient {
 
     if (object.type == 'updateChatFolders') {
       _latestChatFoldersByClient[clientId] = object;
+    }
+    if (object.type == 'updateEmojiChatThemes') {
+      _latestEmojiChatThemesByClient[clientId] = object;
     }
 
     // Only surface the active account's updates to the UI.

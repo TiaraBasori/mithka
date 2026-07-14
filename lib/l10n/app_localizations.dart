@@ -457,6 +457,9 @@ abstract final class AppStringKeys {
   static const chatInfoSearchHistory = 'chatInfoSearchHistory';
   static const chatInfoTitle = 'chatInfoTitle';
   static const chatWallpaperApply = 'chatWallpaperApply';
+  static const chatWallpaperApplyForBoth = 'chatWallpaperApplyForBoth';
+  static const chatWallpaperApplyForMe = 'chatWallpaperApplyForMe';
+  static const chatWallpaperChanged = 'chatWallpaperChanged';
   static const chatWallpaperChoose = 'chatWallpaperChoose';
   static const chatWallpaperDefault = 'chatWallpaperDefault';
   static const chatWallpaperPhoto = 'chatWallpaperPhoto';
@@ -464,7 +467,11 @@ abstract final class AppStringKeys {
   static const chatWallpaperPreviewIncoming = 'chatWallpaperPreviewIncoming';
   static const chatWallpaperPreviewOutgoing = 'chatWallpaperPreviewOutgoing';
   static const chatWallpaperSaveFailed = 'chatWallpaperSaveFailed';
+  static const chatWallpaperTelegramCurrent = 'chatWallpaperTelegramCurrent';
+  static const chatWallpaperTelegramThemes = 'chatWallpaperTelegramThemes';
+  static const chatWallpaperThemesShared = 'chatWallpaperThemesShared';
   static const chatWallpaperTitle = 'chatWallpaperTitle';
+  static const chatThemeChanged = 'chatThemeChanged';
   static const chatInlineSwitchButtonUnsupported =
       'chatInlineSwitchButtonUnsupported';
   static const chatJoinGroup = 'chatJoinGroup';

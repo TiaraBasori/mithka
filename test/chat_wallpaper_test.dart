@@ -22,7 +22,10 @@ void main() {
   test('wallpapers are persisted per account and chat', () async {
     SharedPreferences.setMockInitialValues({});
     var activeSlot = 0;
-    final controller = ChatWallpaperController(activeSlot: () => activeSlot);
+    final controller = ChatWallpaperController(
+      activeSlot: () => activeSlot,
+      listenForUpdates: false,
+    );
 
     await controller.setPreset(42, 'sky');
     expect(controller.wallpaperFor(42), const ChatWallpaper.preset('sky'));
@@ -35,7 +38,10 @@ void main() {
     activeSlot = 0;
     expect(controller.wallpaperFor(42), const ChatWallpaper.preset('sky'));
 
-    final restored = ChatWallpaperController(activeSlot: () => activeSlot);
+    final restored = ChatWallpaperController(
+      activeSlot: () => activeSlot,
+      listenForUpdates: false,
+    );
     await restored.load(42);
     expect(restored.wallpaperFor(42), const ChatWallpaper.preset('sky'));
   });
@@ -56,6 +62,7 @@ void main() {
       final controller = ChatWallpaperController(
         activeSlot: () => 3,
         supportDirectory: () async => support,
+        listenForUpdates: false,
       );
 
       await controller.setImage(99, source.path);
@@ -69,4 +76,254 @@ void main() {
       expect(await File(stored.imagePath!).exists(), isFalse);
     },
   );
+
+  test('loads Telegram chat backgrounds from getChat', () async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = ChatWallpaperController(
+      activeSlot: () => 0,
+      hasActiveClient: () => true,
+      listenForUpdates: false,
+      query: (request) async {
+        expect(request['@type'], 'getChat');
+        return {
+          '@type': 'chat',
+          'id': 42,
+          'type': {'@type': 'chatTypePrivate', 'user_id': 7},
+          'background': {
+            '@type': 'chatBackground',
+            'dark_theme_dimming': 31,
+            'background': {
+              '@type': 'background',
+              'id': '9001',
+              'type': {
+                '@type': 'backgroundTypeFill',
+                'fill': {
+                  '@type': 'backgroundFillGradient',
+                  'top_color': 0x123456,
+                  'bottom_color': 0xABCDEF,
+                  'rotation_angle': 45,
+                },
+              },
+            },
+          },
+          'theme': null,
+        };
+      },
+    );
+
+    await controller.load(42);
+    final wallpaper = controller.wallpaperFor(42);
+    expect(wallpaper?.kind, ChatWallpaperKind.telegram);
+    expect(wallpaper?.backgroundId, 9001);
+    expect(wallpaper?.remoteType, 'fill');
+    expect(wallpaper?.colors, [0x123456, 0xABCDEF]);
+    expect(wallpaper?.rotationAngle, 45);
+    expect(wallpaper?.darkThemeDimming, 31);
+    expect(controller.canApplyOnlyForSelf(42), isTrue);
+  });
+
+  test('server chat state replaces stale local-only wallpaper', () async {
+    SharedPreferences.setMockInitialValues({});
+    final local = ChatWallpaperController(
+      activeSlot: () => 0,
+      listenForUpdates: false,
+    );
+    await local.setPreset(42, 'night');
+
+    final synced = ChatWallpaperController(
+      activeSlot: () => 0,
+      hasActiveClient: () => true,
+      listenForUpdates: false,
+      query: (_) async => {
+        '@type': 'chat',
+        'id': 42,
+        'type': {'@type': 'chatTypePrivate', 'user_id': 7},
+        'background': null,
+        'theme': null,
+      },
+    );
+
+    await synced.load(42);
+    expect(synced.wallpaperFor(42), isNull);
+  });
+
+  test('applies a preset through setChatBackground for self', () async {
+    SharedPreferences.setMockInitialValues({});
+    final requests = <Map<String, dynamic>>[];
+    final controller = ChatWallpaperController(
+      activeSlot: () => 0,
+      hasActiveClient: () => true,
+      listenForUpdates: false,
+      query: (request) async {
+        requests.add(request);
+        if (request['@type'] == 'getChat') {
+          return {
+            '@type': 'chat',
+            'id': 42,
+            'type': {'@type': 'chatTypePrivate', 'user_id': 7},
+            'background': null,
+            'theme': null,
+          };
+        }
+        return {'@type': 'ok'};
+      },
+    );
+
+    await controller.load(42);
+    await controller.applyWallpaper(
+      42,
+      const ChatWallpaper.preset('sky'),
+      onlyForSelf: true,
+    );
+
+    final request = requests.singleWhere(
+      (request) => request['@type'] == 'setChatBackground',
+    );
+    expect(request['chat_id'], 42);
+    expect(request['only_for_self'], isTrue);
+    expect(request['background'], isNull);
+    final type = request['type'] as Map<String, dynamic>;
+    expect(type['@type'], 'backgroundTypeFill');
+    final fill = type['fill'] as Map<String, dynamic>;
+    expect(fill['@type'], 'backgroundFillFreeformGradient');
+    expect((fill['colors'] as List).length, 3);
+  });
+
+  test('reapplies a Telegram background for both users by remote id', () async {
+    SharedPreferences.setMockInitialValues({});
+    final requests = <Map<String, dynamic>>[];
+    final controller = ChatWallpaperController(
+      activeSlot: () => 0,
+      hasActiveClient: () => true,
+      listenForUpdates: false,
+      query: (request) async {
+        requests.add(request);
+        if (request['@type'] == 'getChat') {
+          return {
+            '@type': 'chat',
+            'id': 42,
+            'type': {'@type': 'chatTypePrivate', 'user_id': 7},
+            'background': null,
+            'theme': null,
+          };
+        }
+        return {'@type': 'ok'};
+      },
+    );
+
+    await controller.load(42);
+    await controller.applyWallpaper(
+      42,
+      const ChatWallpaper.telegram(
+        backgroundId: 9001,
+        remoteType: 'wallpaper',
+        isBlurred: true,
+        darkThemeDimming: 27,
+      ),
+      onlyForSelf: false,
+    );
+
+    final request = requests.singleWhere(
+      (request) => request['@type'] == 'setChatBackground',
+    );
+    expect(request['only_for_self'], isFalse);
+    expect(request['dark_theme_dimming'], 27);
+    expect(request['background'], {
+      '@type': 'inputBackgroundRemote',
+      'background_id': 9001,
+    });
+    expect(request['type'], {
+      '@type': 'backgroundTypeWallpaper',
+      'is_blurred': true,
+      'is_moving': false,
+    });
+  });
+
+  test('applies emoji chat themes as a shared Telegram theme', () async {
+    SharedPreferences.setMockInitialValues({});
+    final requests = <Map<String, dynamic>>[];
+    final controller = ChatWallpaperController(
+      activeSlot: () => 0,
+      hasActiveClient: () => true,
+      listenForUpdates: false,
+      query: (request) async {
+        requests.add(request);
+        if (request['@type'] == 'getChat') {
+          return {
+            '@type': 'chat',
+            'id': 42,
+            'type': {'@type': 'chatTypePrivate', 'user_id': 7},
+            'background': null,
+            'theme': null,
+          };
+        }
+        return {'@type': 'ok'};
+      },
+    );
+
+    await controller.load(42);
+    await controller.applyTheme(42, '🐣');
+
+    final request = requests.singleWhere(
+      (request) => request['@type'] == 'setChatTheme',
+    );
+    expect(request, {
+      '@type': 'setChatTheme',
+      'chat_id': 42,
+      'theme': {'@type': 'inputChatThemeEmoji', 'name': '🐣'},
+    });
+  });
+
+  test('uses Telegram emoji theme background and outgoing palette', () async {
+    SharedPreferences.setMockInitialValues({});
+    Map<String, dynamic> settings(int backgroundColor, int outgoingColor) => {
+      '@type': 'themeSettings',
+      'background': {
+        '@type': 'background',
+        'id': '18',
+        'type': {
+          '@type': 'backgroundTypeFill',
+          'fill': {'@type': 'backgroundFillSolid', 'color': backgroundColor},
+        },
+      },
+      'outgoing_message_fill': {
+        '@type': 'backgroundFillSolid',
+        'color': outgoingColor,
+      },
+      'outgoing_message_accent_color': outgoingColor,
+    };
+
+    final themesUpdate = {
+      '@type': 'updateEmojiChatThemes',
+      'chat_themes': [
+        {
+          '@type': 'emojiChatTheme',
+          'name': '🐣',
+          'light_settings': settings(0xFFF7C4, 0x44AA66),
+          'dark_settings': settings(0x102030, 0x337755),
+        },
+      ],
+    };
+    final controller = ChatWallpaperController(
+      activeSlot: () => 0,
+      hasActiveClient: () => true,
+      listenForUpdates: false,
+      latestEmojiChatThemes: () => themesUpdate,
+      query: (_) async => {
+        '@type': 'chat',
+        'id': 99,
+        'type': {'@type': 'chatTypePrivate', 'user_id': 8},
+        'background': null,
+        'theme': {'@type': 'chatThemeEmoji', 'name': '🐣'},
+      },
+    );
+
+    await controller.load(99);
+    expect(controller.selectionFor(99), const ChatWallpaper.theme('🐣'));
+    expect(controller.wallpaperFor(99)?.colors, [0xFFF7C4]);
+    expect(controller.themeStyleFor(99, dark: false)?.outgoingColors, [
+      0x44AA66,
+    ]);
+    expect(controller.wallpaperFor(99, dark: true)?.colors, [0x102030]);
+  });
 }

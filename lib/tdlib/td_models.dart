@@ -2501,6 +2501,7 @@ abstract final class TDParse {
     'messagePaidMessagePriceChanged',
     'messageDirectMessagePriceChanged',
     'messageContactRegistered',
+    'messageChatSetBackground',
     'messageChatSetTheme',
     'messageCustomServiceAction',
     'messageChatSetMessageAutoDeleteTime',
@@ -2570,6 +2571,10 @@ abstract final class TDParse {
         return AppStrings.t(AppStringKeys.groupManagementLogCreatedTopic);
       case 'messageChatBoost':
         return telegramText(AppStringKeys.tdMessageBoostedGroup);
+      case 'messageChatSetBackground':
+        return AppStrings.t(AppStringKeys.chatWallpaperChanged);
+      case 'messageChatSetTheme':
+        return AppStrings.t(AppStringKeys.chatThemeChanged);
       default:
         return telegramText(AppStringKeys.tdMessageSystemMessage);
     }
