@@ -66,26 +66,67 @@ class MediaLibrarySaver {
       final file = File(path);
       if (!await file.exists()) return MediaLibrarySaveResult.failed;
 
-      final title = file.uri.pathSegments.isEmpty
-          ? null
-          : file.uri.pathSegments.last;
-      if (target.isVideo) {
-        await PhotoManager.editor.saveVideo(
-          file,
-          title: title,
-          creationDate: target.creationDate,
-        );
-      } else {
-        await PhotoManager.editor.saveImageWithPath(
-          path,
-          title: title,
-          creationDate: target.creationDate,
-        );
-      }
-      return MediaLibrarySaveResult.saved;
+      return await _savePreparedFile(
+        file,
+        isVideo: target.isVideo,
+        creationDate: target.creationDate,
+        permissionAlreadyGranted: true,
+      );
     } catch (_) {
       return MediaLibrarySaveResult.failed;
     }
+  }
+
+  /// Saves an already-downloaded or generated image/video. Sticker export uses
+  /// this so GIF/APNG/MOV output follows the same add-only Photos permission
+  /// path as ordinary chat media.
+  static Future<MediaLibrarySaveResult> savePreparedFile(
+    File file, {
+    required bool isVideo,
+    DateTime? creationDate,
+  }) async {
+    if (!Platform.isIOS && !Platform.isAndroid) {
+      return MediaLibrarySaveResult.unsupported;
+    }
+    try {
+      return await _savePreparedFile(
+        file,
+        isVideo: isVideo,
+        creationDate: creationDate,
+      );
+    } catch (_) {
+      return MediaLibrarySaveResult.failed;
+    }
+  }
+
+  static Future<MediaLibrarySaveResult> _savePreparedFile(
+    File file, {
+    required bool isVideo,
+    DateTime? creationDate,
+    bool permissionAlreadyGranted = false,
+  }) async {
+    if (!permissionAlreadyGranted && !await _requestWritePermission()) {
+      return MediaLibrarySaveResult.permissionDenied;
+    }
+    if (!await file.exists()) return MediaLibrarySaveResult.failed;
+
+    final title = file.uri.pathSegments.isEmpty
+        ? null
+        : file.uri.pathSegments.last;
+    if (isVideo) {
+      await PhotoManager.editor.saveVideo(
+        file,
+        title: title,
+        creationDate: creationDate,
+      );
+    } else {
+      await PhotoManager.editor.saveImageWithPath(
+        file.path,
+        title: title,
+        creationDate: creationDate,
+      );
+    }
+    return MediaLibrarySaveResult.saved;
   }
 
   static Future<bool> _requestWritePermission() async {

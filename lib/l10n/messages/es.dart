@@ -1128,6 +1128,12 @@ const esMessages = <String, String>{
   'stickerStoreRecent': "Recientes",
   'stickerViewerInCollection': "Añadido",
   'stickerViewerView': "Ver",
+  'stickerExportSaveToFiles': "Guardar en Archivos",
+  'stickerExportPreparing': "Preparando {value1}…",
+  'stickerExportSavedToFiles': "Guardado en Archivos",
+  'stickerExportFailed': "No se pudo exportar este sticker.",
+  'stickerExportUnsupported':
+      "Este formato no está disponible en este dispositivo.",
   'storyLoadFailed': "No se pudo cargar la historia",
   'storyUnsupported': "Historia no compatible",
   'tabChannels': "Canales",

@@ -1137,6 +1137,12 @@ const deMessages = <String, String>{
   'stickerStoreRecent': "Zuletzt",
   'stickerViewerInCollection': "Hinzugefügt",
   'stickerViewerView': "Ansehen",
+  'stickerExportSaveToFiles': "In Dateien sichern",
+  'stickerExportPreparing': "{value1} wird vorbereitet…",
+  'stickerExportSavedToFiles': "In Dateien gesichert",
+  'stickerExportFailed': "Dieser Sticker konnte nicht exportiert werden.",
+  'stickerExportUnsupported':
+      "Dieses Format ist auf diesem Gerät nicht verfügbar.",
   'storyLoadFailed': "Story konnte nicht geladen werden",
   'storyUnsupported': "Story wird derzeit nicht unterstützt",
   'tabChannels': "Kanäle",

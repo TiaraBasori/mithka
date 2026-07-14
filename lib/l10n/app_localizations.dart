@@ -1538,6 +1538,11 @@ abstract final class AppStringKeys {
   static const stickerStoreRecent = 'stickerStoreRecent';
   static const stickerViewerInCollection = 'stickerViewerInCollection';
   static const stickerViewerView = 'stickerViewerView';
+  static const stickerExportSaveToFiles = 'stickerExportSaveToFiles';
+  static const stickerExportPreparing = 'stickerExportPreparing';
+  static const stickerExportSavedToFiles = 'stickerExportSavedToFiles';
+  static const stickerExportFailed = 'stickerExportFailed';
+  static const stickerExportUnsupported = 'stickerExportUnsupported';
   static const storyLoadFailed = 'storyLoadFailed';
   static const storyUnsupported = 'storyUnsupported';
   static const tabChannels = 'tabChannels';

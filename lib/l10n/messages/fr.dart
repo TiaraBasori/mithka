@@ -1140,6 +1140,12 @@ const frMessages = <String, String>{
   'stickerStoreRecent': "Récents",
   'stickerViewerInCollection': "Ajouté",
   'stickerViewerView': "Voir",
+  'stickerExportSaveToFiles': "Enregistrer dans Fichiers",
+  'stickerExportPreparing': "Préparation du fichier {value1}…",
+  'stickerExportSavedToFiles': "Enregistré dans Fichiers",
+  'stickerExportFailed': "Impossible d’exporter ce sticker.",
+  'stickerExportUnsupported':
+      "Ce format n’est pas disponible sur cet appareil.",
   'storyLoadFailed': "Échec du chargement de la story",
   'storyUnsupported': "Story non prise en charge",
   'tabChannels': "Canaux",

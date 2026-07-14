@@ -203,6 +203,37 @@ import UserNotifications
         }
       }
     }
+    let stickerExportChannel = FlutterMethodChannel(
+      name: "mithka/sticker_export",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    stickerExportChannel.setMethodCallHandler { call, result in
+      guard call.method == "encodeAlphaMov" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard
+        let arguments = call.arguments as? [String: Any],
+        let inputPath = arguments["path"] as? String,
+        !inputPath.isEmpty
+      else {
+        result(
+          FlutterError(
+            code: "invalid_arguments",
+            message: "A PNG or APNG path is required",
+            details: nil
+          )
+        )
+        return
+      }
+      let callback = StickerExportFlutterCallback(result)
+      StickerAlphaMovTranscoder.transcode(inputPath: inputPath) { conversion in
+        switch conversion {
+        case .success(let outputPath): callback.success(outputPath)
+        case .failure(let error): callback.failure(error)
+        }
+      }
+    }
     mediaDropBridge = MediaDropBridge(
       messenger: engineBridge.applicationRegistrar.messenger()
     )
@@ -526,6 +557,249 @@ private final class AnimatedAvatarFlutterCallback: @unchecked Sendable {
         )
       )
     }
+  }
+}
+
+private final class StickerExportFlutterCallback: @unchecked Sendable {
+  private let result: FlutterResult
+
+  init(_ result: @escaping FlutterResult) {
+    self.result = result
+  }
+
+  func success(_ outputPath: String) {
+    DispatchQueue.main.async { [self] in result(outputPath) }
+  }
+
+  func failure(_ error: Error) {
+    DispatchQueue.main.async { [self] in
+      result(
+        FlutterError(
+          code: error is StickerAlphaMovUnsupportedError
+            ? "sticker_export_unsupported"
+            : "sticker_export_failed",
+          message: error.localizedDescription,
+          details: nil
+        )
+      )
+    }
+  }
+}
+
+private struct StickerAlphaMovUnsupportedError: LocalizedError {
+  var errorDescription: String? {
+    "This device does not provide an alpha-capable MOV encoder"
+  }
+}
+
+private enum StickerAlphaMovError: LocalizedError {
+  case unreadableImage
+  case cannotCreateWriter
+  case cannotStartWriter
+  case cannotCreatePixelBuffer
+  case cannotAppendFrame
+  case exportFailed(String)
+
+  var errorDescription: String? {
+    switch self {
+    case .unreadableImage: return "The sticker frames could not be decoded"
+    case .cannotCreateWriter: return "The sticker video encoder could not be created"
+    case .cannotStartWriter: return "The sticker video encoder could not start"
+    case .cannotCreatePixelBuffer: return "A transparent sticker frame could not be prepared"
+    case .cannotAppendFrame: return "A transparent sticker frame could not be encoded"
+    case .exportFailed(let reason): return "Sticker export failed: \(reason)"
+    }
+  }
+}
+
+/// Converts a PNG/APNG frame sequence into a MOV whose codec retains alpha.
+/// HEVC-with-alpha is preferred for compact output; ProRes 4444 is the
+/// lossless-alpha fallback. We deliberately do not fall back to H.264 because
+/// silently flattening transparency would make the export look correct only on
+/// a matching background.
+private enum StickerAlphaMovTranscoder {
+  private static let queue = DispatchQueue(
+    label: "ad.neko.mithka.sticker-export",
+    qos: .userInitiated
+  )
+  private static let defaultFrameDuration = 1.0 / 30.0
+  private static let minimumFrameDuration = 1.0 / 60.0
+
+  static func transcode(
+    inputPath: String,
+    completion: @escaping @Sendable (Result<String, Error>) -> Void
+  ) {
+    queue.async {
+      do {
+        completion(.success(try transcodeSynchronously(inputPath: inputPath)))
+      } catch {
+        completion(.failure(error))
+      }
+    }
+  }
+
+  private static func transcodeSynchronously(inputPath: String) throws -> String {
+    let inputURL = URL(fileURLWithPath: inputPath)
+    guard
+      let source = CGImageSourceCreateWithURL(inputURL as CFURL, nil),
+      CGImageSourceGetCount(source) > 0,
+      let firstFrame = CGImageSourceCreateImageAtIndex(source, 0, nil)
+    else {
+      throw StickerAlphaMovError.unreadableImage
+    }
+
+    // Video encoders require even dimensions. The generated PNG is normally
+    // 512 px already, but keep arbitrary static sticker sources valid too.
+    let width = max(2, firstFrame.width - firstFrame.width % 2)
+    let height = max(2, firstFrame.height - firstFrame.height % 2)
+    let outputURL = FileManager.default.temporaryDirectory
+      .appendingPathComponent("mithka-sticker-\(UUID().uuidString).mov")
+    try? FileManager.default.removeItem(at: outputURL)
+
+    let writer: AVAssetWriter
+    do {
+      writer = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
+    } catch {
+      throw StickerAlphaMovError.cannotCreateWriter
+    }
+
+    let candidateCodecs: [AVVideoCodecType] = [.hevcWithAlpha, .proRes4444]
+    var selectedSettings: [String: Any]?
+    for codec in candidateCodecs {
+      let settings: [String: Any] = [
+        AVVideoCodecKey: codec,
+        AVVideoWidthKey: width,
+        AVVideoHeightKey: height,
+      ]
+      if writer.canApply(outputSettings: settings, forMediaType: .video) {
+        selectedSettings = settings
+        break
+      }
+    }
+    guard let outputSettings = selectedSettings else {
+      throw StickerAlphaMovUnsupportedError()
+    }
+
+    let input = AVAssetWriterInput(mediaType: .video, outputSettings: outputSettings)
+    input.expectsMediaDataInRealTime = false
+    let adaptor = AVAssetWriterInputPixelBufferAdaptor(
+      assetWriterInput: input,
+      sourcePixelBufferAttributes: [
+        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+        kCVPixelBufferWidthKey as String: width,
+        kCVPixelBufferHeightKey as String: height,
+        kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+      ]
+    )
+    guard writer.canAdd(input) else {
+      throw StickerAlphaMovError.cannotCreateWriter
+    }
+    writer.add(input)
+    guard writer.startWriting() else {
+      throw StickerAlphaMovError.cannotStartWriter
+    }
+    writer.startSession(atSourceTime: .zero)
+
+    var timestamp = 0.0
+    let frameCount = CGImageSourceGetCount(source)
+    for index in 0..<frameCount {
+      guard let frame = CGImageSourceCreateImageAtIndex(source, index, nil) else {
+        continue
+      }
+      while !input.isReadyForMoreMediaData {
+        if writer.status == .failed || writer.status == .cancelled {
+          throw StickerAlphaMovError.exportFailed(
+            writer.error?.localizedDescription ?? "encoder stopped"
+          )
+        }
+        Thread.sleep(forTimeInterval: 0.002)
+      }
+      guard
+        let pool = adaptor.pixelBufferPool,
+        let pixelBuffer = makeTransparentPixelBuffer(
+          image: frame,
+          width: width,
+          height: height,
+          pool: pool
+        )
+      else {
+        throw StickerAlphaMovError.cannotCreatePixelBuffer
+      }
+      let presentationTime = CMTime(seconds: timestamp, preferredTimescale: 600)
+      guard adaptor.append(pixelBuffer, withPresentationTime: presentationTime) else {
+        throw StickerAlphaMovError.cannotAppendFrame
+      }
+      timestamp += frameDuration(source: source, index: index)
+    }
+    guard timestamp > 0 else {
+      throw StickerAlphaMovError.unreadableImage
+    }
+
+    writer.endSession(atSourceTime: CMTime(seconds: timestamp, preferredTimescale: 600))
+    input.markAsFinished()
+    let semaphore = DispatchSemaphore(value: 0)
+    writer.finishWriting { semaphore.signal() }
+    semaphore.wait()
+    guard writer.status == .completed else {
+      throw StickerAlphaMovError.exportFailed(
+        writer.error?.localizedDescription ?? "unknown encoder error"
+      )
+    }
+    return outputURL.path
+  }
+
+  private static func frameDuration(source: CGImageSource, index: Int) -> Double {
+    guard
+      let raw = CGImageSourceCopyPropertiesAtIndex(source, index, nil) as? [CFString: Any]
+    else {
+      return defaultFrameDuration
+    }
+    let gif = raw[kCGImagePropertyGIFDictionary] as? [CFString: Any]
+    let png = raw[kCGImagePropertyPNGDictionary] as? [CFString: Any]
+    let duration =
+      gif?[kCGImagePropertyGIFUnclampedDelayTime] as? Double ??
+      gif?[kCGImagePropertyGIFDelayTime] as? Double ??
+      png?[kCGImagePropertyAPNGUnclampedDelayTime] as? Double ??
+      png?[kCGImagePropertyAPNGDelayTime] as? Double ??
+      defaultFrameDuration
+    return max(duration, minimumFrameDuration)
+  }
+
+  private static func makeTransparentPixelBuffer(
+    image: CGImage,
+    width: Int,
+    height: Int,
+    pool: CVPixelBufferPool
+  ) -> CVPixelBuffer? {
+    var optionalBuffer: CVPixelBuffer?
+    guard
+      CVPixelBufferPoolCreatePixelBuffer(nil, pool, &optionalBuffer) == kCVReturnSuccess,
+      let pixelBuffer = optionalBuffer
+    else {
+      return nil
+    }
+    CVPixelBufferLockBaseAddress(pixelBuffer, [])
+    defer { CVPixelBufferUnlockBaseAddress(pixelBuffer, []) }
+    guard
+      let baseAddress = CVPixelBufferGetBaseAddress(pixelBuffer),
+      let colorSpace = CGColorSpace(name: CGColorSpace.sRGB),
+      let context = CGContext(
+        data: baseAddress,
+        width: width,
+        height: height,
+        bitsPerComponent: 8,
+        bytesPerRow: CVPixelBufferGetBytesPerRow(pixelBuffer),
+        space: colorSpace,
+        bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue |
+          CGImageAlphaInfo.premultipliedFirst.rawValue
+      )
+    else {
+      return nil
+    }
+    context.clear(CGRect(x: 0, y: 0, width: width, height: height))
+    context.interpolationQuality = .high
+    context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+    return pixelBuffer
   }
 }
 
