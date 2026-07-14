@@ -271,9 +271,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   }
 
   ThemeData _themeData(Brightness brightness, ThemeController theme) {
-    final colors = brightness == Brightness.dark
-        ? AppColors.dark
-        : AppColors.light;
+    final colors = theme.appColorsFor(brightness);
     final families = theme.effectiveFontFamilyChain();
     final base = ThemeData(
       brightness: brightness,

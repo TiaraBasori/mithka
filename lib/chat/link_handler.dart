@@ -20,6 +20,8 @@ import '../settings/proxy_view.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import '../theme/telegram_cloud_theme.dart';
+import '../theme/telegram_cloud_theme_view.dart';
 import 'chat_picker_view.dart';
 import 'chat_view.dart';
 import 'sticker_set_detail_view.dart';
@@ -133,6 +135,8 @@ Future<void> openLink(BuildContext context, String url) async {
         }
       case 'internalLinkTypeQrCodeAuthentication':
         if (context.mounted) await _confirmQrAuthentication(context, link);
+      case 'internalLinkTypeTheme':
+        if (context.mounted) await _openCloudTheme(context, nav, link);
       case 'internalLinkTypeUnknownDeepLink':
         await _showDeepLinkInfoOrExternal(link);
       default:
@@ -143,6 +147,29 @@ Future<void> openLink(BuildContext context, String url) async {
   } catch (_) {
     if (!await _openTelegramFallback(nav, link) && context.mounted) {
       await _external(link);
+    }
+  }
+}
+
+Future<void> _openCloudTheme(
+  BuildContext context,
+  NavigatorState nav,
+  String link,
+) async {
+  try {
+    final theme = await TelegramCloudThemeService().load(link);
+    if (!context.mounted || !nav.mounted) return;
+    await nav.push(
+      PageRouteBuilder<void>(
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            TelegramCloudThemePreviewView(theme: theme),
+        transitionsBuilder: (_, animation, secondaryAnimation, child) =>
+            FadeTransition(opacity: animation, child: child),
+      ),
+    );
+  } catch (_) {
+    if (context.mounted) {
+      showToast(context, AppStringKeys.cloudThemeLoadFailed);
     }
   }
 }

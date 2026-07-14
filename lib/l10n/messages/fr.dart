@@ -331,6 +331,10 @@ const frMessages = <String, String>{
   'chatWallpaperThemesShared': "Les thèmes s’appliquent aux deux utilisateurs",
   'chatWallpaperTitle': "Thème et fond de discussion",
   'chatThemeChanged': "Le thème de discussion a changé",
+  'cloudThemeApply': "Appliquer le thème",
+  'cloudThemeLoadFailed': "Impossible de charger ce thème Telegram",
+  'cloudThemeOfficialDescription': "Thème cloud officiel Telegram",
+  'cloudThemePreviewTitle': "Aperçu du thème",
   'chatInlineSwitchButtonUnsupported':
       "Le bouton de bascule inline n’est pas encore pris en charge",
   'chatJoinGroup': "Rejoindre le groupe",

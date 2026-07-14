@@ -321,6 +321,10 @@ const esMessages = <String, String>{
   'chatWallpaperThemesShared': "Los temas se aplican a ambos usuarios",
   'chatWallpaperTitle': "Tema y fondo del chat",
   'chatThemeChanged': "El tema del chat cambió",
+  'cloudThemeApply': "Aplicar tema",
+  'cloudThemeLoadFailed': "No se pudo cargar este tema de Telegram",
+  'cloudThemeOfficialDescription': "Tema oficial de Telegram en la nube",
+  'cloudThemePreviewTitle': "Vista previa del tema",
   'chatInlineSwitchButtonUnsupported':
       "El botón de cambio inline aún no es compatible",
   'chatJoinGroup': "Unirse al grupo",
