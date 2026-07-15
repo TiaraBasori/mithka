@@ -485,6 +485,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
 
   void _onModel() {
     _feedChatIds = null; // channel set may have changed
+    _invalidateChannels();
     if (mounted) setState(() {});
     _loadChannelPosts();
     _loadPostableChannels();
@@ -527,6 +528,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
         final chatId = update.int64('chat_id');
         if (chatId == null) return;
         if (_joinedChannelCache.remove(chatId) == null) return;
+        _invalidateChannels();
         _exhaustedChannels.remove(chatId);
         if (update.type == 'updateChatRemovedFromList') {
           _postsByChannel.remove(chatId);
@@ -599,7 +601,17 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     }
   }
 
+  // Memoized: this getter used to rebuild the dedup map on every access, and
+  // it is read from build() and the per-update feed paths. Every site that
+  // changes its inputs (model chats, joined cache, mute filter) already
+  // clears _feedChatIds — _invalidateChannels() piggybacks on those.
+  List<ChatSummary>? _channelsCache;
+
+  void _invalidateChannels() => _channelsCache = null;
+
   List<ChatSummary> get _channels {
+    final cached = _channelsCache;
+    if (cached != null) return cached;
     final byId = <int, ChatSummary>{};
     for (final chat in widget.initialChannels) {
       if (chat.kind == ChatKind.channel &&
@@ -615,7 +627,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
         byId[chat.id] = chat;
       }
     }
-    return byId.values.toList();
+    return _channelsCache = byId.values.toList(growable: false);
   }
 
   // Flattening + sorting + album-grouping the whole feed is O(n log n) with
@@ -774,6 +786,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     final joined = await isJoinedGroupOrChannelChat(channel.id);
     _joinedChannelCache[channel.id] = joined;
     _feedChatIds = null; // joined-state feeds the _channels filter
+    _invalidateChannels();
     if (!joined) {
       _postsByChannel.remove(channel.id);
       _invalidateFeed();
@@ -827,6 +840,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   void _toggleNonMutedOnly() {
     setState(() {
       _nonMutedOnly = !_nonMutedOnly;
+      _invalidateChannels();
       _feedLoadGeneration += 1;
       _postsByChannel.clear();
       _invalidateFeed();
