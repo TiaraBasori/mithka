@@ -19,6 +19,7 @@ import '../tdlib/chat_membership.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import 'chat_delete_policy.dart';
 
 class ChatFilterOption {
   const ChatFilterOption({required this.title, this.folderId});
@@ -408,18 +409,25 @@ class ChatListViewModel extends ChangeNotifier {
     });
   }
 
-  Future<void> deleteChat(ChatSummary chat) async {
-    await _client.query({
-      '@type': 'deleteChatHistory',
-      'chat_id': chat.id,
-      'remove_from_chat_list': true,
-      'revoke': false,
-    });
+  Future<ChatDeleteCapabilities> deleteCapabilities(ChatSummary chat) async {
+    try {
+      final raw = await _client.query({'@type': 'getChat', 'chat_id': chat.id});
+      return chatDeleteCapabilities(raw);
+    } catch (_) {
+      return const ChatDeleteCapabilities.selfOnly();
+    }
   }
 
-  Future<void> leaveAndDeleteChat(ChatSummary chat) async {
-    await _client.query({'@type': 'leaveChat', 'chat_id': chat.id});
-    await deleteChat(chat);
+  Future<void> deleteChat(
+    ChatSummary chat, {
+    ChatDeleteScope scope = ChatDeleteScope.self,
+  }) async {
+    if (shouldLeaveBeforeDeletingChat(chat.kind, scope)) {
+      await _client.query({'@type': 'leaveChat', 'chat_id': chat.id});
+    }
+    await _client.query(
+      deleteChatHistoryRequest(chatId: chat.id, scope: scope),
+    );
   }
 
   void clearNotice() {

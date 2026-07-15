@@ -270,6 +270,18 @@ const enMessages = <String, String>{
   'chatCannotSendMessages': "You can’t send messages in this chat",
   'chatContactCallsOnly': "Calls are only supported with contacts",
   'chatDelete': "Delete",
+  'chatDeleteAllMembersDescription':
+      "This will permanently delete the chat and its history for all members.",
+  'chatDeleteBothSidesDescription':
+      "This will permanently delete the chat and its history for both sides.",
+  'chatDeleteForAllMembers': "Delete for all members",
+  'chatDeleteForBothSides': "Delete for both sides",
+  'chatDeleteForMe': "Delete for me",
+  'chatDeleteScopeGroupDescription':
+      "Choose whether to delete this chat only for you or for all members.",
+  'chatDeleteScopePrivateDescription':
+      "Choose whether to delete this chat only for you or for both sides.",
+  'chatDeleteUnavailable': "This chat can't be deleted.",
   'chatDeleteActionsDone': "Done",
   'chatDeleteActionsFailed': "Could not apply action: {value1}",
   'chatDeleteMessagesQuestion': "Delete messages?",

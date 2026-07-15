@@ -234,6 +234,18 @@ const frMessages = <String, String>{
       "Vous ne pouvez pas envoyer de messages dans cette discussion",
   'chatContactCallsOnly': "Appels disponibles uniquement avec les contacts",
   'chatDelete': "Supprimer",
+  'chatDeleteAllMembersDescription':
+      "Le chat et son historique seront définitivement supprimés pour tous les membres.",
+  'chatDeleteBothSidesDescription':
+      "Le chat et son historique seront définitivement supprimés des deux côtés.",
+  'chatDeleteForAllMembers': "Supprimer pour tous les membres",
+  'chatDeleteForBothSides': "Supprimer des deux côtés",
+  'chatDeleteForMe': "Supprimer pour moi",
+  'chatDeleteScopeGroupDescription':
+      "Choisissez de supprimer ce chat uniquement pour vous ou pour tous les membres.",
+  'chatDeleteScopePrivateDescription':
+      "Choisissez de supprimer ce chat uniquement pour vous ou des deux côtés.",
+  'chatDeleteUnavailable': "Ce chat ne peut pas être supprimé.",
   'chatDeleteActionsDone': "Terminé",
   'chatDeleteActionsFailed': "Impossible d’appliquer l’action : {value1}",
   'chatDeleteMessagesQuestion': "Supprimer les messages ?",

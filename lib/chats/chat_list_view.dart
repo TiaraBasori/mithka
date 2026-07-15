@@ -20,7 +20,6 @@ import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
 import '../chat/link_handler.dart';
 import '../components/app_icons.dart';
-import '../components/confirm_dialog.dart';
 import '../components/drawer_controller.dart' as dc;
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
@@ -35,6 +34,7 @@ import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'archived_chats_view.dart';
+import 'chat_delete_dialog.dart';
 import 'chat_list_view_model.dart';
 import 'chat_row_view.dart';
 import 'filtered_chats_view.dart';
@@ -1189,31 +1189,29 @@ class _ChatListViewState extends State<ChatListView>
   }
 
   Future<void> _confirmDeleteChat(ChatSummary chat) async {
-    final isChannel = chat.kind == ChatKind.channel;
-    final isGroupOrChannel = chat.kind == ChatKind.group || isChannel;
-    final confirmed = await confirmDialog(
+    final isGroupOrChannel =
+        chat.kind == ChatKind.group || chat.kind == ChatKind.channel;
+    final capabilities = await _model.deleteCapabilities(chat);
+    if (!mounted) return;
+    if (!capabilities.canDelete) {
+      showToast(context, AppStringKeys.chatDeleteUnavailable);
+      return;
+    }
+    final scope = await showChatDeleteScopeDialog(
       context,
-      title: isGroupOrChannel
-          ? _leaveTitle(chat)
-          : AppStringKeys.chatListDeleteChatQuestion,
-      message: isGroupOrChannel
+      title: AppStringKeys.chatListDeleteChatQuestion,
+      selfOnlyDescription: isGroupOrChannel
           ? AppStrings.t(
               AppStringKeys.chatListLeaveAndDeleteGroupConfirmation,
               {'value1': chat.title},
             )
           : AppStrings.t(AppStringKeys.chatInfoClearHistoryDescription),
-      confirmText: isGroupOrChannel
-          ? _leaveTitle(chat)
-          : AppStringKeys.chatDelete,
-      destructive: true,
+      capabilities: capabilities,
+      isGroupOrChannel: isGroupOrChannel,
     );
-    if (!mounted || !confirmed) return;
+    if (!mounted || scope == null) return;
     try {
-      if (isGroupOrChannel) {
-        await _model.leaveAndDeleteChat(chat);
-      } else {
-        await _model.deleteChat(chat);
-      }
+      await _model.deleteChat(chat, scope: scope);
     } catch (error) {
       if (!mounted) return;
       final message = error is TdError ? error.message : error.toString();
@@ -1230,12 +1228,6 @@ class _ChatListViewState extends State<ChatListView>
     }
     if (chat.kind == ChatKind.group) return AppStringKeys.chatInfoLeaveGroup;
     return AppStringKeys.chatDelete;
-  }
-
-  String _leaveTitle(ChatSummary chat) {
-    return chat.kind == ChatKind.channel
-        ? AppStringKeys.topicChatLeaveChannel
-        : AppStringKeys.chatInfoLeaveGroup;
   }
 
   PageRoute<T> _chatEntryRoute<T>(Widget child) {

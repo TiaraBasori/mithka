@@ -381,6 +381,18 @@ abstract final class AppStringKeys {
   static const chatCannotSendMessages = 'chatCannotSendMessages';
   static const chatContactCallsOnly = 'chatContactCallsOnly';
   static const chatDelete = 'chatDelete';
+  static const chatDeleteAllMembersDescription =
+      'chatDeleteAllMembersDescription';
+  static const chatDeleteBothSidesDescription =
+      'chatDeleteBothSidesDescription';
+  static const chatDeleteForAllMembers = 'chatDeleteForAllMembers';
+  static const chatDeleteForBothSides = 'chatDeleteForBothSides';
+  static const chatDeleteForMe = 'chatDeleteForMe';
+  static const chatDeleteScopeGroupDescription =
+      'chatDeleteScopeGroupDescription';
+  static const chatDeleteScopePrivateDescription =
+      'chatDeleteScopePrivateDescription';
+  static const chatDeleteUnavailable = 'chatDeleteUnavailable';
   static const chatDeleteActionsDone = 'chatDeleteActionsDone';
   static const chatDeleteActionsFailed = 'chatDeleteActionsFailed';
   static const chatDeleteMessagesQuestion = 'chatDeleteMessagesQuestion';

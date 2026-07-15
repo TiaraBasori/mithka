@@ -231,6 +231,18 @@ const deMessages = <String, String>{
   'chatCannotSendMessages': "Du kannst in diesem Chat keine Nachrichten senden",
   'chatContactCallsOnly': "Anrufe sind nur mit Kontakten möglich",
   'chatDelete': "Löschen",
+  'chatDeleteAllMembersDescription':
+      "Dadurch werden der Chat und sein Verlauf dauerhaft für alle Mitglieder gelöscht.",
+  'chatDeleteBothSidesDescription':
+      "Dadurch werden der Chat und sein Verlauf dauerhaft auf beiden Seiten gelöscht.",
+  'chatDeleteForAllMembers': "Für alle Mitglieder löschen",
+  'chatDeleteForBothSides': "Auf beiden Seiten löschen",
+  'chatDeleteForMe': "Für mich löschen",
+  'chatDeleteScopeGroupDescription':
+      "Wähle, ob dieser Chat nur für dich oder für alle Mitglieder gelöscht werden soll.",
+  'chatDeleteScopePrivateDescription':
+      "Wähle, ob dieser Chat nur für dich oder auf beiden Seiten gelöscht werden soll.",
+  'chatDeleteUnavailable': "Dieser Chat kann nicht gelöscht werden.",
   'chatDeleteActionsDone': "Erledigt",
   'chatDeleteActionsFailed': "Aktion konnte nicht ausgeführt werden: {value1}",
   'chatDeleteMessagesQuestion': "Nachrichten löschen?",

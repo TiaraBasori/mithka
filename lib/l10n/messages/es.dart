@@ -227,6 +227,18 @@ const esMessages = <String, String>{
   'chatCannotSendMessages': "No puedes enviar mensajes en este chat",
   'chatContactCallsOnly': "Solo se permiten llamadas con contactos",
   'chatDelete': "Eliminar",
+  'chatDeleteAllMembersDescription':
+      "Esto eliminará permanentemente el chat y su historial para todos los miembros.",
+  'chatDeleteBothSidesDescription':
+      "Esto eliminará permanentemente el chat y su historial para ambas partes.",
+  'chatDeleteForAllMembers': "Eliminar para todos los miembros",
+  'chatDeleteForBothSides': "Eliminar para ambas partes",
+  'chatDeleteForMe': "Eliminar para mí",
+  'chatDeleteScopeGroupDescription':
+      "Elige si quieres eliminar este chat solo para ti o para todos los miembros.",
+  'chatDeleteScopePrivateDescription':
+      "Elige si quieres eliminar este chat solo para ti o para ambas partes.",
+  'chatDeleteUnavailable': "Este chat no se puede eliminar.",
   'chatDeleteActionsDone': "Listo",
   'chatDeleteActionsFailed': "No se pudo aplicar la acción: {value1}",
   'chatDeleteMessagesQuestion': "¿Eliminar mensajes?",
