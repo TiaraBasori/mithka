@@ -742,6 +742,8 @@ class _ChatViewState extends State<ChatView> {
   TelegramCloudTheme? _resolvedCloudTheme;
   bool _themingEnabled = true;
   bool _sessionAnchorMaintenanceScheduled = false;
+  bool _maintainRestoredBottom = false;
+  final _restoredBottomCorrection = ChatBottomCorrectionCoordinator();
   bool _openingUnreadMention = false;
   bool _exitStatePrepared = false;
   bool _notificationVisibilityRegistered = false;
@@ -750,7 +752,6 @@ class _ChatViewState extends State<ChatView> {
 
   /// Gap (seconds) between messages that triggers a fresh time separator.
   static const _separatorGap = 300;
-  static const _initialBottomScrollOffset = 1000000000.0;
   static const _initialTargetAlignment = 0.30;
   static const _initialUnreadAlignment = 0.12;
   static OverlayEntry? _globalPictureInPictureVideo;
@@ -780,6 +781,12 @@ class _ChatViewState extends State<ChatView> {
     _sessionScrollSnapshot = widget.initialMessageId == null
         ? _sessionScrollSnapshots[widget.chatId]
         : null;
+    final initialScrollPlan = chatInitialScrollPlan(
+      hasCachedTranscript: _sessionRenderState?.messages.isNotEmpty ?? false,
+      savedPixels: _sessionScrollSnapshot?.pixels,
+      savedAtBottom: _sessionScrollSnapshot?.wasAtLoadedBottom ?? false,
+    );
+    _maintainRestoredBottom = initialScrollPlan.correctToBottomAfterLayout;
     final sessionScrollSnapshot = _sessionScrollSnapshot;
     _maintainSessionScrollAnchor =
         sessionScrollSnapshot?.anchorMessageId != null &&
@@ -790,9 +797,7 @@ class _ChatViewState extends State<ChatView> {
           !sessionScrollSnapshot.wasAtLoadedBottom,
     );
     _scroll = ScrollController(
-      initialScrollOffset: _shouldRestoreSessionScroll
-          ? _sessionScrollSnapshot!.pixels
-          : (_shouldOpenAtBottom ? _initialBottomScrollOffset : 0),
+      initialScrollOffset: initialScrollPlan.initialOffset,
     )..addListener(_onScroll);
     _vm = ChatViewModel(
       chatId: widget.chatId,
@@ -811,9 +816,12 @@ class _ChatViewState extends State<ChatView> {
       _initialTranscriptReady = true;
       _lastCount = _vm.messages.length;
       _lastNewestMessageId = _vm.messages.last.id;
+      if (initialScrollPlan.correctToBottomAfterLayout) {
+        _scheduleRestoredBottomCorrection();
+      }
     }
     _vm.addListener(_onModel);
-    _scrollTargetId = widget.initialMessageId;
+    _setScrollTarget(widget.initialMessageId);
     _vm.onAppear();
     _readSyncTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted && _isAtLoadedBottom(80)) {
@@ -934,6 +942,7 @@ class _ChatViewState extends State<ChatView> {
     if (_initialTranscriptReady &&
         notification.direction != ScrollDirection.idle) {
       _maintainSessionScrollAnchor = false;
+      _maintainRestoredBottom = false;
     }
     return false;
   }
@@ -1218,7 +1227,7 @@ class _ChatViewState extends State<ChatView> {
     if (_loadingLatestFromAnchor) return;
     _autoScrollPolicy.returnToBottom();
     if (!_vm.anchoredHistory) {
-      _scrollTargetId = null;
+      _setScrollTarget(null);
       if (_liveNewMessageCount > 0) {
         setState(() {
           _unreadProgress.clearLiveMessages();
@@ -1230,7 +1239,7 @@ class _ChatViewState extends State<ChatView> {
       return;
     }
     _loadingLatestFromAnchor = true;
-    _scrollTargetId = null;
+    _setScrollTarget(null);
     try {
       final ok = await _vm.loadLatestHistory();
       if (!mounted || !ok) return;
@@ -1254,7 +1263,7 @@ class _ChatViewState extends State<ChatView> {
 
   void _onComposerMessageSent() {
     _autoScrollPolicy.returnToBottom();
-    _scrollTargetId = null;
+    _setScrollTarget(null);
     _unreadProgress.clearLiveMessages();
     _bannerDismissed = true;
     if (_vm.anchoredHistory) {
@@ -1371,7 +1380,7 @@ class _ChatViewState extends State<ChatView> {
     }
     final target = _vm.consumePendingScrollToId();
     if (target != null) {
-      _scrollTargetId = target;
+      _setScrollTarget(target);
       if (_didInitialScroll) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _ensureMessageVisible(target);
@@ -1412,6 +1421,33 @@ class _ChatViewState extends State<ChatView> {
     }
     _cacheCurrentTranscript();
     _scheduleSessionScrollAnchorMaintenance();
+    _scheduleRestoredBottomCorrection();
+  }
+
+  void _setScrollTarget(int? messageId) {
+    if (messageId != null) _maintainRestoredBottom = false;
+    _scrollTargetId = messageId;
+  }
+
+  void _scheduleRestoredBottomCorrection() {
+    if (!_maintainRestoredBottom) return;
+    if (_vm.anchoredHistory || _scrollTargetId != null) {
+      _maintainRestoredBottom = false;
+      return;
+    }
+    _restoredBottomCorrection.schedule(
+      enabled: _maintainRestoredBottom,
+      schedulePostFrame: (callback) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => callback());
+      },
+      canCorrect: () =>
+          mounted &&
+          _maintainRestoredBottom &&
+          !_vm.anchoredHistory &&
+          _scrollTargetId == null &&
+          _scroll.hasClients,
+      correct: () => _scrollToBottom(settle: true, forceSettle: true),
+    );
   }
 
   void _scheduleSessionScrollAnchorMaintenance() {
@@ -1554,7 +1590,7 @@ class _ChatViewState extends State<ChatView> {
     final max = _scroll.position.maxScrollExtent;
     final target = widget.initialMessageId ?? _scrollTargetId;
     if (target != null) {
-      _scrollTargetId = target;
+      _setScrollTarget(target);
       return _estimateMessageOffset(target, _initialTargetAlignment);
     }
     if (_vm.anchoredHistory) {
@@ -1567,7 +1603,7 @@ class _ChatViewState extends State<ChatView> {
     final boundaryLoaded = _isUnreadBoundaryLoaded();
     if (_vm.unreadCount <= 0 || i < 0 || !boundaryLoaded) {
       if (_vm.unreadCount > 0 && _vm.lastReadInboxId > 0) {
-        _scrollTargetId = _vm.lastReadInboxId;
+        _setScrollTarget(_vm.lastReadInboxId);
         return _estimateMessageOffset(
           _vm.lastReadInboxId,
           _initialTargetAlignment,
@@ -1586,13 +1622,13 @@ class _ChatViewState extends State<ChatView> {
     if (!_scroll.hasClients) return false;
     final target = widget.initialMessageId ?? _scrollTargetId;
     if (target != null) {
-      _scrollTargetId = target;
+      _setScrollTarget(target);
       final corrected = await _ensureKeyVisible(
         _targetKey,
         alignment: _initialTargetAlignment,
       );
       if (corrected && mounted && _scrollTargetId == target) {
-        setState(() => _scrollTargetId = null);
+        setState(() => _setScrollTarget(null));
       }
       return corrected;
     }
@@ -1613,7 +1649,7 @@ class _ChatViewState extends State<ChatView> {
       return false;
     }
     if (_vm.unreadCount > 0 && _vm.lastReadInboxId > 0) {
-      _scrollTargetId = _vm.lastReadInboxId;
+      _setScrollTarget(_vm.lastReadInboxId);
       final corrected = await _ensureKeyVisible(
         _targetKey,
         alignment: _initialTargetAlignment,
@@ -4734,9 +4770,9 @@ class _ChatViewState extends State<ChatView> {
     bool pinnedJump = false,
   }) async {
     if (mounted) {
-      setState(() => _scrollTargetId = messageId);
+      setState(() => _setScrollTarget(messageId));
     } else {
-      _scrollTargetId = messageId;
+      _setScrollTarget(messageId);
     }
     if (_vm.messages.any((m) => m.id == messageId)) {
       await _ensureMessageVisible(messageId, pinnedJump: pinnedJump);
@@ -4777,7 +4813,7 @@ class _ChatViewState extends State<ChatView> {
       if (ctx != null && ctx.mounted) {
         if (pinnedJump && _isKeyMostlyVisible(activeKey)) {
           if (mounted && _scrollTargetId == messageId) {
-            setState(() => _scrollTargetId = null);
+            setState(() => _setScrollTarget(null));
           }
           return;
         }
@@ -4795,7 +4831,7 @@ class _ChatViewState extends State<ChatView> {
               : ScrollPositionAlignmentPolicy.explicit,
         );
         if (mounted && _scrollTargetId == messageId) {
-          setState(() => _scrollTargetId = null);
+          setState(() => _setScrollTarget(null));
         }
         return;
       }
@@ -4812,7 +4848,7 @@ class _ChatViewState extends State<ChatView> {
       if (!mounted) return;
     }
     if (mounted && _scrollTargetId == messageId) {
-      setState(() => _scrollTargetId = null);
+      setState(() => _setScrollTarget(null));
     }
   }
 
