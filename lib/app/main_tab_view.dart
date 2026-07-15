@@ -483,7 +483,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     return ColoredBox(
       color: Colors.black,
       child: VideoPlayerView(
-        key: ValueKey(session.video.id),
+        key: ValueKey('${session.video.id}:${session.messageId ?? 0}'),
         video: session.video,
         thumb: session.thumb,
         width: session.width,
@@ -492,6 +492,12 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         onClose: _videoSplit.close,
         sourceChatId: session.chatId,
         messageId: session.messageId,
+        previousVideo: session.queue.previous,
+        nextVideo: session.queue.next,
+        onNavigate: (delta) {
+          final nextSession = session.moveBy(delta);
+          if (nextSession != null) _videoSplit.play(nextSession);
+        },
         currentMode: VideoDisplayMode.split,
         onSwitchMode: (mode) => _switchSiblingVideoMode(session, mode),
       ),
@@ -537,14 +543,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         Navigator.of(context).push(
           MaterialPageRoute(
             fullscreenDialog: true,
-            builder: (_) => VideoPlayerView(
-              video: session.video,
-              thumb: session.thumb,
-              width: session.width,
-              height: session.height,
-              sourceChatId: session.chatId,
-              messageId: session.messageId,
-            ),
+            builder: (_) => VideoPlaylistPlayerView(queue: session.queue),
           ),
         );
     }
@@ -597,23 +596,19 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute(
               fullscreenDialog: true,
-              builder: (routeContext) => VideoPlayerView(
-                video: modeSession.video,
-                thumb: modeSession.thumb,
-                width: modeSession.width,
-                height: modeSession.height,
-                sourceChatId: modeSession.chatId,
-                messageId: modeSession.messageId,
-                onSwitchMode: (nextMode) {
+              builder: (routeContext) => VideoPlaylistPlayerView(
+                queue: modeSession.queue,
+                onSwitchMode: (queue, nextMode) {
+                  final currentSession = VideoSplitSession.fromQueue(queue);
                   switch (nextMode) {
                     case VideoDisplayMode.fullscreen:
                       break;
                     case VideoDisplayMode.pictureInPicture:
                       Navigator.of(routeContext).maybePop();
-                      _showSplitVideoPictureInPicture(modeSession);
+                      _showSplitVideoPictureInPicture(currentSession);
                     case VideoDisplayMode.split:
                       Navigator.of(routeContext).maybePop();
-                      _videoSplit.play(modeSession);
+                      _videoSplit.play(currentSession);
                   }
                 },
               ),
@@ -736,7 +731,9 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(14),
                             child: VideoPlayerView(
-                              key: ValueKey(currentSession.video.id),
+                              key: ValueKey(
+                                '${currentSession.video.id}:${currentSession.messageId ?? 0}',
+                              ),
                               video: currentSession.video,
                               thumb: currentSession.thumb,
                               width: currentSession.width,
@@ -747,6 +744,14 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                               onClose: close,
                               sourceChatId: currentSession.chatId,
                               messageId: currentSession.messageId,
+                              previousVideo: currentSession.queue.previous,
+                              nextVideo: currentSession.queue.next,
+                              onNavigate: (delta) {
+                                final nextSession = currentSession.moveBy(
+                                  delta,
+                                );
+                                if (nextSession != null) pip.play(nextSession);
+                              },
                               currentMode: VideoDisplayMode.pictureInPicture,
                               onSwitchMode: (mode) =>
                                   switchMode(mode, currentSession),

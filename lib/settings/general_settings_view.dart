@@ -19,6 +19,7 @@ import '../tdlib/td_client.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'auto_download_media_controller.dart';
+import 'video_playback_settings_view.dart';
 
 class GeneralSettingsView extends StatefulWidget {
   const GeneralSettingsView({super.key});
@@ -304,8 +305,55 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
             theme.preserveSenderWhenRepeating,
             (v) => theme.preserveSenderWhenRepeating = v,
           ),
+          const InsetDivider(leadingInset: 56),
+          _navigationRow(
+            HeroAppIcons.video,
+            const Color(0xFFAF52DE),
+            AppStringKeys.videoPlaybackSettingsTitle,
+            () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const VideoPlaybackSettingsView(),
+              ),
+            ),
+          ),
         ]),
       ],
+    );
+  }
+
+  Widget _navigationRow(
+    AppIconData icon,
+    Color color,
+    String title,
+    VoidCallback onTap,
+  ) {
+    final c = context.colors;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: 52,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              _iconBadge(icon.data, color),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title.l10n(context),
+                  style: TextStyle(fontSize: 16, color: c.textPrimary),
+                ),
+              ),
+              AppIcon(
+                HeroAppIcons.chevronRight,
+                size: 17,
+                color: c.textTertiary,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

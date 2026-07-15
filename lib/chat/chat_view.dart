@@ -75,6 +75,7 @@ import 'rich_text_composer_view.dart';
 import 'sticker_set_detail_view.dart';
 import 'sticker_viewer.dart';
 import 'telegram_mini_app_view.dart';
+import 'video_playback_queue.dart';
 import 'video_player_view.dart';
 
 class _MessageDeleteOptions {
@@ -2129,8 +2130,7 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _playVideo(ChatMessage message, {bool muted = false}) {
-    final v = message.video;
-    if (v == null) return;
+    if (message.video == null) return;
     final session = _videoSession(message);
     if (VideoSplitController.instance.isOpen) {
       VideoSplitController.instance.play(session);
@@ -2143,81 +2143,73 @@ class _ChatViewState extends State<ChatView> {
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (routeContext) => VideoPlayerView(
-          video: v,
-          thumb: message.image,
-          width: message.imageWidth,
-          height: message.imageHeight,
-          sourceChatId: widget.chatId,
-          messageId: message.id,
+        builder: (routeContext) => VideoPlaylistPlayerView(
+          queue: session.queue,
           initialMuted: muted,
-          onSwitchMode: (mode) => _switchVideoMode(routeContext, message, mode),
+          onSwitchMode: (queue, mode) =>
+              _switchVideoMode(routeContext, queue, mode),
         ),
       ),
     );
   }
 
   VideoSplitSession _videoSession(ChatMessage message) {
-    return VideoSplitSession(
-      chatId: widget.chatId,
-      title: widget.title,
-      video: message.video!,
-      thumb: message.image,
-      width: message.imageWidth,
-      height: message.imageHeight,
-      messageId: message.id,
+    final videoMessages = _vm.messages
+        .where((candidate) => candidate.video != null)
+        .toList();
+    if (!videoMessages.any((candidate) => candidate.id == message.id)) {
+      videoMessages.add(message);
+    }
+    final items = [
+      for (final candidate in videoMessages)
+        VideoPlaybackItem(
+          video: candidate.video!,
+          thumb: candidate.image,
+          width: candidate.imageWidth,
+          height: candidate.imageHeight,
+          sourceChatId: widget.chatId,
+          messageId: candidate.id,
+          title: _videoPlaybackTitle(candidate),
+        ),
+    ];
+    final index = videoMessages.indexWhere(
+      (candidate) => candidate.id == message.id,
     );
+    return VideoSplitSession.fromQueue(
+      VideoPlaybackQueue(items: items, index: index < 0 ? 0 : index),
+    );
+  }
+
+  String _videoPlaybackTitle(ChatMessage message) {
+    final text = message.text.trim().replaceAll('\n', ' ');
+    if (text.isEmpty || (text.startsWith('[') && text.endsWith(']'))) {
+      return widget.title;
+    }
+    return text;
   }
 
   void _switchVideoMode(
     BuildContext routeContext,
-    ChatMessage message,
+    VideoPlaybackQueue queue,
     VideoDisplayMode mode,
   ) {
+    final session = VideoSplitSession.fromQueue(queue);
     switch (mode) {
       case VideoDisplayMode.fullscreen:
         break;
       case VideoDisplayMode.pictureInPicture:
-        _showVideoPictureInPicture(
-          routeContext,
-          message,
-          widget.chatId,
-          widget.title,
-        );
+        _showVideoPictureInPicture(routeContext, session);
         Navigator.of(routeContext).maybePop();
       case VideoDisplayMode.split:
-        VideoSplitController.instance.play(
-          VideoSplitSession(
-            chatId: widget.chatId,
-            title: widget.title,
-            video: message.video!,
-            thumb: message.image,
-            width: message.imageWidth,
-            height: message.imageHeight,
-            messageId: message.id,
-          ),
-        );
+        VideoSplitController.instance.play(session);
         Navigator.of(routeContext).maybePop();
     }
   }
 
   static void _showVideoPictureInPicture(
     BuildContext context,
-    ChatMessage message,
-    int chatId,
-    String title,
+    VideoSplitSession initialSession,
   ) {
-    final v = message.video;
-    if (v == null) return;
-    final initialSession = VideoSplitSession(
-      chatId: chatId,
-      title: title,
-      video: v,
-      thumb: message.image,
-      width: message.imageWidth,
-      height: message.imageHeight,
-      messageId: message.id,
-    );
     final pip = VideoPiPController.instance;
     if (_globalPictureInPictureVideo != null) {
       pip.play(initialSession);
@@ -2369,7 +2361,9 @@ class _ChatViewState extends State<ChatView> {
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(14),
                             child: VideoPlayerView(
-                              key: ValueKey(session.video.id),
+                              key: ValueKey(
+                                '${session.video.id}:${session.messageId ?? 0}',
+                              ),
                               video: session.video,
                               thumb: session.thumb,
                               width: session.width,
@@ -2380,6 +2374,12 @@ class _ChatViewState extends State<ChatView> {
                               onClose: close,
                               sourceChatId: session.chatId,
                               messageId: session.messageId,
+                              previousVideo: session.queue.previous,
+                              nextVideo: session.queue.next,
+                              onNavigate: (delta) {
+                                final nextSession = session.moveBy(delta);
+                                if (nextSession != null) pip.play(nextSession);
+                              },
                               currentMode: VideoDisplayMode.pictureInPicture,
                               onSwitchMode: (mode) => _switchPiPSessionMode(
                                 context,
@@ -6178,22 +6178,18 @@ void _switchPiPSessionMode(
       navigator.push(
         MaterialPageRoute(
           fullscreenDialog: true,
-          builder: (routeContext) => VideoPlayerView(
-            video: session.video,
-            thumb: session.thumb,
-            width: session.width,
-            height: session.height,
-            sourceChatId: session.chatId,
-            messageId: session.messageId,
-            onSwitchMode: (nextMode) {
+          builder: (routeContext) => VideoPlaylistPlayerView(
+            queue: session.queue,
+            onSwitchMode: (queue, nextMode) {
+              final currentSession = VideoSplitSession.fromQueue(queue);
               switch (nextMode) {
                 case VideoDisplayMode.fullscreen:
                   break;
                 case VideoDisplayMode.pictureInPicture:
-                  VideoPiPController.instance.play(session);
+                  VideoPiPController.instance.play(currentSession);
                   Navigator.of(routeContext).maybePop();
                 case VideoDisplayMode.split:
-                  VideoSplitController.instance.play(session);
+                  VideoSplitController.instance.play(currentSession);
                   Navigator.of(routeContext).maybePop();
               }
             },

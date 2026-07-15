@@ -23,6 +23,7 @@ import '../chat/rich_text_composer_view.dart';
 import '../chat/rich_text_format.dart';
 import '../chat/shared_media_view.dart';
 import '../chat/telegram_rich_text.dart';
+import '../chat/video_playback_queue.dart';
 import '../chat/video_player_view.dart';
 import '../chats/chat_list_view_model.dart';
 import '../components/app_icons.dart';
@@ -3761,19 +3762,33 @@ class _PostImageGroup extends StatelessWidget {
       Navigator.of(context).push(
         MaterialPageRoute(
           fullscreenDialog: true,
-          builder: (_) => VideoPlayerView(
-            video: video,
-            thumb: message.image,
-            width: message.imageWidth,
-            height: message.imageHeight,
-            sourceChatId: sourceChatId,
-            messageId: message.id,
-          ),
+          builder: (_) => VideoPlaylistPlayerView(queue: _videoQueue(message)),
         ),
       );
       return;
     }
     _openImage(context, message);
+  }
+
+  VideoPlaybackQueue _videoQueue(ChatMessage current) {
+    final videos = messages.where((message) => message.video != null).toList();
+    if (!videos.any((message) => message.id == current.id)) videos.add(current);
+    final index = videos.indexWhere((message) => message.id == current.id);
+    return VideoPlaybackQueue(
+      items: [
+        for (final message in videos)
+          VideoPlaybackItem(
+            video: message.video!,
+            thumb: message.image,
+            width: message.imageWidth,
+            height: message.imageHeight,
+            sourceChatId: sourceChatId,
+            messageId: message.id,
+            title: message.text.trim().replaceAll('\n', ' '),
+          ),
+      ],
+      index: index < 0 ? 0 : index,
+    );
   }
 
   void _openImage(BuildContext context, ChatMessage startMessage) {

@@ -1795,6 +1795,31 @@ abstract final class AppStringKeys {
       'videoPlayerStreamingWhileDownloading';
   static const videoPlayerToggleDisplayMode = 'videoPlayerToggleDisplayMode';
   static const videoPlayerWaitingForFile = 'videoPlayerWaitingForFile';
+  static const videoPlaybackSettingsTitle = 'videoPlaybackSettingsTitle';
+  static const videoPlaybackHorizontalSwipe = 'videoPlaybackHorizontalSwipe';
+  static const videoPlaybackSwipeDisabled = 'videoPlaybackSwipeDisabled';
+  static const videoPlaybackSwipeAdjustProgress =
+      'videoPlaybackSwipeAdjustProgress';
+  static const videoPlaybackSwipeChangeVideo = 'videoPlaybackSwipeChangeVideo';
+  static const videoPlaybackSwipeSkipTenSeconds =
+      'videoPlaybackSwipeSkipTenSeconds';
+  static const videoPlaybackWhenFinished = 'videoPlaybackWhenFinished';
+  static const videoPlaybackFinishedAsk = 'videoPlaybackFinishedAsk';
+  static const videoPlaybackFinishedAutoplayNext =
+      'videoPlaybackFinishedAutoplayNext';
+  static const videoPlaybackFinishedReplay = 'videoPlaybackFinishedReplay';
+  static const videoPlaybackFinishedReturnToChat =
+      'videoPlaybackFinishedReturnToChat';
+  static const videoPlayerFinished = 'videoPlayerFinished';
+  static const videoPlayerUpNext = 'videoPlayerUpNext';
+  static const videoPlayerPlayNext = 'videoPlayerPlayNext';
+  static const videoPlayerReplay = 'videoPlayerReplay';
+  static const videoPlayerReturnToChat = 'videoPlayerReturnToChat';
+  static const videoPlayerNextVideo = 'videoPlayerNextVideo';
+  static const videoPlayerPreviousVideo = 'videoPlayerPreviousVideo';
+  static const videoPlayerNoNextVideo = 'videoPlayerNoNextVideo';
+  static const videoPlayerNoPreviousVideo = 'videoPlayerNoPreviousVideo';
+  static const videoPlayerSwipeFurther = 'videoPlayerSwipeFurther';
   static const vipBadgeLabel = 'vipBadgeLabel';
 }
 
