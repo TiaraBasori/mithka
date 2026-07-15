@@ -196,7 +196,7 @@ class _SettingsViewState extends State<SettingsView> {
                 color: color,
                 borderRadius: BorderRadius.circular(7),
               ),
-              child: Icon(icon, size: 15, color: Colors.white),
+              child: Icon(icon, size: 15, color: readableForeground(color)),
             ),
             const SizedBox(width: 12),
             Expanded(

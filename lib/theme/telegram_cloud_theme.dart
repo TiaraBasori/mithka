@@ -45,6 +45,8 @@ class TelegramCloudTheme {
   final Map<String, int> palette;
   final ChatWallpaper? wallpaper;
 
+  bool get isBuiltIn => slug.startsWith('builtin:');
+
   bool get isDark =>
       baseTheme == 'builtInThemeNight' || baseTheme == 'builtInThemeTinted';
 
@@ -52,6 +54,43 @@ class TelegramCloudTheme {
     accentColorValue,
     fallback: isDark ? const Color(0xFF5EA0FF) : const Color(0xFF4B8DEE),
   );
+
+  /// Returns an official built-in theme with a user-selected Telegram tint.
+  /// Imported `.attheme` palettes are intentionally immutable: changing a
+  /// color there would no longer represent the installed theme document.
+  TelegramCloudTheme withBuiltInAccent(Color color) {
+    if (!isBuiltIn) return this;
+    final rgb = color.toARGB32() & 0x00FFFFFF;
+    final updatedPalette = Map<String, int>.of(palette);
+    for (final key in const [
+      'list.accent',
+      'windowBackgroundWhiteBlueText',
+      'windowActiveTextFg',
+      'list_itemAccent',
+      'chat_linkText',
+    ]) {
+      updatedPalette[key] = rgb;
+    }
+    final hsl = HSLColor.fromColor(color);
+    final outgoing = isDark
+        ? hsl
+              .withSaturation((hsl.saturation * 0.72).clamp(0.18, 0.78))
+              .withLightness((hsl.lightness * 0.58).clamp(0.20, 0.42))
+              .toColor()
+        : hsl
+              .withSaturation((hsl.saturation * 0.34).clamp(0.10, 0.42))
+              .withLightness((0.90 + hsl.lightness * 0.06).clamp(0.88, 0.96))
+              .toColor();
+    return TelegramCloudTheme(
+      slug: slug,
+      title: title,
+      baseTheme: baseTheme,
+      accentColorValue: rgb,
+      outgoingColors: [outgoing.toARGB32() & 0x00FFFFFF],
+      palette: Map.unmodifiable(updatedPalette),
+      wallpaper: wallpaper,
+    );
+  }
 
   Color? get outgoingColor {
     if (outgoingColors.isEmpty) {
@@ -91,7 +130,9 @@ class TelegramCloudTheme {
     'historyTextInFg',
   ]);
 
-  AppColors get appColors {
+  /// Semantic UI variables derived from Telegram's platform-specific keys.
+  /// Consumers should use these tokens instead of reading raw palette keys.
+  AppColors get uiColors {
     final base = isDark ? AppColors.dark : AppColors.light;
     Color value(List<String> keys, Color fallback) =>
         _paletteColor(keys) ?? fallback;
@@ -128,9 +169,24 @@ class TelegramCloudTheme {
     final chatBackground =
         _wallpaperColor() ??
         value(const ['chat_wallpaper', 'chat_background'], base.chatBackground);
+    final accent = value(const [
+      'list.accent',
+      'windowBackgroundWhiteBlueText',
+      'windowActiveTextFg',
+      'list_itemAccent',
+      'chat_linkText',
+    ], accentColor);
     return base.copyWith(
       background: background,
-      pinnedRow: value(const ['chatList_pinnedItemBackground'], base.pinnedRow),
+      pinnedRow: value(const [
+        'chatList.pinnedItemBackground',
+        'chatList_pinnedItemBackground',
+        'chatListPinnedItemBackground',
+        'chats_pinnedOverlay',
+        'list.itemHighlightedBg',
+        'list.itemHighlightedBackground',
+        'list_itemHighlightedBackground',
+      ], background),
       listHeaderTint: value(const [
         'chatList.sectionHeaderBg',
         'chats_menuTopBackground',
@@ -194,15 +250,12 @@ class TelegramCloudTheme {
         'list_itemSeparator',
         'chatList_itemSeparator',
       ], base.divider),
-      linkBlue: value(const [
-        'list.accent',
-        'windowBackgroundWhiteBlueText',
-        'windowActiveTextFg',
-        'list_itemAccent',
-        'chat_linkText',
-      ], accentColor),
+      linkBlue: accent,
+      onAccent: readableForeground(accent),
     );
   }
+
+  AppColors get appColors => uiColors;
 
   Color? _paletteColor(List<String> keys) {
     for (final key in keys) {
@@ -257,6 +310,91 @@ class TelegramCloudTheme {
   }
 }
 
+/// Telegram iOS exposes these four built-in global themes alongside installed
+/// cloud themes. Emoji-labelled chat themes are a separate carousel.
+const builtInTelegramCloudThemes = <TelegramCloudTheme>[
+  TelegramCloudTheme(
+    slug: 'builtin:classic',
+    title: 'Classic',
+    baseTheme: 'builtInThemeClassic',
+    accentColorValue: 0x168ACD,
+    outgoingColors: [0xE1FFC7],
+    palette: {
+      'list.plainBg': 0xFFFFFF,
+      'list.itemBlocksBg': 0xFFFFFF,
+      'list.blocksBg': 0xF2F2F7,
+      'list.primaryText': 0x000000,
+      'list.secondaryText': 0x8E8E93,
+      'list.accent': 0x168ACD,
+      'root.navBar.opaqueBackground': 0xF7F7F7,
+      'chat.message.incoming.bubble.withWp.bg': 0xFFFFFF,
+      'chat.message.incoming.primaryText': 0x171717,
+      'chat.message.outgoing.primaryText': 0x171717,
+      'chats_pinnedOverlay': 0xFFFFFF,
+    },
+  ),
+  TelegramCloudTheme(
+    slug: 'builtin:day',
+    title: 'Day',
+    baseTheme: 'builtInThemeDay',
+    accentColorValue: 0x2481CC,
+    outgoingColors: [0xD8F3FF],
+    palette: {
+      'list.plainBg': 0xFFFFFF,
+      'list.itemBlocksBg': 0xFFFFFF,
+      'list.blocksBg': 0xF2F2F7,
+      'list.primaryText': 0x000000,
+      'list.secondaryText': 0x8E8E93,
+      'list.accent': 0x2481CC,
+      'root.navBar.opaqueBackground': 0xFFFFFF,
+      'chat.message.incoming.bubble.withWp.bg': 0xFFFFFF,
+      'chat.message.incoming.primaryText': 0x171717,
+      'chat.message.outgoing.primaryText': 0x171717,
+      'chats_pinnedOverlay': 0xFFFFFF,
+    },
+  ),
+  TelegramCloudTheme(
+    slug: 'builtin:dark',
+    title: 'Dark',
+    baseTheme: 'builtInThemeTinted',
+    accentColorValue: 0x6AB3F3,
+    outgoingColors: [0x2B5278],
+    palette: {
+      'list.plainBg': 0x17212B,
+      'list.itemBlocksBg': 0x17212B,
+      'list.blocksBg': 0x0E1621,
+      'list.primaryText': 0xF5F5F5,
+      'list.secondaryText': 0x708499,
+      'list.accent': 0x6AB3F3,
+      'root.navBar.opaqueBackground': 0x17212B,
+      'chat.message.incoming.bubble.withWp.bg': 0x182533,
+      'chat.message.incoming.primaryText': 0xF5F5F5,
+      'chat.message.outgoing.primaryText': 0xFFFFFF,
+      'chats_pinnedOverlay': 0x17212B,
+    },
+  ),
+  TelegramCloudTheme(
+    slug: 'builtin:night',
+    title: 'Night',
+    baseTheme: 'builtInThemeNight',
+    accentColorValue: 0x6AB3F3,
+    outgoingColors: [0x3D5A80],
+    palette: {
+      'list.plainBg': 0x0E1621,
+      'list.itemBlocksBg': 0x0E1621,
+      'list.blocksBg': 0x090F17,
+      'list.primaryText': 0xF5F5F5,
+      'list.secondaryText': 0x708499,
+      'list.accent': 0x6AB3F3,
+      'root.navBar.opaqueBackground': 0x0E1621,
+      'chat.message.incoming.bubble.withWp.bg': 0x182533,
+      'chat.message.incoming.primaryText': 0xF5F5F5,
+      'chat.message.outgoing.primaryText': 0xFFFFFF,
+      'chats_pinnedOverlay': 0x0E1621,
+    },
+  ),
+];
+
 class TelegramCloudThemeService {
   TelegramCloudThemeService({
     TelegramThemeQuery? query,
@@ -269,6 +407,77 @@ class TelegramCloudThemeService {
   final TelegramThemeQuery _query;
   final TelegramThemeFilePath _filePath;
   final TelegramThemeSupportDirectory _supportDirectory;
+
+  /// Loads every account-level cloud theme saved in Telegram, then appends
+  /// locally imported themes that aren't present in Telegram's response.
+  ///
+  /// `getInstalledCloudThemes` is a small Mithka TDLib extension backed by
+  /// `account.getThemes`. Released builds with an older stock TDLib don't know
+  /// that request, so failure deliberately falls back to [fallback] instead of
+  /// making the user's locally imported theme library disappear.
+  Future<List<TelegramCloudTheme>> loadInstalled({
+    Iterable<TelegramCloudTheme> fallback = const [],
+  }) async {
+    final localBySlug = <String, TelegramCloudTheme>{};
+    for (final theme in fallback) {
+      if (theme.slug.isNotEmpty && !theme.slug.startsWith('builtin:')) {
+        localBySlug[theme.slug] = theme;
+      }
+    }
+
+    late final Map<String, dynamic> response;
+    try {
+      response = await _query({
+        '@type': 'getInstalledCloudThemes',
+        // Telegram iOS requests this exact platform format. Theme documents
+        // themselves still use the iOS -> Android -> Desktop fallback below.
+        'theme_format': 'ios',
+      });
+    } catch (_) {
+      return _rehydrateLocalThemes(localBySlug);
+    }
+    if (response.type != 'installedCloudThemes') {
+      return _rehydrateLocalThemes(localBySlug);
+    }
+
+    final installed = <TelegramCloudTheme>[];
+    final seen = <String>{};
+    for (final Map<String, dynamic> metadata
+        in response.objects('themes') ?? const <Map<String, dynamic>>[]) {
+      final slug = metadata.str('slug')?.trim() ?? '';
+      if (slug.isEmpty || !seen.add(slug)) continue;
+      final local = localBySlug.remove(slug);
+      try {
+        final loaded = await load('https://t.me/addtheme/$slug');
+        final title = metadata.str('title')?.trim();
+        installed.add(
+          title == null || title.isEmpty
+              ? loaded
+              : _cloudThemeWithTitle(loaded, title),
+        );
+      } catch (_) {
+        // A deleted platform document or one temporarily unavailable theme
+        // must not hide the rest. Retain the local copy when one exists.
+        if (local != null) installed.add(local);
+      }
+    }
+    installed.addAll(localBySlug.values);
+    return List.unmodifiable(installed);
+  }
+
+  Future<List<TelegramCloudTheme>> _rehydrateLocalThemes(
+    Map<String, TelegramCloudTheme> localBySlug,
+  ) async {
+    final refreshed = <TelegramCloudTheme>[];
+    for (final entry in localBySlug.entries) {
+      try {
+        refreshed.add(await load('https://t.me/addtheme/${entry.key}'));
+      } catch (_) {
+        refreshed.add(entry.value);
+      }
+    }
+    return List.unmodifiable(refreshed);
+  }
 
   Future<TelegramCloudTheme> load(String link) async {
     final normalized = _normalizedThemeLink(link);
@@ -380,6 +589,7 @@ class TelegramCloudThemeService {
         backgroundId: 0,
         remoteType: 'wallpaper',
         imagePath: output.path,
+        backgroundName: slug,
         mimeType: extension == '.png' ? 'image/png' : 'image/jpeg',
         isTiled: parsed.wallpaperIsTiled,
       );
@@ -393,27 +603,57 @@ class TelegramCloudThemeService {
   Future<ChatWallpaper?> _resolveIosWallpaperDescriptor(
     String descriptor,
   ) async {
-    final parts = descriptor
+    final rawParts = descriptor
         .trim()
         .split(RegExp(r'\s+'))
         .where((item) => item.isNotEmpty)
-        .toList(growable: false);
-    if (parts.isEmpty || parts.first.toLowerCase() == 'builtin') return null;
+        .toList();
+    if (rawParts.isEmpty || rawParts.first.toLowerCase() == 'builtin') {
+      return null;
+    }
     String? backgroundName;
     final colors = <int>[];
     int? intensity;
     var rotation = 0;
     var blur = false;
+    var motion = false;
+    final firstUri = Uri.tryParse(rawParts.first);
+    if (firstUri != null &&
+        (firstUri.host == 't.me' || firstUri.host == 'telegram.me') &&
+        firstUri.pathSegments.length >= 2 &&
+        firstUri.pathSegments.first.toLowerCase() == 'bg') {
+      backgroundName = firstUri.pathSegments.last;
+      final linkedColors = firstUri.queryParameters['bg_color'];
+      if (linkedColors != null) {
+        for (final value in linkedColors.split(RegExp(r'[~-]'))) {
+          final color = _parseWallpaperColor(value);
+          if (color != null) colors.add(color);
+        }
+      }
+      intensity = int.tryParse(firstUri.queryParameters['intensity'] ?? '');
+      rotation =
+          int.tryParse(firstUri.queryParameters['rotation'] ?? '') ?? rotation;
+      final modes = (firstUri.queryParameters['mode'] ?? '')
+          .split(RegExp(r'[+\s]'))
+          .map((value) => value.toLowerCase())
+          .toSet();
+      blur = modes.contains('blur');
+      motion = modes.contains('motion');
+      rawParts.removeAt(0);
+    }
+    final parts = rawParts;
     for (var index = 0; index < parts.length; index++) {
       final part = parts[index];
       final color = _parseWallpaperColor(part);
-      if (index == 0 && color == null && part.length > 8) {
+      if (backgroundName == null && index == 0 && color == null) {
         backgroundName = part;
       } else if (color != null) {
         colors.add(color);
       } else if (part == 'blur') {
         blur = true;
-      } else if (part != 'motion') {
+      } else if (part == 'motion') {
+        motion = true;
+      } else {
         final number = int.tryParse(part);
         if (number != null && intensity == null && number.abs() <= 100) {
           intensity = number;
@@ -446,12 +686,15 @@ class TelegramCloudThemeService {
         remoteType: remote.remoteType ?? 'wallpaper',
         fileId: remote.fileId,
         imagePath: remote.imagePath,
+        backgroundName: remote.backgroundName,
         mimeType: remote.mimeType,
         colors: remote.colors,
         rotationAngle: remote.rotationAngle,
         intensity: remote.intensity,
         isInverted: remote.isInverted,
         isBlurred: blur || remote.isBlurred,
+        isMoving: motion || remote.isMoving,
+        isTiled: remote.isTiled,
       );
     }
     return ChatWallpaper.telegram(
@@ -459,12 +702,15 @@ class TelegramCloudThemeService {
       remoteType: 'pattern',
       fileId: remote.fileId,
       imagePath: remote.imagePath,
+      backgroundName: remote.backgroundName,
       mimeType: remote.mimeType,
       colors: colors,
       rotationAngle: rotation,
       intensity: intensity?.abs() ?? remote.intensity,
       isInverted: (intensity ?? 0) < 0,
       isBlurred: blur,
+      isMoving: motion || remote.isMoving,
+      isTiled: remote.isTiled,
     );
   }
 
@@ -496,6 +742,7 @@ ChatWallpaper? _parseBackground(Map<String, dynamic>? background) {
     remoteType: remoteType,
     fileId: file?.integer('id') ?? 0,
     imagePath: file?.obj('local')?.str('path'),
+    backgroundName: background.str('name'),
     mimeType: document?.str('mime_type'),
     themeName: type?.str('theme_name'),
     colors: _fillColors(fill),
@@ -505,6 +752,19 @@ ChatWallpaper? _parseBackground(Map<String, dynamic>? background) {
     isBlurred: type?.boolean('is_blurred') ?? false,
   );
 }
+
+TelegramCloudTheme _cloudThemeWithTitle(
+  TelegramCloudTheme theme,
+  String title,
+) => TelegramCloudTheme(
+  slug: theme.slug,
+  title: title,
+  baseTheme: theme.baseTheme,
+  accentColorValue: theme.accentColorValue,
+  outgoingColors: theme.outgoingColors,
+  palette: theme.palette,
+  wallpaper: theme.wallpaper,
+);
 
 List<int> _fillColors(Map<String, dynamic>? fill) => switch (fill?.type) {
   'backgroundFillSolid' => [fill?.integer('color') ?? 0],

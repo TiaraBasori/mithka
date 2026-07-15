@@ -31,6 +31,7 @@ import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
 import '../theme/theme_controller.dart';
 import 'animated_sticker_view.dart';
+import 'chat_appearance_preview.dart';
 import 'custom_emoji.dart';
 import 'file_detail_view.dart';
 import 'link_handler.dart';
@@ -443,16 +444,20 @@ class _MessageBubbleState extends State<MessageBubble>
                                 const SizedBox(width: 4),
                               ],
                               Flexible(
-                                child: Text(
-                                  message.senderName!,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: premiumNameColor,
-                                    fontWeight: message.senderIsPremium
-                                        ? FontWeight.w600
-                                        : FontWeight.w400,
+                                child: SenderNameReadabilityPlate(
+                                  enabled: theme.showSenderNameReadabilityPlate,
+                                  bubbleColor: _incomingBubbleColor,
+                                  child: Text(
+                                    message.senderName!,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: premiumNameColor,
+                                      fontWeight: message.senderIsPremium
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                    ),
                                   ),
                                 ),
                               ),

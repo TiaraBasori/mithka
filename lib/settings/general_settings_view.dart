@@ -5,7 +5,6 @@
 //  of the Swift `GeneralSettingsView` / `GeneralSettingsViewModel`.
 //
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -187,7 +186,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
       color: color,
       borderRadius: BorderRadius.circular(7),
     ),
-    child: Icon(icon, size: 15, color: Colors.white),
+    child: Icon(icon, size: 15, color: readableForeground(color)),
   );
 
   Widget _card(List<Widget> children) {
@@ -219,11 +218,15 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
                     const Color(0xFF16B0A0),
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    AppStrings.t(AppStringKeys.generalCacheSize),
-                    style: TextStyle(fontSize: 16, color: c.textPrimary),
+                  Expanded(
+                    child: Text(
+                      AppStrings.t(AppStringKeys.generalCacheSize),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 16, color: c.textPrimary),
+                    ),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 12),
                   if (_loadingCache)
                     const SizedBox(
                       width: 16,
@@ -249,13 +252,17 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
-                    Text(
-                      _clearing
-                          ? AppStrings.t(AppStringKeys.generalClearingCache)
-                          : AppStrings.t(AppStringKeys.generalClearCache),
-                      style: TextStyle(fontSize: 16, color: AppTheme.tagRed),
+                    Expanded(
+                      child: Text(
+                        _clearing
+                            ? AppStrings.t(AppStringKeys.generalClearingCache)
+                            : AppStrings.t(AppStringKeys.generalClearCache),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 16, color: AppTheme.tagRed),
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 12),
                     if (_clearing)
                       const SizedBox(
                         width: 16,
@@ -342,9 +349,12 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
               Expanded(
                 child: Text(
                   title.l10n(context),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 16, color: c.textPrimary),
                 ),
               ),
+              const SizedBox(width: 8),
               AppIcon(
                 HeroAppIcons.chevronRight,
                 size: 17,
@@ -373,16 +383,16 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
           children: [
             _iconBadge(icon, color),
             const SizedBox(width: 12),
-            Text(
-              title.l10n(context),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+            Expanded(
+              child: Text(
+                title.l10n(context),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 16, color: c.textPrimary),
+              ),
             ),
-            const Spacer(),
-            CupertinoSwitch(
-              value: value,
-              activeTrackColor: AppTheme.brand,
-              onChanged: onChanged,
-            ),
+            const SizedBox(width: 12),
+            AppSwitch(value: value, onChanged: onChanged),
           ],
         ),
       ),
@@ -429,11 +439,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
               ),
             ),
             const SizedBox(width: 12),
-            CupertinoSwitch(
-              value: value,
-              activeTrackColor: AppTheme.brand,
-              onChanged: disabled ? null : onChanged,
-            ),
+            AppSwitch(value: value, enabled: !disabled, onChanged: onChanged),
           ],
         ),
       ),

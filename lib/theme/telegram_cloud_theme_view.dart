@@ -10,13 +10,18 @@ import 'telegram_cloud_theme.dart';
 import 'theme_controller.dart';
 
 class TelegramCloudThemePreviewView extends StatelessWidget {
-  const TelegramCloudThemePreviewView({super.key, required this.theme});
+  const TelegramCloudThemePreviewView({
+    super.key,
+    required this.theme,
+    this.targetBrightness,
+  });
 
   final TelegramCloudTheme theme;
+  final Brightness? targetBrightness;
 
   @override
   Widget build(BuildContext context) {
-    final colors = theme.appColors;
+    final colors = theme.uiColors;
     return ColoredBox(
       color: colors.groupedBackground,
       child: Column(
@@ -95,10 +100,7 @@ class TelegramCloudThemePreviewView extends StatelessWidget {
   Widget _chatPreview(BuildContext context, AppColors colors) {
     final outgoing = theme.outgoingColor ?? theme.accentColor;
     final outgoingText =
-        theme.outgoingTextColor ??
-        (outgoing.computeLuminance() > 0.64
-            ? const Color(0xFF171717)
-            : const Color(0xFFFFFFFF));
+        theme.outgoingTextColor ?? readableForeground(outgoing);
     final incoming = theme.incomingColor ?? colors.bubbleIncoming;
     final incomingText = theme.incomingTextColor ?? colors.bubbleIncomingText;
     final wallpaperController = ChatWallpaperController.shared;
@@ -170,7 +172,10 @@ class TelegramCloudThemePreviewView extends StatelessWidget {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          context.read<ThemeController>().installCloudTheme(theme);
+          context.read<ThemeController>().installCloudTheme(
+            theme,
+            brightness: targetBrightness,
+          );
           Navigator.of(context).pop();
         },
         child: Container(
@@ -183,9 +188,7 @@ class TelegramCloudThemePreviewView extends StatelessWidget {
           child: Text(
             AppStringKeys.cloudThemeApply.l10n(context),
             style: AppTextStyle.bodyLarge(
-              theme.accentColor.computeLuminance() > 0.64
-                  ? const Color(0xFF171717)
-                  : const Color(0xFFFFFFFF),
+              readableForeground(theme.accentColor),
               weight: AppTextWeight.bold,
             ),
           ),

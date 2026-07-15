@@ -235,7 +235,11 @@ class _BusinessSettingsViewState extends State<BusinessSettingsView> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Center(
-                  child: AppIcon(icon, size: 17, color: Colors.white),
+                  child: AppIcon(
+                    icon,
+                    size: 17,
+                    color: readableForeground(iconColor),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -641,9 +645,8 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
                     children: [
                       _hoursRow(
                         AppStrings.t(AppStringKeys.businessSettingsAlwaysOpen),
-                        CupertinoSwitch(
+                        AppSwitch(
                           value: _alwaysOpen,
-                          activeTrackColor: AppTheme.brand,
                           onChanged: (value) =>
                               setState(() => _alwaysOpen = value),
                         ),
@@ -719,9 +722,12 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
         Expanded(
           child: Text(
             title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 16, color: context.colors.textPrimary),
           ),
         ),
+        const SizedBox(width: 12),
         trailing,
       ],
     ),
@@ -738,6 +744,8 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
             width: 92,
             child: Text(
               AppStrings.t(_dayKeys[day]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 15, color: c.textPrimary),
             ),
           ),
@@ -764,9 +772,8 @@ class _BusinessOpeningHoursViewState extends State<_BusinessOpeningHoursView> {
           ] else
             const Spacer(),
           const SizedBox(width: 10),
-          CupertinoSwitch(
+          AppSwitch(
             value: value.enabled,
-            activeTrackColor: AppTheme.brand,
             onChanged: (enabled) => setState(() => value.enabled = enabled),
           ),
         ],

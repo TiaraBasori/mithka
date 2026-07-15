@@ -6,7 +6,6 @@
 
 import 'dart:math' as math;
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
@@ -262,16 +261,16 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
           children: [
             _iconBadge(context, icon, const Color(0xFF34A2DF)),
             const SizedBox(width: 12),
-            Text(
-              title.l10n(context),
-              style: TextStyle(fontSize: 16, color: c.textPrimary),
+            Expanded(
+              child: Text(
+                title.l10n(context),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 16, color: c.textPrimary),
+              ),
             ),
-            const Spacer(),
-            CupertinoSwitch(
-              value: value,
-              activeTrackColor: AppTheme.brand,
-              onChanged: onChanged,
-            ),
+            const SizedBox(width: 12),
+            AppSwitch(value: value, onChanged: onChanged),
           ],
         ),
       ),
@@ -341,6 +340,6 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
           color: color,
           borderRadius: BorderRadius.circular(7),
         ),
-        child: Icon(icon, size: 15, color: Colors.white),
+        child: Icon(icon, size: 15, color: readableForeground(color)),
       );
 }

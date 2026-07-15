@@ -798,7 +798,7 @@ class _SheetActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final background = filled ? AppTheme.brand : c.card;
-    final foreground = filled ? const Color(0xFFFFFFFF) : AppTheme.brand;
+    final foreground = filled ? AppTheme.onBrand : AppTheme.brand;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onPressed,

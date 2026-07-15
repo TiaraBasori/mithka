@@ -225,6 +225,9 @@ abstract final class AppStringKeys {
   static const appearanceChatFoldersTabs = 'appearanceChatFoldersTabs';
   static const appearanceChatList = 'appearanceChatList';
   static const appearanceChatView = 'appearanceChatView';
+  static const appearanceEnableTheming = 'appearanceEnableTheming';
+  static const appearanceTheme = 'appearanceTheme';
+  static const appearanceUseChatThemeForUi = 'appearanceUseChatThemeForUi';
   static const appearanceCleanableSize = 'appearanceCleanableSize';
   static const appearanceCleanUnusedFonts = 'appearanceCleanUnusedFonts';
   static const appearanceClearTextFonts = 'appearanceClearTextFonts';
@@ -285,6 +288,8 @@ abstract final class AppStringKeys {
       'appearanceShowPlainMemberRoleTags';
   static const appearanceShowPremiumNameColor =
       'appearanceShowPremiumNameColor';
+  static const appearanceSenderNameBackground =
+      'appearanceSenderNameBackground';
   static const appearanceShowPremiumStatusEmoji =
       'appearanceShowPremiumStatusEmoji';
   static const appearanceShowUnreadChatCount = 'appearanceShowUnreadChatCount';
@@ -467,8 +472,10 @@ abstract final class AppStringKeys {
   static const chatWallpaperBoostRequired = 'chatWallpaperBoostRequired';
   static const chatWallpaperColor = 'chatWallpaperColor';
   static const chatWallpaperColorTitle = 'chatWallpaperColorTitle';
+  static const chatWallpaperCurrentTheme = 'chatWallpaperCurrentTheme';
   static const chatWallpaperGlobalPreview = 'chatWallpaperGlobalPreview';
   static const chatWallpaperGlobalTitle = 'chatWallpaperGlobalTitle';
+  static const chatWallpaperGradient = 'chatWallpaperGradient';
   static const chatWallpaperIntensity = 'chatWallpaperIntensity';
   static const chatWallpaperMotion = 'chatWallpaperMotion';
   static const chatWallpaperNoTheme = 'chatWallpaperNoTheme';
@@ -484,6 +491,11 @@ abstract final class AppStringKeys {
   static const chatWallpaperSearchHint = 'chatWallpaperSearchHint';
   static const chatWallpaperSearchPowered = 'chatWallpaperSearchPowered';
   static const chatWallpaperSearchTitle = 'chatWallpaperSearchTitle';
+  static const chatWallpaperSectionCommunity = 'chatWallpaperSectionCommunity';
+  static const chatWallpaperSectionCustomize = 'chatWallpaperSectionCustomize';
+  static const chatWallpaperSectionOfficial = 'chatWallpaperSectionOfficial';
+  static const chatWallpaperSectionPatterns = 'chatWallpaperSectionPatterns';
+  static const chatWallpaperSectionSaved = 'chatWallpaperSectionSaved';
   static const chatWallpaperTelegramCurrent = 'chatWallpaperTelegramCurrent';
   static const chatWallpaperTelegramThemes = 'chatWallpaperTelegramThemes';
   static const chatWallpaperThemesShared = 'chatWallpaperThemesShared';
@@ -1001,13 +1013,23 @@ abstract final class AppStringKeys {
   static const generalTitle = 'generalTitle';
   static const globalThemeColors = 'globalThemeColors';
   static const globalThemeColorsFrom = 'globalThemeColorsFrom';
+  static const globalThemeCommunity = 'globalThemeCommunity';
+  static const globalThemeCommunityEmpty = 'globalThemeCommunityEmpty';
+  static const globalThemeCustomize = 'globalThemeCustomize';
   static const globalThemeDefault = 'globalThemeDefault';
+  static const globalThemeDay = 'globalThemeDay';
   static const globalThemeDescription = 'globalThemeDescription';
   static const globalThemeImport = 'globalThemeImport';
+  static const globalThemeInstalled = 'globalThemeInstalled';
   static const globalThemeLoading = 'globalThemeLoading';
+  static const globalThemeNight = 'globalThemeNight';
+  static const globalThemeOfficial = 'globalThemeOfficial';
   static const globalThemePreview = 'globalThemePreview';
   static const globalThemeReset = 'globalThemeReset';
   static const globalThemeTitle = 'globalThemeTitle';
+  static const globalThemeUseForUi = 'globalThemeUseForUi';
+  static const globalThemeUseForUiDescription =
+      'globalThemeUseForUiDescription';
   static const globalWallpaperTitle = 'globalWallpaperTitle';
   static const groupManagementAdminApprovalRequired =
       'groupManagementAdminApprovalRequired';
@@ -1724,6 +1746,9 @@ abstract final class AppStringKeys {
   static const tdMessageVideoMessage = 'tdMessageVideoMessage';
   static const tdMessageVoiceCall = 'tdMessageVoiceCall';
   static const themeApplePingFangFamily = 'themeApplePingFangFamily';
+  static const themeEnablePromptTitle = 'themeEnablePromptTitle';
+  static const themeEnablePromptMessage = 'themeEnablePromptMessage';
+  static const themeEnablePromptAction = 'themeEnablePromptAction';
   static const themeGroupAssistantSecondPageFirst =
       'themeGroupAssistantSecondPageFirst';
   static const themeGroupAssistantSortByTime = 'themeGroupAssistantSortByTime';

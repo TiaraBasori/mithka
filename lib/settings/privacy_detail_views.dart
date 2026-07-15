@@ -9,7 +9,6 @@
 
 import 'dart:io';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
@@ -610,11 +609,15 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Text(
-                AppStrings.t(_labels[index]),
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+              Expanded(
+                child: Text(
+                  AppStrings.t(_labels[index]),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 16, color: c.textPrimary),
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 12),
               Container(
                 width: 23,
                 height: 23,
@@ -746,11 +749,15 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
-              Text(
-                AppStrings.t(label),
-                style: TextStyle(fontSize: 16, color: c.textPrimary),
+              Expanded(
+                child: Text(
+                  AppStrings.t(label),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 16, color: c.textPrimary),
+                ),
               ),
-              const Spacer(),
+              const SizedBox(width: 12),
               Container(
                 width: 23,
                 height: 23,
@@ -802,9 +809,16 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                   style: TextStyle(fontSize: 16, color: c.textPrimary),
                 ),
               ),
-              Text(
-                AppStrings.t(value),
-                style: TextStyle(fontSize: 14, color: c.textSecondary),
+              const SizedBox(width: 12),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 150),
+                child: Text(
+                  AppStrings.t(value),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.right,
+                  style: TextStyle(fontSize: 14, color: c.textSecondary),
+                ),
               ),
               const SizedBox(width: 5),
               AppIcon(
@@ -837,11 +851,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                 style: TextStyle(fontSize: 16, color: c.textPrimary),
               ),
             ),
-            CupertinoSwitch(
-              value: value,
-              activeTrackColor: AppTheme.brand,
-              onChanged: onChanged,
-            ),
+            AppSwitch(value: value, onChanged: onChanged),
           ],
         ),
       ),
@@ -860,9 +870,13 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
             children: [
               AppIcon(HeroAppIcons.camera, size: 24, color: AppTheme.brand),
               const SizedBox(width: 14),
-              Text(
-                AppStrings.t(AppStringKeys.privacyUpdatePublicPhoto),
-                style: TextStyle(fontSize: 16, color: AppTheme.brand),
+              Expanded(
+                child: Text(
+                  AppStrings.t(AppStringKeys.privacyUpdatePublicPhoto),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 16, color: AppTheme.brand),
+                ),
               ),
             ],
           ),

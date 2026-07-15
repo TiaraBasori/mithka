@@ -279,22 +279,33 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                         children: [
                           AppIcon(row.icon, size: 20, color: AppTheme.brand),
                           const SizedBox(width: 14),
-                          Text(
-                            row.title.l10n(context),
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: c.textPrimary,
-                            ),
-                          ),
-                          const Spacer(),
-                          if (row.value.isNotEmpty)
-                            Text(
-                              row.value.l10n(context),
+                          Expanded(
+                            child: Text(
+                              row.title.l10n(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 14,
-                                color: c.textSecondary,
+                                fontSize: 16,
+                                color: c.textPrimary,
                               ),
                             ),
+                          ),
+                          if (row.value.isNotEmpty) ...[
+                            const SizedBox(width: 12),
+                            ConstrainedBox(
+                              constraints: const BoxConstraints(maxWidth: 150),
+                              child: Text(
+                                row.value.l10n(context),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: c.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ],
                           if (row.onTap != null) ...[
                             const SizedBox(width: 6),
                             AppIcon(

@@ -740,6 +740,7 @@ class _ChatViewState extends State<ChatView> {
   bool _maintainSessionScrollAnchor = false;
   ChatThemeStyle? _resolvedChatThemeStyle;
   TelegramCloudTheme? _resolvedCloudTheme;
+  bool _themingEnabled = true;
   bool _sessionAnchorMaintenanceScheduled = false;
   bool _openingUnreadMention = false;
   bool _exitStatePrepared = false;
@@ -771,6 +772,7 @@ class _ChatViewState extends State<ChatView> {
     unawaited(_wallpaperController.load(widget.chatId));
     unawaited(_wallpaperController.loadDefaultWallpaper(dark: false));
     unawaited(_wallpaperController.loadDefaultWallpaper(dark: true));
+    unawaited(_wallpaperController.loadGlobalChatThemes());
     _openAtLatest = context.read<ThemeController>().openChatsAtLatest;
     _sessionRenderState = widget.initialMessageId == null
         ? _sessionCache.read(widget.chatId)
@@ -3386,6 +3388,7 @@ class _ChatViewState extends State<ChatView> {
   }
 
   ChatWallpaper? _effectiveWallpaper() {
+    if (!_themingEnabled) return null;
     final dark = Theme.of(context).brightness == Brightness.dark;
     final chatWallpaper = _wallpaperController.wallpaperFor(
       widget.chatId,
@@ -3396,10 +3399,16 @@ class _ChatViewState extends State<ChatView> {
     if (defaultWallpaper != null) {
       return _wallpaperController.resolvedWallpaper(defaultWallpaper);
     }
+    final globalChatWallpaper = _wallpaperController.globalThemeWallpaperFor(
+      dark: dark,
+    );
     final cloudWallpaper = _resolvedCloudTheme?.wallpaper;
-    return cloudWallpaper == null
+    if (cloudWallpaper != null) {
+      return _wallpaperController.resolvedWallpaper(cloudWallpaper);
+    }
+    return globalChatWallpaper == null
         ? null
-        : _wallpaperController.resolvedWallpaper(cloudWallpaper);
+        : _wallpaperController.resolvedWallpaper(globalChatWallpaper);
   }
 
   Color? _effectiveOutgoingColor() {
@@ -3423,12 +3432,20 @@ class _ChatViewState extends State<ChatView> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final themeController = context.watch<ThemeController>();
+    _themingEnabled = themeController.themingEnabled;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    _resolvedCloudTheme = themeController.cloudTheme;
-    _resolvedChatThemeStyle = _wallpaperController.themeStyleFor(
-      widget.chatId,
-      dark: dark,
+    _resolvedCloudTheme = themeController.cloudThemeFor(
+      dark ? Brightness.dark : Brightness.light,
     );
+    final chatThemeStyle = _themingEnabled
+        ? _wallpaperController.themeStyleFor(widget.chatId, dark: dark)
+        : null;
+    _resolvedChatThemeStyle = !_themingEnabled
+        ? null
+        : chatThemeStyle ??
+              (_resolvedCloudTheme == null
+                  ? _wallpaperController.globalThemeStyleFor(dark: dark)
+                  : null);
     // Keep blocked-user hiding toggle in sync with theme.
     BlockedUserService.shared.enabled = themeController.hideBlockedUserMessages;
     final hideSafetyNotice = context.watch<SafetyNoticeController>().disabled;

@@ -164,10 +164,10 @@ class _CountryMessageFilterViewState extends State<CountryMessageFilterView> {
                               ),
                             ),
                             child: isSelected
-                                ? const AppIcon(
+                                ? AppIcon(
                                     HeroAppIcons.check,
                                     size: 15,
-                                    color: Colors.white,
+                                    color: AppTheme.onBrand,
                                   )
                                 : null,
                           ),
