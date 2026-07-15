@@ -64,7 +64,7 @@ class _CountryMessageFilterViewState extends State<CountryMessageFilterView> {
       body: Column(
         children: [
           NavHeader(
-            title: 'Block messages by country',
+            title: AppStrings.t(AppStringKeys.blockByCountryTitle),
             onBack: () => Navigator.of(context).pop(),
           ),
           Padding(
@@ -91,7 +91,9 @@ class _CountryMessageFilterViewState extends State<CountryMessageFilterView> {
                       style: TextStyle(fontSize: 16, color: c.textPrimary),
                       decoration: InputDecoration(
                         border: InputBorder.none,
-                        hintText: 'Search countries',
+                        hintText: AppStrings.t(
+                          AppStringKeys.blockByCountrySearchHint,
+                        ),
                         hintStyle: TextStyle(color: c.textTertiary),
                       ),
                     ),

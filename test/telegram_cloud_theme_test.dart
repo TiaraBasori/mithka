@@ -430,7 +430,7 @@ msgOutBg: #f3b4bd;
     final prefs = await SharedPreferences.getInstance();
     const theme = TelegramCloudTheme(
       slug: 'MountainSolitude',
-      title: 'Mountain Solitude',
+      rawTitle: 'Mountain Solitude',
       baseTheme: 'builtInThemeNight',
       accentColorValue: 0xFF5F9EA0,
       outgoingColors: [0xFFF3B4BD],
@@ -513,7 +513,7 @@ msgOutBg: #f3b4bd;
     final prefs = await SharedPreferences.getInstance();
     const dayTheme = TelegramCloudTheme(
       slug: 'DayTheme',
-      title: 'Day Theme',
+      rawTitle: 'Day Theme',
       baseTheme: 'builtInThemeDay',
       accentColorValue: 0xFF007AFF,
       outgoingColors: [0xFFDCF8C6],
@@ -521,7 +521,7 @@ msgOutBg: #f3b4bd;
     );
     const nightTheme = TelegramCloudTheme(
       slug: 'NightTheme',
-      title: 'Night Theme',
+      rawTitle: 'Night Theme',
       baseTheme: 'builtInThemeNight',
       accentColorValue: 0xFFF3B4BD,
       outgoingColors: [0xFFF3B4BD],
@@ -552,7 +552,7 @@ msgOutBg: #f3b4bd;
     controller.installCloudTheme(
       const TelegramCloudTheme(
         slug: 'DayTheme',
-        title: 'Updated Day Theme',
+        rawTitle: 'Updated Day Theme',
         baseTheme: 'builtInThemeDay',
         accentColorValue: 0xFF007AFF,
         outgoingColors: [0xFFDCF8C6],
@@ -561,11 +561,11 @@ msgOutBg: #f3b4bd;
       brightness: Brightness.light,
     );
     expect(controller.installedCloudThemes.length, 2);
-    expect(controller.installedCloudThemes.last.title, 'Updated Day Theme');
+    expect(controller.installedCloudThemes.last.rawTitle, 'Updated Day Theme');
 
     final restored = ThemeController(prefs);
     expect(restored.useTelegramThemeForUi, isTrue);
-    expect(restored.lightCloudTheme?.title, 'Updated Day Theme');
+    expect(restored.lightCloudTheme?.rawTitle, 'Updated Day Theme');
     expect(restored.darkCloudTheme?.slug, 'NightTheme');
     expect(restored.installedCloudThemes.length, 2);
 
@@ -578,7 +578,7 @@ msgOutBg: #f3b4bd;
   test('theme accent and pinned row always resolve semantic colors', () {
     const theme = TelegramCloudTheme(
       slug: 'ReadableTheme',
-      title: 'Readable Theme',
+      rawTitle: 'Readable Theme',
       baseTheme: 'builtInThemeNight',
       accentColorValue: 0xFFF3B4BD,
       outgoingColors: [0xFFF3B4BD],
@@ -617,7 +617,7 @@ msgOutBg: #f3b4bd;
   test('community attheme tint remains immutable', () {
     const community = TelegramCloudTheme(
       slug: 'MountainSolitude',
-      title: 'Mountain Solitude',
+      rawTitle: 'Mountain Solitude',
       baseTheme: 'builtInThemeDay',
       accentColorValue: 0x2481CC,
       outgoingColors: [0xD8F3FF],

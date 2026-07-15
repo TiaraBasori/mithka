@@ -3040,6 +3040,9 @@ class ChatViewModel extends ChangeNotifier {
 
       case 'updateDeleteMessages':
         if (update.int64('chat_id') != chatId) return;
+        // from_cache unloads (is_permanent == false) must not remove messages
+        // from the UI — the messages still exist on the server.
+        if (update.boolean('is_permanent') != true) return;
         final deletedIds = update.int64Array('message_ids') ?? const <int>[];
         if (_latestHistoryLoadInFlight) {
           _latestHistoryDeletedMessageIds.addAll(deletedIds);
@@ -3750,7 +3753,11 @@ class ChatViewModel extends ChangeNotifier {
       }
     }
     _allMessages.removeWhere((message) => message.id == pendingMessageId);
-    messages.removeWhere((message) => message.id == pendingMessageId);
+    // Reassigned (not mutated) so the transcript memo's identity check stays
+    // valid even if a notify lands before the merge below.
+    messages = messages
+        .where((message) => message.id != pendingMessageId)
+        .toList();
     final sentMessage = TDParse.message(rawMessage);
     if (sentMessage == null) {
       _applyKeywordFilter();
@@ -3873,7 +3880,10 @@ class ChatViewModel extends ChangeNotifier {
     if (ids.isEmpty) return;
     final removed = ids.toSet();
     _allMessages.removeWhere((m) => removed.contains(m.id));
-    messages.removeWhere((m) => removed.contains(m.id));
+    // Reassign (never mutate in place): the transcript memo in chat_view
+    // caches on the list's identity, so an in-place removeWhere would keep
+    // rendering the deleted message.
+    messages = messages.where((m) => !removed.contains(m.id)).toList();
     _blockedReadIds.removeWhere(removed.contains);
     if (replyTo != null && removed.contains(replyTo!.id)) replyTo = null;
     if (pinnedMessages.any((m) => removed.contains(m.id))) {
@@ -4023,7 +4033,9 @@ class ChatViewModel extends ChangeNotifier {
     if (names.isEmpty) return;
     final suffix = message.serviceUserIds.length > names.length
         ? AppStrings.t(AppStringKeys.chatAndOthersCount, {
-            'value1': message.serviceUserIds.length,
+            // The string reads "and N others" — N is the remainder beyond
+            // the listed names, not the total joiner count.
+            'value1': message.serviceUserIds.length - names.length,
           })
         : '';
     final text = AppStrings.t(AppStringKeys.chatUsersJoinedGroup, {

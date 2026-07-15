@@ -325,7 +325,9 @@ class ChatListViewModel extends ChangeNotifier {
     _client
         .query({
           '@type': 'toggleChatIsPinned',
-          'chat_list': {'@type': 'chatListMain'},
+          // Pin in the list the user is looking at — pinning from a folder
+          // filter used to silently mutate the Main list instead.
+          'chat_list': _activeChatList,
           'chat_id': id,
           'is_pinned': newValue,
         })
@@ -382,10 +384,15 @@ class ChatListViewModel extends ChangeNotifier {
   }
 
   void markAllRead() {
-    final targets = [
-      ..._chats,
-      ..._archived,
-    ].where((chat) => chat.unreadCount > 0 || chat.isMarkedUnread).toList();
+    markChatsRead([..._chats, ..._archived]);
+  }
+
+  /// Marks only [chats] read — the archive / filtered assistant badges clear
+  /// their own group, not every chat in the app.
+  void markChatsRead(Iterable<ChatSummary> chats) {
+    final targets = chats
+        .where((chat) => chat.unreadCount > 0 || chat.isMarkedUnread)
+        .toList();
     for (final chat in targets) {
       markRead(chat);
     }

@@ -867,7 +867,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
       final key = _wallpaperCandidateKey(resolved);
       if (seen.add(key)) {
         candidates.add(
-          _WallpaperCandidate(title: theme.title, wallpaper: resolved),
+          _WallpaperCandidate(title: theme.displayTitle, wallpaper: resolved),
         );
       }
     }

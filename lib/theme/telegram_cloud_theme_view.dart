@@ -58,7 +58,7 @@ class TelegramCloudThemePreviewView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          theme.title,
+          theme.displayTitle,
           style: AppTextStyle.title(
             colors.textPrimary,
             weight: AppTextWeight.semibold,

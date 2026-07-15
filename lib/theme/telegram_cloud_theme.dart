@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../chat/chat_wallpaper.dart';
+import '../l10n/app_localizations.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_image_loader.dart';
@@ -60,7 +61,7 @@ enum TelegramThemeSemanticColor {
 class TelegramCloudTheme {
   const TelegramCloudTheme({
     required this.slug,
-    required this.title,
+    required this.rawTitle,
     required this.baseTheme,
     required this.accentColorValue,
     required this.outgoingColors,
@@ -69,7 +70,7 @@ class TelegramCloudTheme {
   });
 
   final String slug;
-  final String title;
+  final String rawTitle;
   final String baseTheme;
   final int accentColorValue;
   final List<int> outgoingColors;
@@ -77,6 +78,16 @@ class TelegramCloudTheme {
   final ChatWallpaper? wallpaper;
 
   bool get isBuiltIn => slug.startsWith('builtin:');
+
+  /// UI title: built-in themes translate through l10n (the stored [rawTitle]
+  /// is their English identifier); cloud themes keep their server-given name.
+  String get displayTitle => switch (slug) {
+    'builtin:classic' => AppStrings.t(AppStringKeys.themeClassicName),
+    'builtin:day' => AppStrings.t(AppStringKeys.themeDayName),
+    'builtin:dark' => AppStrings.t(AppStringKeys.themeDarkName),
+    'builtin:night' => AppStrings.t(AppStringKeys.themeNightName),
+    _ => rawTitle,
+  };
 
   bool get isDark =>
       baseTheme == 'builtInThemeNight' || baseTheme == 'builtInThemeTinted';
@@ -114,7 +125,7 @@ class TelegramCloudTheme {
               .toColor();
     return TelegramCloudTheme(
       slug: slug,
-      title: title,
+      rawTitle: rawTitle,
       baseTheme: baseTheme,
       accentColorValue: rgb,
       outgoingColors: [outgoing.toARGB32() & 0x00FFFFFF],
@@ -540,7 +551,7 @@ class TelegramCloudTheme {
 
   Map<String, Object?> toJson() => {
     'slug': slug,
-    'title': title,
+    'title': rawTitle,
     'base_theme': baseTheme,
     'accent_color': accentColorValue,
     'outgoing_colors': outgoingColors,
@@ -565,7 +576,7 @@ class TelegramCloudTheme {
     final outgoing = value['outgoing_colors'];
     return TelegramCloudTheme(
       slug: slug,
-      title: title,
+      rawTitle: title,
       baseTheme: value['base_theme'] as String? ?? 'builtInThemeDay',
       accentColorValue: _jsonThemeInt(value['accent_color']),
       outgoingColors: outgoing is List
@@ -582,7 +593,7 @@ class TelegramCloudTheme {
 const builtInTelegramCloudThemes = <TelegramCloudTheme>[
   TelegramCloudTheme(
     slug: 'builtin:classic',
-    title: 'Classic',
+    rawTitle: 'Classic',
     baseTheme: 'builtInThemeClassic',
     accentColorValue: 0x168ACD,
     outgoingColors: [0xE1FFC7],
@@ -602,7 +613,7 @@ const builtInTelegramCloudThemes = <TelegramCloudTheme>[
   ),
   TelegramCloudTheme(
     slug: 'builtin:day',
-    title: 'Day',
+    rawTitle: 'Day',
     baseTheme: 'builtInThemeDay',
     accentColorValue: 0x2481CC,
     outgoingColors: [0xD8F3FF],
@@ -622,7 +633,7 @@ const builtInTelegramCloudThemes = <TelegramCloudTheme>[
   ),
   TelegramCloudTheme(
     slug: 'builtin:dark',
-    title: 'Dark',
+    rawTitle: 'Dark',
     baseTheme: 'builtInThemeTinted',
     accentColorValue: 0x6AB3F3,
     outgoingColors: [0x2B5278],
@@ -642,7 +653,7 @@ const builtInTelegramCloudThemes = <TelegramCloudTheme>[
   ),
   TelegramCloudTheme(
     slug: 'builtin:night',
-    title: 'Night',
+    rawTitle: 'Night',
     baseTheme: 'builtInThemeNight',
     accentColorValue: 0x6AB3F3,
     outgoingColors: [0x3D5A80],
@@ -786,7 +797,7 @@ class TelegramCloudThemeService {
     final title = preview.str('title')?.trim();
     return TelegramCloudTheme(
       slug: slug,
-      title: title == null || title.isEmpty ? slug : title,
+      rawTitle: title == null || title.isEmpty ? slug : title,
       baseTheme: baseTheme,
       accentColorValue: accent,
       outgoingColors: outgoing,
@@ -1032,7 +1043,7 @@ TelegramCloudTheme _cloudThemeWithTitle(
   String title,
 ) => TelegramCloudTheme(
   slug: theme.slug,
-  title: title,
+  rawTitle: title,
   baseTheme: theme.baseTheme,
   accentColorValue: theme.accentColorValue,
   outgoingColors: theme.outgoingColors,

@@ -71,7 +71,7 @@ class AppearanceView extends StatelessWidget {
                     _navigationRow(
                       context,
                       AppStrings.t(AppStringKeys.appearanceTheme),
-                      theme.cloudTheme?.title ??
+                      theme.cloudTheme?.displayTitle ??
                           AppStrings.t(AppStringKeys.globalThemeDefault),
                       () => Navigator.of(context).push(
                         PageRouteBuilder<void>(

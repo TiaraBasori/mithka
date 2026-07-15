@@ -46,7 +46,7 @@ void main() {
       'SepiaBlues',
       'WeChatifyDark',
     ]);
-    expect(themes.map((theme) => theme.title), [
+    expect(themes.map((theme) => theme.rawTitle), [
       'Mountain Solitude',
       'Sepia Blues',
       'WeChatify Dark',
@@ -71,7 +71,7 @@ void main() {
   test('old native binary still rehydrates local theme wallpaper', () async {
     const stale = TelegramCloudTheme(
       slug: 'MountainSolitude',
-      title: 'Stale Mountain Solitude',
+      rawTitle: 'Stale Mountain Solitude',
       baseTheme: 'builtInThemeNight',
       accentColorValue: 0x5F9EA0,
       outgoingColors: [0xF3B4BD],
@@ -130,7 +130,7 @@ void main() {
       'Unavailable',
       'LocalOnly',
     ]);
-    expect(themes[1].title, 'Retained local copy');
+    expect(themes[1].rawTitle, 'Retained local copy');
   });
 
   test('three hydrated themes persist and refresh a stale selection', () async {
@@ -138,7 +138,7 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     const stale = TelegramCloudTheme(
       slug: 'MountainSolitude',
-      title: 'Stale Mountain Solitude',
+      rawTitle: 'Stale Mountain Solitude',
       baseTheme: 'builtInThemeNight',
       accentColorValue: 0x5F9EA0,
       outgoingColors: [0xF3B4BD],
@@ -176,7 +176,7 @@ void main() {
       'SepiaBlues',
       'wechatify_dark',
     ]);
-    expect(controller.darkCloudTheme?.title, 'Mountain Solitude');
+    expect(controller.darkCloudTheme?.rawTitle, 'Mountain Solitude');
     expect(controller.darkCloudTheme?.wallpaper?.imagePath, isNull);
     expect(controller.darkCloudTheme?.wallpaper?.colors, [0x101820]);
 
@@ -224,7 +224,7 @@ Map<String, dynamic> _previewFor(String slug) => {
 
 TelegramCloudTheme _theme(String slug, {String? title}) => TelegramCloudTheme(
   slug: slug,
-  title: title ?? slug,
+  rawTitle: title ?? slug,
   baseTheme: 'builtInThemeDay',
   accentColorValue: 0x2481CC,
   outgoingColors: [0xD8F3FF],

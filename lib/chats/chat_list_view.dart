@@ -113,7 +113,7 @@ class _ChatListViewState extends State<ChatListView>
   late final AnimationController _folderTransitionController;
   late final CurvedAnimation _folderTransition;
   double _folderTransitionDirection = 1;
-  String _meName = AppStringKeys.chatMeLabel;
+  String _meName = AppStrings.t(AppStringKeys.chatMeLabel);
   TdFileRef? _mePhoto;
   int _meStatusId = 0; // current emoji status, shown after the name
   bool _meIsPremium = false;
@@ -1246,7 +1246,7 @@ class _ChatListViewState extends State<ChatListView>
       ),
       child: ArchivedChatsRow(
         archived: _model.archived,
-        onClearUnread: _model.markAllRead,
+        onClearUnread: () => _model.markChatsRead(_model.archived),
       ),
     );
   }
@@ -1263,7 +1263,7 @@ class _ChatListViewState extends State<ChatListView>
       ),
       child: FilteredChatsRow(
         chats: _model.filtered,
-        onClearUnread: _model.markAllRead,
+        onClearUnread: () => _model.markChatsRead(_model.filtered),
       ),
     );
   }

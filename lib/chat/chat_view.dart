@@ -1407,13 +1407,9 @@ class _ChatViewState extends State<ChatView> {
       _scheduleShortTranscriptFill();
     }
     // Keep the entry unread banner visible; only live-new-message banners
-    // should auto-hide after a short delay.
-    final keepEntryUnreadBanner = _liveNewMessageCount == 0;
-    if (_vm.unreadCount > 0 &&
-        _liveNewMessageCount == 0 &&
-        _bannerTimer == null &&
-        !_bannerDismissed &&
-        !keepEntryUnreadBanner) {
+    // auto-hide after a short delay. (Each new live message cancels the
+    // timer, so the countdown restarts from the latest arrival.)
+    if (_liveNewMessageCount > 0 && _bannerTimer == null && !_bannerDismissed) {
       _bannerTimer = Timer(const Duration(seconds: 6), () {
         if (mounted) setState(() => _bannerDismissed = true);
       });
@@ -2536,7 +2532,7 @@ class _ChatViewState extends State<ChatView> {
           if (opened) return;
         }
         if (!mounted) return;
-        showToast(context, 'Mini App 暂时无法启动');
+        showToast(context, AppStrings.t(AppStringKeys.miniAppCannotStart));
         return;
       }
       await openLink(context, url);

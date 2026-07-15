@@ -7,7 +7,7 @@ void main() {
   test('sender name colors prefer Android variables over platform aliases', () {
     const theme = TelegramCloudTheme(
       slug: 'test',
-      title: 'Test',
+      rawTitle: 'Test',
       baseTheme: 'builtInThemeNight',
       accentColorValue: 0,
       outgoingColors: [],

@@ -458,7 +458,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
             ),
             const SizedBox(height: 6),
             Text(
-              theme.title,
+              theme.displayTitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
@@ -495,7 +495,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      theme?.title ??
+                      theme?.displayTitle ??
                           AppStringKeys.globalThemeDefault.l10n(context),
                       style: TextStyle(
                         fontSize: 17,
