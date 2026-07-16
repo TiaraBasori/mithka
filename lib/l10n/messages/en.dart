@@ -1117,6 +1117,7 @@ const enMessages = <String, String>{
   'privacySectionTitle': "Privacy",
   'privacySecuritySectionTitle': "Security",
   'privacySecurityTitle': "Privacy and security",
+  'privacySensitiveContent': "Show 18+ content",
   'privacyShowReadDate': "Show read time",
   'privacyShowReadDateHint':
       "Read times are always visible to users who can see when you are online.",
@@ -1300,6 +1301,12 @@ const enMessages = <String, String>{
       "Messages in secret chats are end-to-end encrypted and can only be read on the devices that created them.",
   'secretChatStartTitle': "Start a Secret Chat?",
   'secretChatWaiting': "Waiting for the secret chat to become ready…",
+  'sensitiveContentUnblockConfirm': "Unblock All",
+  'sensitiveContentUnblockDone': "18+ content is enabled",
+  'sensitiveContentUnblockFailed': "Could not enable 18+ content: {value1}",
+  'sensitiveContentUnblockMessage':
+      "This enables Telegram's account-wide 18+ content setting. You can switch it off later in Privacy & Security.",
+  'sensitiveContentUnblockTitle': "Show 18+ content?",
   'settingsAboutMithka': "About Mithka",
   'settingsLogOut': "Log Out",
   'sharedMediaCacheDeleted': "Local cache deleted",

@@ -412,6 +412,9 @@ class ChatMessage {
     this.callDuration = 0,
     this.contentType,
     this.restrictionReason,
+    this.restrictionReasonCode,
+    this.restrictedContentText,
+    this.restrictedContentTextEntities = const [],
     this.containsUnreadMention = false,
     this.senderId,
     this.senderPhoto,
@@ -483,6 +486,9 @@ class ChatMessage {
   /// TDLib's message-level restriction reason. When present, the original
   /// content must be replaced by this server-provided explanation.
   String? restrictionReason;
+  String? restrictionReasonCode;
+  String? restrictedContentText;
+  List<MessageTextEntity> restrictedContentTextEntities;
   bool containsUnreadMention;
   int? senderId;
   TdFileRef? senderPhoto;
@@ -558,6 +564,27 @@ class ChatMessage {
 
   bool get isContentRestricted =>
       restrictionReason != null && restrictionReason!.trim().isNotEmpty;
+
+  bool get hasRestrictedRevealContent {
+    if (!isContentRestricted) return false;
+    final originalText = restrictedContentText?.trim();
+    if (originalText != null &&
+        originalText.isNotEmpty &&
+        originalText != text.trim()) {
+      return true;
+    }
+    return image != null ||
+        document != null ||
+        music != null ||
+        animatedSticker != null ||
+        videoSticker != null ||
+        video != null ||
+        diceEmoji != null ||
+        location != null ||
+        voice != null ||
+        linkPreview != null ||
+        richBlocks.isNotEmpty;
+  }
 
   /// Visual media that Telegram may place in the same media album.
   ///
@@ -894,21 +921,22 @@ abstract final class TDParse {
     final date = message.integer('date') ?? 0;
     final content = message.obj('content');
     final restrictionReason = restrictionReasonFor(message);
+    final restrictionReasonCode = restrictionReasonCodeFor(message);
     final isContentRestricted = restrictionReason != null;
-    final service = !isContentRestricted && isServiceContent(content?.type);
+    final rawService = isServiceContent(content?.type);
+    final service = !isContentRestricted && rawService;
     final isCall = !isContentRestricted && content?.type == 'messageCall';
     final callIsVideo = isCall && (content?.boolean('is_video') ?? false);
     final callDuration = isCall ? (content?.integer('duration') ?? 0) : 0;
     final callDiscardReason = isCall
         ? content?.obj('discard_reason')?.type
         : null;
-    final text =
-        restrictionReason ??
-        (service
-            ? serviceText(content)
-            : (content != null
-                  ? messageText(content)
-                  : telegramText(AppStringKeys.chatSearchMessageResultLabel)));
+    final contentText = rawService
+        ? serviceText(content)
+        : (content != null
+              ? messageText(content)
+              : telegramText(AppStringKeys.chatSearchMessageResultLabel));
+    final text = restrictionReason ?? contentText;
 
     int? senderId;
     final sender = message.obj('sender_id');
@@ -919,9 +947,7 @@ abstract final class TDParse {
         senderId = sender?.int64('chat_id');
     }
 
-    final media = isContentRestricted
-        ? const MediaAttachment()
-        : mediaAttachment(content);
+    final media = mediaAttachment(content);
 
     // 转发: forward_info.origin identifies the original author.
     final origin = message.obj('forward_info')?.obj('origin');
@@ -946,31 +972,34 @@ abstract final class TDParse {
         ? replyTo?.int64('message_id')
         : null;
 
-    final parsedEntities = isContentRestricted
-        ? const <MessageTextEntity>[]
-        : messageTextEntities(content);
-    final markdown = !service && parsedEntities.isEmpty
-        ? _markdownText(text)
+    final parsedEntities = messageTextEntities(content);
+    final contentMarkdown = !rawService && parsedEntities.isEmpty
+        ? _markdownText(contentText)
         : null;
     final replyInfo = message.obj('interaction_info')?.obj('reply_info');
-    var displayText = markdown?.text ?? text;
-    var displayEntities = markdown?.entities ?? parsedEntities;
-    final richBlocks = isContentRestricted
-        ? <RichMessageBlock>[]
-        : <RichMessageBlock>[...richMessageBlocks(content)];
-    if (!isContentRestricted &&
-        content?.type == 'messageRichMessage' &&
-        richBlocks.isNotEmpty &&
-        displayText ==
+    var contentDisplayText = contentMarkdown?.text ?? contentText;
+    var contentDisplayEntities = contentMarkdown?.entities ?? parsedEntities;
+    final contentRichBlocks = <RichMessageBlock>[...richMessageBlocks(content)];
+    if (content?.type == 'messageRichMessage' &&
+        contentRichBlocks.isNotEmpty &&
+        contentDisplayText ==
             telegramText(AppStringKeys.chatSearchMessageResultLabel)) {
-      displayText = '';
+      contentDisplayText = '';
     }
-    if (!isContentRestricted && content?.type != 'messageRichMessage') {
-      final extracted = _extractMarkdownTables(displayText, displayEntities);
-      displayText = extracted.text;
-      displayEntities = extracted.entities;
-      richBlocks.addAll(extracted.blocks);
+    if (content?.type != 'messageRichMessage') {
+      final extracted = _extractMarkdownTables(
+        contentDisplayText,
+        contentDisplayEntities,
+      );
+      contentDisplayText = extracted.text;
+      contentDisplayEntities = extracted.entities;
+      contentRichBlocks.addAll(extracted.blocks);
     }
+    final displayText = isContentRestricted ? text : contentDisplayText;
+    final displayEntities = isContentRestricted
+        ? const <MessageTextEntity>[]
+        : contentDisplayEntities;
+    final richBlocks = contentRichBlocks;
 
     return ChatMessage(
         id: id,
@@ -985,6 +1014,11 @@ abstract final class TDParse {
         callDuration: callDuration,
         contentType: isContentRestricted ? 'messageText' : content?.type,
         restrictionReason: restrictionReason,
+        restrictionReasonCode: restrictionReasonCode,
+        restrictedContentText: isContentRestricted ? contentDisplayText : null,
+        restrictedContentTextEntities: isContentRestricted
+            ? contentDisplayEntities
+            : const [],
         containsUnreadMention:
             message.boolean('contains_unread_mention') ?? false,
         senderId: senderId,
@@ -1002,17 +1036,17 @@ abstract final class TDParse {
         videoSticker: media.videoSticker,
         video: media.video,
         videoDuration: media.videoDuration,
-        diceEmoji: !isContentRestricted && content?.type == 'messageDice'
+        diceEmoji: content?.type == 'messageDice'
             ? content?.str('emoji')
             : null,
-        diceValue: !isContentRestricted && content?.type == 'messageDice'
+        diceValue: content?.type == 'messageDice'
             ? content?.integer('value')
             : null,
         stickerFileId: media.stickerFileId,
         stickerSetId: media.stickerSetId,
         isAnimatedEmoji: media.isAnimatedEmoji,
-        location: isContentRestricted ? null : locationAttachment(content),
-        voice: isContentRestricted ? null : voiceAttachment(content),
+        location: locationAttachment(content),
+        voice: voiceAttachment(content),
         replyToMessageId: isContentRestricted ? null : replyToMessageId,
         serviceUserIds: isContentRestricted
             ? const []
@@ -1021,9 +1055,7 @@ abstract final class TDParse {
             ? const []
             : customEmojiEntitiesFrom(parsedEntities),
         textEntities: displayEntities,
-        linkPreview: isContentRestricted
-            ? null
-            : linkPreview(content?.obj('link_preview')),
+        linkPreview: linkPreview(content?.obj('link_preview')),
         buttonRows: isContentRestricted
             ? const []
             : messageButtonRows(message.obj('reply_markup')),
@@ -1053,7 +1085,67 @@ abstract final class TDParse {
   /// Returns the server-provided reason that makes a chat or message
   /// unavailable on this client platform.
   static String? restrictionReasonFor(Map<String, dynamic>? object) =>
-      _cleanString(object?.obj('restriction_info')?.str('restriction_reason'));
+      _cleanString(
+        object?.obj('restriction_info')?.str('restriction_reason'),
+      ) ??
+      _cleanString(object?.obj('restriction_info')?.str('text'));
+
+  /// Returns the machine-readable restriction reason such as `porno` or
+  /// `terms` when TDLib includes it.
+  static String? restrictionReasonCodeFor(Map<String, dynamic>? object) {
+    final restrictionInfo = object?.obj('restriction_info');
+    return _cleanString(
+      restrictionInfo?.str('reason') ??
+          restrictionInfo?.str('restriction_reason_code'),
+    )?.toLowerCase();
+  }
+
+  static bool hasSensitiveRestriction(Map<String, dynamic>? object) =>
+      object?.obj('restriction_info')?.boolean('has_sensitive_content') ??
+      false;
+
+  static bool isBlockingRestriction(Map<String, dynamic>? object) =>
+      restrictionReasonFor(object) != null;
+
+  static bool isPornographicRestriction(Map<String, dynamic>? object) {
+    final code = restrictionReasonCodeFor(object);
+    final text = restrictionReasonFor(object);
+    return isPornographicRestrictionText(code) ||
+        isPornographicRestrictionText(text);
+  }
+
+  static bool isTermsRestriction(Map<String, dynamic>? object) {
+    final code = restrictionReasonCodeFor(object);
+    final text = restrictionReasonFor(object);
+    if (hasSensitiveRestriction(object) ||
+        isPornographicRestrictionText(code) ||
+        isPornographicRestrictionText(text)) {
+      return false;
+    }
+    return code == 'terms' || isTelegramTermsRestrictionText(text);
+  }
+
+  static bool isPornographicRestrictionText(String? value) {
+    final normalized = _normalizedRestrictionText(value);
+    return normalized.contains('porn') ||
+        normalized.contains('pornographic material');
+  }
+
+  static bool isTelegramTermsRestrictionText(String? value) {
+    final normalized = _normalizedRestrictionText(value);
+    final cannotDisplay =
+        normalized.contains("can't be displayed") ||
+        normalized.contains("couldn't be displayed") ||
+        normalized.contains('cannot be displayed') ||
+        normalized.contains('could not be displayed');
+    final telegramTerms =
+        normalized.contains('terms of service') ||
+        normalized.contains('violated telegram');
+    return cannotDisplay && telegramTerms;
+  }
+
+  static String _normalizedRestrictionText(String? value) =>
+      (value ?? '').toLowerCase().replaceAll('’', "'");
 
   static String? _cleanString(String? value) {
     final text = value?.trim();

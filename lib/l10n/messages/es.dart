@@ -1142,6 +1142,7 @@ const esMessages = <String, String>{
   'privacySectionTitle': "Privacidad",
   'privacySecuritySectionTitle': "Seguridad",
   'privacySecurityTitle': "Privacidad y seguridad",
+  'privacySensitiveContent': "Mostrar contenido 18+",
   'privacyShowReadDate': "Mostrar hora de lectura",
   'privacyShowReadDateHint':
       "La hora de lectura siempre se muestra a quienes pueden ver cuándo estás en línea.",
@@ -1328,6 +1329,13 @@ const esMessages = <String, String>{
       "Los mensajes de los chats secretos están cifrados de extremo a extremo y solo se pueden leer en los dispositivos donde se crearon.",
   'secretChatStartTitle': "¿Iniciar un chat secreto?",
   'secretChatWaiting': "Esperando a que el chat secreto esté listo…",
+  'sensitiveContentUnblockConfirm': "Desbloquear todo",
+  'sensitiveContentUnblockDone': "El contenido 18+ está activado",
+  'sensitiveContentUnblockFailed':
+      "No se pudo activar el contenido 18+: {value1}",
+  'sensitiveContentUnblockMessage':
+      "Esto activa el ajuste de Telegram para contenido 18+ en toda la cuenta. Puedes desactivarlo más tarde en Privacidad y seguridad.",
+  'sensitiveContentUnblockTitle': "¿Mostrar contenido 18+?",
   'settingsAboutMithka': "Acerca de Mithka",
   'settingsLogOut': "Cerrar sesión",
   'sharedMediaCacheDeleted': "Caché local eliminada",

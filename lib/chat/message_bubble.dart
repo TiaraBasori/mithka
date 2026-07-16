@@ -8,6 +8,7 @@
 //  left to reply. Port of the Swift `MessageBubble`.
 //
 
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -19,10 +20,12 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../components/app_icons.dart';
+import '../components/confirm_dialog.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../l10n/telegram_language_controller.dart';
 import '../profile/profile_detail_view.dart';
+import '../settings/sensitive_content_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -141,17 +144,65 @@ class _MessageBubbleState extends State<MessageBubble>
   double? _layoutWidth;
   final Set<String> _expandedQuotes = {};
   final Set<String> _revealedSpoilers = {};
+  bool _showRestrictedContent = false;
 
   void _handleLongPress([
     MessageActionSource source = MessageActionSource.normal,
   ]) {
     _lastTapAt = null;
+    if (_shouldOfferSensitiveContentUnblock) {
+      unawaited(_showSensitiveContentUnblockDialog());
+      return;
+    }
+    if (message.hasRestrictedRevealContent) {
+      setState(() => _showRestrictedContent = !_showRestrictedContent);
+      return;
+    }
     final box = _bubbleKey.currentContext?.findRenderObject() as RenderBox?;
     Rect? bounds;
     if (box != null && box.hasSize) {
       bounds = box.localToGlobal(Offset.zero) & box.size;
     }
     widget.onLongPress?.call(message, bounds, source);
+  }
+
+  bool get _shouldOfferSensitiveContentUnblock {
+    if (!message.isContentRestricted || _showRestrictedContent) return false;
+    if (SensitiveContentController.shared.enabled) return false;
+    return TDParse.isPornographicRestrictionText(
+          message.restrictionReasonCode,
+        ) ||
+        TDParse.isPornographicRestrictionText(message.restrictionReason) ||
+        TDParse.isPornographicRestrictionText(message.text);
+  }
+
+  Future<void> _showSensitiveContentUnblockDialog() async {
+    final ok = await confirmDialog(
+      context,
+      title: AppStringKeys.sensitiveContentUnblockTitle,
+      message: AppStringKeys.sensitiveContentUnblockMessage,
+      confirmText: AppStringKeys.sensitiveContentUnblockConfirm,
+    );
+    if (!ok) return;
+    try {
+      await SensitiveContentController.shared.setEnabled(true);
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStringKeys.sensitiveContentUnblockDone.l10n(context),
+      );
+      if (message.hasRestrictedRevealContent) {
+        setState(() => _showRestrictedContent = true);
+      }
+    } catch (error) {
+      if (!mounted) return;
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.sensitiveContentUnblockFailed, {
+          'value1': error.toString(),
+        }),
+      );
+    }
   }
 
   void _handleTapDown(TapDownDetails details) {
@@ -553,7 +604,7 @@ class _MessageBubbleState extends State<MessageBubble>
 
   Widget _contentBody(bool outgoing) {
     late final Widget body;
-    if (message.isContentRestricted) {
+    if (message.isContentRestricted && !_showRestrictedContent) {
       body = _textBubble(message.text, outgoing);
       return _withButtonRows(_withFloatingMeta(body, outgoing), outgoing);
     }
@@ -632,9 +683,34 @@ class _MessageBubbleState extends State<MessageBubble>
     } else if (message.document != null) {
       body = _fileCard(message.document!, outgoing);
     } else {
-      body = _textBubble(message.text, outgoing);
+      body = _textBubble(_activeMessageText, outgoing);
     }
     return _withButtonRows(_withFloatingMeta(body, outgoing), outgoing);
+  }
+
+  String get _activeMessageText {
+    if (message.isContentRestricted && _showRestrictedContent) {
+      return message.restrictedContentText ?? '';
+    }
+    return message.text;
+  }
+
+  List<MessageTextEntity> get _activeTextEntities {
+    if (message.isContentRestricted && _showRestrictedContent) {
+      return message.restrictedContentTextEntities;
+    }
+    if (message.isContentRestricted) return const [];
+    return message.textEntities;
+  }
+
+  List<RichMessageBlock> get _activeRichBlocks {
+    if (message.isContentRestricted && !_showRestrictedContent) return const [];
+    return message.richBlocks;
+  }
+
+  MessageLinkPreview? get _activeLinkPreview {
+    if (message.isContentRestricted && !_showRestrictedContent) return null;
+    return message.linkPreview;
   }
 
   Widget _withFloatingMeta(Widget child, bool outgoing) {
@@ -927,8 +1003,8 @@ class _MessageBubbleState extends State<MessageBubble>
             _replyQuote(outgoing),
             const SizedBox(height: 5),
           ],
-          if (message.linkPreview?.showAboveText ?? false) ...[
-            _linkPreviewCard(message.linkPreview!, outgoing),
+          if (_activeLinkPreview?.showAboveText ?? false) ...[
+            _linkPreviewCard(_activeLinkPreview!, outgoing),
             if (text.isNotEmpty) const SizedBox(height: 6),
           ],
           ..._richTextWidgets(
@@ -937,18 +1013,18 @@ class _MessageBubbleState extends State<MessageBubble>
             linkColor,
             outgoing,
             false,
-            null,
+            _activeTextEntities,
             textFontSize,
           ),
-          if (message.richBlocks.isNotEmpty) ...[
+          if (_activeRichBlocks.isNotEmpty) ...[
             if (text.isNotEmpty) const SizedBox(height: 8),
-            ..._richBlockWidgets(message.richBlocks, outgoing),
+            ..._richBlockWidgets(_activeRichBlocks, outgoing),
           ],
-          if (message.linkPreview != null &&
-              !message.linkPreview!.showAboveText) ...[
-            if (text.isNotEmpty || message.richBlocks.isNotEmpty)
+          if (_activeLinkPreview != null &&
+              !_activeLinkPreview!.showAboveText) ...[
+            if (text.isNotEmpty || _activeRichBlocks.isNotEmpty)
               const SizedBox(height: 7),
-            _linkPreviewCard(message.linkPreview!, outgoing),
+            _linkPreviewCard(_activeLinkPreview!, outgoing),
           ],
           if (_showsTranslation) ...[
             const SizedBox(height: 7),
@@ -2886,7 +2962,7 @@ class _MessageBubbleState extends State<MessageBubble>
   }
 
   String? _caption() {
-    final t = message.text;
+    final t = _activeMessageText;
     if (t.isEmpty) return null;
     if (t.startsWith('[') && t.endsWith(']')) return null;
     return t;

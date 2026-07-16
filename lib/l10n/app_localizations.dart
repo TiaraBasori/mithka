@@ -1495,6 +1495,7 @@ abstract final class AppStringKeys {
   static const privacySectionTitle = 'privacySectionTitle';
   static const privacySecuritySectionTitle = 'privacySecuritySectionTitle';
   static const privacySecurityTitle = 'privacySecurityTitle';
+  static const privacySensitiveContent = 'privacySensitiveContent';
   static const privacyShowReadDate = 'privacyShowReadDate';
   static const privacyShowReadDateHint = 'privacyShowReadDateHint';
   static const privacyTerminateAllOtherSessions =
@@ -1693,6 +1694,13 @@ abstract final class AppStringKeys {
   static const secretChatStartMessage = 'secretChatStartMessage';
   static const secretChatStartTitle = 'secretChatStartTitle';
   static const secretChatWaiting = 'secretChatWaiting';
+  static const sensitiveContentUnblockConfirm =
+      'sensitiveContentUnblockConfirm';
+  static const sensitiveContentUnblockDone = 'sensitiveContentUnblockDone';
+  static const sensitiveContentUnblockFailed = 'sensitiveContentUnblockFailed';
+  static const sensitiveContentUnblockMessage =
+      'sensitiveContentUnblockMessage';
+  static const sensitiveContentUnblockTitle = 'sensitiveContentUnblockTitle';
   static const settingsAboutMithka = 'settingsAboutMithka';
   static const settingsLogOut = 'settingsLogOut';
   static const sharedMediaCacheDeleted = 'sharedMediaCacheDeleted';
