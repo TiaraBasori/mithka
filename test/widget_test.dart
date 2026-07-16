@@ -1210,6 +1210,106 @@ void main() {
       );
     });
 
+    testWidgets('long press reveals retained restricted message content', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+      const notice =
+          "This message can't be displayed because it violated Telegram's Terms of Service.";
+      Finder richTextContaining(String text) => find.byWidgetPredicate(
+        (widget) => widget is RichText && widget.text.toPlainText() == text,
+      );
+      final message = ChatMessage(
+        id: 6,
+        isOutgoing: false,
+        text: notice,
+        date: 1,
+        restrictionReason: notice,
+        restrictedContentText: 'Retained original text',
+      );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ThemeController>.value(
+          value: theme,
+          child: MaterialApp(
+            home: Scaffold(
+              body: MessageBubble(
+                message: message,
+                peerTitle: 'Test',
+                isGroup: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(richTextContaining(notice), findsOneWidget);
+      expect(richTextContaining('Retained original text'), findsNothing);
+
+      await tester.longPress(richTextContaining(notice));
+      await tester.pump();
+
+      expect(richTextContaining(notice), findsNothing);
+      expect(richTextContaining('Retained original text'), findsOneWidget);
+    });
+
+    testWidgets('long press on porn restriction offers 18+ unblock', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+      const notice =
+          "This message couldn't be displayed on your device because it contains pornographic materials.";
+      Finder richTextContaining(String text) => find.byWidgetPredicate(
+        (widget) => widget is RichText && widget.text.toPlainText() == text,
+      );
+      final message = ChatMessage(
+        id: 7,
+        isOutgoing: false,
+        text: notice,
+        date: 1,
+        restrictionReason: notice,
+        restrictedContentText: 'Retained original text',
+      );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ThemeController>.value(
+          value: theme,
+          child: MaterialApp(
+            localizationsDelegates: const [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: MessageBubble(
+                message: message,
+                peerTitle: 'Test',
+                isGroup: false,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(richTextContaining(notice), findsOneWidget);
+      expect(richTextContaining('Retained original text'), findsNothing);
+
+      await tester.longPress(richTextContaining(notice));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Show 18+ content?'), findsOneWidget);
+      expect(find.text('Unblock All'), findsOneWidget);
+      expect(richTextContaining('Retained original text'), findsNothing);
+    });
+
     testWidgets('always shows one sent dot and two read dots', (tester) async {
       SharedPreferences.setMockInitialValues({
         'showMessageMetaIndicators': false,
@@ -2206,6 +2306,7 @@ void main() {
         },
         'restriction_info': {
           '@type': 'restrictionInfo',
+          'reason': 'terms',
           'restriction_reason': notice,
         },
       });
@@ -2221,6 +2322,9 @@ void main() {
       expect(restricted, isNotNull);
       expect(restricted!.text, notice);
       expect(restricted.isContentRestricted, isTrue);
+      expect(restricted.restrictionReasonCode, 'terms');
+      expect(restricted.restrictedContentText, 'Original photo');
+      expect(restricted.hasRestrictedRevealContent, isTrue);
       expect(restricted.isPhoto, isFalse);
       expect(restricted.image, isNull);
       expect(restricted.buttonRows, isEmpty);
@@ -2229,6 +2333,87 @@ void main() {
       expect(ordinary, isNotNull);
       expect(ordinary!.text, notice);
       expect(ordinary.isContentRestricted, isFalse);
+    });
+
+    test('classifies porno restrictions separately from ToS restrictions', () {
+      const notice =
+          "This message couldn't be displayed on your device because it contains pornographic materials.";
+      final restrictedObject = <String, dynamic>{
+        'restriction_info': {
+          '@type': 'restrictionInfo',
+          'reason': 'porno',
+          'restriction_reason': notice,
+          'has_sensitive_content': true,
+        },
+      };
+
+      expect(TDParse.restrictionReasonFor(restrictedObject), notice);
+      expect(TDParse.restrictionReasonCodeFor(restrictedObject), 'porno');
+      expect(TDParse.hasSensitiveRestriction(restrictedObject), isTrue);
+      expect(TDParse.isBlockingRestriction(restrictedObject), isTrue);
+      expect(TDParse.isPornographicRestriction(restrictedObject), isTrue);
+      expect(TDParse.isPornographicRestrictionText(notice), isTrue);
+      expect(TDParse.isTelegramTermsRestrictionText(notice), isFalse);
+      expect(TDParse.isTermsRestriction(restrictedObject), isFalse);
+
+      expect(
+        TDParse.isBlockingRestriction({
+          'restriction_info': {
+            '@type': 'restrictionInfo',
+            'restriction_reason':
+                'This channel cannot be displayed due to porn-ios.',
+            'has_sensitive_content': true,
+          },
+        }),
+        isTrue,
+      );
+      expect(
+        TDParse.isPornographicRestriction({
+          'restriction_info': {
+            '@type': 'restrictionInfo',
+            'reason': 'porn-ios',
+            'restriction_reason': 'Sensitive content is unavailable.',
+          },
+        }),
+        isTrue,
+      );
+      expect(
+        TDParse.isTermsRestriction({
+          'restriction_info': {
+            '@type': 'restrictionInfo',
+            'restriction_reason': 'Sensitive content is unavailable.',
+            'has_sensitive_content': true,
+          },
+        }),
+        isFalse,
+      );
+      expect(
+        TDParse.isBlockingRestriction({
+          'restriction_info': {
+            '@type': 'restrictionInfo',
+            'restriction_reason': '',
+            'has_sensitive_content': true,
+          },
+        }),
+        isFalse,
+      );
+    });
+
+    test('classifies Telegram ToS restrictions as safety restrictions', () {
+      const notice =
+          "This message can't be displayed because it violated Telegram's Terms of Service.";
+      final restrictedObject = <String, dynamic>{
+        'restriction_info': {
+          '@type': 'restrictionInfo',
+          'reason': 'terms',
+          'restriction_reason': notice,
+        },
+      };
+
+      expect(TDParse.isPornographicRestrictionText(notice), isFalse);
+      expect(TDParse.isTelegramTermsRestrictionText(notice), isTrue);
+      expect(TDParse.isBlockingRestriction(restrictedObject), isTrue);
+      expect(TDParse.isTermsRestriction(restrictedObject), isTrue);
     });
 
     test('dice keeps emoji preview and parsed value', () {

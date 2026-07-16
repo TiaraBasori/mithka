@@ -47,6 +47,7 @@ import 'settings/country_message_filter.dart';
 import 'settings/developer_mode_controller.dart';
 import 'settings/keyword_blocker.dart';
 import 'settings/safety_notice_controller.dart';
+import 'settings/sensitive_content_controller.dart';
 import 'settings/translation_controller.dart';
 import 'tdlib/td_client.dart';
 import 'theme/app_theme.dart';
@@ -102,6 +103,7 @@ Future<void> _bootstrapAndRunApp() async {
   final prefs = await SharedPreferences.getInstance();
   KeywordBlocker.shared.initialize(prefs);
   CountryMessageFilter.shared.initialize(prefs);
+  unawaited(SensitiveContentController.shared.initialize());
   MusicPlayerController.shared.initialize(prefs);
   // Preload Telegram blocked-user list so chat filters have data right away.
   unawaited(BlockedUserService.shared.loadBlockedUsers());
@@ -242,6 +244,8 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   late final SafetyNoticeController _safetyNotice = SafetyNoticeController(
     widget.prefs,
   );
+  late final SensitiveContentController _sensitiveContent =
+      SensitiveContentController.shared;
 
   @override
   void initState() {
@@ -328,6 +332,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
         ChangeNotifierProvider.value(value: _autoDownload),
         ChangeNotifierProvider.value(value: _developer),
         ChangeNotifierProvider.value(value: _safetyNotice),
+        ChangeNotifierProvider.value(value: _sensitiveContent),
         ChangeNotifierProvider<dc.DrawerController>.value(value: _drawer),
       ],
       child: Consumer3<ThemeController, AccountStore, AppLocaleController>(
