@@ -94,6 +94,7 @@ class ChatListViewModel extends ChangeNotifier {
   final TdClient _client = TdClient.shared;
   StreamSubscription? _sub;
   bool _listening = false;
+  bool _disposed = false;
   int? _meId;
   bool _prefetchingMain = false;
   final Set<String> _loadingChatLists = {};
@@ -104,7 +105,7 @@ class ChatListViewModel extends ChangeNotifier {
   static const _backgroundPrefetchPasses = 1;
 
   void onAppear() {
-    if (_listening) return;
+    if (_disposed || _listening) return;
     _listening = true;
     _subscribe();
     for (final update in _client.latestCommunityUpdates) {
@@ -156,6 +157,7 @@ class ChatListViewModel extends ChangeNotifier {
   /// Called when the current user's id becomes known so we can flag the
   /// Saved Messages chat (private chat with yourself).
   set meId(int? value) {
+    if (_disposed) return;
     if (_meId == value) return;
     _meId = value;
     if (value == null) return;
@@ -167,9 +169,13 @@ class ChatListViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    if (_disposed) return;
+    _disposed = true;
     _listening = false;
     _sub?.cancel();
+    _sub = null;
     _resortTimer?.cancel();
+    _resortTimer = null;
     super.dispose();
   }
 
@@ -206,7 +212,7 @@ class ChatListViewModel extends ChangeNotifier {
       _prefetchMainChats();
       _resort();
     }
-    notifyListeners();
+    _notifyIfAlive();
   }
 
   String _folderTitle(Map<String, dynamic> folder, int id) =>
@@ -225,12 +231,13 @@ class ChatListViewModel extends ChangeNotifier {
         folderId: id,
       ),
     ];
-    notifyListeners();
+    _notifyIfAlive();
     if (_resolvingFolders.contains(id)) return;
     _resolvingFolders.add(id);
     _client
         .query({'@type': 'getChatFolder', 'chat_folder_id': id})
         .then((folder) {
+          if (_disposed) return;
           _resolvingFolders.remove(id);
           final title = _folderTitle(folder, id);
           _filters = [
@@ -242,7 +249,7 @@ class ChatListViewModel extends ChangeNotifier {
           if (_selectedFilter.folderId == id) {
             _selectedFilter = ChatFilterOption(title: title, folderId: id);
           }
-          notifyListeners();
+          _notifyIfAlive();
         })
         .catchError((_) {
           _resolvingFolders.remove(id);
@@ -275,6 +282,7 @@ class ChatListViewModel extends ChangeNotifier {
       };
 
   Future<bool> _loadChatList(Map<String, dynamic> list, int limit) async {
+    if (_disposed) return false;
     final key = _chatListKey(list);
     if (_loadingChatLists.contains(key) || _exhaustedChatLists.contains(key)) {
       return false;
@@ -286,6 +294,7 @@ class ChatListViewModel extends ChangeNotifier {
         'chat_list': list,
         'limit': limit,
       });
+      if (_disposed) return false;
       return true;
     } catch (error) {
       if (error is TdError && error.code == 404) {
@@ -341,6 +350,7 @@ class ChatListViewModel extends ChangeNotifier {
   void loadMore() => _loadChats(_pageSize);
 
   Future<void> refresh() async {
+    if (_disposed) return;
     _exhaustedChatLists.remove(_chatListKey(_activeChatList));
     _exhaustedChatLists.remove('archive');
     _loadFilters();
@@ -348,6 +358,7 @@ class ChatListViewModel extends ChangeNotifier {
       _loadAndHydrateChatList(_activeChatList, _pageSize),
       _loadAndHydrateChatList({'@type': 'chatListArchive'}, _pageSize),
     ]);
+    if (_disposed) return;
     if (_selectedFilter.isAll) _prefetchMainChats();
     _resort();
   }
@@ -364,12 +375,14 @@ class ChatListViewModel extends ChangeNotifier {
     Map<String, dynamic> list, {
     required int limit,
   }) async {
+    if (_disposed) return;
     try {
       final res = await _client.query({
         '@type': 'getChats',
         'chat_list': list,
         'limit': limit,
       });
+      if (_disposed) return;
       final ids = res.int64Array('chat_ids') ?? const <int>[];
       if (ids.isEmpty) _finishInitialLoadingIfNeeded(force: true);
       for (final id in ids) {
@@ -504,8 +517,9 @@ class ChatListViewModel extends ChangeNotifier {
   }
 
   void clearNotice() {
+    if (_disposed) return;
     notice = null;
-    notifyListeners();
+    _notifyIfAlive();
   }
 
   // MARK: - Update stream
@@ -515,6 +529,7 @@ class ChatListViewModel extends ChangeNotifier {
   }
 
   void _apply(Map<String, dynamic> update) {
+    if (_disposed) return;
     switch (update.type) {
       case 'updateNewChat':
         final chat = update.obj('chat');
@@ -725,7 +740,7 @@ class ChatListViewModel extends ChangeNotifier {
   }
 
   void _ensureChatLoaded(int id) {
-    if (_map.containsKey(id)) return;
+    if (_disposed || _map.containsKey(id)) return;
     _client
         .query({'@type': 'getChat', 'chat_id': id})
         .then((raw) => _ingestRawChat(raw, schedule: true))
@@ -736,12 +751,15 @@ class ChatListViewModel extends ChangeNotifier {
     Map<String, dynamic> raw, {
     bool schedule = false,
   }) async {
+    if (_disposed) return;
     final summary = TDParse.chat(raw);
     if (summary == null) return;
     if (!await _isJoinedSummary(summary, raw)) {
+      if (_disposed) return;
       _removeChat(summary.id);
       return;
     }
+    if (_disposed) return;
     if (_meId != null) summary.isSavedMessages = summary.peerUserId == _meId;
     summary.lastMessage = _previewText(summary.lastMessage);
     _map[summary.id] = summary;
@@ -767,6 +785,7 @@ class ChatListViewModel extends ChangeNotifier {
     _client
         .query({'@type': 'getSupergroup', 'supergroup_id': supergroupId})
         .then((supergroup) {
+          if (_disposed) return;
           if (supergroup.boolean('is_forum') != true) return;
           _mutate(summary.id, (s) => s.isForum = true);
           _scheduleResort();
@@ -936,6 +955,7 @@ class ChatListViewModel extends ChangeNotifier {
   void _resort() {
     _resortTimer?.cancel();
     _resortTimer = null;
+    if (_disposed) return;
     final all = _map.values
         .where((c) => _joinedChatCache[c.id] ?? true)
         .toList();
@@ -961,12 +981,19 @@ class ChatListViewModel extends ChangeNotifier {
         });
     }
     _finishInitialLoadingIfNeeded();
-    notifyListeners();
+    _notifyIfAlive();
   }
 
   void _scheduleResort() {
-    if (_resortTimer != null) return;
+    if (_disposed || _resortTimer != null) return;
     _resortTimer = Timer(const Duration(milliseconds: 16), _resort);
+  }
+
+  @visibleForTesting
+  void scheduleResortForTesting() => _scheduleResort();
+
+  void _notifyIfAlive() {
+    if (!_disposed) notifyListeners();
   }
 
   void _finishInitialLoadingIfNeeded({bool force = false}) {
