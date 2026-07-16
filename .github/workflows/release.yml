@@ -65,7 +65,7 @@ jobs:
             ''|*[!0-9]*) echo "Invalid Android version code: $version_code" >&2; exit 1 ;;
           esac
           build_stamp="$(date -u '+%y%m%d%H')"
-          release_date="$(date -u '+%Y-%m-%d')"
+          release_date="$(date -u '+%Y%m%d')"
           short_sha="${GITHUB_SHA::7}"
           branch_name="${GITHUB_REF_NAME:-${GITHUB_REF#refs/heads/}}"
           case "$branch_name" in
