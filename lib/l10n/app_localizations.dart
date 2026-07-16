@@ -199,6 +199,7 @@ abstract final class AppStringKeys {
   static const addPeopleUsernameOrPhonePlaceholder =
       'addPeopleUsernameOrPhonePlaceholder';
   static const advancedInput = 'advancedInput';
+  static const advancedNetwork = 'advancedNetwork';
   static const advancedTitle = 'advancedTitle';
   static const apiCredentialsCustomClientApi = 'apiCredentialsCustomClientApi';
   static const apiCredentialsDescription = 'apiCredentialsDescription';
@@ -1852,6 +1853,19 @@ abstract final class AppStringKeys {
   static const topicPostContentCopied = 'topicPostContentCopied';
   static const topicPostContentCopiedQuery = 'topicPostContentCopiedQuery';
   static const topicPostContentFile = 'topicPostContentFile';
+  static const transferBoostChunkSize = 'transferBoostChunkSize';
+  static const transferBoostDescription = 'transferBoostDescription';
+  static const transferBoostDisabled = 'transferBoostDisabled';
+  static const transferBoostDownload = 'transferBoostDownload';
+  static const transferBoostDownloadSection = 'transferBoostDownloadSection';
+  static const transferBoostEnabled = 'transferBoostEnabled';
+  static const transferBoostMaximum = 'transferBoostMaximum';
+  static const transferBoostMedium = 'transferBoostMedium';
+  static const transferBoostParallelism = 'transferBoostParallelism';
+  static const transferBoostRestartRequired = 'transferBoostRestartRequired';
+  static const transferBoostTitle = 'transferBoostTitle';
+  static const transferBoostUpload = 'transferBoostUpload';
+  static const transferBoostUploadSection = 'transferBoostUploadSection';
   static const translationInternalNoExternalApi =
       'translationInternalNoExternalApi';
   static const translationLibreTranslateNoResult =

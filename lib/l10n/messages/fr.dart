@@ -66,11 +66,12 @@ const frMessages = <String, String>{
   'addPeopleUsernameOrPhonePlaceholder':
       "Nom d’utilisateur/numéro de téléphone",
   'advancedInput': "Saisie",
+  'advancedNetwork': "Réseau",
   'advancedTitle': "Avancé",
   'apiCredentialsCustomClientApi': "API client personnalisée",
   'apiCredentialsDescription':
-      "Désactivé par défaut. Une fois activé, renseignez vos propres identifiants d’API client Telegram ; ils prendront effet au prochain démarrage ou après une nouvelle connexion. L’accélération reste désactivée tant que tous les champs ne sont pas remplis.",
-  'apiCredentialsTitle': "Vidéo et accélération des téléchargements",
+      "Utilisez vos propres identifiants d’API client Telegram. Les modifications prendront effet au prochain démarrage ou après une nouvelle connexion.",
+  'apiCredentialsTitle': "Identifiants d’API personnalisés",
   'appearanceAddFont': "Ajouter une police",
   'appearanceAddTextFont': "Ajouter une police de texte",
   'appearanceAlwaysShowMessageTime': "Toujours afficher l’heure du message",
@@ -1498,6 +1499,20 @@ const frMessages = <String, String>{
   'topicPostContentCopied': "Copié",
   'topicPostContentCopiedQuery': "Requête copiée",
   'topicPostContentFile': "Fichier",
+  'transferBoostChunkSize': "Taille des blocs",
+  'transferBoostDescription':
+      "Telegram limite les blocs de téléchargement à 1 Mo et les blocs d’envoi à 512 Ko. Les envois volumineux utilisent 512 Ko lorsque Telegram l’exige. Le parallélisme peut être réglé de 1 à 24. Les réglages élevés peuvent être plus lents sur les réseaux limités. Redémarrage requis.",
+  'transferBoostDisabled': "Désactivé",
+  'transferBoostDownload': "Accélération des téléchargements",
+  'transferBoostDownloadSection': "Téléchargement",
+  'transferBoostEnabled': "Activé",
+  'transferBoostMaximum': "Maximum",
+  'transferBoostMedium': "Moyen",
+  'transferBoostParallelism': "Requêtes parallèles",
+  'transferBoostRestartRequired': "Redémarrage requis",
+  'transferBoostTitle': "Accélération des transferts",
+  'transferBoostUpload': "Accélération des envois",
+  'transferBoostUploadSection': "Envoi",
   'translationInternalNoExternalApi':
       "La traduction interne n’utilise pas d’API externe",
   'translationLibreTranslateNoResult':

@@ -29,6 +29,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../config/secrets.dart';
 import '../settings/api_credentials_config.dart';
 import '../settings/proxy_config.dart';
+import '../settings/transfer_boost_config.dart';
 import 'avatar_animation_index.dart';
 import 'json_helpers.dart';
 import 'td_bindings.dart';
@@ -159,6 +160,21 @@ class TdClient {
     );
 
     _prefs = await SharedPreferences.getInstance();
+    final transferBoost = TransferBoostConfig.fromPrefs(_prefs);
+    _bindings.configureTransferBoost(
+      downloadChunkSize: transferBoost.downloadEnabled
+          ? transferBoost.downloadChunkSizeBytes
+          : 0,
+      downloadParallelism: transferBoost.downloadEnabled
+          ? transferBoost.downloadParallelism
+          : 0,
+      uploadChunkSize: transferBoost.uploadEnabled
+          ? transferBoost.uploadChunkSizeBytes
+          : 0,
+      uploadParallelism: transferBoost.uploadEnabled
+          ? transferBoost.uploadParallelism
+          : 0,
+    );
     _supportDir = (await getApplicationSupportDirectory()).path;
     if (kDebugMode) await _closeStaleDebugClients();
 
