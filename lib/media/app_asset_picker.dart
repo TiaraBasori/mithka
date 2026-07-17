@@ -48,6 +48,7 @@ abstract final class AppAssetPicker {
     Duration? maxVideoDuration,
     bool preferLivePhotoVideo = false,
     bool preserveOriginalFiles = false,
+    int? photoMaxDimension,
   }) async {
     final selection = await pickDetailed(
       context,
@@ -56,6 +57,7 @@ abstract final class AppAssetPicker {
       maxVideoDuration: maxVideoDuration,
       preferLivePhotoVideo: preferLivePhotoVideo,
       preserveOriginalFiles: preserveOriginalFiles,
+      photoMaxDimension: photoMaxDimension,
     );
     return selection.assets.map((asset) => asset.file).toList(growable: false);
   }
@@ -67,6 +69,7 @@ abstract final class AppAssetPicker {
     Duration? maxVideoDuration,
     bool preferLivePhotoVideo = false,
     bool preserveOriginalFiles = false,
+    int? photoMaxDimension,
   }) async {
     if (maxAssets <= 0) {
       return const AppAssetPickerSelection(assets: [], failedCount: 0);
@@ -93,6 +96,7 @@ abstract final class AppAssetPicker {
             asset,
             preferLivePhotoVideo: preferLivePhotoVideo,
             preserveOriginalFiles: preserveOriginalFiles,
+            photoMaxDimension: photoMaxDimension,
           ),
         );
       } catch (_) {
@@ -195,6 +199,7 @@ abstract final class AppAssetPicker {
     AssetEntity asset, {
     required bool preferLivePhotoVideo,
     required bool preserveOriginalFiles,
+    int? photoMaxDimension,
   }) async {
     final originalMimeType = asset.mimeType ?? await asset.mimeTypeAsync;
     final livePhotoAsVideo = preferLivePhotoVideo && asset.isLivePhoto;
@@ -228,11 +233,15 @@ abstract final class AppAssetPicker {
         asset.type == AssetType.image &&
         !isAnimatedImage &&
         !livePhotoAsVideo &&
-        (await file.length() > _photoSendByteLimit ||
+        (photoMaxDimension != null ||
+            await file.length() > _photoSendByteLimit ||
             asset.width > 4096 ||
             asset.height > 4096);
     final sendBytes = shouldCompressPhoto
-        ? await _compressedPhotoBytes(asset)
+        ? await _compressedPhotoBytes(
+            asset,
+            preferredMaxDimension: photoMaxDimension,
+          )
         : null;
     if (shouldCompressPhoto && sendBytes == null) {
       throw StateError('Unable to prepare selected photo ${asset.id}');
@@ -330,15 +339,25 @@ abstract final class AppAssetPicker {
     }
   }
 
-  static Future<Uint8List?> _compressedPhotoBytes(AssetEntity asset) async {
+  static Future<Uint8List?> _compressedPhotoBytes(
+    AssetEntity asset, {
+    int? preferredMaxDimension,
+  }) async {
     Uint8List? lastResult;
-    for (final target in const [
-      (maxDimension: 4096, quality: 90),
-      (maxDimension: 4096, quality: 82),
-      (maxDimension: 3200, quality: 82),
-      (maxDimension: 2560, quality: 76),
-      (maxDimension: 2048, quality: 72),
-    ]) {
+    final targets = preferredMaxDimension == null
+        ? const [
+            (maxDimension: 4096, quality: 90),
+            (maxDimension: 4096, quality: 82),
+            (maxDimension: 3200, quality: 82),
+            (maxDimension: 2560, quality: 76),
+            (maxDimension: 2048, quality: 72),
+          ]
+        : [
+            (maxDimension: preferredMaxDimension, quality: 90),
+            (maxDimension: preferredMaxDimension, quality: 84),
+            (maxDimension: (preferredMaxDimension * 0.82).round(), quality: 80),
+          ];
+    for (final target in targets) {
       final size = scaledPhotoThumbnailSize(
         asset.width,
         asset.height,

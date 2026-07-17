@@ -42,6 +42,9 @@ import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
+import 'story_authoring_view.dart';
+import 'story_management_view.dart';
+import 'story_service.dart';
 import 'story_viewer_view.dart';
 
 class StoryGroup {
@@ -4095,6 +4098,29 @@ class StoriesView extends StatefulWidget {
 class _StoriesViewState extends State<StoriesView> {
   final _model = MomentsViewModel();
 
+  Future<void> _createStory() async {
+    final changed = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => const StoryAuthoringView(),
+      ),
+    );
+    if (changed == true) _model.refresh();
+  }
+
+  Future<void> _manageStories() async {
+    try {
+      final chatId = await StoryService().savedMessagesChatId();
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => StoryManagementView(chatId: chatId)),
+      );
+      _model.refresh();
+    } catch (error) {
+      if (mounted) showToast(context, 'Stories could not be opened: $error');
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -4122,6 +4148,36 @@ class _StoriesViewState extends State<StoriesView> {
             onBack: widget.showBackButton
                 ? () => Navigator.of(context).pop()
                 : null,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _manageStories,
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: AppIcon(
+                      HeroAppIcons.inbox,
+                      size: 21,
+                      color: AppTheme.brand,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: _createStory,
+                  child: Padding(
+                    padding: const EdgeInsets.all(5),
+                    child: AppIcon(
+                      HeroAppIcons.plus,
+                      size: 22,
+                      color: AppTheme.brand,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           Expanded(child: _content()),
         ],
@@ -4262,6 +4318,13 @@ class MomentsViewModel extends ChangeNotifier {
       if (update.type == 'updateChatActiveStories') _handle(update);
     });
     _loadAll();
+  }
+
+  void refresh() {
+    if (!_started) return;
+    loading = true;
+    notifyListeners();
+    unawaited(_loadAll());
   }
 
   @override

@@ -41,6 +41,7 @@ class _LoginViewState extends State<LoginView> {
   static const _resendCooldown = Duration(seconds: 60);
 
   final _phone = TextEditingController(text: '+');
+  final _email = TextEditingController();
   final _code = TextEditingController();
   final _password = ObscuringController();
   final _firstName = TextEditingController();
@@ -68,7 +69,7 @@ class _LoginViewState extends State<LoginView> {
   @override
   void dispose() {
     _resendTimer?.cancel();
-    for (final c in [_phone, _code, _password, _firstName, _lastName]) {
+    for (final c in [_phone, _email, _code, _password, _firstName, _lastName]) {
       c.dispose();
     }
     super.dispose();
@@ -122,6 +123,9 @@ class _LoginViewState extends State<LoginView> {
     final c = context.colors;
     final beyondPhone =
         auth.step is AuthWaitCode ||
+        auth.step is AuthWaitPremiumPurchase ||
+        auth.step is AuthWaitEmailAddress ||
+        auth.step is AuthWaitEmailCode ||
         auth.step is AuthWaitQrCode ||
         auth.step is AuthWaitPassword ||
         auth.step is AuthWaitRegistration;
@@ -245,6 +249,9 @@ class _LoginViewState extends State<LoginView> {
         !_forcePhone &&
         (auth.step is AuthWaitQrCode ||
             auth.step is AuthWaitCode ||
+            auth.step is AuthWaitPremiumPurchase ||
+            auth.step is AuthWaitEmailAddress ||
+            auth.step is AuthWaitEmailCode ||
             auth.step is AuthWaitPassword ||
             auth.step is AuthWaitRegistration);
     final pendingAdd = accounts.hasPendingAdd;
@@ -319,6 +326,9 @@ class _LoginViewState extends State<LoginView> {
             ? _freshSessionWaitingStep()
             : _qrCodeStep(auth, link),
       AuthWaitCode(:final info) => _codeStep(auth, info),
+      AuthWaitPremiumPurchase() => _premiumPurchaseStep(auth),
+      AuthWaitEmailAddress() => _emailAddressStep(auth),
+      AuthWaitEmailCode() => _emailCodeStep(auth),
       AuthWaitPassword(:final hint) => _passwordStep(auth, hint),
       AuthWaitRegistration() => _registrationStep(auth),
       _ => _phoneStep(auth),
@@ -460,11 +470,244 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  Widget _emailAddressStep(AuthManager auth) {
+    final c = context.colors;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Confirm your email address',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: c.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'Telegram requires an email address to finish signing in.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: c.textSecondary),
+        ),
+        const SizedBox(height: 22),
+        Container(
+          height: 56,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              AppIcon(HeroAppIcons.at, size: 22, color: c.textTertiary),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                  style: TextStyle(fontSize: 17, color: c.textPrimary),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Email address',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _primaryButton(
+          auth,
+          'Send email code',
+          _email.text.trim().contains('@'),
+          () => auth.submitEmailAddress(_email.text),
+        ),
+      ],
+    );
+  }
+
+  Widget _emailCodeStep(AuthManager auth) {
+    final c = context.colors;
+    final step = auth.step as AuthWaitEmailCode;
+    final requiredLength = step.length > 0 ? step.length : 0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Enter the email code',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: c.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          step.emailPattern.isEmpty
+              ? 'Telegram sent a code to your email address.'
+              : 'Telegram sent a code to ${step.emailPattern}.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, color: c.textSecondary),
+        ),
+        const SizedBox(height: 22),
+        Container(
+          height: 56,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              AppIcon(
+                HeroAppIcons.checkDouble,
+                size: 22,
+                color: c.textTertiary,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: TextField(
+                  controller: _code,
+                  keyboardType: TextInputType.text,
+                  autocorrect: false,
+                  style: TextStyle(fontSize: 20, color: c.textPrimary),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Email verification code',
+                  ),
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (_code.text.trim().isNotEmpty) {
+                      auth.submitEmailCode(_code.text);
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        _primaryButton(
+          auth,
+          'Verify email',
+          requiredLength == 0
+              ? _code.text.trim().isNotEmpty
+              : _code.text.trim().length == requiredLength,
+          () => auth.submitEmailCode(_code.text),
+        ),
+        const SizedBox(height: 14),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: auth.isWorking ? null : auth.resendCode,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(
+              'Resend email code',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.brand,
+              ),
+            ),
+          ),
+        ),
+        if (step.canReset)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: auth.isWorking ? null : auth.resetAuthenticationEmailAddress,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                step.resetPending && step.resetWaitSeconds > 0
+                    ? 'Email reset available in ${step.resetWaitSeconds} seconds'
+                    : 'Reset email address',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 14, color: c.textSecondary),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _premiumPurchaseStep(AuthManager auth) {
+    final c = context.colors;
+    final step = auth.step as AuthWaitPremiumPurchase;
+    final days = step.premiumDayCount;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AppIcon(HeroAppIcons.solidStar, size: 54, color: AppTheme.brand),
+        const SizedBox(height: 16),
+        Text(
+          'Telegram Premium is required',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: c.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          days > 0
+              ? 'Purchase $days days of Telegram Premium to finish signing in.'
+              : 'Complete the required Telegram Premium purchase to finish signing in.',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, height: 1.35, color: c.textSecondary),
+        ),
+        const SizedBox(height: 22),
+        _primaryButton(
+          auth,
+          Platform.isIOS ? 'Continue with App Store' : 'Purchase unavailable',
+          Platform.isIOS,
+          () => unawaited(auth.purchaseRequiredPremium()),
+        ),
+        if (Platform.isIOS) ...[
+          const SizedBox(height: 10),
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: auth.isWorking
+                ? null
+                : () => unawaited(auth.purchaseRequiredPremium(restore: true)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              child: Text(
+                'Restore App Store purchase',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.brand,
+                ),
+              ),
+            ),
+          ),
+        ],
+        if (step.supportEmail.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          Text(
+            'Purchase support: ${step.supportEmail}',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 12, color: c.textTertiary),
+          ),
+        ],
+      ],
+    );
+  }
+
   Widget _topRightActions(AuthManager auth, bool showingPhone) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (showingPhone && Platform.isAndroid && auth.canUseLoginPasskey)
+        if (showingPhone &&
+            (Platform.isAndroid || Platform.isIOS) &&
+            auth.canUseLoginPasskey)
           _loginIconButton(
             icon: HeroAppIcons.key,
             tooltip: AppStrings.t(AppStringKeys.loginWithPasskey),
@@ -1058,9 +1301,7 @@ class _LoginViewState extends State<LoginView> {
                 height: 22,
                 child: CircularProgressIndicator(
                   strokeWidth: 2.4,
-                  valueColor: AlwaysStoppedAnimation(
-                    Color(0xFFFFFFFF),
-                  ),
+                  valueColor: AlwaysStoppedAnimation(Color(0xFFFFFFFF)),
                 ),
               )
             : Text(

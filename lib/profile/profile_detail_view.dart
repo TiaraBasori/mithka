@@ -37,6 +37,7 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../components/vip_badge.dart';
 import '../l10n/telegram_language_controller.dart';
+import '../moments/story_management_view.dart';
 import '../moments/story_viewer_view.dart';
 import '../settings/blocked_user_service.dart';
 import '../settings/edit_profile_view.dart';
@@ -45,6 +46,8 @@ import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
+import 'profile_contact_management_view.dart';
+import 'profile_contact_service.dart';
 import 'profile_gifts.dart';
 
 class ProfileDetailView extends StatefulWidget {
@@ -254,20 +257,14 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
         ? _firstName.trim()
         : fallbackName.trim();
     try {
-      await TdClient.shared.query({
-        '@type': 'addContact',
-        'contact': {
-          '@type': 'contact',
-          'phone_number': _rawPhone,
-          'first_name': firstName.isEmpty
-              ? widget.userId.toString()
-              : firstName,
-          'last_name': _lastName.trim(),
-          'vcard': '',
-          'user_id': widget.userId,
-        },
-        'share_phone_number': false,
-      });
+      await TdClient.shared.query(
+        addOrEditContactRequest(
+          userId: widget.userId,
+          phoneNumber: _rawPhone,
+          firstName: firstName.isEmpty ? widget.userId.toString() : firstName,
+          lastName: _lastName.trim(),
+        ),
+      );
       if (!mounted) return;
       setState(() => _isContact = true);
       showToast(context, AppStringKeys.profileDetailAddFriendDone);
@@ -388,10 +385,23 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
     final action = await showModalBottomSheet<_ProfileContextAction>(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => _ProfileContextMenu(showBlock: !_isMe && !_isBlocked),
+      builder: (_) => _ProfileContextMenu(
+        showBlock: !_isMe && !_isBlocked,
+        manageLabel: _isMe ? 'Profile tools' : 'Contact tools',
+      ),
     );
     if (!mounted || action == null) return;
     switch (action) {
+      case _ProfileContextAction.manage:
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProfileContactManagementView(
+              userId: widget.userId,
+              initialName: _name,
+            ),
+          ),
+        );
+        if (mounted) await _load();
       case _ProfileContextAction.copyLink:
         _copyProfileLink();
       case _ProfileContextAction.blockUser:
@@ -458,6 +468,19 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       MaterialPageRoute(
         fullscreenDialog: true,
         builder: (_) => StoryViewerView(chatId: chatId, storyIds: storyIds),
+      ),
+    );
+  }
+
+  void _manageStories() {
+    final chatId = _chatId;
+    if (chatId == null) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => StoryManagementView(
+          chatId: chatId,
+          title: AppStrings.t(AppStringKeys.momentsStories),
+        ),
       ),
     );
   }
@@ -1002,6 +1025,16 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       rows.add(row);
     }
 
+    if (_isMe) {
+      addRow(
+        _profileRow(
+          HeroAppIcons.penToSquare.data,
+          'Manage stories',
+          onTap: _manageStories,
+        ),
+      );
+    }
+
     if (_postStoryIds.isNotEmpty) {
       addRow(
         _profileRow(
@@ -1518,12 +1551,16 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   }
 }
 
-enum _ProfileContextAction { copyLink, blockUser }
+enum _ProfileContextAction { manage, copyLink, blockUser }
 
 class _ProfileContextMenu extends StatelessWidget {
-  const _ProfileContextMenu({required this.showBlock});
+  const _ProfileContextMenu({
+    required this.showBlock,
+    required this.manageLabel,
+  });
 
   final bool showBlock;
+  final String manageLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -1547,6 +1584,15 @@ class _ProfileContextMenu extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _item(
+              context,
+              key: const ValueKey('profile-context-manage'),
+              icon: HeroAppIcons.penToSquare,
+              label: manageLabel,
+              onTap: () =>
+                  Navigator.of(context).pop(_ProfileContextAction.manage),
+            ),
+            const InsetDivider(leadingInset: 56),
             _item(
               context,
               key: const ValueKey('profile-context-copy-link'),

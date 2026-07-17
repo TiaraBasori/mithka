@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -55,7 +57,16 @@ List<QrScanCandidate> qrCandidatesFromCapture(BarcodeCapture capture) {
 }
 
 class QrScannerView extends StatefulWidget {
-  const QrScannerView({super.key});
+  const QrScannerView({
+    super.key,
+    this.returnAnyValue = false,
+    this.onScan,
+    this.hint,
+  });
+
+  final bool returnAnyValue;
+  final FutureOr<void> Function(String value)? onScan;
+  final String? hint;
 
   @override
   State<QrScannerView> createState() => _QrScannerViewState();
@@ -95,6 +106,24 @@ class _QrScannerViewState extends State<QrScannerView> {
   }
 
   void _selectCandidate(QrScanCandidate candidate) {
+    if (widget.returnAnyValue) {
+      final callback = widget.onScan;
+      if (callback == null) {
+        Navigator.of(context).pop(candidate.value);
+        return;
+      }
+      unawaited(
+        Future<void>.sync(() => callback(candidate.value)).whenComplete(() {
+          if (!mounted) return;
+          setState(() {
+            _choices = const [];
+            _detail = null;
+            _paused = false;
+          });
+        }),
+      );
+      return;
+    }
     if (candidate.isTelegram) {
       Navigator.of(context).pop(candidate.value);
       return;
@@ -264,7 +293,7 @@ class _QrScannerViewState extends State<QrScannerView> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    AppStrings.t(AppStringKeys.qrScannerHint),
+                    widget.hint ?? AppStrings.t(AppStringKeys.qrScannerHint),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Color(0xCCFFFFFF),

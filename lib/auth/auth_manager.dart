@@ -17,6 +17,7 @@ import '../settings/api_credentials_config.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import 'account_backup_service.dart';
+import 'premium_auth_purchase_service.dart';
 import 'review_login_code_service.dart';
 import 'telegram_passkey_service.dart';
 
@@ -40,6 +41,50 @@ class AuthWaitQrCode extends AuthStep {
 class AuthWaitCode extends AuthStep {
   const AuthWaitCode(this.info);
   final AuthCodeInfo info;
+}
+
+class AuthWaitPremiumPurchase extends AuthStep {
+  const AuthWaitPremiumPurchase({
+    required this.productId,
+    required this.premiumDayCount,
+    required this.supportEmail,
+    required this.supportSubject,
+  });
+
+  final String productId;
+  final int premiumDayCount;
+  final String supportEmail;
+  final String supportSubject;
+}
+
+class AuthWaitEmailAddress extends AuthStep {
+  const AuthWaitEmailAddress({
+    required this.allowAppleId,
+    required this.allowGoogleId,
+  });
+
+  final bool allowAppleId;
+  final bool allowGoogleId;
+}
+
+class AuthWaitEmailCode extends AuthStep {
+  const AuthWaitEmailCode({
+    required this.allowAppleId,
+    required this.allowGoogleId,
+    required this.emailPattern,
+    required this.length,
+    required this.canReset,
+    required this.resetWaitSeconds,
+    required this.resetPending,
+  });
+
+  final bool allowAppleId;
+  final bool allowGoogleId;
+  final String emailPattern;
+  final int length;
+  final bool canReset;
+  final int resetWaitSeconds;
+  final bool resetPending;
 }
 
 enum AuthCodeDeliveryMethod {
@@ -125,9 +170,23 @@ bool authorizationStateAcceptsPhoneNumber(String? type) => const {
 bool authorizationStateRequiresQrReset(String? type) =>
     type == 'authorizationStateWaitOtherDeviceConfirmation';
 
+@visibleForTesting
+Map<String, dynamic> authenticationEmailAddressRequest(String email) => {
+  '@type': 'setAuthenticationEmailAddress',
+  'email_address': email.trim(),
+};
+
+@visibleForTesting
+Map<String, dynamic> authenticationEmailCodeRequest(String code) => {
+  '@type': 'checkAuthenticationEmailCode',
+  'code': {'@type': 'emailAddressAuthenticationCode', 'code': code.trim()},
+};
+
 class AuthManager extends ChangeNotifier {
   final TdClient _client = TdClient.shared;
   final TelegramPasskeyService _passkeys = TelegramPasskeyService.shared;
+  final PremiumAuthPurchaseService _premiumPurchases =
+      const PremiumAuthPurchaseService();
   bool _started = false;
   final ReviewLoginCodeService _reviewLoginCode = ReviewLoginCodeService();
 
@@ -201,6 +260,39 @@ class AuthManager extends ChangeNotifier {
         _client.sendParametersForActiveClient();
       case 'authorizationStateWaitPhoneNumber':
         _set(const AuthWaitPhoneNumber());
+      case 'authorizationStateWaitPremiumPurchase':
+        _set(
+          AuthWaitPremiumPurchase(
+            productId: state.str('store_product_id') ?? '',
+            premiumDayCount: state.integer('premium_day_count') ?? 0,
+            supportEmail: state.str('support_email_address') ?? '',
+            supportSubject: state.str('support_email_subject') ?? '',
+          ),
+        );
+      case 'authorizationStateWaitEmailAddress':
+        _set(
+          AuthWaitEmailAddress(
+            allowAppleId: state.boolean('allow_apple_id') ?? false,
+            allowGoogleId: state.boolean('allow_google_id') ?? false,
+          ),
+        );
+      case 'authorizationStateWaitEmailCode':
+        final codeInfo = state.obj('code_info');
+        final resetState = state.obj('email_address_reset_state');
+        _set(
+          AuthWaitEmailCode(
+            allowAppleId: state.boolean('allow_apple_id') ?? false,
+            allowGoogleId: state.boolean('allow_google_id') ?? false,
+            emailPattern: codeInfo?.str('email_address_pattern') ?? '',
+            length: codeInfo?.integer('length') ?? 0,
+            canReset: resetState != null,
+            resetWaitSeconds:
+                resetState?.integer('wait_period') ??
+                resetState?.integer('reset_in') ??
+                0,
+            resetPending: resetState?.type == 'emailAddressResetStatePending',
+          ),
+        );
       case 'authorizationStateWaitOtherDeviceConfirmation':
         _set(AuthWaitQrCode(state.str('link') ?? ''));
       case 'authorizationStateWaitCode':
@@ -289,6 +381,7 @@ class AuthManager extends ChangeNotifier {
           .query({
             '@type': 'setAuthenticationPhoneNumber',
             'phone_number': normalizedPhone,
+            'settings': null,
           })
           .timeout(const Duration(seconds: 20));
       return action == _actionSerial;
@@ -358,6 +451,42 @@ class AuthManager extends ChangeNotifier {
     _run({'@type': 'checkAuthenticationCode', 'code': code.trim()});
   }
 
+  void submitEmailAddress(String email) =>
+      _run(authenticationEmailAddressRequest(email));
+
+  void submitEmailCode(String code) =>
+      _run(authenticationEmailCodeRequest(code));
+
+  void resetAuthenticationEmailAddress() =>
+      _run({'@type': 'resetAuthenticationEmailAddress'});
+
+  Future<bool> purchaseRequiredPremium({bool restore = false}) async {
+    final step = _step;
+    if (_isWorking || step is! AuthWaitPremiumPurchase) return false;
+    final clientId = _client.activeClientId;
+    if (clientId == 0 || step.productId.isEmpty) return false;
+    final action = _beginAuthorizationTransition();
+    try {
+      await _premiumPurchases.purchaseAndAuthorize(
+        clientId: clientId,
+        productId: step.productId,
+        premiumDayCount: step.premiumDayCount,
+        restore: restore,
+      );
+      return action == _actionSerial;
+    } on PremiumAuthPurchaseException catch (error) {
+      if (action == _actionSerial && !error.isCancelled) {
+        _errorMessage = error.message ?? error.code;
+      }
+      return false;
+    } catch (error) {
+      if (action == _actionSerial) _report(error);
+      return false;
+    } finally {
+      _finishAuthorizationTransition(action);
+    }
+  }
+
   void submitPassword(String password) =>
       _run({'@type': 'checkAuthenticationPassword', 'password': password});
 
@@ -365,11 +494,12 @@ class AuthManager extends ChangeNotifier {
     '@type': 'registerUser',
     'first_name': firstName,
     'last_name': lastName,
+    'disable_notification': false,
   });
 
   void resendCode() {
     if (_mockReviewSessionPhone != null) return;
-    _run({'@type': 'resendAuthenticationCode'});
+    _run({'@type': 'resendAuthenticationCode', 'reason': null});
   }
 
   void logOut() => _run({'@type': 'logOut'});

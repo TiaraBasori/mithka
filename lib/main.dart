@@ -44,6 +44,8 @@ import 'notifications/notification_controller.dart';
 import 'notifications/push_device_registrar.dart';
 import 'platform/firebase_configuration.dart';
 import 'platform/system_ui.dart';
+import 'security/local_app_lock_controller.dart';
+import 'security/local_app_lock_views.dart';
 import 'settings/app_icon_controller.dart';
 import 'settings/auto_download_media_controller.dart';
 import 'settings/blocked_user_service.dart';
@@ -98,6 +100,7 @@ Future<void> _bootstrapAndRunApp() async {
   // Draw under transparent status / navigation bars (edge-to-edge).
   configureImmersiveSystemUI();
   final prefs = await SharedPreferences.getInstance();
+  await LocalAppLockController.shared.initialize();
   KeywordBlocker.shared.initialize(prefs);
   CountryMessageFilter.shared.initialize(prefs);
   unawaited(SensitiveContentController.shared.initialize());
@@ -257,6 +260,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   );
   late final SensitiveContentController _sensitiveContent =
       SensitiveContentController.shared;
+  late final LocalAppLockController _appLock = LocalAppLockController.shared;
   late final CallManager _calls = CallManager()..start();
 
   @override
@@ -288,6 +292,12 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      _appLock.lock();
+    }
     if (state == AppLifecycleState.resumed) {
       TdClient.shared.restartReceiveIsolate();
     }
@@ -352,6 +362,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
         ChangeNotifierProvider.value(value: _developer),
         ChangeNotifierProvider.value(value: _safetyNotice),
         ChangeNotifierProvider.value(value: _sensitiveContent),
+        ChangeNotifierProvider.value(value: _appLock),
         ChangeNotifierProvider.value(value: _calls),
         ChangeNotifierProvider<dc.DrawerController>.value(value: _drawer),
       ],
@@ -398,7 +409,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
                 ),
                 child: child ?? const SizedBox.shrink(),
               );
-              final appChild = Stack(
+              final unlockedApp = Stack(
                 children: [
                   Positioned.fill(
                     child: GlobalVideoSplitHost(child: themedChild),
@@ -416,6 +427,18 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
                     ),
                   ),
                   const Positioned.fill(child: GlobalCallOverlayHost()),
+                ],
+              );
+              final appLock = context.watch<LocalAppLockController>();
+              final appChild = Stack(
+                children: [
+                  Positioned.fill(
+                    child: ExcludeSemantics(
+                      excluding: appLock.locked,
+                      child: unlockedApp,
+                    ),
+                  ),
+                  const Positioned.fill(child: LocalAppLockGate()),
                 ],
               );
               return AnnotatedRegion<SystemUiOverlayStyle>(

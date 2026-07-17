@@ -51,7 +51,9 @@ android {
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // TDLib (tdjson) needs API 21+. jniLibs/<abi>/libtdjson.so is bundled
         // automatically by the Android Gradle plugin (see scripts/build-tdjson-android.sh).
-        minSdk = maxOf(23, flutter.minSdkVersion)
+        // The owned video-message recorder uses Flutter's CameraX backend,
+        // whose supported Android floor is API 24.
+        minSdk = maxOf(24, flutter.minSdkVersion)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -120,6 +122,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // FlutterFragmentActivity and the local_auth launch theme require AppCompat.
+    implementation("androidx.appcompat:appcompat:1.7.1")
     // Edge-to-edge: WindowCompat.setDecorFitsSystemWindows.
     implementation("androidx.core:core-ktx:1.16.0")
     // Android's system passkey picker. The Play Services adapter keeps the

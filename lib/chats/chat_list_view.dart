@@ -22,6 +22,7 @@ import '../channels/forum_topic_browser_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
 import '../chat/link_handler.dart';
+import '../chat/saved_messages_view.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
 import '../components/app_icons.dart';
@@ -272,6 +273,12 @@ class _ChatListViewState extends State<ChatListView>
     final onChatSelected = widget.onChatSelected;
     if (onChatSelected != null) {
       onChatSelected(ChatListSelection.fromChat(chat));
+      return;
+    }
+    if (chat.isSavedMessages) {
+      unawaited(
+        pushAppChatRoute(context, _chatEntryRoute(const SavedMessagesView())),
+      );
       return;
     }
     if (chat.isForum) {

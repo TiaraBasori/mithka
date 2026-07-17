@@ -24,6 +24,8 @@
     <!-- Location sharing (geolocator) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- App unlock and Mini App biometric tokens use Android's BiometricPrompt. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <application
         android:label="Mithka"

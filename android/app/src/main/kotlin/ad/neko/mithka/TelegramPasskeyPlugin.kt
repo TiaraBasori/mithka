@@ -23,7 +23,7 @@ import androidx.credentials.exceptions.GetCredentialInterruptedException
 import androidx.credentials.exceptions.GetCredentialProviderConfigurationException
 import androidx.credentials.exceptions.GetCredentialUnsupportedException
 import androidx.credentials.exceptions.NoCredentialException
-import io.flutter.embedding.android.FlutterActivity
+import androidx.fragment.app.FragmentActivity
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -39,7 +39,7 @@ import org.json.JSONObject
  * reject the assertion or attestation.
  */
 class TelegramPasskeyPlugin(
-    private val activity: FlutterActivity,
+    private val activity: FragmentActivity,
     messenger: BinaryMessenger,
 ) : MethodChannel.MethodCallHandler {
     private val channel = MethodChannel(messenger, CHANNEL)

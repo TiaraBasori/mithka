@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 Future<bool> showAppConfirmDialog(
   BuildContext context, {
   required String title,
+  String? message,
   required String confirmText,
   String cancelText = AppStringKeys.countryPickerCancel,
   AppColors? colors,
@@ -40,13 +41,28 @@ Future<bool> showAppConfirmDialog(
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(22, 24, 22, 22),
-                  child: Text(
-                    title.l10n(dialogContext),
-                    textAlign: TextAlign.center,
-                    style: AppTextStyle.title(
-                      c.textPrimary,
-                      weight: AppTextWeight.semibold,
-                    ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title.l10n(dialogContext),
+                        textAlign: TextAlign.center,
+                        style: AppTextStyle.title(
+                          c.textPrimary,
+                          weight: AppTextWeight.semibold,
+                        ),
+                      ),
+                      if (message != null && message.trim().isNotEmpty) ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          message.l10n(dialogContext),
+                          textAlign: TextAlign.center,
+                          style: AppTextStyle.body(
+                            c.textSecondary,
+                          ).copyWith(height: 1.35),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 ColoredBox(color: c.divider, child: const SizedBox(height: 1)),

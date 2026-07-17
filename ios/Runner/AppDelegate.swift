@@ -23,6 +23,8 @@ import UserNotifications
   private var liveCommunicationBridge: AnyObject?
   private var groupCallMediaBridge: TelegramGroupCallMediaBridge?
   private var mediaDropBridge: MediaDropBridge?
+  private var telegramPasskeyBridge: TelegramPasskeyBridge?
+  private var premiumAuthPurchaseBridge: PremiumAuthPurchaseBridge?
 
   override func application(
     _ application: UIApplication,
@@ -163,6 +165,40 @@ import UserNotifications
         return
       }
       result(nil)
+    }
+    let mediaEditorChannel = FlutterMethodChannel(
+      name: "mithka/media_editor",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    mediaEditorChannel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "trimVideo" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard
+        let arguments = call.arguments as? [String: Any],
+        let path = arguments["path"] as? String,
+        let startMs = arguments["startMs"] as? NSNumber,
+        let endMs = arguments["endMs"] as? NSNumber,
+        !path.isEmpty,
+        startMs.int64Value >= 0,
+        endMs.int64Value > startMs.int64Value
+      else {
+        result(
+          FlutterError(
+            code: "invalid_arguments",
+            message: "A valid video trim range is required",
+            details: nil
+          )
+        )
+        return
+      }
+      self?.trimVideo(
+        path: path,
+        startMs: startMs.int64Value,
+        endMs: endMs.int64Value,
+        result: result
+      )
     }
     let animatedAvatarChannel = FlutterMethodChannel(
       name: "mithka/animated_avatar",
@@ -371,6 +407,12 @@ import UserNotifications
     accountBackupChannel.setMethodCallHandler { call, result in
       accountBackup.handle(call: call, result: result)
     }
+    telegramPasskeyBridge = TelegramPasskeyBridge(
+      messenger: engineBridge.applicationRegistrar.messenger()
+    )
+    premiumAuthPurchaseBridge = PremiumAuthPurchaseBridge(
+      messenger: engineBridge.applicationRegistrar.messenger()
+    )
 
     let pushChannel = FlutterMethodChannel(
       name: "mithka/push",
@@ -471,6 +513,63 @@ import UserNotifications
             details: nil
           )
         )
+      }
+    }
+  }
+
+  private func trimVideo(
+    path: String,
+    startMs: Int64,
+    endMs: Int64,
+    result: @escaping FlutterResult
+  ) {
+    let inputURL = URL(fileURLWithPath: path)
+    guard FileManager.default.fileExists(atPath: inputURL.path) else {
+      result(
+        FlutterError(
+          code: "video_trim_failed",
+          message: "The source video is unavailable",
+          details: nil
+        )
+      )
+      return
+    }
+    let outputURL = FileManager.default.temporaryDirectory
+      .appendingPathComponent("mithka-trim-\(UUID().uuidString)")
+      .appendingPathExtension("mp4")
+    let asset = AVURLAsset(url: inputURL)
+    guard let exporter = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetPassthrough)
+    else {
+      result(
+        FlutterError(
+          code: "video_trim_failed",
+          message: "This video cannot be exported",
+          details: nil
+        )
+      )
+      return
+    }
+    exporter.outputURL = outputURL
+    exporter.outputFileType = exporter.supportedFileTypes.contains(.mp4) ? .mp4 : .mov
+    exporter.shouldOptimizeForNetworkUse = true
+    let start = CMTime(value: startMs, timescale: 1000)
+    let duration = CMTime(value: endMs - startMs, timescale: 1000)
+    exporter.timeRange = CMTimeRange(start: start, duration: duration)
+    exporter.exportAsynchronously {
+      DispatchQueue.main.async {
+        switch exporter.status {
+        case .completed:
+          result(outputURL.path)
+        default:
+          try? FileManager.default.removeItem(at: outputURL)
+          result(
+            FlutterError(
+              code: "video_trim_failed",
+              message: exporter.error?.localizedDescription ?? "The video export failed",
+              details: nil
+            )
+          )
+        }
       }
     }
   }

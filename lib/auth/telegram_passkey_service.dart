@@ -60,7 +60,7 @@ class TelegramPasskeyService {
   final TdClient _client = TdClient.shared;
 
   Future<bool> isPlatformSupported() async {
-    if (!Platform.isAndroid) return false;
+    if (!Platform.isAndroid && !Platform.isIOS) return false;
     try {
       return await _channel.invokeMethod<bool>('isSupported') ?? false;
     } on PlatformException {

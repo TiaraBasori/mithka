@@ -4,7 +4,7 @@ import 'package:mithka/l10n/app_localizations.dart';
 import '../components/app_icons.dart';
 import '../theme/app_theme.dart';
 
-enum GallerySendMode { media, file }
+enum GallerySendMode { media, highDefinition, livePhoto, file }
 
 Future<GallerySendMode?> showGallerySendModeSheet(BuildContext context) {
   return showModalBottomSheet<GallerySendMode>(
@@ -46,7 +46,27 @@ class _GallerySendModeSheet extends StatelessWidget {
               key: const ValueKey('gallerySendAsMedia'),
               icon: HeroAppIcons.images,
               title: AppStringKeys.composerSendAsMedia.l10n(context),
+              subtitle: AppStringKeys.gallerySendMediaSubtitle.l10n(context),
               onTap: () => Navigator.of(context).pop(GallerySendMode.media),
+            ),
+            Divider(height: 1, indent: 52, color: c.divider),
+            _option(
+              context,
+              key: const ValueKey('gallerySendAsHd'),
+              icon: HeroAppIcons.wandMagicSparkles,
+              title: AppStringKeys.gallerySendHdTitle.l10n(context),
+              subtitle: AppStringKeys.gallerySendHdSubtitle.l10n(context),
+              onTap: () =>
+                  Navigator.of(context).pop(GallerySendMode.highDefinition),
+            ),
+            Divider(height: 1, indent: 52, color: c.divider),
+            _option(
+              context,
+              key: const ValueKey('gallerySendLivePhoto'),
+              icon: HeroAppIcons.play,
+              title: AppStringKeys.gallerySendMotionTitle.l10n(context),
+              subtitle: AppStringKeys.gallerySendMotionSubtitle.l10n(context),
+              onTap: () => Navigator.of(context).pop(GallerySendMode.livePhoto),
             ),
             Divider(height: 1, indent: 52, color: c.divider),
             _option(

@@ -119,6 +119,8 @@ class TdClient {
   );
   final Map<int, Map<String, dynamic>> _latestChatFoldersByClient = {};
   final Map<int, Map<String, dynamic>> _latestEmojiChatThemesByClient = {};
+  final Map<int, Map<String, dynamic>> _latestTextCompositionStylesByClient =
+      {};
   final Map<int, Map<int, Map<String, dynamic>>> _latestCommunitiesByClient =
       {};
 
@@ -149,6 +151,8 @@ class TdClient {
       _latestChatFoldersByClient[clientId];
   Map<String, dynamic>? get latestEmojiChatThemesUpdate =>
       _latestEmojiChatThemesByClient[_activeClientId];
+  Map<String, dynamic>? get latestTextCompositionStylesUpdate =>
+      _latestTextCompositionStylesByClient[_activeClientId];
   Iterable<Map<String, dynamic>> get latestCommunityUpdates =>
       _latestCommunitiesByClient[_activeClientId]?.values ?? const [];
 
@@ -949,6 +953,9 @@ class TdClient {
     }
     if (object.type == 'updateEmojiChatThemes') {
       _latestEmojiChatThemesByClient[clientId] = object;
+    }
+    if (object.type == 'updateTextCompositionStyles') {
+      _latestTextCompositionStylesByClient[clientId] = object;
     }
     if (object.type == 'updateCommunity') {
       final community = object.obj('community');
