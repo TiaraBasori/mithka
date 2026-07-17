@@ -44,6 +44,7 @@ import 'notifications/notification_controller.dart';
 import 'notifications/push_device_registrar.dart';
 import 'platform/firebase_configuration.dart';
 import 'platform/system_ui.dart';
+import 'pro/mithka_pro_service.dart';
 import 'security/local_app_lock_controller.dart';
 import 'security/local_app_lock_views.dart';
 import 'settings/app_icon_controller.dart';
@@ -236,6 +237,7 @@ class MithkaApp extends StatefulWidget {
 class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   late final AuthManager _auth = AuthManager();
   late final AccountStore _accounts = AccountStore(widget.prefs);
+  late final MithkaProService _mithkaPro = MithkaProService.shared;
   late final ThemeController _theme = ThemeController(
     widget.prefs,
     initialAccountSlot: _accounts.activeSlot,
@@ -268,9 +270,11 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _accounts.addListener(_handleActiveAccountChange);
+    _mithkaPro.addListener(_handleMithkaProChange);
     _theme.loadSelectedEmojiFontIfAvailable();
     _autoDownload.initialize(widget.prefs);
     _auth.start();
+    unawaited(_mithkaPro.initialize());
     unawaited(_telegramLanguage.initialize(widget.prefs));
     unawaited(_appIcons.initialize());
     unawaited(_accounts.recoverPendingAddOnStartup(_auth));
@@ -282,6 +286,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _accounts.removeListener(_handleActiveAccountChange);
+    _mithkaPro.removeListener(_handleMithkaProChange);
     _calls.dispose();
     super.dispose();
   }
@@ -289,6 +294,8 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   void _handleActiveAccountChange() {
     _theme.setActiveAccountSlot(_accounts.activeSlot);
   }
+
+  void _handleMithkaProChange() => _accounts.handleEntitlementChanged();
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -300,6 +307,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.resumed) {
       TdClient.shared.restartReceiveIsolate();
+      unawaited(_mithkaPro.refresh());
     }
   }
 
@@ -356,6 +364,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
           },
         ),
         ChangeNotifierProvider.value(value: _accounts),
+        ChangeNotifierProvider.value(value: _mithkaPro),
         ChangeNotifierProvider.value(value: _chatDeepLinks),
         ChangeNotifierProvider.value(value: _appIcons),
         ChangeNotifierProvider.value(value: _autoDownload),

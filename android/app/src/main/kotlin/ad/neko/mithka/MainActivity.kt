@@ -38,6 +38,8 @@ import org.xmlpull.v1.XmlPullParserFactory
 class MainActivity : FlutterFragmentActivity() {
     private var callMedia: CallMediaPlugin? = null
     private var telegramPasskeys: TelegramPasskeyPlugin? = null
+    private var accountBackup: AccountBackupPlugin? = null
+    private var mithkaPro: MithkaProPlugin? = null
     private var mediaDropChannel: MethodChannel? = null
     private var acceptingImageDrop = false
     private val translators = mutableMapOf<String, Translator>()
@@ -51,6 +53,14 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         registerPlugins(flutterEngine)
         telegramPasskeys = TelegramPasskeyPlugin(
+            this,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
+        accountBackup = AccountBackupPlugin(
+            applicationContext,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
+        mithkaPro = MithkaProPlugin(
             this,
             flutterEngine.dartExecutor.binaryMessenger,
         )
@@ -687,6 +697,10 @@ class MainActivity : FlutterFragmentActivity() {
         translators.clear()
         telegramPasskeys?.dispose()
         telegramPasskeys = null
+        accountBackup?.dispose()
+        accountBackup = null
+        mithkaPro?.dispose()
+        mithkaPro = null
         callMedia?.dispose()
         callMedia = null
         super.cleanUpFlutterEngine(flutterEngine)

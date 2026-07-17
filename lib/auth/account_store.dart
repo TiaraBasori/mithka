@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../chat/custom_emoji.dart';
 import '../chat/emoji_store.dart';
+import '../pro/mithka_pro_service.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -91,6 +92,11 @@ class AccountStore extends ChangeNotifier {
 
   int get activeSlot => _activeSlot;
   List<AccountSummary> get summaries => _summaries;
+  bool get canAddAccount => MithkaProService.shared.canAddAccount(
+    TdClient.shared.configuredSlots.length,
+  );
+
+  void handleEntitlementChanged() => notifyListeners();
 
   void _activeAccountChanged() {
     CustomEmojiCenter.shared.reset();
@@ -165,6 +171,7 @@ class AccountStore extends ChangeNotifier {
 
     _pendingSlot = null;
     _persistPending();
+    await AccountBackupService.shared.clearPendingLoginConsent(slot: pending);
     TdClient.shared.setActive(target);
     _activeAccountChanged();
     _activeSlot = target;
@@ -243,7 +250,8 @@ class AccountStore extends ChangeNotifier {
 
   /// Creates a fresh account and switches to it (lands on the login flow).
   /// Remembers the current account so an aborted login can return to it.
-  void addAccount(AuthManager auth) {
+  bool addAccount(AuthManager auth) {
+    if (!canAddAccount) return false;
     _returnSlot = _activeSlot;
     final slot = TdClient.shared.addSlot();
     _pendingSlot = slot;
@@ -254,6 +262,7 @@ class AccountStore extends ChangeNotifier {
     notifyListeners();
     auth.reloadAuthState();
     refresh();
+    return true;
   }
 
   Future<TdFreshSessionResult> createFreshSessionFromRestoredSlot(
@@ -281,6 +290,9 @@ class AccountStore extends ChangeNotifier {
   void cancelAddAccount(AuthManager auth) {
     final pending = _pendingSlot;
     if (pending == null) return;
+    unawaited(
+      AccountBackupService.shared.clearPendingLoginConsent(slot: pending),
+    );
     _pendingSlot = null;
     _persistPending();
     final slots = TdClient.shared.configuredSlots;
@@ -306,6 +318,7 @@ class AccountStore extends ChangeNotifier {
   Future<void> removeAccount(int slot, AuthManager auth) async {
     final slots = TdClient.shared.configuredSlots;
     if (!slots.contains(slot)) return;
+    final userId = await _userIdForSlot(slot);
     if (slots.length <= 1) {
       if (slot == _pendingSlot) {
         _pendingSlot = null;
@@ -314,6 +327,9 @@ class AccountStore extends ChangeNotifier {
       _activeSlot = TdClient.shared.replaceActiveWithFreshLoginSlot();
       _activeAccountChanged();
       await TdClient.shared.deleteSlotData(slot);
+      if (userId != null) {
+        await AccountBackupService.shared.deleteAccountId('$userId');
+      }
       notifyListeners();
       auth.reloadAuthState();
       await refresh();
@@ -332,6 +348,9 @@ class AccountStore extends ChangeNotifier {
     }
     TdClient.shared.removeSlot(slot);
     await TdClient.shared.deleteSlotData(slot);
+    if (userId != null) {
+      await AccountBackupService.shared.deleteAccountId('$userId');
+    }
     notifyListeners();
     await refresh();
   }

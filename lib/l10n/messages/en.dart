@@ -25,7 +25,7 @@ const enMessages = <String, String>{
   'accountBackupCreate': "Back up current account to Keychain",
   'accountBackupDeleteInvalidSession': "Delete Saved Session",
   'accountBackupDeleteMessage':
-      "This removes the saved session from Keychain. The Telegram session is not revoked.",
+      "This removes the session from cloud backup. The Telegram session is not revoked.",
   'accountBackupDeleteTitle': "Delete saved session?",
   'accountBackupEmpty': "No account sessions are backed up yet.",
   'accountBackupEnabled': "Back up accounts",
@@ -42,9 +42,13 @@ const enMessages = <String, String>{
   'accountBackupInvalidImportedMessage':
       "This session string is no longer valid or may have been revoked. Please export a fresh session from a logged-in device.",
   'accountBackupInvalidMessage':
-      "The saved session for {value1} is no longer valid or may have been revoked. Delete this saved session from Keychain?",
+      "The saved session for {value1} is no longer valid or may have been revoked. Delete it from cloud backup?",
   'accountBackupInvalidTitle': "Session no longer valid",
   'accountBackupIOSOnly': "Account backup is available on iOS only.",
+  'accountBackupLoginAndroid': "Back up this account to Android Backup",
+  'accountBackupLoginDescription':
+      "Only this account’s authorization session will be saved after sign-in.",
+  'accountBackupLoginICloud': "Back up this account to iCloud Keychain",
   'accountBackupLoadPyrogramConfirm': "Load Session",
   'accountBackupLoadPyrogramMessage':
       "Paste a Pyrogram-compatible Telegram session string. The session will be imported locally as an account if it is still valid.",
@@ -54,6 +58,10 @@ const enMessages = <String, String>{
   'accountBackupLoadPyrogramTitle': "Load Pyrogram session",
   'accountBackupNotice':
       "Only the TDLib session file is stored in the device Keychain. Message databases, media, logs, and caches are not backed up. To transfer this Keychain item to a new device, restore from an encrypted device backup.",
+  'accountBackupNoticeAndroid':
+      "Only the TDLib authorization session is stored in Android Backup. Messages, media, logs, and caches are not backed up.",
+  'accountBackupNoticeICloud':
+      "Only the TDLib authorization session is stored in iCloud Keychain. Messages, media, logs, and caches are not backed up.",
   'accountBackupRestore': "Restore",
   'accountBackupRestoreAccount': "Restore saved account",
   'accountBackupRestored': "Restored to account slot {value1}",
@@ -63,7 +71,38 @@ const enMessages = <String, String>{
   'accountBackupSaved': "Session saved ({value1})",
   'accountBackupSessions': "Saved Sessions",
   'accountBackupTitle': "Account Backup",
+  'accountBackupUnavailable':
+      "Account backup is unavailable on this device or distribution.",
   'accountBackupUserId': "User ID: {value1}",
+  'mithkaProActive': "Mithka Pro is active",
+  'mithkaProActiveUntil': "Mithka Pro active until {value1}",
+  'mithkaProBackupLimitReached':
+      "The free plan includes four backed-up accounts. Mithka Pro removes this limit.",
+  'mithkaProBestValue': "BEST VALUE",
+  'mithkaProBillingNotice':
+      "Subscriptions renew automatically unless canceled through your store account. Prices and taxes are confirmed by the store before purchase.",
+  'mithkaProCloudBackup': "Cloud account backup",
+  'mithkaProCloudBackupDescription':
+      "Opt in per account and restore its authorization session on another device.",
+  'mithkaProContinue': "Continue",
+  'mithkaProFreePlan': "Free plan · up to four accounts",
+  'mithkaProLimitExempt': "Account limits are disabled for this build",
+  'mithkaProManagePlan': "Manage subscription",
+  'mithkaProMonthly': "Monthly",
+  'mithkaProNothingToRestore': "No active Mithka Pro purchase was found.",
+  'mithkaProPerMonth': "per month",
+  'mithkaProPerYear': "per year",
+  'mithkaProPurchaseFailed': "The purchase could not be completed.",
+  'mithkaProPrivacy': "Privacy Policy",
+  'mithkaProRestore': "Restore purchases",
+  'mithkaProRestoreFailed': "Purchases could not be restored.",
+  'mithkaProStoreUnavailable': "Store unavailable",
+  'mithkaProTerms': "Terms of Service",
+  'mithkaProTitle': "Mithka Pro",
+  'mithkaProUnlimitedAccounts': "Unlimited accounts",
+  'mithkaProUnlimitedAccountsDescription':
+      "Add and use as many Telegram accounts as you need.",
+  'mithkaProYearly': "Yearly",
   'addMembersDone': "Done",
   'addMembersDoneWithCount': "Done ({value1})",
   'addMembersInviteMembersTitle': "Invite Members",

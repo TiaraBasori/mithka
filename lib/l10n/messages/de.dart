@@ -26,7 +26,7 @@ const deMessages = <String, String>{
   'accountBackupCreate': "Aktuelles Konto im Keychain sichern",
   'accountBackupDeleteInvalidSession': "Gespeicherte Sitzung löschen",
   'accountBackupDeleteMessage':
-      "Dadurch wird die gespeicherte Sitzung aus dem Keychain entfernt. Die Telegram-Sitzung wird nicht widerrufen.",
+      "Dadurch wird die gespeicherte Sitzung aus der Cloud-Sicherung entfernt. Die Telegram-Sitzung wird nicht widerrufen.",
   'accountBackupDeleteTitle': "Gespeicherte Sitzung löschen?",
   'accountBackupEmpty': "Es wurden noch keine Kontositzungen gesichert.",
   'accountBackupEnabled': "Konten sichern",
@@ -44,7 +44,7 @@ const deMessages = <String, String>{
   'accountBackupInvalidImportedMessage':
       "Diese Sitzungszeichenfolge ist nicht mehr gültig oder wurde möglicherweise widerrufen. Exportiere eine neue Sitzung von einem noch angemeldeten Gerät.",
   'accountBackupInvalidMessage':
-      "Die gespeicherte Sitzung für {value1} ist nicht mehr gültig oder wurde möglicherweise widerrufen. Diese gespeicherte Sitzung aus dem Keychain löschen?",
+      "Die gespeicherte Sitzung für {value1} ist nicht mehr gültig oder wurde möglicherweise widerrufen. Aus der Cloud-Sicherung löschen?",
   'accountBackupInvalidTitle': "Sitzung nicht mehr gültig",
   'accountBackupIOSOnly': "Kontosicherung ist nur unter iOS verfügbar.",
   'accountBackupLoadPyrogramConfirm': "Sitzung laden",
@@ -66,6 +66,45 @@ const deMessages = <String, String>{
   'accountBackupSessions': "Gespeicherte Sitzungen",
   'accountBackupTitle': "Kontosicherung",
   'accountBackupUserId': "Benutzer-ID: {value1}",
+  'accountBackupLoginAndroid': "Dieses Konto in Android Backup sichern",
+  'accountBackupLoginDescription':
+      "Nach der Anmeldung wird nur die Autorisierungssitzung dieses Kontos gesichert.",
+  'accountBackupLoginICloud': "Dieses Konto im iCloud-Schlüsselbund sichern",
+  'accountBackupNoticeAndroid':
+      "In Android Backup wird nur die TDLib-Autorisierungssitzung gespeichert. Nachrichten, Medien, Protokolle und Caches werden nicht gesichert.",
+  'accountBackupNoticeICloud':
+      "Im iCloud-Schlüsselbund wird nur die TDLib-Autorisierungssitzung gespeichert. Nachrichten, Medien, Protokolle und Caches werden nicht gesichert.",
+  'accountBackupUnavailable':
+      "Die Kontosicherung ist auf diesem Gerät oder in dieser Distribution nicht verfügbar.",
+  'mithkaProActive': "Mithka Pro ist aktiv",
+  'mithkaProActiveUntil': "Mithka Pro ist bis {value1} aktiv",
+  'mithkaProBackupLimitReached':
+      "Im kostenlosen Tarif können vier Konten gesichert werden. Mithka Pro hebt dieses Limit auf.",
+  'mithkaProBestValue': "BESTER PREIS",
+  'mithkaProBillingNotice':
+      "Das Abonnement verlängert sich automatisch, sofern es nicht über das Store-Konto gekündigt wird. Preis und Steuern werden vor dem Kauf bestätigt.",
+  'mithkaProCloudBackup': "Cloud-Kontosicherung",
+  'mithkaProCloudBackupDescription':
+      "Für jedes Konto einzeln aktivieren und die Autorisierungssitzung auf einem anderen Gerät wiederherstellen.",
+  'mithkaProContinue': "Weiter",
+  'mithkaProFreePlan': "Kostenloser Tarif · bis zu vier Konten",
+  'mithkaProLimitExempt': "Kontolimits sind für diesen Build deaktiviert",
+  'mithkaProManagePlan': "Abonnement verwalten",
+  'mithkaProMonthly': "Monatlich",
+  'mithkaProNothingToRestore': "Kein aktiver Mithka-Pro-Kauf gefunden.",
+  'mithkaProPerMonth': "pro Monat",
+  'mithkaProPerYear': "pro Jahr",
+  'mithkaProPurchaseFailed': "Der Kauf konnte nicht abgeschlossen werden.",
+  'mithkaProPrivacy': "Datenschutzerklärung",
+  'mithkaProRestore': "Käufe wiederherstellen",
+  'mithkaProRestoreFailed': "Käufe konnten nicht wiederhergestellt werden.",
+  'mithkaProStoreUnavailable': "Store nicht verfügbar",
+  'mithkaProTerms': "Nutzungsbedingungen",
+  'mithkaProTitle': "Mithka Pro",
+  'mithkaProUnlimitedAccounts': "Unbegrenzte Konten",
+  'mithkaProUnlimitedAccountsDescription':
+      "Beliebig viele Telegram-Konten hinzufügen und verwenden.",
+  'mithkaProYearly': "Jährlich",
   'addMembersDone': "Fertig",
   'addMembersDoneWithCount': "Fertig ({value1})",
   'addMembersInviteMembersTitle': "Mitglieder einladen",

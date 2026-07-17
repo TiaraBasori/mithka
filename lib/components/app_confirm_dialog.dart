@@ -11,6 +11,7 @@ Future<bool> showAppConfirmDialog(
   required String confirmText,
   String cancelText = AppStringKeys.countryPickerCancel,
   AppColors? colors,
+  bool destructive = false,
 }) async {
   final c = colors ?? context.colors;
   final result = await showGeneralDialog<bool>(
@@ -86,7 +87,7 @@ Future<bool> showAppConfirmDialog(
                         child: _DialogAction(
                           key: const ValueKey('app-confirm-accept'),
                           label: confirmText.l10n(dialogContext),
-                          color: c.linkBlue,
+                          color: destructive ? AppTheme.tagRed : c.linkBlue,
                           onTap: () => Navigator.of(dialogContext).pop(true),
                         ),
                       ),

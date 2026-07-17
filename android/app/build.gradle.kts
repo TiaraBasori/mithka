@@ -130,6 +130,9 @@ dependencies {
     // same Credential Manager API working on pre-Android 14 devices.
     implementation("androidx.credentials:credentials:1.6.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.6.0")
+    // Mithka Pro subscriptions. Product prices and billing periods are owned by
+    // Play Console; the client always displays the localized ProductDetails.
+    implementation("com.android.billingclient:billing:9.1.0")
     // ntgcalls — a from-scratch C++ Telegram-calls engine (WebRTC + opus + libvpx
     // statically bundled inside a self-contained libntgcalls.so per ABI). This is
     // the real media transport behind the CallMediaEngine seam; CallMediaPlugin

@@ -599,6 +599,62 @@ class AppSwitch extends StatelessWidget {
   }
 }
 
+/// Owned square selection control used where a persistent opt-in must be
+/// explicit. It intentionally does not inherit platform checkbox styling.
+class AppCheckbox extends StatelessWidget {
+  const AppCheckbox({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.enabled = true,
+    this.size = 22,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final bool enabled;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final foreground = enabled ? c.textPrimary : c.textTertiary;
+    return Semantics(
+      checked: value,
+      enabled: enabled,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? () => onChanged(!value) : null,
+        child: AnimatedOpacity(
+          duration: const Duration(milliseconds: 150),
+          opacity: enabled ? 1 : 0.42,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: size,
+            height: size,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: value ? AppTheme.brand : Colors.transparent,
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(
+                color: value ? AppTheme.brand : foreground,
+                width: 1.6,
+              ),
+            ),
+            child: value
+                ? AppIcon(
+                    HeroAppIcons.check,
+                    size: size * 0.62,
+                    color: const Color(0xFFFFFFFF),
+                  )
+                : null,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SettingsSwitchRow extends StatelessWidget {
   const SettingsSwitchRow({
     super.key,

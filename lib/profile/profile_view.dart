@@ -28,6 +28,7 @@ import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
 import '../components/vip_badge.dart';
 import '../l10n/telegram_language_controller.dart';
+import '../pro/mithka_pro_view.dart';
 import '../settings/edit_profile_view.dart';
 import '../settings/settings_view.dart';
 import '../tdlib/json_helpers.dart';
@@ -551,35 +552,62 @@ class _ProfileViewState extends State<ProfileView> {
           ],
           GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onTap: () => context.read<AccountStore>().addAccount(
-              context.read<AuthManager>(),
-            ),
-            child: SizedBox(
-              height: 54,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 36,
-                      height: 36,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppTheme.brand.withValues(alpha: 0.12),
+            onTap: () {
+              if (accounts.canAddAccount) {
+                accounts.addAccount(context.read<AuthManager>());
+                return;
+              }
+              Navigator.of(context).push(
+                PageRouteBuilder<void>(
+                  pageBuilder: (_, _, _) => const MithkaProView(),
+                ),
+              );
+            },
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 160),
+              opacity: accounts.canAddAccount ? 1 : 0.42,
+              child: SizedBox(
+                height: 54,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 36,
+                        height: 36,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppTheme.brand.withValues(alpha: 0.12),
+                        ),
+                        child: AppIcon(
+                          HeroAppIcons.plus,
+                          size: 18,
+                          color: accounts.canAddAccount
+                              ? AppTheme.brand
+                              : c.textTertiary,
+                        ),
                       ),
-                      child: AppIcon(
-                        HeroAppIcons.plus,
-                        size: 18,
-                        color: AppTheme.brand,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          AppStrings.t(AppStringKeys.profileAddAccount),
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: accounts.canAddAccount
+                                ? AppTheme.brand
+                                : c.textTertiary,
+                          ),
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      AppStrings.t(AppStringKeys.profileAddAccount),
-                      style: TextStyle(fontSize: 15, color: AppTheme.brand),
-                    ),
-                  ],
+                      if (!accounts.canAddAccount)
+                        AppIcon(
+                          HeroAppIcons.solidStar,
+                          size: 16,
+                          color: c.textTertiary,
+                        ),
+                    ],
+                  ),
                 ),
               ),
             ),

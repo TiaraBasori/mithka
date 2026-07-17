@@ -26,7 +26,7 @@ const esMessages = <String, String>{
   'accountBackupCreate': "Guardar cuenta actual en Keychain",
   'accountBackupDeleteInvalidSession': "Eliminar sesión guardada",
   'accountBackupDeleteMessage':
-      "Esto elimina la sesión guardada de Keychain. La sesión de Telegram no se revocará.",
+      "Esto elimina la sesión de la copia en la nube. La sesión de Telegram no se revocará.",
   'accountBackupDeleteTitle': "¿Eliminar sesión guardada?",
   'accountBackupEmpty': "Aún no hay sesiones de cuenta guardadas.",
   'accountBackupEnabled': "Guardar cuentas",
@@ -43,7 +43,7 @@ const esMessages = <String, String>{
   'accountBackupInvalidImportedMessage':
       "Esta cadena de sesión ya no es válida o puede haber sido revocada. Exporta una sesión nueva desde un dispositivo que siga conectado.",
   'accountBackupInvalidMessage':
-      "La sesión guardada de {value1} ya no es válida o puede haber sido revocada. ¿Eliminar esta sesión guardada de Keychain?",
+      "La sesión guardada de {value1} ya no es válida o puede haber sido revocada. ¿Eliminarla de la copia en la nube?",
   'accountBackupInvalidTitle': "La sesión ya no es válida",
   'accountBackupIOSOnly':
       "La copia de seguridad de cuentas solo está disponible en iOS.",
@@ -66,6 +66,47 @@ const esMessages = <String, String>{
   'accountBackupSessions': "Sesiones guardadas",
   'accountBackupTitle': "Copia de seguridad de cuentas",
   'accountBackupUserId': "ID de usuario: {value1}",
+  'accountBackupLoginAndroid': "Guardar esta cuenta en Android Backup",
+  'accountBackupLoginDescription':
+      "Solo se guardará la sesión de autorización de esta cuenta después de iniciar sesión.",
+  'accountBackupLoginICloud': "Guardar esta cuenta en el llavero de iCloud",
+  'accountBackupNoticeAndroid':
+      "Solo se guarda la sesión de autorización de TDLib en Android Backup. Los mensajes, archivos multimedia, registros y cachés no se guardan.",
+  'accountBackupNoticeICloud':
+      "Solo se guarda la sesión de autorización de TDLib en el llavero de iCloud. Los mensajes, archivos multimedia, registros y cachés no se guardan.",
+  'accountBackupUnavailable':
+      "La copia de seguridad de cuentas no está disponible en este dispositivo o distribución.",
+  'mithkaProActive': "Mithka Pro está activo",
+  'mithkaProActiveUntil': "Mithka Pro activo hasta el {value1}",
+  'mithkaProBackupLimitReached':
+      "El plan gratuito permite guardar cuatro cuentas. Mithka Pro elimina este límite.",
+  'mithkaProBestValue': "MEJOR PRECIO",
+  'mithkaProBillingNotice':
+      "La suscripción se renueva automáticamente salvo que la canceles en tu cuenta de la tienda. El precio y los impuestos se confirman antes de comprar.",
+  'mithkaProCloudBackup': "Copia de cuentas en la nube",
+  'mithkaProCloudBackupDescription':
+      "Actívala por cuenta y restaura su sesión de autorización en otro dispositivo.",
+  'mithkaProContinue': "Continuar",
+  'mithkaProFreePlan': "Plan gratuito · hasta cuatro cuentas",
+  'mithkaProLimitExempt':
+      "Los límites de cuentas están desactivados en esta versión",
+  'mithkaProManagePlan': "Gestionar suscripción",
+  'mithkaProMonthly': "Mensual",
+  'mithkaProNothingToRestore':
+      "No se encontró una compra activa de Mithka Pro.",
+  'mithkaProPerMonth': "al mes",
+  'mithkaProPerYear': "al año",
+  'mithkaProPurchaseFailed': "No se pudo completar la compra.",
+  'mithkaProPrivacy': "Política de privacidad",
+  'mithkaProRestore': "Restaurar compras",
+  'mithkaProRestoreFailed': "No se pudieron restaurar las compras.",
+  'mithkaProStoreUnavailable': "Tienda no disponible",
+  'mithkaProTerms': "Términos del servicio",
+  'mithkaProTitle': "Mithka Pro",
+  'mithkaProUnlimitedAccounts': "Cuentas ilimitadas",
+  'mithkaProUnlimitedAccountsDescription':
+      "Añade y usa tantas cuentas de Telegram como necesites.",
+  'mithkaProYearly': "Anual",
   'addMembersDone': "Listo",
   'addMembersDoneWithCount': "Listo ({value1})",
   'addMembersInviteMembersTitle': "Invitar miembros",

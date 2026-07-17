@@ -172,6 +172,9 @@ abstract final class AppStringKeys {
   static const accountBackupInvalidMessage = 'accountBackupInvalidMessage';
   static const accountBackupInvalidTitle = 'accountBackupInvalidTitle';
   static const accountBackupIOSOnly = 'accountBackupIOSOnly';
+  static const accountBackupLoginAndroid = 'accountBackupLoginAndroid';
+  static const accountBackupLoginDescription = 'accountBackupLoginDescription';
+  static const accountBackupLoginICloud = 'accountBackupLoginICloud';
   static const accountBackupLoadPyrogramConfirm =
       'accountBackupLoadPyrogramConfirm';
   static const accountBackupLoadPyrogramMessage =
@@ -185,6 +188,8 @@ abstract final class AppStringKeys {
   static const accountBackupLoadPyrogramTitle =
       'accountBackupLoadPyrogramTitle';
   static const accountBackupNotice = 'accountBackupNotice';
+  static const accountBackupNoticeAndroid = 'accountBackupNoticeAndroid';
+  static const accountBackupNoticeICloud = 'accountBackupNoticeICloud';
   static const accountBackupRestore = 'accountBackupRestore';
   static const accountBackupRestoreAccount = 'accountBackupRestoreAccount';
   static const accountBackupRestored = 'accountBackupRestored';
@@ -193,7 +198,35 @@ abstract final class AppStringKeys {
   static const accountBackupSaved = 'accountBackupSaved';
   static const accountBackupSessions = 'accountBackupSessions';
   static const accountBackupTitle = 'accountBackupTitle';
+  static const accountBackupUnavailable = 'accountBackupUnavailable';
   static const accountBackupUserId = 'accountBackupUserId';
+  static const mithkaProActive = 'mithkaProActive';
+  static const mithkaProActiveUntil = 'mithkaProActiveUntil';
+  static const mithkaProBackupLimitReached = 'mithkaProBackupLimitReached';
+  static const mithkaProBestValue = 'mithkaProBestValue';
+  static const mithkaProBillingNotice = 'mithkaProBillingNotice';
+  static const mithkaProCloudBackup = 'mithkaProCloudBackup';
+  static const mithkaProCloudBackupDescription =
+      'mithkaProCloudBackupDescription';
+  static const mithkaProContinue = 'mithkaProContinue';
+  static const mithkaProFreePlan = 'mithkaProFreePlan';
+  static const mithkaProLimitExempt = 'mithkaProLimitExempt';
+  static const mithkaProManagePlan = 'mithkaProManagePlan';
+  static const mithkaProMonthly = 'mithkaProMonthly';
+  static const mithkaProNothingToRestore = 'mithkaProNothingToRestore';
+  static const mithkaProPerMonth = 'mithkaProPerMonth';
+  static const mithkaProPerYear = 'mithkaProPerYear';
+  static const mithkaProPurchaseFailed = 'mithkaProPurchaseFailed';
+  static const mithkaProPrivacy = 'mithkaProPrivacy';
+  static const mithkaProRestore = 'mithkaProRestore';
+  static const mithkaProRestoreFailed = 'mithkaProRestoreFailed';
+  static const mithkaProStoreUnavailable = 'mithkaProStoreUnavailable';
+  static const mithkaProTerms = 'mithkaProTerms';
+  static const mithkaProTitle = 'mithkaProTitle';
+  static const mithkaProUnlimitedAccounts = 'mithkaProUnlimitedAccounts';
+  static const mithkaProUnlimitedAccountsDescription =
+      'mithkaProUnlimitedAccountsDescription';
+  static const mithkaProYearly = 'mithkaProYearly';
   static const addMembersDone = 'addMembersDone';
   static const addMembersDoneWithCount = 'addMembersDoneWithCount';
   static const addMembersInviteMembersTitle = 'addMembersInviteMembersTitle';

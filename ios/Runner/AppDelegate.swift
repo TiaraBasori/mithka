@@ -25,6 +25,7 @@ import UserNotifications
   private var mediaDropBridge: MediaDropBridge?
   private var telegramPasskeyBridge: TelegramPasskeyBridge?
   private var premiumAuthPurchaseBridge: PremiumAuthPurchaseBridge?
+  private var mithkaProBridge: MithkaProBridge?
 
   override func application(
     _ application: UIApplication,
@@ -411,6 +412,9 @@ import UserNotifications
       messenger: engineBridge.applicationRegistrar.messenger()
     )
     premiumAuthPurchaseBridge = PremiumAuthPurchaseBridge(
+      messenger: engineBridge.applicationRegistrar.messenger()
+    )
+    mithkaProBridge = MithkaProBridge(
       messenger: engineBridge.applicationRegistrar.messenger()
     )
 
@@ -1949,12 +1953,7 @@ private final class AccountSessionBackupKeychain {
   }
 
   private func saveSession(id: String, data: Data) throws {
-    do {
-      try saveSession(id: id, data: data, synchronizable: true)
-    } catch AccountSessionBackupError.keychain(let status)
-      where isSynchronizableUnsupported(status) {
-      try saveSession(id: id, data: data, synchronizable: false)
-    }
+    try saveSession(id: id, data: data, synchronizable: true)
   }
 
   private func saveSession(id: String, data: Data, synchronizable: Bool) throws {

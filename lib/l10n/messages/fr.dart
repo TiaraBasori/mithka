@@ -26,7 +26,7 @@ const frMessages = <String, String>{
   'accountBackupCreate': "Sauvegarder le compte actuel dans Keychain",
   'accountBackupDeleteInvalidSession': "Supprimer la session enregistrée",
   'accountBackupDeleteMessage':
-      "Cette action supprime la session enregistrée dans Keychain. La session Telegram n’est pas révoquée.",
+      "Cette action supprime la session de la sauvegarde cloud. La session Telegram n’est pas révoquée.",
   'accountBackupDeleteTitle': "Supprimer la session enregistrée ?",
   'accountBackupEmpty': "Aucune session de compte n’est encore sauvegardée.",
   'accountBackupEnabled': "Sauvegarder les comptes",
@@ -44,7 +44,7 @@ const frMessages = <String, String>{
   'accountBackupInvalidImportedMessage':
       "Cette chaîne de session n’est plus valide ou a peut-être été révoquée. Exportez une nouvelle session depuis un appareil encore connecté.",
   'accountBackupInvalidMessage':
-      "La session enregistrée pour {value1} n’est plus valide ou a peut-être été révoquée. Supprimer cette session enregistrée du Keychain ?",
+      "La session enregistrée pour {value1} n’est plus valide ou a peut-être été révoquée. La supprimer de la sauvegarde cloud ?",
   'accountBackupInvalidTitle': "Session non valide",
   'accountBackupIOSOnly':
       "La sauvegarde des comptes est disponible uniquement sur iOS.",
@@ -67,6 +67,46 @@ const frMessages = <String, String>{
   'accountBackupSessions': "Sessions enregistrées",
   'accountBackupTitle': "Sauvegarde des comptes",
   'accountBackupUserId': "ID utilisateur : {value1}",
+  'accountBackupLoginAndroid': "Sauvegarder ce compte avec Android Backup",
+  'accountBackupLoginDescription':
+      "Seule la session d’autorisation de ce compte sera sauvegardée après la connexion.",
+  'accountBackupLoginICloud': "Sauvegarder ce compte dans le trousseau iCloud",
+  'accountBackupNoticeAndroid':
+      "Seule la session d’autorisation TDLib est stockée dans Android Backup. Les messages, médias, journaux et caches ne sont pas sauvegardés.",
+  'accountBackupNoticeICloud':
+      "Seule la session d’autorisation TDLib est stockée dans le trousseau iCloud. Les messages, médias, journaux et caches ne sont pas sauvegardés.",
+  'accountBackupUnavailable':
+      "La sauvegarde des comptes n’est pas disponible sur cet appareil ou cette distribution.",
+  'mithkaProActive': "Mithka Pro est actif",
+  'mithkaProActiveUntil': "Mithka Pro actif jusqu’au {value1}",
+  'mithkaProBackupLimitReached':
+      "La formule gratuite permet de sauvegarder quatre comptes. Mithka Pro supprime cette limite.",
+  'mithkaProBestValue': "MEILLEUR PRIX",
+  'mithkaProBillingNotice':
+      "L’abonnement se renouvelle automatiquement sauf annulation depuis votre compte de la boutique. Le prix et les taxes sont confirmés avant l’achat.",
+  'mithkaProCloudBackup': "Sauvegarde des comptes dans le cloud",
+  'mithkaProCloudBackupDescription':
+      "Activez-la pour chaque compte et restaurez sa session d’autorisation sur un autre appareil.",
+  'mithkaProContinue': "Continuer",
+  'mithkaProFreePlan': "Formule gratuite · jusqu’à quatre comptes",
+  'mithkaProLimitExempt':
+      "Les limites de comptes sont désactivées pour cette version",
+  'mithkaProManagePlan': "Gérer l’abonnement",
+  'mithkaProMonthly': "Mensuel",
+  'mithkaProNothingToRestore': "Aucun achat Mithka Pro actif n’a été trouvé.",
+  'mithkaProPerMonth': "par mois",
+  'mithkaProPerYear': "par an",
+  'mithkaProPurchaseFailed': "L’achat n’a pas pu être effectué.",
+  'mithkaProPrivacy': "Politique de confidentialité",
+  'mithkaProRestore': "Restaurer les achats",
+  'mithkaProRestoreFailed': "Les achats n’ont pas pu être restaurés.",
+  'mithkaProStoreUnavailable': "Boutique indisponible",
+  'mithkaProTerms': "Conditions d’utilisation",
+  'mithkaProTitle': "Mithka Pro",
+  'mithkaProUnlimitedAccounts': "Comptes illimités",
+  'mithkaProUnlimitedAccountsDescription':
+      "Ajoutez et utilisez autant de comptes Telegram que nécessaire.",
+  'mithkaProYearly': "Annuel",
   'addMembersDone': "Terminé",
   'addMembersDoneWithCount': "Terminé ({value1})",
   'addMembersInviteMembersTitle': "Inviter des membres",
