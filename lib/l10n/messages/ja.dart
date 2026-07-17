@@ -1,8 +1,20 @@
 const jaMessages = <String, String>{
+  'aboutReportProblem': "問題を報告",
+  'aboutReportProblemDetail': "プライバシーに配慮した診断情報を含む",
   'aboutTelegramChannel': "Telegram チャンネル",
   'aboutTitle': "概要",
   'aboutVersion': "バージョン {value1}",
   'aboutWebsite': "公式サイト",
+  'feedbackReportDescription':
+      "発生した問題を説明してください。アプリのビルド、端末情報、直近の画面遷移、TDLib の操作名が添付されます。",
+  'feedbackReportFailed': "レポートを送信できませんでした。後でもう一度お試しください。",
+  'feedbackReportPlaceholder': "再現手順、期待した結果、実際の結果、問題が起きた画面またはチャットの種類を入力してください。",
+  'feedbackReportPrivacy':
+      "メッセージ内容、ユーザー名、電話番号、ファイルパス、認証情報は自動収集されません。非公開メッセージを貼り付けないでください。",
+  'feedbackReportSend': "レポートを送信",
+  'feedbackReportSending': "送信中…",
+  'feedbackReportSent': "レポートを送信しました · ID {value1}",
+  'feedbackReportTitle': "問題を報告",
   'accentColorPickerSave': "保存",
   'accountBackupCopied': "Pyrogram セッションをコピーしました",
   'accountBackupCopyPyrogramMessage':

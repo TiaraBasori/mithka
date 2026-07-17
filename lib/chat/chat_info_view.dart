@@ -15,6 +15,7 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/notifications/scope_notification_settings.dart';
 import 'package:provider/provider.dart';
 
+import '../chats/chat_delete_policy.dart';
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
 import '../components/icon_grid.dart';
@@ -1979,6 +1980,9 @@ class ChatInfoViewModel extends ChangeNotifier {
 
   Future<void> leaveChat() async {
     await TdClient.shared.query({'@type': 'leaveChat', 'chat_id': chatId});
+    await TdClient.shared.query(
+      deleteChatHistoryRequest(chatId: chatId, scope: ChatDeleteScope.self),
+    );
     isMember = false;
     notifyListeners();
     TdClient.shared.emitLocalUpdate({

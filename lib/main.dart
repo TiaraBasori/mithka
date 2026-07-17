@@ -27,6 +27,7 @@ import 'app/app_version.dart';
 import 'app/chat_deep_link_controller.dart';
 import 'app/content_view.dart';
 import 'app/global_video_split_host.dart';
+import 'app/telemetry_config.dart';
 import 'auth/account_store.dart';
 import 'auth/auth_manager.dart';
 import 'auth/terms_sheet.dart';
@@ -56,17 +57,10 @@ import 'tdlib/td_client.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_controller.dart';
 
-const _sentryDsn = String.fromEnvironment('SENTRY_DSN');
-const _sentryEnvironment = String.fromEnvironment(
-  'SENTRY_ENVIRONMENT',
-  defaultValue: 'production',
-);
-const _gitCommit = String.fromEnvironment('GIT_COMMIT');
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   _configureAndroidImageCache();
-  if (_sentryDsn.isEmpty) {
+  if (!sentryEnabled) {
     await _bootstrapAndRunApp();
     return;
   }
@@ -151,7 +145,7 @@ Future<void> _initTelemetry() async {
     } else {
       debugPrint('Firebase configuration not found; analytics disabled');
     }
-    if (_sentryDsn.isNotEmpty) {
+    if (sentryEnabled) {
       await Sentry.configureScope((scope) async {
         await scope.setTag('app.version', appVersion.version);
         await scope.setTag('app.build_number', appVersion.buildNumber);
@@ -166,11 +160,14 @@ Future<void> _initTelemetry() async {
 }
 
 void _configureSentry(SentryFlutterOptions options) {
-  options.dsn = _sentryDsn;
-  options.environment = _sentryEnvironment;
-  options.release = _gitCommit.isEmpty ? 'mithka' : 'mithka@$_gitCommit';
+  options.dsn = sentryDsn;
+  options.environment = sentryEnvironment;
+  // Let SentryFlutter derive bundle-id@version+build so Dart events share the
+  // same release as native iOS crash reports. The git SHA remains a tag.
+  options.navigatorKey = appNavigatorKey;
   options.sendDefaultPii = false;
   options.tracesSampleRate = 0;
+  options.maxBreadcrumbs = 200;
   options.beforeSend = (event, hint) =>
       _isGoogleFontLoadFailure(event) ? null : event;
 }
@@ -367,7 +364,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
               GlobalCupertinoLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
             ],
-            navigatorObservers: _analyticsNavigatorObservers(),
+            navigatorObservers: _telemetryNavigatorObservers(),
             theme: _themeData(Brightness.light, theme),
             darkTheme: _themeData(Brightness.dark, theme),
             themeMode: theme.themeMode,
@@ -497,13 +494,25 @@ class _FirstLaunchTermsGateState extends State<FirstLaunchTermsGate> {
   Widget build(BuildContext context) => widget.child;
 }
 
-List<NavigatorObserver> _analyticsNavigatorObservers() {
+NavigatorObserver? _buildSentryNavigatorObserver() => sentryEnabled
+    ? SentryNavigatorObserver(enableAutoTransactions: false)
+    : null;
+
+final NavigatorObserver? _sentryNavigatorObserver =
+    _buildSentryNavigatorObserver();
+
+List<NavigatorObserver> _telemetryNavigatorObservers() {
+  final observers = <NavigatorObserver>[?_sentryNavigatorObserver];
   try {
-    if (Firebase.apps.isEmpty) return const [];
-    return [FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance)];
+    if (Firebase.apps.isNotEmpty) {
+      observers.add(
+        FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
+      );
+    }
   } catch (_) {
-    return const [];
+    // Sentry navigation breadcrumbs do not depend on Firebase availability.
   }
+  return observers;
 }
 
 class _NoRadiusPageTransitionsBuilder extends PageTransitionsBuilder {

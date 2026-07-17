@@ -1,8 +1,20 @@
 const zhHantMessages = <String, String>{
+  'aboutReportProblem': "回報問題",
+  'aboutReportProblemDetail': "附帶不含聊天內容的診斷資訊",
   'aboutTelegramChannel': "Telegram 頻道",
   'aboutTitle': "關於",
   'aboutVersion': "版本 {value1}",
   'aboutWebsite': "官方網站",
+  'feedbackReportDescription':
+      "請描述發生了什麼。回報會附帶 App 版本、裝置資訊、最近的頁面切換及 TDLib 操作名稱。",
+  'feedbackReportFailed': "回報傳送失敗，請稍後再試。",
+  'feedbackReportPlaceholder': "請寫明重現步驟、預期結果、實際結果，以及發生問題的頁面或聊天類型。",
+  'feedbackReportPrivacy':
+      "系統不會自動收集訊息內容、使用者名稱、電話號碼、檔案路徑或登入資訊。請勿在此貼上私人訊息內容。",
+  'feedbackReportSend': "傳送回報",
+  'feedbackReportSending': "正在傳送…",
+  'feedbackReportSent': "回報已傳送 · 編號 {value1}",
+  'feedbackReportTitle': "回報問題",
   'accentColorPickerSave': "儲存",
   'accountBackupCopied': "已複製 Pyrogram 工作階段",
   'accountBackupCopyPyrogramMessage':

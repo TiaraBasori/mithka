@@ -1,8 +1,21 @@
 const esMessages = <String, String>{
+  'aboutReportProblem': "Informar de un problema",
+  'aboutReportProblemDetail': "Incluye diagnósticos sin datos privados",
   'aboutTelegramChannel': "Canal de Telegram",
   'aboutTitle': "Acerca de",
   'aboutVersion': "Versión {value1}",
   'aboutWebsite': "Sitio web",
+  'feedbackReportDescription':
+      "Describe lo ocurrido. El informe incluye la compilación, datos del dispositivo, cambios de pantalla recientes y nombres de operaciones de TDLib.",
+  'feedbackReportFailed': "No se pudo enviar el informe. Inténtalo de nuevo más tarde.",
+  'feedbackReportPlaceholder':
+      "Pasos, resultado esperado, resultado real y pantalla o tipo de chat donde ocurrió.",
+  'feedbackReportPrivacy':
+      "No se recopilan automáticamente mensajes, nombres de usuario, teléfonos, rutas de archivos ni datos de acceso. No pegues mensajes privados aquí.",
+  'feedbackReportSend': "Enviar informe",
+  'feedbackReportSending': "Enviando…",
+  'feedbackReportSent': "Informe enviado · ID {value1}",
+  'feedbackReportTitle': "Informar de un problema",
   'accentColorPickerSave': "Guardar",
   'accountBackupCopied': "Sesión de Pyrogram copiada",
   'accountBackupCopyPyrogramMessage':

@@ -1,8 +1,20 @@
 const zhHansMessages = <String, String>{
+  'aboutReportProblem': "报告问题",
+  'aboutReportProblemDetail': "附带不含聊天内容的诊断信息",
   'aboutTelegramChannel': "Telegram 频道",
   'aboutTitle': "关于",
   'aboutVersion': "版本 {value1}",
   'aboutWebsite': "官网",
+  'feedbackReportDescription':
+      "请描述发生了什么。报告会附带应用版本、设备信息、最近的页面切换和 TDLib 操作名称。",
+  'feedbackReportFailed': "报告发送失败，请稍后重试。",
+  'feedbackReportPlaceholder': "请写明复现步骤、预期结果、实际结果，以及发生问题的页面或聊天类型。",
+  'feedbackReportPrivacy':
+      "系统不会自动收集消息内容、用户名、手机号码、文件路径或登录信息。请勿在此粘贴私密消息内容。",
+  'feedbackReportSend': "发送报告",
+  'feedbackReportSending': "正在发送…",
+  'feedbackReportSent': "报告已发送 · 编号 {value1}",
+  'feedbackReportTitle': "报告问题",
   'accentColorPickerSave': "保存",
   'accountBackupCopied': "已复制 Pyrogram 会话",
   'accountBackupCopyPyrogramMessage':

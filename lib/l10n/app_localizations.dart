@@ -123,10 +123,20 @@ extension AppLocalizationsContext on BuildContext {
 }
 
 abstract final class AppStringKeys {
+  static const aboutReportProblem = 'aboutReportProblem';
+  static const aboutReportProblemDetail = 'aboutReportProblemDetail';
   static const aboutTelegramChannel = 'aboutTelegramChannel';
   static const aboutTitle = 'aboutTitle';
   static const aboutVersion = 'aboutVersion';
   static const aboutWebsite = 'aboutWebsite';
+  static const feedbackReportDescription = 'feedbackReportDescription';
+  static const feedbackReportFailed = 'feedbackReportFailed';
+  static const feedbackReportPlaceholder = 'feedbackReportPlaceholder';
+  static const feedbackReportPrivacy = 'feedbackReportPrivacy';
+  static const feedbackReportSend = 'feedbackReportSend';
+  static const feedbackReportSending = 'feedbackReportSending';
+  static const feedbackReportSent = 'feedbackReportSent';
+  static const feedbackReportTitle = 'feedbackReportTitle';
   static const accentColorPickerSave = 'accentColorPickerSave';
   static const accountBackupCopied = 'accountBackupCopied';
   static const accountBackupCopyPyrogramMessage =

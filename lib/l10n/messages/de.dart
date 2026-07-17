@@ -1,8 +1,21 @@
 const deMessages = <String, String>{
+  'aboutReportProblem': "Problem melden",
+  'aboutReportProblemDetail': "Enthält datenschutzfreundliche Diagnosedaten",
   'aboutTelegramChannel': "Telegram-Kanal",
   'aboutTitle': "Info",
   'aboutVersion': "Version {value1}",
   'aboutWebsite': "Website",
+  'feedbackReportDescription':
+      "Beschreibe das Problem. Der Bericht enthält App-Build, Gerätedaten, letzte Bildschirmwechsel und TDLib-Aktionsnamen.",
+  'feedbackReportFailed': "Der Bericht konnte nicht gesendet werden. Versuche es später erneut.",
+  'feedbackReportPlaceholder':
+      "Schritte, erwartetes Ergebnis, tatsächliches Ergebnis und betroffener Bildschirm- oder Chattyp.",
+  'feedbackReportPrivacy':
+      "Nachrichteninhalte, Benutzernamen, Telefonnummern, Dateipfade und Anmeldedaten werden nicht automatisch erfasst. Füge hier keine privaten Nachrichten ein.",
+  'feedbackReportSend': "Bericht senden",
+  'feedbackReportSending': "Wird gesendet…",
+  'feedbackReportSent': "Bericht gesendet · ID {value1}",
+  'feedbackReportTitle': "Problem melden",
   'accentColorPickerSave': "Speichern",
   'accountBackupCopied': "Pyrogram-Sitzung kopiert",
   'accountBackupCopyPyrogramMessage':

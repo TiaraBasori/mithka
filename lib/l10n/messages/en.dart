@@ -1,8 +1,21 @@
 const enMessages = <String, String>{
+  'aboutReportProblem': "Report a Problem",
+  'aboutReportProblemDetail': "Includes privacy-safe diagnostics",
   'aboutTelegramChannel': "Telegram Channel",
   'aboutTitle': "About",
   'aboutVersion': "Version {value1}",
   'aboutWebsite': "Website",
+  'feedbackReportDescription':
+      "Describe what happened. The report includes the app build, device details, recent navigation activity, and TDLib operation names.",
+  'feedbackReportFailed': "Couldn’t send the report. Try again later.",
+  'feedbackReportPlaceholder':
+      "Steps to reproduce, expected result, actual result, and the screen or chat type where it happened.",
+  'feedbackReportPrivacy':
+      "Message contents, usernames, phone numbers, file paths, and authentication data are not collected automatically. Do not paste private message content here.",
+  'feedbackReportSend': "Send Report",
+  'feedbackReportSending': "Sending…",
+  'feedbackReportSent': "Report sent · ID {value1}",
+  'feedbackReportTitle': "Report a Problem",
   'accentColorPickerSave': "Save",
   'accountBackupCopied': "Pyrogram session copied",
   'accountBackupCopyPyrogramMessage':

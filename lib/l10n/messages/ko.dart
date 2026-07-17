@@ -1,8 +1,20 @@
 const koMessages = <String, String>{
+  'aboutReportProblem': "문제 신고",
+  'aboutReportProblemDetail': "개인정보를 제외한 진단 정보 포함",
   'aboutTelegramChannel': "Telegram 채널",
   'aboutTitle': "정보",
   'aboutVersion': "버전 {value1}",
   'aboutWebsite': "공식 웹사이트",
+  'feedbackReportDescription':
+      "발생한 문제를 설명해 주세요. 앱 빌드, 기기 정보, 최근 화면 이동 및 TDLib 작업 이름이 포함됩니다.",
+  'feedbackReportFailed': "신고를 보낼 수 없습니다. 나중에 다시 시도해 주세요.",
+  'feedbackReportPlaceholder': "재현 단계, 예상 결과, 실제 결과, 문제가 발생한 화면 또는 채팅 유형을 입력해 주세요.",
+  'feedbackReportPrivacy':
+      "메시지 내용, 사용자 이름, 전화번호, 파일 경로 및 인증 정보는 자동으로 수집되지 않습니다. 비공개 메시지를 붙여 넣지 마세요.",
+  'feedbackReportSend': "신고 보내기",
+  'feedbackReportSending': "보내는 중…",
+  'feedbackReportSent': "신고를 보냈습니다 · ID {value1}",
+  'feedbackReportTitle': "문제 신고",
   'accentColorPickerSave': "저장",
   'accountBackupCopied': "Pyrogram 세션이 복사되었습니다",
   'accountBackupCopyPyrogramMessage':
