@@ -1319,6 +1319,46 @@ const deMessages = <String, String>{
   'profileDetailSendMessage': "Nachricht senden",
   'profileDetailYearMonthDate': "{value1}, {value2}",
   'profilePhotoDeleteFailed':
+  'profileToolsAcceptGiftsFromChannels': "Geschenke von Kanälen annehmen",
+  'profileToolsAcceptGiftsFromChannelsDescription':
+      "Die ausgewählten Geschenktypen auf Kanäle anwenden",
+  'profileToolsAcceptLimitedGifts': "Limitierte Geschenke annehmen",
+  'profileToolsAcceptPremiumGifts': "Premium-Geschenke annehmen",
+  'profileToolsAcceptPremiumGiftsDescription':
+      "Geschenke für Premium-Abonnements erlauben",
+  'profileToolsAcceptUnlimitedGifts': "Unbegrenzte Geschenke annehmen",
+  'profileToolsAcceptUpgradedGifts': "Aufgewertete Geschenke annehmen",
+  'profileToolsAcceptUpgradedGiftsDescription':
+      "Sammelgeschenke und Geschenke mit vorausbezahlter Aufwertung",
+  'profileToolsActionFailed': "Aktion fehlgeschlagen: {value1}",
+  'profileToolsChooseProfileChat': "Profilchat auswählen",
+  'profileToolsCurrentPublicPhotoHistory':
+      "Aktuelles Bild, öffentliches Bild und Verlauf",
+  'profileToolsGiftsSection': "GESCHENKE",
+  'profileToolsGiftSettingsUpdated': "Geschenkeinstellungen aktualisiert",
+  'profileToolsKeepGiftActionsVisible':
+      "Geschenkaktionen in privaten Chats anzeigen",
+  'profileToolsLimitedGiftsDescription':
+      "Reguläre Geschenke mit begrenzter Stückzahl",
+  'profileToolsLoadFailed':
+      "Profilwerkzeuge konnten nicht geladen werden: {value1}",
+  'profileToolsManageProfilePhotos': "Profilbilder verwalten",
+  'profileToolsPersonalChatSection': "PERSÖNLICHER CHAT",
+  'profileToolsPhotoChatSummary': "Bilder und persönlicher Chat",
+  'profileToolsPremiumRequired': "Premium erforderlich",
+  'profileToolsProfileChatId': "Chat-ID {value1}",
+  'profileToolsProfileChatRemoved': "Profilchat entfernt",
+  'profileToolsProfileChatUpdated': "Profilchat aktualisiert",
+  'profileToolsProfilePhotosSection': "PROFILBILDER",
+  'profileToolsRefresh': "Profilwerkzeuge aktualisieren",
+  'profileToolsRegularGiftsWithoutSupplyLimit':
+      "Reguläre Geschenke ohne begrenzte Stückzahl",
+  'profileToolsRemoveProfileChat': "Profilchat entfernen",
+  'profileToolsShowChatOnProfile': "Einen Chat im Profil anzeigen",
+  'profileToolsShowGiftButton': "Geschenk-Schaltfläche anzeigen",
+  'profileToolsStopShowingProfileChat':
+      "Den ausgewählten Chat nicht mehr im Profil anzeigen",
+  'profileToolsTitle': "Profilwerkzeuge",
       "Profilbild konnte nicht gelöscht werden: {value1}",
   'profilePhotoDeleteMessage':
       "Dieses Foto wird aus deinem Profilbildverlauf entfernt.",

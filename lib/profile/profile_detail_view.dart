@@ -389,7 +389,9 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       backgroundColor: Colors.transparent,
       builder: (_) => _ProfileContextMenu(
         showBlock: !_isMe && !_isBlocked,
-        manageLabel: _isMe ? 'Profile tools' : 'Contact tools',
+        manageLabel: _isMe
+            ? context.l10n.t(AppStringKeys.profileToolsTitle)
+            : 'Contact tools',
       ),
     );
     if (!mounted || action == null) return;

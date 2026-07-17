@@ -1362,6 +1362,43 @@ const enMessages = <String, String>{
   'profileDetailPosts': "Posts",
   'profileDetailSendMessage': "Send message",
   'profileDetailYearMonthDate': "{value1}/{value2}",
+  'profileToolsAcceptGiftsFromChannels': "Accept gifts from channels",
+  'profileToolsAcceptGiftsFromChannelsDescription':
+      "Apply the selected gift types to channels",
+  'profileToolsAcceptLimitedGifts': "Accept limited gifts",
+  'profileToolsAcceptPremiumGifts': "Accept Premium gifts",
+  'profileToolsAcceptPremiumGiftsDescription':
+      "Allow Premium subscription gifts",
+  'profileToolsAcceptUnlimitedGifts': "Accept unlimited gifts",
+  'profileToolsAcceptUpgradedGifts': "Accept upgraded gifts",
+  'profileToolsAcceptUpgradedGiftsDescription':
+      "Collectible and prepaid-upgrade gifts",
+  'profileToolsActionFailed': "Action failed: {value1}",
+  'profileToolsChooseProfileChat': "Choose profile chat",
+  'profileToolsCurrentPublicPhotoHistory': "Current, public, and photo history",
+  'profileToolsGiftsSection': "GIFTS",
+  'profileToolsGiftSettingsUpdated': "Gift settings updated",
+  'profileToolsKeepGiftActionsVisible':
+      "Keep gift actions visible in private chats",
+  'profileToolsLimitedGiftsDescription': "Regular gifts with a limited supply",
+  'profileToolsLoadFailed': "Could not load profile tools: {value1}",
+  'profileToolsManageProfilePhotos': "Manage profile photos",
+  'profileToolsPersonalChatSection': "PERSONAL CHAT",
+  'profileToolsPhotoChatSummary': "Photos and personal chat",
+  'profileToolsPremiumRequired': "Premium required",
+  'profileToolsProfileChatId': "Chat ID {value1}",
+  'profileToolsProfileChatRemoved': "Profile chat removed",
+  'profileToolsProfileChatUpdated': "Profile chat updated",
+  'profileToolsProfilePhotosSection': "PROFILE PHOTOS",
+  'profileToolsRefresh': "Refresh profile tools",
+  'profileToolsRegularGiftsWithoutSupplyLimit':
+      "Regular gifts without a supply limit",
+  'profileToolsRemoveProfileChat': "Remove profile chat",
+  'profileToolsShowChatOnProfile': "Show a chat on your profile",
+  'profileToolsShowGiftButton': "Show gift button",
+  'profileToolsStopShowingProfileChat':
+      "Stop showing the selected chat on your profile",
+  'profileToolsTitle': "Profile tools",
   'profilePhotoDeleteFailed': "Could not delete profile photo: {value1}",
   'profilePhotoDeleteMessage':
       "This removes the photo from your profile photo history.",

@@ -1727,6 +1727,56 @@ abstract final class AppStringKeys {
   static const profileDetailPosts = 'profileDetailPosts';
   static const profileDetailSendMessage = 'profileDetailSendMessage';
   static const profileDetailYearMonthDate = 'profileDetailYearMonthDate';
+  static const profileToolsAcceptGiftsFromChannels =
+      'profileToolsAcceptGiftsFromChannels';
+  static const profileToolsAcceptGiftsFromChannelsDescription =
+      'profileToolsAcceptGiftsFromChannelsDescription';
+  static const profileToolsAcceptLimitedGifts =
+      'profileToolsAcceptLimitedGifts';
+  static const profileToolsAcceptPremiumGifts =
+      'profileToolsAcceptPremiumGifts';
+  static const profileToolsAcceptPremiumGiftsDescription =
+      'profileToolsAcceptPremiumGiftsDescription';
+  static const profileToolsAcceptUnlimitedGifts =
+      'profileToolsAcceptUnlimitedGifts';
+  static const profileToolsAcceptUpgradedGifts =
+      'profileToolsAcceptUpgradedGifts';
+  static const profileToolsAcceptUpgradedGiftsDescription =
+      'profileToolsAcceptUpgradedGiftsDescription';
+  static const profileToolsActionFailed = 'profileToolsActionFailed';
+  static const profileToolsChooseProfileChat = 'profileToolsChooseProfileChat';
+  static const profileToolsCurrentPublicPhotoHistory =
+      'profileToolsCurrentPublicPhotoHistory';
+  static const profileToolsGiftsSection = 'profileToolsGiftsSection';
+  static const profileToolsGiftSettingsUpdated =
+      'profileToolsGiftSettingsUpdated';
+  static const profileToolsKeepGiftActionsVisible =
+      'profileToolsKeepGiftActionsVisible';
+  static const profileToolsLimitedGiftsDescription =
+      'profileToolsLimitedGiftsDescription';
+  static const profileToolsLoadFailed = 'profileToolsLoadFailed';
+  static const profileToolsManageProfilePhotos =
+      'profileToolsManageProfilePhotos';
+  static const profileToolsPersonalChatSection =
+      'profileToolsPersonalChatSection';
+  static const profileToolsPhotoChatSummary = 'profileToolsPhotoChatSummary';
+  static const profileToolsPremiumRequired = 'profileToolsPremiumRequired';
+  static const profileToolsProfileChatId = 'profileToolsProfileChatId';
+  static const profileToolsProfileChatRemoved =
+      'profileToolsProfileChatRemoved';
+  static const profileToolsProfileChatUpdated =
+      'profileToolsProfileChatUpdated';
+  static const profileToolsProfilePhotosSection =
+      'profileToolsProfilePhotosSection';
+  static const profileToolsRefresh = 'profileToolsRefresh';
+  static const profileToolsRegularGiftsWithoutSupplyLimit =
+      'profileToolsRegularGiftsWithoutSupplyLimit';
+  static const profileToolsRemoveProfileChat = 'profileToolsRemoveProfileChat';
+  static const profileToolsShowChatOnProfile = 'profileToolsShowChatOnProfile';
+  static const profileToolsShowGiftButton = 'profileToolsShowGiftButton';
+  static const profileToolsStopShowingProfileChat =
+      'profileToolsStopShowingProfileChat';
+  static const profileToolsTitle = 'profileToolsTitle';
   static const profilePhotoDeleteFailed = 'profilePhotoDeleteFailed';
   static const profilePhotoDeleteMessage = 'profilePhotoDeleteMessage';
   static const profilePhotoDeleteTitle = 'profilePhotoDeleteTitle';

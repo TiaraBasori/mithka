@@ -703,8 +703,10 @@ class _EditProfileViewState extends State<EditProfileView> {
                         faded: true,
                       ),
                       _field(
-                        'Profile tools',
-                        'Photos and personal chat',
+                        AppStrings.t(AppStringKeys.profileToolsTitle),
+                        AppStrings.t(
+                          AppStringKeys.profileToolsPhotoChatSummary,
+                        ),
                         () async {
                           await Navigator.of(context).push(
                             MaterialPageRoute(

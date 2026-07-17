@@ -1318,6 +1318,45 @@ const esMessages = <String, String>{
   'profileDetailSendMessage': "Enviar mensaje",
   'profileDetailYearMonthDate': "{value2} de {value1}",
   'profilePhotoDeleteFailed': "No se pudo eliminar la foto de perfil: {value1}",
+  'profileToolsAcceptGiftsFromChannels': "Aceptar regalos de canales",
+  'profileToolsAcceptGiftsFromChannelsDescription':
+      "Aplicar los tipos de regalos seleccionados a los canales",
+  'profileToolsAcceptLimitedGifts': "Aceptar regalos limitados",
+  'profileToolsAcceptPremiumGifts': "Aceptar regalos Premium",
+  'profileToolsAcceptPremiumGiftsDescription':
+      "Permitir regalos de suscripción Premium",
+  'profileToolsAcceptUnlimitedGifts': "Aceptar regalos sin límite",
+  'profileToolsAcceptUpgradedGifts': "Aceptar regalos mejorados",
+  'profileToolsAcceptUpgradedGiftsDescription':
+      "Regalos coleccionables y con mejora prepagada",
+  'profileToolsActionFailed': "La acción falló: {value1}",
+  'profileToolsChooseProfileChat': "Elegir chat del perfil",
+  'profileToolsCurrentPublicPhotoHistory': "Foto actual, pública e historial",
+  'profileToolsGiftsSection': "REGALOS",
+  'profileToolsGiftSettingsUpdated': "Ajustes de regalos actualizados",
+  'profileToolsKeepGiftActionsVisible':
+      "Mantener visibles las acciones de regalos en chats privados",
+  'profileToolsLimitedGiftsDescription':
+      "Regalos normales con unidades limitadas",
+  'profileToolsLoadFailed':
+      "No se pudieron cargar las herramientas del perfil: {value1}",
+  'profileToolsManageProfilePhotos': "Administrar fotos de perfil",
+  'profileToolsPersonalChatSection': "CHAT PERSONAL",
+  'profileToolsPhotoChatSummary': "Fotos y chat personal",
+  'profileToolsPremiumRequired': "Se requiere Premium",
+  'profileToolsProfileChatId': "ID del chat: {value1}",
+  'profileToolsProfileChatRemoved': "Chat del perfil eliminado",
+  'profileToolsProfileChatUpdated': "Chat del perfil actualizado",
+  'profileToolsProfilePhotosSection': "FOTOS DE PERFIL",
+  'profileToolsRefresh': "Actualizar las herramientas del perfil",
+  'profileToolsRegularGiftsWithoutSupplyLimit':
+      "Regalos normales sin límite de unidades",
+  'profileToolsRemoveProfileChat': "Quitar chat del perfil",
+  'profileToolsShowChatOnProfile': "Mostrar un chat en tu perfil",
+  'profileToolsShowGiftButton': "Mostrar botón de regalos",
+  'profileToolsStopShowingProfileChat':
+      "Dejar de mostrar el chat seleccionado en tu perfil",
+  'profileToolsTitle': "Herramientas del perfil",
   'profilePhotoDeleteMessage':
       "Esta foto se eliminará de tu historial de fotos de perfil.",
   'profilePhotoDeleteTitle': "¿Eliminar foto de perfil?",

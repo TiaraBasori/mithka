@@ -9,6 +9,7 @@ import '../components/confirm_dialog.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
+import '../l10n/app_localizations.dart';
 import '../media/app_asset_picker.dart';
 import '../settings/edit_field_view.dart';
 import '../tdlib/json_helpers.dart';
@@ -96,7 +97,14 @@ class _ProfileContactManagementViewState
         _publicPhoto = _chatPhotoFile(full.obj('public_photo'));
       });
     } catch (error) {
-      if (mounted) showToast(context, 'Could not load profile tools: $error');
+      if (mounted) {
+        showToast(
+          context,
+          context.l10n.t(AppStringKeys.profileToolsLoadFailed, {
+            'value1': error,
+          }),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -275,10 +283,12 @@ class _ProfileContactManagementViewState
   Future<void> _choosePersonalChat() async {
     final result = await Navigator.of(context).push<ChatPickerResult>(
       MaterialPageRoute(
-        builder: (_) => const ChatPickerView(title: 'Choose profile chat'),
+        builder: (_) => ChatPickerView(
+          title: context.l10n.t(AppStringKeys.profileToolsChooseProfileChat),
+        ),
       ),
     );
-    if (result == null) return;
+    if (result == null || !mounted) return;
     await _run(() async {
       await _service.setPersonalChat(result.chat.id);
       _snapshot = ProfileContactSnapshot(
@@ -290,7 +300,7 @@ class _ProfileContactManagementViewState
         currentPhotoId: _snapshot.currentPhotoId,
         publicPhotoId: _snapshot.publicPhotoId,
       );
-    }, success: 'Profile chat updated');
+    }, success: context.l10n.t(AppStringKeys.profileToolsProfileChatUpdated));
   }
 
   Future<void> _clearPersonalChat() async {
@@ -305,7 +315,7 @@ class _ProfileContactManagementViewState
         currentPhotoId: _snapshot.currentPhotoId,
         publicPhotoId: _snapshot.publicPhotoId,
       );
-    }, success: 'Profile chat removed');
+    }, success: context.l10n.t(AppStringKeys.profileToolsProfileChatRemoved));
   }
 
   Future<void> _updateGiftSettings(GiftAcceptanceSettings value) async {
@@ -317,11 +327,21 @@ class _ProfileContactManagementViewState
     });
     try {
       await _service.setGiftSettings(value);
-      if (mounted) showToast(context, 'Gift settings updated');
+      if (mounted) {
+        showToast(
+          context,
+          context.l10n.t(AppStringKeys.profileToolsGiftSettingsUpdated),
+        );
+      }
     } catch (error) {
       if (mounted) {
         setState(() => _giftSettings = previous);
-        showToast(context, 'Action failed: $error');
+        showToast(
+          context,
+          context.l10n.t(AppStringKeys.profileToolsActionFailed, {
+            'value1': error,
+          }),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -341,7 +361,14 @@ class _ProfileContactManagementViewState
       showToast(context, success);
       if (reload) await _load();
     } catch (error) {
-      if (mounted) showToast(context, 'Action failed: $error');
+      if (mounted) {
+        showToast(
+          context,
+          context.l10n.t(AppStringKeys.profileToolsActionFailed, {
+            'value1': error,
+          }),
+        );
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -355,7 +382,9 @@ class _ProfileContactManagementViewState
       body: Column(
         children: [
           NavHeader(
-            title: _isMe ? 'Profile tools' : 'Contact tools',
+            title: _isMe
+                ? context.l10n.t(AppStringKeys.profileToolsTitle)
+                : 'Contact tools',
             onBack: () => Navigator.of(context).pop(),
             trailing: _refreshAction(),
           ),
@@ -381,7 +410,7 @@ class _ProfileContactManagementViewState
 
   Widget _refreshAction() => Semantics(
     button: true,
-    label: 'Refresh profile tools',
+    label: context.l10n.t(AppStringKeys.profileToolsRefresh),
     child: GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _loading || _busy ? null : () => unawaited(_load()),
@@ -398,103 +427,118 @@ class _ProfileContactManagementViewState
     ),
   );
 
-  List<Widget> _ownProfileRows() => [
-    _section('PROFILE PHOTOS', [
-      _row(
-        HeroAppIcons.images,
-        'Manage profile photos',
-        'Current, public, and photo history',
-        () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ProfilePhotoManagementView()),
-        ),
-      ),
-    ]),
-    const SizedBox(height: 18),
-    _section('PERSONAL CHAT', [
-      _row(
-        HeroAppIcons.comments,
-        'Choose profile chat',
-        _snapshot.personalChatId == 0
-            ? 'Show a chat on your profile'
-            : 'Chat ID ${_snapshot.personalChatId}',
-        _choosePersonalChat,
-      ),
-      if (_snapshot.personalChatId != 0)
+  List<Widget> _ownProfileRows() {
+    final l10n = context.l10n;
+    final premiumRequired = l10n.t(AppStringKeys.profileToolsPremiumRequired);
+    return [
+      _section(l10n.t(AppStringKeys.profileToolsProfilePhotosSection), [
         _row(
-          HeroAppIcons.xmark,
-          'Remove profile chat',
-          'Stop showing the selected chat on your profile',
-          _clearPersonalChat,
-          destructive: true,
+          HeroAppIcons.images,
+          l10n.t(AppStringKeys.profileToolsManageProfilePhotos),
+          l10n.t(AppStringKeys.profileToolsCurrentPublicPhotoHistory),
+          () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ProfilePhotoManagementView(),
+            ),
+          ),
         ),
-    ]),
-    const SizedBox(height: 18),
-    _section('GIFTS', [
-      _toggleRow(
-        'Show gift button',
-        'Keep gift actions visible in private chats',
-        _giftSettings.showGiftButton,
-        (value) =>
-            _updateGiftSettings(_giftSettings.copyWith(showGiftButton: value)),
-      ),
-      _toggleRow(
-        'Accept unlimited gifts',
-        _isPremium
-            ? 'Regular gifts without a supply limit'
-            : 'Premium required',
-        _giftSettings.unlimitedGifts,
-        _isPremium
-            ? (value) => _updateGiftSettings(
-                _giftSettings.copyWith(unlimitedGifts: value),
-              )
-            : null,
-      ),
-      _toggleRow(
-        'Accept limited gifts',
-        _isPremium ? 'Regular gifts with a limited supply' : 'Premium required',
-        _giftSettings.limitedGifts,
-        _isPremium
-            ? (value) => _updateGiftSettings(
-                _giftSettings.copyWith(limitedGifts: value),
-              )
-            : null,
-      ),
-      _toggleRow(
-        'Accept upgraded gifts',
-        _isPremium
-            ? 'Collectible and prepaid-upgrade gifts'
-            : 'Premium required',
-        _giftSettings.upgradedGifts,
-        _isPremium
-            ? (value) => _updateGiftSettings(
-                _giftSettings.copyWith(upgradedGifts: value),
-              )
-            : null,
-      ),
-      _toggleRow(
-        'Accept gifts from channels',
-        _isPremium
-            ? 'Apply the selected gift types to channels'
-            : 'Premium required',
-        _giftSettings.giftsFromChannels,
-        _isPremium
-            ? (value) => _updateGiftSettings(
-                _giftSettings.copyWith(giftsFromChannels: value),
-              )
-            : null,
-      ),
-      _toggleRow(
-        'Accept Premium gifts',
-        _isPremium ? 'Allow Premium subscription gifts' : 'Premium required',
-        _giftSettings.premiumSubscription,
-        _isPremium
-            ? (value) => _updateGiftSettings(
-                _giftSettings.copyWith(premiumSubscription: value),
-              )
-            : null,
-      ),
-    ]),
-  ];
+      ]),
+      const SizedBox(height: 18),
+      _section(l10n.t(AppStringKeys.profileToolsPersonalChatSection), [
+        _row(
+          HeroAppIcons.comments,
+          l10n.t(AppStringKeys.profileToolsChooseProfileChat),
+          _snapshot.personalChatId == 0
+              ? l10n.t(AppStringKeys.profileToolsShowChatOnProfile)
+              : l10n.t(AppStringKeys.profileToolsProfileChatId, {
+                  'value1': _snapshot.personalChatId,
+                }),
+          _choosePersonalChat,
+        ),
+        if (_snapshot.personalChatId != 0)
+          _row(
+            HeroAppIcons.xmark,
+            l10n.t(AppStringKeys.profileToolsRemoveProfileChat),
+            l10n.t(AppStringKeys.profileToolsStopShowingProfileChat),
+            _clearPersonalChat,
+            destructive: true,
+          ),
+      ]),
+      const SizedBox(height: 18),
+      _section(l10n.t(AppStringKeys.profileToolsGiftsSection), [
+        _toggleRow(
+          l10n.t(AppStringKeys.profileToolsShowGiftButton),
+          l10n.t(AppStringKeys.profileToolsKeepGiftActionsVisible),
+          _giftSettings.showGiftButton,
+          (value) => _updateGiftSettings(
+            _giftSettings.copyWith(showGiftButton: value),
+          ),
+        ),
+        _toggleRow(
+          l10n.t(AppStringKeys.profileToolsAcceptUnlimitedGifts),
+          _isPremium
+              ? l10n.t(AppStringKeys.profileToolsRegularGiftsWithoutSupplyLimit)
+              : premiumRequired,
+          _giftSettings.unlimitedGifts,
+          _isPremium
+              ? (value) => _updateGiftSettings(
+                  _giftSettings.copyWith(unlimitedGifts: value),
+                )
+              : null,
+        ),
+        _toggleRow(
+          l10n.t(AppStringKeys.profileToolsAcceptLimitedGifts),
+          _isPremium
+              ? l10n.t(AppStringKeys.profileToolsLimitedGiftsDescription)
+              : premiumRequired,
+          _giftSettings.limitedGifts,
+          _isPremium
+              ? (value) => _updateGiftSettings(
+                  _giftSettings.copyWith(limitedGifts: value),
+                )
+              : null,
+        ),
+        _toggleRow(
+          l10n.t(AppStringKeys.profileToolsAcceptUpgradedGifts),
+          _isPremium
+              ? l10n.t(AppStringKeys.profileToolsAcceptUpgradedGiftsDescription)
+              : premiumRequired,
+          _giftSettings.upgradedGifts,
+          _isPremium
+              ? (value) => _updateGiftSettings(
+                  _giftSettings.copyWith(upgradedGifts: value),
+                )
+              : null,
+        ),
+        _toggleRow(
+          l10n.t(AppStringKeys.profileToolsAcceptGiftsFromChannels),
+          _isPremium
+              ? l10n.t(
+                  AppStringKeys.profileToolsAcceptGiftsFromChannelsDescription,
+                )
+              : premiumRequired,
+          _giftSettings.giftsFromChannels,
+          _isPremium
+              ? (value) => _updateGiftSettings(
+                  _giftSettings.copyWith(giftsFromChannels: value),
+                )
+              : null,
+        ),
+        _toggleRow(
+          l10n.t(AppStringKeys.profileToolsAcceptPremiumGifts),
+          _isPremium
+              ? l10n.t(AppStringKeys.profileToolsAcceptPremiumGiftsDescription)
+              : premiumRequired,
+          _giftSettings.premiumSubscription,
+          _isPremium
+              ? (value) => _updateGiftSettings(
+                  _giftSettings.copyWith(premiumSubscription: value),
+                )
+              : null,
+        ),
+      ]),
+    ];
+  }
 
   List<Widget> _contactRows() => [
     _photoComparison(),

@@ -1328,6 +1328,46 @@ const frMessages = <String, String>{
   'profileDetailSendMessage': "Envoyer un message",
   'profileDetailYearMonthDate': "{value2} {value1}",
   'profilePhotoDeleteFailed':
+  'profileToolsAcceptGiftsFromChannels': "Accepter les cadeaux des canaux",
+  'profileToolsAcceptGiftsFromChannelsDescription':
+      "Appliquer les types de cadeaux sélectionnés aux canaux",
+  'profileToolsAcceptLimitedGifts': "Accepter les cadeaux limités",
+  'profileToolsAcceptPremiumGifts': "Accepter les cadeaux Premium",
+  'profileToolsAcceptPremiumGiftsDescription':
+      "Autoriser les cadeaux d’abonnement Premium",
+  'profileToolsAcceptUnlimitedGifts': "Accepter les cadeaux illimités",
+  'profileToolsAcceptUpgradedGifts': "Accepter les cadeaux améliorés",
+  'profileToolsAcceptUpgradedGiftsDescription':
+      "Cadeaux de collection et à amélioration prépayée",
+  'profileToolsActionFailed': "Échec de l’action : {value1}",
+  'profileToolsChooseProfileChat': "Choisir le chat du profil",
+  'profileToolsCurrentPublicPhotoHistory':
+      "Photo actuelle, publique et historique",
+  'profileToolsGiftsSection': "CADEAUX",
+  'profileToolsGiftSettingsUpdated': "Paramètres des cadeaux mis à jour",
+  'profileToolsKeepGiftActionsVisible':
+      "Garder les actions de cadeau visibles dans les chats privés",
+  'profileToolsLimitedGiftsDescription':
+      "Cadeaux ordinaires avec une quantité limitée",
+  'profileToolsLoadFailed':
+      "Impossible de charger les outils du profil : {value1}",
+  'profileToolsManageProfilePhotos': "Gérer les photos de profil",
+  'profileToolsPersonalChatSection': "CHAT PERSONNEL",
+  'profileToolsPhotoChatSummary': "Photos et chat personnel",
+  'profileToolsPremiumRequired': "Premium requis",
+  'profileToolsProfileChatId': "ID du chat : {value1}",
+  'profileToolsProfileChatRemoved': "Chat du profil retiré",
+  'profileToolsProfileChatUpdated': "Chat du profil mis à jour",
+  'profileToolsProfilePhotosSection': "PHOTOS DE PROFIL",
+  'profileToolsRefresh': "Actualiser les outils du profil",
+  'profileToolsRegularGiftsWithoutSupplyLimit':
+      "Cadeaux ordinaires sans limite de quantité",
+  'profileToolsRemoveProfileChat': "Retirer le chat du profil",
+  'profileToolsShowChatOnProfile': "Afficher un chat sur votre profil",
+  'profileToolsShowGiftButton': "Afficher le bouton Cadeau",
+  'profileToolsStopShowingProfileChat':
+      "Ne plus afficher le chat sélectionné sur votre profil",
+  'profileToolsTitle': "Outils du profil",
       "Impossible de supprimer la photo de profil : {value1}",
   'profilePhotoDeleteMessage':
       "Cette photo sera supprimée de l’historique de vos photos de profil.",
