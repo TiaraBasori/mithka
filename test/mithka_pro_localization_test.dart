@@ -22,8 +22,6 @@ void main() {
       'mithkaProBackupLimitReached',
       'mithkaProBestValue',
       'mithkaProBillingNotice',
-      'mithkaProCloudBackup',
-      'mithkaProCloudBackupDescription',
       'mithkaProContinue',
       'mithkaProFreePlan',
       'mithkaProLimitExempt',
@@ -39,8 +37,8 @@ void main() {
       'mithkaProStoreUnavailable',
       'mithkaProTerms',
       'mithkaProTitle',
-      'mithkaProUnlimitedAccounts',
-      'mithkaProUnlimitedAccountsDescription',
+      'mithkaProUnlimitedCloudSessionSyncs',
+      'mithkaProUnlimitedCloudSessionSyncsDescription',
       'mithkaProYearly',
     };
     const locales = <String, Map<String, String>>{
@@ -60,6 +58,11 @@ void main() {
         containsAll(keys),
         reason: '${entry.key} must not fall back to raw English',
       );
+      expect(
+        entry.value.keys,
+        isNot(contains('mithkaProUnlimitedAccounts')),
+        reason: '${entry.key} must not advertise unlimited accounts',
+      );
       if (entry.key != 'en') {
         expect(
           entry.value['mithkaProFreePlan'],
@@ -68,5 +71,14 @@ void main() {
         );
       }
     }
+
+    expect(
+      enMessages['mithkaProUnlimitedCloudSessionSyncs'],
+      'Unlimited cloud session syncs',
+    );
+    expect(
+      enMessages['mithkaProFreePlan'],
+      'Free plan · 4 cloud session syncs',
+    );
   });
 }

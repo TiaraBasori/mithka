@@ -102,9 +102,9 @@ class AccountBackupService {
     final protectedIds = await protectedAccountIds();
     final existing =
         existingAccountId != null && protectedIds.contains(existingAccountId);
-    return MithkaProService.shared.canAddBackup(
+    return MithkaProService.shared.canAddCloudSessionSync(
       protectedIds.length,
-      alreadyBackedUp: existing,
+      alreadySynced: existing,
     );
   }
 

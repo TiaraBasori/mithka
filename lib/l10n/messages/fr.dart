@@ -80,17 +80,14 @@ const frMessages = <String, String>{
   'mithkaProActive': "Mithka Pro est actif",
   'mithkaProActiveUntil': "Mithka Pro actif jusqu’au {value1}",
   'mithkaProBackupLimitReached':
-      "La formule gratuite permet de sauvegarder quatre comptes. Mithka Pro supprime cette limite.",
+      "La formule gratuite inclut quatre synchronisations de session dans le cloud. Mithka Pro supprime cette limite.",
   'mithkaProBestValue': "MEILLEUR PRIX",
   'mithkaProBillingNotice':
       "L’abonnement se renouvelle automatiquement sauf annulation depuis votre compte de la boutique. Le prix et les taxes sont confirmés avant l’achat.",
-  'mithkaProCloudBackup': "Sauvegarde des comptes dans le cloud",
-  'mithkaProCloudBackupDescription':
-      "Activez-la pour chaque compte et restaurez sa session d’autorisation sur un autre appareil.",
   'mithkaProContinue': "Continuer",
-  'mithkaProFreePlan': "Formule gratuite · jusqu’à quatre comptes",
+  'mithkaProFreePlan': "Formule gratuite · 4 sessions synchronisées",
   'mithkaProLimitExempt':
-      "Les limites de comptes sont désactivées pour cette version",
+      "Les synchronisations de session cloud sont illimitées dans cette version",
   'mithkaProManagePlan': "Gérer l’abonnement",
   'mithkaProMonthly': "Mensuel",
   'mithkaProNothingToRestore': "Aucun achat Mithka Pro actif n’a été trouvé.",
@@ -103,9 +100,10 @@ const frMessages = <String, String>{
   'mithkaProStoreUnavailable': "Boutique indisponible",
   'mithkaProTerms': "Conditions d’utilisation",
   'mithkaProTitle': "Mithka Pro",
-  'mithkaProUnlimitedAccounts': "Comptes illimités",
-  'mithkaProUnlimitedAccountsDescription':
-      "Ajoutez et utilisez autant de comptes Telegram que nécessaire.",
+  'mithkaProUnlimitedCloudSessionSyncs':
+      "Synchronisations de session cloud illimitées",
+  'mithkaProUnlimitedCloudSessionSyncsDescription':
+      "Synchronisez les sessions d’autorisation de tous vos comptes ; la formule gratuite en inclut quatre.",
   'mithkaProYearly': "Annuel",
   'addMembersDone': "Terminé",
   'addMembersDoneWithCount': "Terminé ({value1})",

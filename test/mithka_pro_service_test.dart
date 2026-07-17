@@ -20,31 +20,29 @@ void main() {
     );
   });
 
-  test('free App Store and Play Store builds stop at four accounts', () async {
+  test('free store builds stop at four cloud session syncs', () async {
+    expect(MithkaProService.freeCloudSessionSyncLimit, 4);
     for (final distribution in ['app_store', 'play_store']) {
       final service = MithkaProService(
         gateway: _FakeGateway(distribution: distribution),
       );
       await service.initialize();
 
-      expect(service.canAddAccount(3), isTrue);
-      expect(service.canAddAccount(4), isFalse);
-      expect(service.canAddAccount(8), isFalse);
-      expect(service.canAddBackup(3), isTrue);
-      expect(service.canAddBackup(4), isFalse);
-      expect(service.canAddBackup(4, alreadyBackedUp: true), isTrue);
+      expect(service.canAddCloudSessionSync(3), isTrue);
+      expect(service.canAddCloudSessionSync(4), isFalse);
+      expect(service.canAddCloudSessionSync(8), isFalse);
+      expect(service.canAddCloudSessionSync(4, alreadySynced: true), isTrue);
     }
   });
 
-  test('account and backup limits fail closed before initialization', () {
+  test('cloud session sync limit fails closed before initialization', () {
     final service = MithkaProService(
       gateway: _FakeGateway(distribution: 'apk'),
     );
 
     expect(service.initialized, isFalse);
-    expect(service.canAddAccount(3), isTrue);
-    expect(service.canAddAccount(4), isFalse);
-    expect(service.canAddBackup(4), isFalse);
+    expect(service.canAddCloudSessionSync(3), isTrue);
+    expect(service.canAddCloudSessionSync(4), isFalse);
   });
 
   test('catalog failure does not discard a valid distribution state', () async {
@@ -55,7 +53,7 @@ void main() {
     await expectLater(service.initialize(), completes);
     expect(service.initialized, isTrue);
     expect(service.state.distribution, MithkaDistribution.apk);
-    expect(service.canAddAccount(40), isTrue);
+    expect(service.canAddCloudSessionSync(40), isTrue);
     expect(service.products, isEmpty);
   });
 
@@ -66,8 +64,7 @@ void main() {
 
     await expectLater(service.initialize(), completes);
     expect(service.initialized, isFalse);
-    expect(service.canAddAccount(4), isFalse);
-    expect(service.canAddBackup(4), isFalse);
+    expect(service.canAddCloudSessionSync(4), isFalse);
   });
 
   test('TestFlight, development, and APK distributions are exempt', () async {
@@ -78,19 +75,17 @@ void main() {
       await service.initialize();
 
       expect(service.state.isLimitExempt, isTrue);
-      expect(service.canAddAccount(50), isTrue);
-      expect(service.canAddBackup(50), isTrue);
+      expect(service.canAddCloudSessionSync(50), isTrue);
     }
   });
 
-  test('Pro has unlimited accounts and backups in store builds', () async {
+  test('Pro has unlimited cloud session syncs in store builds', () async {
     final service = MithkaProService(
       gateway: _FakeGateway(distribution: 'play_store', pro: true),
     );
     await service.initialize();
 
-    expect(service.canAddAccount(1000), isTrue);
-    expect(service.canAddBackup(1000), isTrue);
+    expect(service.canAddCloudSessionSync(1000), isTrue);
   });
 
   test('products and purchase use the fixed Mithka Pro identifiers', () async {

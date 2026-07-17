@@ -36,6 +36,8 @@ void main() {
     expect(find.byType(Checkbox), findsNothing);
     expect(find.byType(Switch), findsNothing);
     expect(find.byType(Radio<String>), findsNothing);
+    expect(find.text('Unlimited cloud session syncs'), findsOneWidget);
+    expect(find.text('Unlimited accounts'), findsNothing);
   });
 
   testWidgets('active Pro primary action opens subscription management', (
@@ -71,6 +73,7 @@ void main() {
       File('lib/auth/login_view.dart'),
       File('lib/profile/profile_view.dart'),
       File('lib/settings/account_backup_view.dart'),
+      File('lib/auth/account_store.dart'),
     ];
     final forbidden = RegExp(
       r'\b(?:Checkbox|CheckboxListTile|Switch|SwitchListTile|Radio|RadioListTile|Slider|RangeSlider|ElevatedButton|FilledButton|OutlinedButton|TextButton|IconButton|CupertinoButton|CupertinoSwitch|CupertinoCheckbox)\s*(?:<[^>]+>)?\s*\(',
@@ -88,6 +91,7 @@ void main() {
     expect(builtInIcon.allMatches(backupSource), isEmpty);
     expect(backupSource, isNot(contains('package:flutter/material.dart')));
     expect(backupSource, isNot(contains('package:flutter/cupertino.dart')));
+    expect(backupSource, isNot(contains('read<AccountStore>().canAddAccount')));
 
     final loginAddedSurface = files[1].readAsStringSync();
     expect(loginAddedSurface, contains('AppCheckbox('));
@@ -103,9 +107,8 @@ void main() {
     );
 
     final accountSwitcherSource = files[2].readAsStringSync();
-    expect(accountSwitcherSource, contains('accounts.canAddAccount'));
-    expect(accountSwitcherSource, contains('AnimatedOpacity('));
-    expect(accountSwitcherSource, contains('MithkaProView()'));
+    expect(accountSwitcherSource, isNot(contains('accounts.canAddAccount')));
+    expect(accountSwitcherSource, isNot(contains('MithkaProView()')));
     expect(
       accountSwitcherSource,
       contains('AppStrings.t(AppStringKeys.savedMessages)'),
@@ -123,6 +126,11 @@ void main() {
         ),
       ),
     );
+
+    final accountStoreSource = files[4].readAsStringSync();
+    expect(accountStoreSource, isNot(contains('MithkaProService')));
+    expect(accountStoreSource, isNot(contains('canAddAccount')));
+    expect(accountStoreSource, contains('TdClient.shared.addSlot()'));
   });
 }
 

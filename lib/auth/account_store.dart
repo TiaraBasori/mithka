@@ -13,7 +13,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../chat/custom_emoji.dart';
 import '../chat/emoji_store.dart';
-import '../pro/mithka_pro_service.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -92,11 +91,6 @@ class AccountStore extends ChangeNotifier {
 
   int get activeSlot => _activeSlot;
   List<AccountSummary> get summaries => _summaries;
-  bool get canAddAccount => MithkaProService.shared.canAddAccount(
-    TdClient.shared.configuredSlots.length,
-  );
-
-  void handleEntitlementChanged() => notifyListeners();
 
   void _activeAccountChanged() {
     CustomEmojiCenter.shared.reset();
@@ -250,8 +244,7 @@ class AccountStore extends ChangeNotifier {
 
   /// Creates a fresh account and switches to it (lands on the login flow).
   /// Remembers the current account so an aborted login can return to it.
-  bool addAccount(AuthManager auth) {
-    if (!canAddAccount) return false;
+  void addAccount(AuthManager auth) {
     _returnSlot = _activeSlot;
     final slot = TdClient.shared.addSlot();
     _pendingSlot = slot;
@@ -262,7 +255,6 @@ class AccountStore extends ChangeNotifier {
     notifyListeners();
     auth.reloadAuthState();
     refresh();
-    return true;
   }
 
   Future<TdFreshSessionResult> createFreshSessionFromRestoredSlot(

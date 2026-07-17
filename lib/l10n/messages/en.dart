@@ -77,16 +77,14 @@ const enMessages = <String, String>{
   'mithkaProActive': "Mithka Pro is active",
   'mithkaProActiveUntil': "Mithka Pro active until {value1}",
   'mithkaProBackupLimitReached':
-      "The free plan includes four backed-up accounts. Mithka Pro removes this limit.",
+      "The free plan includes four cloud session syncs. Mithka Pro removes this limit.",
   'mithkaProBestValue': "BEST VALUE",
   'mithkaProBillingNotice':
       "Subscriptions renew automatically unless canceled through your store account. Prices and taxes are confirmed by the store before purchase.",
-  'mithkaProCloudBackup': "Cloud account backup",
-  'mithkaProCloudBackupDescription':
-      "Opt in per account and restore its authorization session on another device.",
   'mithkaProContinue': "Continue",
-  'mithkaProFreePlan': "Free plan · up to four accounts",
-  'mithkaProLimitExempt': "Account limits are disabled for this build",
+  'mithkaProFreePlan': "Free plan · 4 cloud session syncs",
+  'mithkaProLimitExempt':
+      "Cloud session sync limits are disabled for this build",
   'mithkaProManagePlan': "Manage subscription",
   'mithkaProMonthly': "Monthly",
   'mithkaProNothingToRestore': "No active Mithka Pro purchase was found.",
@@ -99,9 +97,9 @@ const enMessages = <String, String>{
   'mithkaProStoreUnavailable': "Store unavailable",
   'mithkaProTerms': "Terms of Service",
   'mithkaProTitle': "Mithka Pro",
-  'mithkaProUnlimitedAccounts': "Unlimited accounts",
-  'mithkaProUnlimitedAccountsDescription':
-      "Add and use as many Telegram accounts as you need.",
+  'mithkaProUnlimitedCloudSessionSyncs': "Unlimited cloud session syncs",
+  'mithkaProUnlimitedCloudSessionSyncsDescription':
+      "Sync authorization sessions for any number of accounts; the free plan includes four.",
   'mithkaProYearly': "Yearly",
   'addMembersDone': "Done",
   'addMembersDoneWithCount': "Done ({value1})",

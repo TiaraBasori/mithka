@@ -120,9 +120,9 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _setBackupConsent(bool value) async {
     final pro = context.read<MithkaProService>();
     if (value &&
-        !pro.canAddBackup(
+        !pro.canAddCloudSessionSync(
           _backupConsentCount,
-          alreadyBackedUp: _backupConsent,
+          alreadySynced: _backupConsent,
         )) {
       _openMithkaPro();
       return;
@@ -275,9 +275,9 @@ class _LoginViewState extends State<LoginView> {
 
   Widget _backupConsentRow(MithkaProService pro) {
     final c = context.colors;
-    final allowed = pro.canAddBackup(
+    final allowed = pro.canAddCloudSessionSync(
       _backupConsentCount,
-      alreadyBackedUp: _backupConsent,
+      alreadySynced: _backupConsent,
     );
     final label = Platform.isIOS
         ? AppStringKeys.accountBackupLoginICloud

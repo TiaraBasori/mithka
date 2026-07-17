@@ -74,15 +74,13 @@ const koMessages = <String, String>{
   'mithkaProActive': "Mithka Pro가 활성화되었습니다",
   'mithkaProActiveUntil': "Mithka Pro 활성 기간: {value1}까지",
   'mithkaProBackupLimitReached':
-      "무료 요금제에서는 계정 4개까지 백업할 수 있습니다. Mithka Pro는 이 제한이 없습니다.",
+      "무료 요금제에서는 클라우드 세션을 4개까지 동기화할 수 있습니다. Mithka Pro는 이 제한을 없앱니다.",
   'mithkaProBestValue': "최고의 가치",
   'mithkaProBillingNotice':
       "스토어 계정에서 취소하지 않으면 구독이 자동 갱신됩니다. 구매 전에 스토어에서 가격과 세금을 확인합니다.",
-  'mithkaProCloudBackup': "클라우드 계정 백업",
-  'mithkaProCloudBackupDescription': "계정별로 선택하여 다른 기기에서 인증 세션을 복원할 수 있습니다.",
   'mithkaProContinue': "계속",
-  'mithkaProFreePlan': "무료 요금제 · 계정 최대 4개",
-  'mithkaProLimitExempt': "이 빌드에서는 계정 제한이 적용되지 않습니다",
+  'mithkaProFreePlan': "무료 요금제 · 클라우드 세션 동기화 4개",
+  'mithkaProLimitExempt': "이 빌드에서는 클라우드 세션 동기화 수가 제한되지 않습니다",
   'mithkaProManagePlan': "구독 관리",
   'mithkaProMonthly': "월간",
   'mithkaProNothingToRestore': "활성 Mithka Pro 구매를 찾을 수 없습니다.",
@@ -95,9 +93,9 @@ const koMessages = <String, String>{
   'mithkaProStoreUnavailable': "스토어를 사용할 수 없음",
   'mithkaProTerms': "이용 약관",
   'mithkaProTitle': "Mithka Pro",
-  'mithkaProUnlimitedAccounts': "계정 무제한",
-  'mithkaProUnlimitedAccountsDescription':
-      "필요한 만큼 Telegram 계정을 추가하고 사용할 수 있습니다.",
+  'mithkaProUnlimitedCloudSessionSyncs': "클라우드 세션 무제한 동기화",
+  'mithkaProUnlimitedCloudSessionSyncsDescription':
+      "무료 요금제는 4개까지, Pro는 계정 수에 관계없이 인증 세션을 동기화할 수 있습니다.",
   'mithkaProYearly': "연간",
   'addMembersDone': "완료",
   'addMembersDoneWithCount': "완료({value1})",

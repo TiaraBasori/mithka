@@ -81,7 +81,7 @@ class MithkaProState {
   final bool isLimitExempt;
   final DateTime? expirationDate;
 
-  bool get enforcesFreeLimit => !isPro && !isLimitExempt;
+  bool get enforcesFreeCloudSessionSyncLimit => !isPro && !isLimitExempt;
 
   static int? _intValue(Object? value) {
     if (value is int) return value;
@@ -161,7 +161,7 @@ class MithkaProService extends ChangeNotifier {
     : _gateway = gateway ?? const MethodChannelMithkaProGateway();
 
   static final MithkaProService shared = MithkaProService();
-  static const freeAccountLimit = 4;
+  static const freeCloudSessionSyncLimit = 4;
 
   final MithkaProGateway _gateway;
   MithkaProState _state = const MithkaProState.uninitialized();
@@ -178,14 +178,13 @@ class MithkaProService extends ChangeNotifier {
   bool get isPro => _state.isPro;
   bool get isLimitExempt => _state.isLimitExempt;
 
-  bool canAddAccount(int currentAccountCount) =>
-      currentAccountCount < freeAccountLimit ||
-      (_initialized && !_state.enforcesFreeLimit);
-
-  bool canAddBackup(int currentBackupCount, {bool alreadyBackedUp = false}) =>
-      alreadyBackedUp ||
-      currentBackupCount < freeAccountLimit ||
-      (_initialized && !_state.enforcesFreeLimit);
+  bool canAddCloudSessionSync(
+    int currentSyncCount, {
+    bool alreadySynced = false,
+  }) =>
+      alreadySynced ||
+      currentSyncCount < freeCloudSessionSyncLimit ||
+      (_initialized && !_state.enforcesFreeCloudSessionSyncLimit);
 
   Future<void> initialize() async {
     if (_initialized || _loading) return;

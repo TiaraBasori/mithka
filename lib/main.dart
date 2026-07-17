@@ -269,7 +269,6 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _accounts.addListener(_handleActiveAccountChange);
-    _mithkaPro.addListener(_handleMithkaProChange);
     _theme.loadSelectedEmojiFontIfAvailable();
     _autoDownload.initialize(widget.prefs);
     _auth.start();
@@ -285,7 +284,6 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _accounts.removeListener(_handleActiveAccountChange);
-    _mithkaPro.removeListener(_handleMithkaProChange);
     _calls.dispose();
     super.dispose();
   }
@@ -293,8 +291,6 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
   void _handleActiveAccountChange() {
     _theme.setActiveAccountSlot(_accounts.activeSlot);
   }
-
-  void _handleMithkaProChange() => _accounts.handleEntitlementChanged();
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

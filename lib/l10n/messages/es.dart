@@ -79,17 +79,14 @@ const esMessages = <String, String>{
   'mithkaProActive': "Mithka Pro está activo",
   'mithkaProActiveUntil': "Mithka Pro activo hasta el {value1}",
   'mithkaProBackupLimitReached':
-      "El plan gratuito permite guardar cuatro cuentas. Mithka Pro elimina este límite.",
+      "El plan gratuito incluye cuatro sesiones sincronizadas en la nube. Mithka Pro elimina este límite.",
   'mithkaProBestValue': "MEJOR PRECIO",
   'mithkaProBillingNotice':
       "La suscripción se renueva automáticamente salvo que la canceles en tu cuenta de la tienda. El precio y los impuestos se confirman antes de comprar.",
-  'mithkaProCloudBackup': "Copia de cuentas en la nube",
-  'mithkaProCloudBackupDescription':
-      "Actívala por cuenta y restaura su sesión de autorización en otro dispositivo.",
   'mithkaProContinue': "Continuar",
-  'mithkaProFreePlan': "Plan gratuito · hasta cuatro cuentas",
+  'mithkaProFreePlan': "Plan gratuito · 4 sesiones en la nube",
   'mithkaProLimitExempt':
-      "Los límites de cuentas están desactivados en esta versión",
+      "Las sincronizaciones de sesiones en la nube no tienen límite en esta versión",
   'mithkaProManagePlan': "Gestionar suscripción",
   'mithkaProMonthly': "Mensual",
   'mithkaProNothingToRestore':
@@ -103,9 +100,10 @@ const esMessages = <String, String>{
   'mithkaProStoreUnavailable': "Tienda no disponible",
   'mithkaProTerms': "Términos del servicio",
   'mithkaProTitle': "Mithka Pro",
-  'mithkaProUnlimitedAccounts': "Cuentas ilimitadas",
-  'mithkaProUnlimitedAccountsDescription':
-      "Añade y usa tantas cuentas de Telegram como necesites.",
+  'mithkaProUnlimitedCloudSessionSyncs':
+      "Sincronización ilimitada de sesiones en la nube",
+  'mithkaProUnlimitedCloudSessionSyncsDescription':
+      "Sincroniza las sesiones de autorización de todas tus cuentas; el plan gratuito incluye cuatro.",
   'mithkaProYearly': "Anual",
   'addMembersDone': "Listo",
   'addMembersDoneWithCount': "Listo ({value1})",

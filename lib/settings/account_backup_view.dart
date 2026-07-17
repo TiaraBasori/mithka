@@ -274,10 +274,6 @@ class _AccountBackupViewState extends State<AccountBackupView> {
   }
 
   Future<void> _restore(AccountSessionBackup backup) async {
-    if (!context.read<AccountStore>().canAddAccount) {
-      _openMithkaPro();
-      return;
-    }
     final ok = await showAppConfirmDialog(
       context,
       title: AppStringKeys.accountBackupRestoreTitle,
@@ -305,10 +301,6 @@ class _AccountBackupViewState extends State<AccountBackupView> {
 
   Future<void> _loadPyrogramSession() async {
     if (_working) return;
-    if (!context.read<AccountStore>().canAddAccount) {
-      _openMithkaPro();
-      return;
-    }
     final sessionString = await showGeneralDialog<String>(
       context: context,
       barrierDismissible: true,

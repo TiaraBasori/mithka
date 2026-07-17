@@ -113,15 +113,10 @@ class _MithkaProViewState extends State<MithkaProView> {
                       child: Column(
                         children: [
                           _benefit(
-                            HeroAppIcons.users,
-                            AppStringKeys.mithkaProUnlimitedAccounts,
-                            AppStringKeys.mithkaProUnlimitedAccountsDescription,
-                          ),
-                          const InsetDivider(leadingInset: 62),
-                          _benefit(
                             HeroAppIcons.cloudArrowDown,
-                            AppStringKeys.mithkaProCloudBackup,
-                            AppStringKeys.mithkaProCloudBackupDescription,
+                            AppStringKeys.mithkaProUnlimitedCloudSessionSyncs,
+                            AppStringKeys
+                                .mithkaProUnlimitedCloudSessionSyncsDescription,
                           ),
                         ],
                       ),
