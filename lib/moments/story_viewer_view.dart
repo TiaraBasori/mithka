@@ -75,7 +75,8 @@ class StoryViewerView extends StatefulWidget {
   State<StoryViewerView> createState() => _StoryViewerViewState();
 }
 
-class _StoryViewerViewState extends State<StoryViewerView> {
+class _StoryViewerViewState extends State<StoryViewerView>
+    with SingleTickerProviderStateMixin {
   int _index = 0;
   String _senderName = AppStringKeys.tabMoments;
   TdFileRef? _senderPhoto;
@@ -86,6 +87,9 @@ class _StoryViewerViewState extends State<StoryViewerView> {
   _videoController; // inline video playback (video stories)
   bool _videoStarting = false;
   final _replyController = TextEditingController();
+  final _replyFocus = FocusNode();
+  late final AnimationController _progress;
+  bool _holding = false;
   bool _sendingReply = false;
   bool _updatingReaction = false;
   bool _storyMuted = false;
@@ -94,8 +98,10 @@ class _StoryViewerViewState extends State<StoryViewerView> {
 
   @override
   void dispose() {
+    _progress.dispose();
     _videoController?.dispose();
     _replyController.dispose();
+    _replyFocus.dispose();
     _updates?.cancel();
     super.dispose();
   }
@@ -103,9 +109,27 @@ class _StoryViewerViewState extends State<StoryViewerView> {
   @override
   void initState() {
     super.initState();
+    _progress = AnimationController(vsync: this)
+      ..addStatusListener(_handleProgressStatus);
+    _replyFocus.addListener(_handleReplyFocus);
     _resolveSender();
     _updates = TdClient.shared.subscribe().listen(_handleUpdate);
     _load(0);
+  }
+
+  void _handleProgressStatus(AnimationStatus status) {
+    if (status != AnimationStatus.completed || !mounted) return;
+    scheduleMicrotask(() {
+      if (mounted && !_holding && !_replyFocus.hasFocus) _goNext();
+    });
+  }
+
+  void _handleReplyFocus() {
+    if (_replyFocus.hasFocus) {
+      _pausePlayback();
+    } else {
+      _resumePlayback();
+    }
   }
 
   void _handleUpdate(Map<String, dynamic> update) {
@@ -135,6 +159,8 @@ class _StoryViewerViewState extends State<StoryViewerView> {
   Future<void> _load(int index) async {
     if (index < 0 || index >= widget.storyIds.length) return;
     final sid = widget.storyIds[index];
+    _progress.stop();
+    _progress.reset();
     unawaited(
       // Tear down any inline video from the previous story.
       _videoController?.dispose(),
@@ -142,6 +168,7 @@ class _StoryViewerViewState extends State<StoryViewerView> {
     _videoController = null;
     _videoStarting = false;
     setState(() {
+      _index = index;
       _current = null;
       _loadError = false;
     });
@@ -194,32 +221,41 @@ class _StoryViewerViewState extends State<StoryViewerView> {
           isVideo = true;
       }
       if (!mounted || _index != index) return;
-      setState(
-        () => _current = _StoryMedia(
-          imageFile: imageFile,
-          caption: caption,
-          isVideo: isVideo,
-          videoFile: videoFile,
-          canBeForwarded: story.boolean('can_be_forwarded') ?? false,
-          canBeReplied: story.boolean('can_be_replied') ?? false,
-          chosenReaction: story.obj('chosen_reaction_type'),
-          canGetInteractions: story.boolean('can_get_interactions') ?? false,
-          viewCount: interaction?.integer('view_count') ?? 0,
-          forwardCount: interaction?.integer('forward_count') ?? 0,
-          reactionCount: interaction?.integer('reaction_count') ?? 0,
-          recentViewerIds:
-              interaction?.int64Array('recent_viewer_user_ids') ?? const [],
-          areas: story.objects('areas') ?? const [],
-        ),
+      final loaded = _StoryMedia(
+        imageFile: imageFile,
+        caption: caption,
+        isVideo: isVideo,
+        videoFile: videoFile,
+        canBeForwarded: story.boolean('can_be_forwarded') ?? false,
+        canBeReplied: story.boolean('can_be_replied') ?? false,
+        chosenReaction: story.obj('chosen_reaction_type'),
+        canGetInteractions: story.boolean('can_get_interactions') ?? false,
+        viewCount: interaction?.integer('view_count') ?? 0,
+        forwardCount: interaction?.integer('forward_count') ?? 0,
+        reactionCount: interaction?.integer('reaction_count') ?? 0,
+        recentViewerIds:
+            interaction?.int64Array('recent_viewer_user_ids') ?? const [],
+        areas: story.objects('areas') ?? const [],
       );
+      setState(() => _current = loaded);
+      if (loaded.isVideo && loaded.videoFile != null) {
+        unawaited(_startVideo(loaded));
+      } else {
+        _startProgress(const Duration(seconds: 6));
+      }
     } catch (_) {
       if (mounted && _index == index) setState(() => _loadError = true);
     }
   }
 
-  /// Tapping a video story plays it inline (downloading on demand) and toggles
-  /// play/pause thereafter; tapping a photo does nothing (navigation is
-  /// swipe-only).
+  void _startProgress(Duration duration) {
+    if (!mounted || duration <= Duration.zero) return;
+    _progress.duration = duration;
+    if (!_holding && !_replyFocus.hasFocus) _progress.forward(from: 0);
+  }
+
+  /// Center-tapping a video toggles playback. Left and right taps are reserved
+  /// for story navigation in the gesture layer below.
   Future<void> _onTapMedia() async {
     final m = _current;
     if (m == null || !m.isVideo || m.videoFile == null) return;
@@ -227,26 +263,45 @@ class _StoryViewerViewState extends State<StoryViewerView> {
     final existing = _videoController;
     if (existing != null && existing.value.isInitialized) {
       setState(() {
-        existing.value.isPlaying ? existing.pause() : existing.play();
+        if (existing.value.isPlaying) {
+          existing.pause();
+          _progress.stop();
+        } else {
+          existing.play();
+          _progress.forward();
+        }
       });
       return;
     }
+    await _startVideo(m);
+  }
+
+  Future<void> _startVideo(_StoryMedia m) async {
     if (_videoStarting) return;
     _videoStarting = true;
+    if (mounted) setState(() {});
 
     final path = await TdFileCenter.shared.pathFor(m.videoFile!);
     if (!mounted || _current != m || path == null) {
       _videoStarting = false;
+      if (mounted && _current == m) {
+        setState(() {});
+        _startProgress(const Duration(seconds: 6));
+      }
       return;
     }
     final c = VideoPlayerController.file(File(path));
     try {
       await c.initialize();
-      await c.setLooping(true);
-      await c.play();
+      await c.setLooping(false);
+      if (!_holding && !_replyFocus.hasFocus) await c.play();
     } catch (_) {
       await c.dispose();
       _videoStarting = false;
+      if (mounted && _current == m) {
+        setState(() {});
+        _startProgress(const Duration(seconds: 6));
+      }
       return;
     }
     if (!mounted || _current != m) {
@@ -254,34 +309,58 @@ class _StoryViewerViewState extends State<StoryViewerView> {
       _videoStarting = false;
       return;
     }
-    c.addListener(() {
-      if (mounted) setState(() {});
-    });
     setState(() {
       _videoController = c;
       _videoStarting = false;
     });
+    _startProgress(
+      c.value.duration > Duration.zero
+          ? c.value.duration
+          : const Duration(seconds: 6),
+    );
+  }
+
+  void _pausePlayback() {
+    _holding = true;
+    _progress.stop();
+    _videoController?.pause();
+    if (mounted) setState(() {});
+  }
+
+  void _resumePlayback() {
+    _holding = false;
+    if (_current == null || _loadError) return;
+    if (_progress.duration != null && !_progress.isCompleted) {
+      _progress.forward();
+    }
+    final video = _videoController;
+    if (video != null &&
+        video.value.isInitialized &&
+        !video.value.isCompleted) {
+      video.play();
+    }
+    if (mounted) setState(() {});
   }
 
   void _goPrevious() {
+    _progress.stop();
     if (_index > 0) {
-      setState(() => _index--);
-      _load(_index);
+      _load(_index - 1);
     } else {
       Navigator.of(context).pop();
     }
   }
 
   void _goNext() {
+    _progress.stop();
     if (_index < widget.storyIds.length - 1) {
-      setState(() => _index++);
-      _load(_index);
+      _load(_index + 1);
     } else {
       Navigator.of(context).pop();
     }
   }
 
-  double _fill(int i) => i < _index ? 1 : (i == _index ? 0.7 : 0);
+  double _fill(int i) => i < _index ? 1 : (i == _index ? _progress.value : 0);
 
   @override
   Widget build(BuildContext context) {
@@ -320,30 +399,33 @@ class _StoryViewerViewState extends State<StoryViewerView> {
               // Progress bars
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: Row(
-                  children: [
-                    for (var i = 0; i < widget.storyIds.length; i++)
-                      Expanded(
-                        child: Container(
-                          height: 2.5,
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.3),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          child: FractionallySizedBox(
-                            alignment: Alignment.centerLeft,
-                            widthFactor: _fill(i),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(2),
+                child: AnimatedBuilder(
+                  animation: _progress,
+                  builder: (context, child) => Row(
+                    children: [
+                      for (var i = 0; i < widget.storyIds.length; i++)
+                        Expanded(
+                          child: Container(
+                            height: 3,
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                            child: FractionallySizedBox(
+                              alignment: Alignment.centerLeft,
+                              widthFactor: _fill(i),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
               // Header
@@ -440,18 +522,36 @@ class _StoryViewerViewState extends State<StoryViewerView> {
               ),
             ],
           ),
-          // Swipe left/right to move between stories; tap a video to play it.
+          // Tap the left/right edges to move, swipe horizontally as a fallback,
+          // swipe down to close, and hold to pause both photos and videos.
           Positioned.fill(
             top: top + 96,
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
-              onTap: _onTapMedia,
+              onTapUp: (details) {
+                final width = MediaQuery.sizeOf(context).width;
+                final x = details.localPosition.dx;
+                if (x < width * 0.3) {
+                  _goPrevious();
+                } else if (x > width * 0.7) {
+                  _goNext();
+                } else {
+                  unawaited(_onTapMedia());
+                }
+              },
+              onLongPressStart: (_) => _pausePlayback(),
+              onLongPressEnd: (_) => _resumePlayback(),
               onHorizontalDragEnd: (d) {
                 final v = d.primaryVelocity ?? 0;
                 if (v < -150) {
                   _goNext();
                 } else if (v > 150) {
                   _goPrevious();
+                }
+              },
+              onVerticalDragEnd: (d) {
+                if ((d.primaryVelocity ?? 0) > 320) {
+                  Navigator.of(context).pop();
                 }
               },
               child: const SizedBox.expand(),
@@ -614,6 +714,7 @@ class _StoryViewerViewState extends State<StoryViewerView> {
                   Expanded(
                     child: TextField(
                       controller: _replyController,
+                      focusNode: _replyFocus,
                       onSubmitted: (_) => unawaited(_sendReply()),
                       style: const TextStyle(fontSize: 14, color: Colors.white),
                       decoration: InputDecoration.collapsed(
@@ -727,6 +828,7 @@ class _StoryViewerViewState extends State<StoryViewerView> {
 
   Future<void> _chooseStoryReaction() async {
     const reactions = ['❤', '👍', '🔥', '🎉', '😍', '👏'];
+    _pausePlayback();
     final chosen = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -762,6 +864,7 @@ class _StoryViewerViewState extends State<StoryViewerView> {
         ),
       ),
     );
+    if (mounted) _resumePlayback();
     if (chosen == null) return;
     await _setStoryReaction({'@type': 'reactionTypeEmoji', 'emoji': chosen});
   }
@@ -858,6 +961,7 @@ class _StoryViewerViewState extends State<StoryViewerView> {
   }
 
   Future<void> _showMoreActions() async {
+    _pausePlayback();
     final action = await showModalBottomSheet<String>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -916,6 +1020,7 @@ class _StoryViewerViewState extends State<StoryViewerView> {
         ),
       ),
     );
+    if (mounted) _resumePlayback();
     if (action == 'share') await _shareStory();
     if (action == 'report') await _reportStory();
     if (action == 'mute') await _toggleStoryMute();
@@ -1236,7 +1341,9 @@ class _StoryViewerViewState extends State<StoryViewerView> {
         ),
       );
     }
-    if (story.imageFile == null) {
+    final vc = _videoController;
+    final videoReady = vc != null && vc.value.isInitialized;
+    if (story.imageFile == null && !videoReady) {
       // Loaded, but a content type we don't render (live / unsupported).
       return Center(
         child: Text(
@@ -1245,9 +1352,8 @@ class _StoryViewerViewState extends State<StoryViewerView> {
         ),
       );
     }
-    final vc = _videoController;
-    final videoReady = vc != null && vc.value.isInitialized;
-    final showPlayButton = story.isVideo && (vc == null || !vc.value.isPlaying);
+    final showPlayButton =
+        story.isVideo && !_videoStarting && (vc == null || !vc.value.isPlaying);
     return Stack(
       fit: StackFit.expand,
       alignment: Alignment.center,
@@ -1265,6 +1371,10 @@ class _StoryViewerViewState extends State<StoryViewerView> {
           )
         else
           TDImage(photo: story.imageFile, cornerRadius: 0),
+        if (_videoStarting)
+          const Center(
+            child: AppActivityIndicator(size: 30, color: Colors.white),
+          ),
         if (showPlayButton)
           Container(
             width: 70,

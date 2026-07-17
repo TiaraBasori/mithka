@@ -10,6 +10,7 @@ import '../chat/location_picker_view.dart';
 import '../components/app_icons.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
+import '../l10n/app_localizations.dart';
 import '../media/app_asset_picker.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -839,25 +840,8 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
       child: Column(
         children: [
           NavHeader(
-            title: 'New Story',
+            title: AppStringKeys.storyNewTitle,
             onBack: () => Navigator.of(context).pop(),
-            trailing: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _media.isEmpty || _publishing ? null : _publish,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-                child: Text(
-                  'Publish',
-                  style: TextStyle(
-                    color: _media.isEmpty || _publishing
-                        ? c.textTertiary
-                        : AppTheme.brand,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
           ),
           Expanded(
             child: _loading
@@ -871,7 +855,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                         children: [
                           Expanded(
                             child: _action(
-                              'Gallery',
+                              AppStringKeys.storyGallery.l10n(context),
                               HeroAppIcons.images,
                               _pickGallery,
                             ),
@@ -879,7 +863,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: _action(
-                              'Camera',
+                              AppStringKeys.storyCamera.l10n(context),
                               HeroAppIcons.camera,
                               _openCamera,
                             ),
@@ -891,7 +875,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                         controller: _caption,
                         minLines: 3,
                         maxLines: 7,
-                        decoration: _decoration('Caption, links and mentions'),
+                        decoration: _decoration(
+                          AppStringKeys.storyCaptionHint.l10n(context),
+                        ),
                       ),
                       const SizedBox(height: 14),
                       _settingsCard(),
@@ -915,7 +901,120 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                     ],
                   ),
           ),
+          if (!_loading) _publishDock(),
         ],
+      ),
+    );
+  }
+
+  Widget _publishDock() {
+    final c = context.colors;
+    final enabled = _media.isNotEmpty && !_publishing && _targetChatId != null;
+    final target = _targets
+        .where((item) => item.id == _targetChatId)
+        .firstOrNull
+        ?.title;
+    final privacy = _privacyKind == StoryPrivacyKind.selectedUsers
+        ? context.l10n.t(AppStringKeys.storySelectedCount, {
+            'value1': _selectedPrivacyUsers.length,
+          })
+        : _privacyLabel(_privacyKind);
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        decoration: BoxDecoration(
+          color: c.background,
+          border: Border(top: BorderSide(color: c.divider)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 14,
+              offset: Offset(0, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    target ??
+                        AppStringKeys.storyChooseDestination.l10n(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: c.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    privacy,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: c.textSecondary, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            Semantics(
+              button: true,
+              enabled: enabled,
+              label: AppStringKeys.storyPublish.l10n(context),
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: enabled ? _publish : null,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  height: 46,
+                  constraints: const BoxConstraints(minWidth: 126),
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  decoration: BoxDecoration(
+                    color: enabled
+                        ? AppTheme.brand
+                        : AppTheme.brand.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_publishing)
+                        const StoryActivityIndicator(
+                          size: 19,
+                          color: Colors.white,
+                        )
+                      else
+                        AppIcon(
+                          HeroAppIcons.paperPlane,
+                          size: 19,
+                          color: enabled ? Colors.white : c.textTertiary,
+                        ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _publishing
+                            ? AppStringKeys.storyPublishing.l10n(context)
+                            : AppStringKeys.storyPublish.l10n(context),
+                        style: TextStyle(
+                          color: enabled || _publishing
+                              ? Colors.white
+                              : c.textTertiary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -923,29 +1022,55 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
   Widget _mediaStrip() {
     final c = context.colors;
     if (_media.isEmpty) {
-      return Container(
-        height: 240,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: c.divider),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppIcon(HeroAppIcons.images, size: 44, color: c.textTertiary),
-            const SizedBox(height: 10),
-            Text(
-              'Choose photos or videos',
-              style: TextStyle(color: c.textSecondary),
+      return Semantics(
+        button: true,
+        label: AppStringKeys.storyChooseMedia.l10n(context),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: _pickGallery,
+          child: Container(
+            height: 240,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: c.card,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: c.divider),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Long videos are split into 60-second stories',
-              style: TextStyle(color: c.textTertiary, fontSize: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: AppTheme.brand.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: AppIcon(
+                    HeroAppIcons.images,
+                    size: 31,
+                    color: AppTheme.brand,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  AppStringKeys.storyChooseMedia.l10n(context),
+                  style: TextStyle(
+                    color: c.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  AppStringKeys.storyChooseMediaHint.l10n(context),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: c.textTertiary, fontSize: 12),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       );
     }
@@ -1092,29 +1217,33 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
   Widget _settingsCard() => SettingsCard(
     children: [
       SettingsRow(
-        title: 'Post as',
+        title: AppStringKeys.storyPostAs.l10n(context),
         value:
             _targets
                 .where((target) => target.id == _targetChatId)
                 .firstOrNull
                 ?.title ??
-            'Choose',
+            AppStringKeys.storyChoose.l10n(context),
         onTap: _pickTarget,
       ),
       const InsetDivider(leadingInset: 16),
       SettingsRow(
-        title: 'Privacy',
+        title: AppStringKeys.storyPrivacy.l10n(context),
         value: _privacyKind == StoryPrivacyKind.selectedUsers
-            ? '${_selectedPrivacyUsers.length} selected'
+            ? context.l10n.t(AppStringKeys.storySelectedCount, {
+                'value1': _selectedPrivacyUsers.length,
+              })
             : _privacyLabel(_privacyKind),
         onTap: _privacyPicker,
       ),
       const InsetDivider(leadingInset: 16),
       SettingsRow(
-        title: 'Clickable areas',
+        title: AppStringKeys.storyClickableAreas.l10n(context),
         value: _areas.isEmpty
-            ? 'Add link, reaction or place'
-            : '${_areas.length} added',
+            ? AppStringKeys.storyClickableAreasHint.l10n(context)
+            : context.l10n.t(AppStringKeys.storyAddedCount, {
+                'value1': _areas.length,
+              }),
         onTap: _areas.isEmpty ? _addArea : _editAreas,
       ),
       if (_areas.isNotEmpty)
@@ -1140,7 +1269,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   ),
                   child: Text(
                     index == _areas.length
-                        ? '+ Add'
+                        ? '+ ${AppStringKeys.storyAdd.l10n(context)}'
                         : storyAreaDraftLabel(_areas[index]),
                     style: TextStyle(
                       color: context.colors.textPrimary,
@@ -1155,24 +1284,26 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
         ),
       const InsetDivider(leadingInset: 16),
       SettingsRow(
-        title: 'Visible for',
-        value: switch (_activePeriod) {
-          21600 => '6 hours',
-          43200 => '12 hours',
-          172800 => '48 hours',
-          _ => '24 hours',
-        },
+        title: AppStringKeys.storyVisibleFor.l10n(context),
+        value: context.l10n.t(AppStringKeys.storyHours, {
+          'value1': switch (_activePeriod) {
+            21600 => 6,
+            43200 => 12,
+            172800 => 48,
+            _ => 24,
+          },
+        }),
         onTap: _periodPicker,
       ),
       const InsetDivider(leadingInset: 16),
       SettingsSwitchRow(
-        title: 'Keep on profile',
+        title: AppStringKeys.storyKeepOnProfile.l10n(context),
         value: _postToPage,
         onChanged: (value) => setState(() => _postToPage = value),
       ),
       const InsetDivider(leadingInset: 16),
       SettingsSwitchRow(
-        title: 'Protect from sharing',
+        title: AppStringKeys.storyProtectSharing.l10n(context),
         value: _protect,
         onChanged: (value) => setState(() => _protect = value),
       ),
