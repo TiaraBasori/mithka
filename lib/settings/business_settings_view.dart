@@ -49,11 +49,17 @@ class _BusinessSettingsViewState extends State<BusinessSettingsView> {
       final me = await _client.query({'@type': 'getMe'});
       final id = me.int64('id');
       if (id == null) return;
-      final full = await _client.query({
-        '@type': 'getUserFullInfo',
-        'user_id': id,
-      });
-      final business = full.obj('business_info');
+      Map<String, dynamic>? business;
+      try {
+        final full = await _client.query({
+          '@type': 'getUserFullInfo',
+          'user_id': id,
+        });
+        business = full.obj('business_info');
+      } catch (_) {
+        // Profile summaries may be unavailable while TDLib refreshes the user;
+        // capability loading below must still populate the settings rows.
+      }
       BusinessCapabilities? capabilities;
       try {
         capabilities = await _businessService.capabilities();

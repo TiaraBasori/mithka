@@ -20,6 +20,35 @@ class BusinessCapabilities {
   bool canUse(String tdType) => isPremium && supports(tdType);
 }
 
+/// Business feature constructors implemented by the TDLib runtime bundled with
+/// Mithka and surfaced by the settings UI.
+///
+/// `getBusinessFeatures` is server-backed and can temporarily fail or return an
+/// empty list while account data is being refreshed. That must not turn a
+/// transient response into an empty settings screen. Premium is still checked
+/// separately before any mutation is sent.
+const bundledBusinessFeatures = <String>{
+  'businessFeatureLocation',
+  'businessFeatureOpeningHours',
+  'businessFeatureStartPage',
+  'businessFeatureQuickReplies',
+  'businessFeatureGreetingMessage',
+  'businessFeatureAwayMessage',
+  'businessFeatureAccountLinks',
+  'businessFeatureBots',
+  'businessFeatureEmojiStatus',
+};
+
+@visibleForTesting
+Set<String> resolvedBusinessFeatures(Map<String, dynamic>? response) {
+  final advertised = <String>{
+    for (final feature
+        in response?.objects('features') ?? const <Map<String, dynamic>>[])
+      if (feature.type != null) feature.type!,
+  };
+  return advertised.isEmpty ? bundledBusinessFeatures : advertised;
+}
+
 class BusinessRecipientsDraft {
   const BusinessRecipientsDraft({
     this.chatIds = const <int>[],
@@ -294,16 +323,20 @@ class BusinessService {
   final TdClient _client;
 
   Future<BusinessCapabilities> capabilities() async {
-    final values = await Future.wait([
-      _client.query({'@type': 'getMe'}),
-      _client.query({'@type': 'getBusinessFeatures', 'source': null}),
-    ]);
+    final me = await _client.query({'@type': 'getMe'});
+    Map<String, dynamic>? businessFeatures;
+    try {
+      businessFeatures = await _client.query({
+        '@type': 'getBusinessFeatures',
+        'source': null,
+      });
+    } catch (_) {
+      // The bundled schema is known at build time. Retain the usable settings
+      // surface during a transient server/capability-probe failure.
+    }
     return BusinessCapabilities(
-      isPremium: values[0].boolean('is_premium') ?? false,
-      features: {
-        for (final feature in values[1].objects('features') ?? const [])
-          if (feature.type != null) feature.type!,
-      },
+      isPremium: me.boolean('is_premium') ?? false,
+      features: resolvedBusinessFeatures(businessFeatures),
     );
   }
 

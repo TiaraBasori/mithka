@@ -118,4 +118,34 @@ void main() {
     expect(available.canUse('businessFeatureQuickReplies'), isTrue);
     expect(available.supports('businessFeatureBots'), isFalse);
   });
+
+  group('business feature resolution', () {
+    test('uses the server-advertised feature list when present', () {
+      expect(
+        resolvedBusinessFeatures({
+          'features': [
+            {'@type': 'businessFeatureLocation'},
+            {'@type': 'businessFeatureOpeningHours'},
+          ],
+        }),
+        {'businessFeatureLocation', 'businessFeatureOpeningHours'},
+      );
+    });
+
+    test('retains bundled features when the probe fails or is empty', () {
+      expect(resolvedBusinessFeatures(null), bundledBusinessFeatures);
+      expect(
+        resolvedBusinessFeatures({'features': const []}),
+        bundledBusinessFeatures,
+      );
+      expect(
+        resolvedBusinessFeatures(null),
+        containsAll({
+          'businessFeatureLocation',
+          'businessFeatureOpeningHours',
+          'businessFeatureStartPage',
+        }),
+      );
+    });
+  });
 }
