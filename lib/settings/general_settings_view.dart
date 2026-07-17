@@ -169,7 +169,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
           _navigationRow(
             HeroAppIcons.gear,
             const Color(0xFFAF52DE),
-            'Advanced automatic download',
+            AppStrings.t(AppStringKeys.generalAdvancedAutomaticDownload),
             () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const AutoDownloadSettingsView(),
@@ -251,7 +251,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
           _navigationRow(
             HeroAppIcons.compactDisc,
             const Color(0xFF16B0A0),
-            'Detailed storage usage',
+            AppStrings.t(AppStringKeys.generalDetailedStorageUsage),
             () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const StorageUsageView())),
@@ -260,7 +260,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
           _navigationRow(
             HeroAppIcons.download,
             const Color(0xFF3C8CF0),
-            'Downloads',
+            AppStrings.t(AppStringKeys.generalDownloads),
             () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const DownloadsView())),
@@ -269,7 +269,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
           _navigationRow(
             HeroAppIcons.networkWired,
             const Color(0xFFFF9500),
-            'Network usage',
+            AppStrings.t(AppStringKeys.generalNetworkUsage),
             () => Navigator.of(
               context,
             ).push(MaterialPageRoute(builder: (_) => const NetworkUsageView())),
