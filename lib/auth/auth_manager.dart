@@ -18,6 +18,7 @@ import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import 'account_backup_service.dart';
 import 'review_login_code_service.dart';
+import 'telegram_passkey_service.dart';
 
 sealed class AuthStep {
   const AuthStep();
@@ -126,6 +127,7 @@ bool authorizationStateRequiresQrReset(String? type) =>
 
 class AuthManager extends ChangeNotifier {
   final TdClient _client = TdClient.shared;
+  final TelegramPasskeyService _passkeys = TelegramPasskeyService.shared;
   bool _started = false;
   final ReviewLoginCodeService _reviewLoginCode = ReviewLoginCodeService();
 
@@ -137,11 +139,13 @@ class AuthManager extends ChangeNotifier {
   bool _useReviewCodeRelay = false;
   bool _reviewCodePollActive = false;
   String? _mockReviewSessionPhone;
+  bool _canUseLoginPasskey = false;
 
   AuthStep get step => _step;
   String? get errorMessage => _errorMessage;
   bool get isWorking => _isWorking;
   bool get isReviewCodePolling => _reviewCodePollActive;
+  bool get canUseLoginPasskey => _canUseLoginPasskey;
 
   void start() {
     if (_started) return;
@@ -159,11 +163,17 @@ class AuthManager extends ChangeNotifier {
     // Subscribe before start so no early update is missed.
     final updates = _client.subscribe();
     updates.listen((update) {
+      if (update.type == 'updateOption' &&
+          update.str('name') == 'can_use_login_passkey') {
+        unawaited(_loadPasskeyAvailability());
+        return;
+      }
       if (update.type != 'updateAuthorizationState') return;
       final state = update.obj('authorization_state');
       if (state != null) _handle(state);
     });
     await _client.start();
+    unawaited(_loadPasskeyAvailability());
     await ScopeNotificationSettings.shared.load();
   }
 
@@ -224,7 +234,9 @@ class AuthManager extends ChangeNotifier {
     _actionSerial += 1;
     _isWorking = false;
     _errorMessage = null;
+    _canUseLoginPasskey = false;
     _set(const AuthInitializing());
+    unawaited(_loadPasskeyAvailability());
     _client
         .query({'@type': 'getAuthorizationState'})
         .timeout(const Duration(seconds: 8))
@@ -315,6 +327,27 @@ class AuthManager extends ChangeNotifier {
 
   void requestQrLogin() =>
       _run({'@type': 'requestQrCodeAuthentication', 'other_user_ids': []});
+
+  Future<bool> loginWithPasskey() async {
+    if (_isWorking || !_canUseLoginPasskey) return false;
+    final clientId = _client.activeClientId;
+    if (clientId == 0) return false;
+    final action = _beginAuthorizationTransition();
+    try {
+      await _passkeys.authenticate(clientId: clientId);
+      return action == _actionSerial;
+    } on TelegramPasskeyException catch (error) {
+      if (action == _actionSerial && !error.isCancelled) {
+        _errorMessage = _friendlyPasskey(error);
+      }
+      return false;
+    } catch (error) {
+      if (action == _actionSerial) _report(error);
+      return false;
+    } finally {
+      _finishAuthorizationTransition(action);
+    }
+  }
 
   void submitCode(String code) {
     final mockPhone = _mockReviewSessionPhone;
@@ -458,6 +491,33 @@ class AuthManager extends ChangeNotifier {
       _errorMessage = error.toString();
     }
   }
+
+  Future<void> _loadPasskeyAvailability() async {
+    final clientId = _client.activeClientId;
+    final enabled = await _passkeys.canUse(clientId: clientId);
+    if (clientId != _client.activeClientId || enabled == _canUseLoginPasskey) {
+      return;
+    }
+    _canUseLoginPasskey = enabled;
+    notifyListeners();
+  }
+
+  String _friendlyPasskey(TelegramPasskeyException error) =>
+      switch (error.code) {
+        'passkey_empty' => AppStrings.t(
+          AppStringKeys.passkeysErrorNoCredential,
+        ),
+        'passkey_not_allowed' => AppStrings.t(
+          AppStringKeys.passkeysErrorNotAllowed,
+        ),
+        'passkey_already_signed_in' => AppStrings.t(
+          AppStringKeys.passkeysErrorAlreadySignedIn,
+        ),
+        'passkey_unavailable' => AppStrings.t(
+          AppStringKeys.passkeysErrorUnavailable,
+        ),
+        _ => AppStrings.t(AppStringKeys.passkeysErrorGeneric),
+      };
 
   String _friendly(TdError error) {
     switch (error.message) {

@@ -936,6 +936,7 @@ const frMessages = <String, String>{
   'loginVerificationCode': "Code de vérification",
   'loginVerify': "Vérifier",
   'loginWithQrCode': "Se connecter avec un QR code",
+  'loginWithPasskey': "Se connecter avec une clé d’accès",
   'markdownLabel': "Markdown",
   'mediaSendPreviewTitle': "Aperçu des médias",
   'messageActionBlock': "Bloquer",
@@ -1094,6 +1095,28 @@ const frMessages = <String, String>{
   'pollComposerQuestionRequired': "Saisissez une question",
   'pollComposerSingleChoiceLimitHint': "Choix unique · 10 options maximum",
   'premiumLabel': "Premium",
+  'passkeysAdded': "Clé d’accès ajoutée",
+  'passkeysCreatedOn': "Créée le {value1}",
+  'passkeysDelete': "Supprimer",
+  'passkeysDeleteMessage': "Supprimer « {value1} » ?",
+  'passkeysDeleteTitle': "Supprimer la clé d’accès ?",
+  'passkeysDescription':
+      "Les clés d’accès permettent de vous connecter à Telegram avec le verrouillage de l’appareil au lieu d’un code ou d’un mot de passe. Elles sont stockées de façon sécurisée par votre fournisseur d’identifiants Android.",
+  'passkeysEmpty': "Vous n’avez encore ajouté aucune clé d’accès.",
+  'passkeysErrorAlreadySignedIn':
+      "Ce compte Telegram est déjà connecté sur cet appareil.",
+  'passkeysErrorGeneric':
+      "L’opération de clé d’accès n’a pas pu être effectuée.",
+  'passkeysErrorNoCredential':
+      "Aucune clé d’accès Telegram correspondante n’a été trouvée.",
+  'passkeysErrorNotAllowed':
+      "Android n’a pas autorisé Mithka à utiliser les clés d’accès Telegram sur cet appareil.",
+  'passkeysErrorUnavailable':
+      "Les clés d’accès ne sont pas disponibles sur cet appareil.",
+  'passkeysLastUsedOn': "Dernière utilisation le {value1}",
+  'passkeysRemoved': "Clé d’accès supprimée",
+  'passkeysTitle': "Clés d’accès",
+  'passkeysUnknownName': "Clé d’accès sans nom",
   'privacyAddExceptions': "Ajouter des exceptions",
   'privacyAddUsers': "Ajouter des utilisateurs",
   'privacyAlwaysShareWith': "Toujours partager avec",

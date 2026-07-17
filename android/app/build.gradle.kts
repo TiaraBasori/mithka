@@ -122,6 +122,10 @@ dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     // Edge-to-edge: WindowCompat.setDecorFitsSystemWindows.
     implementation("androidx.core:core-ktx:1.16.0")
+    // Android's system passkey picker. The Play Services adapter keeps the
+    // same Credential Manager API working on pre-Android 14 devices.
+    implementation("androidx.credentials:credentials:1.6.0")
+    implementation("androidx.credentials:credentials-play-services-auth:1.6.0")
     // ntgcalls — a from-scratch C++ Telegram-calls engine (WebRTC + opus + libvpx
     // statically bundled inside a self-contained libntgcalls.so per ABI). This is
     // the real media transport behind the CallMediaEngine seam; CallMediaPlugin

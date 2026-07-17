@@ -464,6 +464,13 @@ class _LoginViewState extends State<LoginView> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (showingPhone && Platform.isAndroid && auth.canUseLoginPasskey)
+          _loginIconButton(
+            icon: HeroAppIcons.key,
+            tooltip: AppStrings.t(AppStringKeys.loginWithPasskey),
+            enabled: !auth.isWorking,
+            onTap: () => unawaited(auth.loginWithPasskey()),
+          ),
         if (showingPhone)
           _loginIconButton(
             icon: HeroAppIcons.qrcode,

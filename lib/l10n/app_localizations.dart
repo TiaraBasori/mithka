@@ -1284,6 +1284,7 @@ abstract final class AppStringKeys {
   static const loginVerificationCode = 'loginVerificationCode';
   static const loginVerify = 'loginVerify';
   static const loginWithQrCode = 'loginWithQrCode';
+  static const loginWithPasskey = 'loginWithPasskey';
   static const markdownLabel = 'markdownLabel';
   static const mediaSendPreviewTitle = 'mediaSendPreviewTitle';
   static const messageActionBlock = 'messageActionBlock';
@@ -1448,6 +1449,22 @@ abstract final class AppStringKeys {
   static const pollComposerSingleChoiceLimitHint =
       'pollComposerSingleChoiceLimitHint';
   static const premiumLabel = 'premiumLabel';
+  static const passkeysAdded = 'passkeysAdded';
+  static const passkeysCreatedOn = 'passkeysCreatedOn';
+  static const passkeysDelete = 'passkeysDelete';
+  static const passkeysDeleteMessage = 'passkeysDeleteMessage';
+  static const passkeysDeleteTitle = 'passkeysDeleteTitle';
+  static const passkeysDescription = 'passkeysDescription';
+  static const passkeysEmpty = 'passkeysEmpty';
+  static const passkeysErrorAlreadySignedIn = 'passkeysErrorAlreadySignedIn';
+  static const passkeysErrorGeneric = 'passkeysErrorGeneric';
+  static const passkeysErrorNoCredential = 'passkeysErrorNoCredential';
+  static const passkeysErrorNotAllowed = 'passkeysErrorNotAllowed';
+  static const passkeysErrorUnavailable = 'passkeysErrorUnavailable';
+  static const passkeysLastUsedOn = 'passkeysLastUsedOn';
+  static const passkeysRemoved = 'passkeysRemoved';
+  static const passkeysTitle = 'passkeysTitle';
+  static const passkeysUnknownName = 'passkeysUnknownName';
   static const privacyAddExceptions = 'privacyAddExceptions';
   static const privacyAddUsers = 'privacyAddUsers';
   static const privacyAlwaysShareWith = 'privacyAlwaysShareWith';

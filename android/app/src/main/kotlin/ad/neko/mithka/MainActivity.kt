@@ -31,6 +31,7 @@ import org.xmlpull.v1.XmlPullParserFactory
 
 class MainActivity : FlutterActivity() {
     private var callMedia: CallMediaPlugin? = null
+    private var telegramPasskeys: TelegramPasskeyPlugin? = null
     private var mediaDropChannel: MethodChannel? = null
     private var acceptingImageDrop = false
     private val translators = mutableMapOf<String, Translator>()
@@ -43,6 +44,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         registerPlugins(flutterEngine)
+        telegramPasskeys = TelegramPasskeyPlugin(
+            this,
+            flutterEngine.dartExecutor.binaryMessenger,
+        )
         val plugin = CallMediaPlugin(
             applicationContext,
             flutterEngine.dartExecutor.binaryMessenger,
@@ -572,6 +577,8 @@ class MainActivity : FlutterActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         translators.values.forEach { it.close() }
         translators.clear()
+        telegramPasskeys?.dispose()
+        telegramPasskeys = null
         callMedia?.dispose()
         callMedia = null
         super.cleanUpFlutterEngine(flutterEngine)

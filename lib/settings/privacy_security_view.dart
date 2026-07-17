@@ -7,12 +7,14 @@
 //
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../auth/telegram_passkey_service.dart';
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
 import '../components/toast.dart';
@@ -22,6 +24,7 @@ import '../tdlib/td_client.dart';
 import '../theme/app_theme.dart';
 import 'account_backup_view.dart';
 import 'auto_delete_view.dart';
+import 'passkeys_view.dart';
 import 'privacy_detail_views.dart';
 import 'privacy_rule_options.dart';
 import 'sensitive_content_controller.dart';
@@ -41,6 +44,8 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
   StreamSubscription<int>? _activeSlotChanges;
   String _twoStep = '';
   int _passwordRevision = 0;
+  int _passkeyRevision = 0;
+  int? _passkeyCount;
 
   static const _privacyRules = <_PrivacyRuleEntry>[
     _PrivacyRuleEntry(
@@ -130,9 +135,11 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
       _bumpRuleRevision(entry.setting);
     }
     _passwordRevision += 1;
+    _passkeyRevision += 1;
     setState(() {
       _ruleValue.clear();
       _twoStep = '';
+      _passkeyCount = null;
     });
     unawaited(_load());
   }
@@ -154,6 +161,7 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
     for (final entry in _privacyRules) {
       unawaited(_loadRule(entry.setting));
     }
+    unawaited(_loadPasskeys());
     final clientId = _client.activeClientId;
     final revision = ++_passwordRevision;
     try {
@@ -168,6 +176,24 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
         );
       }
     } catch (_) {}
+  }
+
+  Future<void> _loadPasskeys() async {
+    if (!Platform.isAndroid) return;
+    final clientId = _client.activeClientId;
+    final revision = ++_passkeyRevision;
+    try {
+      final service = TelegramPasskeyService.shared;
+      if (!await service.canUse(clientId: clientId)) return;
+      final passkeys = await service.list(clientId: clientId);
+      if (mounted &&
+          _client.activeClientId == clientId &&
+          _passkeyRevision == revision) {
+        setState(() => _passkeyCount = passkeys.length);
+      }
+    } catch (_) {
+      // Older TDLib builds and unsupported providers simply omit the row.
+    }
   }
 
   Future<void> _loadRule(String setting) async {
@@ -276,6 +302,15 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                       '',
                       () => _open(const ActiveSessionsView()),
                     ),
+                    if (_passkeyCount != null)
+                      _Row(
+                        HeroAppIcons.key,
+                        AppStrings.t(AppStringKeys.passkeysTitle),
+                        '$_passkeyCount',
+                        () => _open(
+                          const PasskeysView(),
+                        ).then((_) => _loadPasskeys()),
+                      ),
                     _Row(
                       HeroAppIcons.key,
                       AppStrings.t(AppStringKeys.accountBackupTitle),

@@ -927,6 +927,7 @@ const esMessages = <String, String>{
   'loginVerificationCode': "Código de verificación",
   'loginVerify': "Verificar",
   'loginWithQrCode': "Iniciar sesión con código QR",
+  'loginWithPasskey': "Iniciar sesión con una llave de acceso",
   'markdownLabel': "Markdown",
   'mediaSendPreviewTitle': "Vista previa multimedia",
   'messageActionBlock': "Bloquear",
@@ -1083,6 +1084,28 @@ const esMessages = <String, String>{
   'pollComposerQuestionRequired': "Introduce una pregunta",
   'pollComposerSingleChoiceLimitHint': "Opción única · Máximo 10 opciones",
   'premiumLabel': "Premium",
+  'passkeysAdded': "Llave de acceso añadida",
+  'passkeysCreatedOn': "Creada el {value1}",
+  'passkeysDelete': "Eliminar",
+  'passkeysDeleteMessage': "¿Eliminar «{value1}»?",
+  'passkeysDeleteTitle': "¿Eliminar la llave de acceso?",
+  'passkeysDescription':
+      "Las llaves de acceso permiten iniciar sesión en Telegram con el bloqueo del dispositivo en lugar de un código o contraseña. Tu proveedor de credenciales de Android las guarda de forma segura.",
+  'passkeysEmpty': "Todavía no has añadido ninguna llave de acceso.",
+  'passkeysErrorAlreadySignedIn':
+      "Esa cuenta de Telegram ya tiene una sesión iniciada en este dispositivo.",
+  'passkeysErrorGeneric':
+      "No se pudo completar la operación de la llave de acceso.",
+  'passkeysErrorNoCredential':
+      "No se encontró una llave de acceso de Telegram que coincida.",
+  'passkeysErrorNotAllowed':
+      "Android no permitió que Mithka usara llaves de acceso de Telegram en este dispositivo.",
+  'passkeysErrorUnavailable':
+      "Las llaves de acceso no están disponibles en este dispositivo.",
+  'passkeysLastUsedOn': "Último uso: {value1}",
+  'passkeysRemoved': "Llave de acceso eliminada",
+  'passkeysTitle': "Llaves de acceso",
+  'passkeysUnknownName': "Llave de acceso sin nombre",
   'privacyAddExceptions': "Añadir excepciones",
   'privacyAddUsers': "Añadir usuarios",
   'privacyAlwaysShareWith': "Compartir siempre con",
