@@ -153,8 +153,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
   int _mentionSearchGeneration = 0;
   OverlayEntry? _relayProgressEntry;
   RichMessageRelayProgress? _relayProgress;
-  static bool _directRichMessageBlocksUnsupported = false;
-
   ChatViewModel get vm => widget.vm;
 
   @override
@@ -1931,22 +1929,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 return RichMessageSendFile(id: file.id, attachment: attachment);
               }),
             );
-            try {
-              await widget.vm.sendRichMessageHtml(
-                segment.html,
-                files: files,
-                blocks: segment.blocks,
-              );
-            } on TdError catch (error) {
-              if (!_isUnsupportedDirectRichMessage(error)) rethrow;
-              _directRichMessageBlocksUnsupported = true;
-              sentAny =
-                  await _sendRichSegmentsViaRelay(
-                    result.segments.sublist(index),
-                  ) ||
-                  sentAny;
-              break;
-            }
+            await widget.vm.sendRichMessageHtml(
+              segment.html,
+              files: files,
+              blocks: segment.blocks,
+            );
             sentAny = true;
           } else if (segment.attachments.isNotEmpty) {
             await widget.vm.sendAttachments(segment.attachments);
@@ -2005,14 +1992,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
       if (!mounted || !ok) return;
     }
     await _sendRichTextResult(result);
-  }
-
-  bool _isUnsupportedDirectRichMessage(TdError error) {
-    if (error.code != 400 || !error.message.contains('Unknown class')) {
-      return false;
-    }
-    return error.message.contains('richMessageSourceBlocks') ||
-        error.message.contains('inputPageBlock');
   }
 
   Future<bool> _sendRichSegmentsViaRelay(
@@ -2120,8 +2099,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Future<_RichTextSendMode?> _richTextSendMode() async {
     try {
-      if (!_directRichMessageBlocksUnsupported &&
-          await widget.vm.currentUserIsPremium()) {
+      if (await widget.vm.currentUserIsPremium()) {
         return _RichTextSendMode.premium;
       }
       if (await RichMessageRelayConfig.isConfigured()) {

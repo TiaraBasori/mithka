@@ -34,8 +34,8 @@ class _NonPremiumChatViewModel extends ChatViewModel {
   Future<bool> currentUserIsPremium() async => false;
 }
 
-class _FailingPremiumChatViewModel extends ChatViewModel {
-  _FailingPremiumChatViewModel()
+class _UnsupportedPremiumChatViewModel extends ChatViewModel {
+  _UnsupportedPremiumChatViewModel()
     : super(chatId: 1, title: 'Test chat', markReadOnOpen: false);
 
   var sendAttempts = 0;
@@ -50,7 +50,10 @@ class _FailingPremiumChatViewModel extends ChatViewModel {
     List<Map<String, dynamic>> blocks = const [],
   }) async {
     sendAttempts++;
-    throw TdError({'code': 500, 'message': 'Test rich-text send failure'});
+    throw TdError({
+      'code': 400,
+      'message': 'Unknown class "richMessageSourceBlocks"',
+    });
   }
 }
 
@@ -221,11 +224,11 @@ void main() {
     expect(toolbar, isA<AdaptiveTextSelectionToolbar>());
   });
 
-  testWidgets('failed rich-text send reopens the composer with its draft', (
+  testWidgets('Premium rich-text send never falls back to the relay bot', (
     tester,
   ) async {
     final theme = await _themeController();
-    final vm = _FailingPremiumChatViewModel();
+    final vm = _UnsupportedPremiumChatViewModel();
     addTearDown(theme.dispose);
     addTearDown(vm.dispose);
     await tester.pumpWidget(
@@ -259,6 +262,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(vm.sendAttempts, 1);
+    expect(find.text('Configure a relay bot?'), findsNothing);
     final reopenedComposer = find.byType(RichTextComposerView);
     expect(reopenedComposer, findsOneWidget);
     final reopenedInput = tester.widget<TextField>(
