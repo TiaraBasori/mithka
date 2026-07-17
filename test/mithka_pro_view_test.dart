@@ -108,6 +108,15 @@ void main() {
     expect(accountSwitcherSource, contains('MithkaProView()'));
     expect(
       accountSwitcherSource,
+      contains('AppStrings.t(AppStringKeys.savedMessages)'),
+    );
+    expect(
+      accountSwitcherSource,
+      isNot(contains('AppStringKeys.chatInfoAlbum')),
+    );
+    expect(accountSwitcherSource, isNot(contains("'my_album_view.dart'")));
+    expect(
+      accountSwitcherSource,
       isNot(
         contains(
           'CupertinoPageRoute<void>(builder: (_) => const MithkaProView())',

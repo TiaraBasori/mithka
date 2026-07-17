@@ -1358,6 +1358,12 @@ const enMessages = <String, String>{
   'profileDetailPosts': "Posts",
   'profileDetailSendMessage': "Send message",
   'profileDetailYearMonthDate': "{value1}/{value2}",
+  'profilePhotoDeleteFailed': "Could not delete profile photo: {value1}",
+  'profilePhotoDeleteMessage':
+      "This removes the photo from your profile photo history.",
+  'profilePhotoDeleteTitle': "Delete profile photo?",
+  'profilePhotoDeleted': "Profile photo deleted",
+  'profilePhotoSetAsAvatar': "Set as profile photo",
   'profileLogOutAccount': "Log out account",
   'profileLogOutAccountConfirm':
       "This will revoke the Telegram session for {value1}, remove its local data, and delete its saved Keychain backup.",

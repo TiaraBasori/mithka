@@ -1192,6 +1192,11 @@ const zhHansMessages = <String, String>{
   'profileDetailPosts': "动态",
   'profileDetailSendMessage': "发消息",
   'profileDetailYearMonthDate': "{value1}年{value2}",
+  'profilePhotoDeleteFailed': "无法删除头像：{value1}",
+  'profilePhotoDeleteMessage': "这会从你的头像历史中移除此照片。",
+  'profilePhotoDeleteTitle': "删除头像？",
+  'profilePhotoDeleted': "头像已删除",
+  'profilePhotoSetAsAvatar': "设为头像",
   'profileLogOutAccount': "退出账号",
   'profileLogOutAccountConfirm':
       "这会撤销 {value1} 的 Telegram 会话，删除本地数据，并删除已保存的 Keychain 备份。",

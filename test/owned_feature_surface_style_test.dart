@@ -25,6 +25,7 @@ void main() {
       'lib/settings/chat_folder_management_view.dart',
       'lib/settings/business_tools_views.dart',
       'lib/components/app_dialog.dart',
+      'lib/chat/full_image_viewer.dart',
     ];
     final forbiddenControls = RegExp(
       r'\b(AlertDialog|SimpleDialog|TextButton|DropdownButton|DropdownMenuItem|ListTile|SwitchListTile|Switch|FilledButton|ElevatedButton|OutlinedButton|IconButton|FloatingActionButton|ActionChip|ChoiceChip|FilterChip|InputChip|Chip|Checkbox|Radio|CircularProgressIndicator|LinearProgressIndicator|RefreshIndicator|PopupMenuButton|MenuAnchor|SegmentedButton|Slider|RangeSlider|InkWell|RawMaterialButton)\b',

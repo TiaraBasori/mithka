@@ -30,6 +30,7 @@ import '../chat/sticker_item.dart';
 import '../chat/sticker_preview.dart';
 import '../chat/telegram_rich_text.dart';
 import '../chat/voice_audio.dart';
+import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
 import '../components/photo_avatar.dart';
@@ -77,7 +78,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   int _emojiStatusId = 0;
   String _statusText = '';
   int? _chatId;
-  List<TdFileRef> _photos = []; // 精选照片 — profile-photo history
+  List<_FeaturedProfilePhoto> _photos = []; // 精选照片 — profile-photo history
   String _birthday = '';
   String _location = '';
   String _businessHours = '';
@@ -191,18 +192,19 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
         'limit': 12,
       });
       final raw = res.objects('photos') ?? const <Map<String, dynamic>>[];
-      final refs = <TdFileRef>[];
+      final photos = <_FeaturedProfilePhoto>[];
       for (final p in raw) {
+        final id = p.int64('id') ?? 0;
         final sizes = p.objects('sizes') ?? const <Map<String, dynamic>>[];
-        if (sizes.isEmpty) continue;
+        if (id == 0 || sizes.isEmpty) continue;
         final best = sizes.reduce(
           (a, b) =>
               (a.integer('width') ?? 0) >= (b.integer('width') ?? 0) ? a : b,
         );
         final ref = TDParse.fileRef(best.obj('photo'));
-        if (ref != null) refs.add(ref);
+        if (ref != null) photos.add(_FeaturedProfilePhoto(id: id, file: ref));
       }
-      if (mounted) setState(() => _photos = refs);
+      if (mounted) setState(() => _photos = photos);
     } catch (_) {}
     try {
       final chat = await TdClient.shared.query({
@@ -1439,18 +1441,125 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
     const s = 78.0;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(
-          fullscreenDialog: true,
-          builder: (_) => FullImageViewer(items: _photos, startIndex: i),
-        ),
-      ),
+      onTap: () => unawaited(_openFeaturedPhoto(i)),
       child: SizedBox(
         width: s,
         height: s,
-        child: TDImage(photo: _photos[i], cornerRadius: 10),
+        child: TDImage(photo: _photos[i].file, cornerRadius: 10),
       ),
     );
+  }
+
+  Future<void> _openFeaturedPhoto(int startIndex) async {
+    if (_photos.isEmpty || startIndex < 0 || startIndex >= _photos.length) {
+      return;
+    }
+    final photos = List<_FeaturedProfilePhoto>.unmodifiable(_photos);
+    await Navigator.of(context).push<void>(
+      PageRouteBuilder<void>(
+        pageBuilder: (previewContext, _, _) => FullImageViewer(
+          items: photos.map((photo) => photo.file).toList(growable: false),
+          startIndex: startIndex,
+          primaryActionLabel: _isMe
+              ? AppStrings.t(AppStringKeys.profilePhotoSetAsAvatar)
+              : null,
+          onPrimaryAction: _isMe
+              ? (index) =>
+                    _setFeaturedPhotoAsAvatar(previewContext, photos[index])
+              : null,
+          onMore: _isMe
+              ? (index) => _showFeaturedPhotoMenu(previewContext, photos[index])
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _setFeaturedPhotoAsAvatar(
+    BuildContext previewContext,
+    _FeaturedProfilePhoto photo,
+  ) async {
+    try {
+      await TdClient.shared.query(
+        setOwnProfilePhotoRequest(
+          photo: previousChatPhoto(photo.id),
+          isPublic: false,
+        ),
+      );
+      if (previewContext.mounted) {
+        showToast(previewContext, AppStringKeys.editProfileAvatarUpdated);
+      }
+      unawaited(_load());
+    } catch (error) {
+      if (previewContext.mounted) {
+        showToast(
+          previewContext,
+          AppStrings.t(AppStringKeys.editProfileAvatarUpdateFailed, {
+            'value1': '$error',
+          }),
+        );
+      }
+    }
+  }
+
+  Future<void> _showFeaturedPhotoMenu(
+    BuildContext previewContext,
+    _FeaturedProfilePhoto photo,
+  ) async {
+    final delete = await showGeneralDialog<bool>(
+      context: previewContext,
+      barrierDismissible: true,
+      barrierLabel: AppStrings.t(AppStringKeys.countryPickerCancel),
+      barrierColor: const Color(0x99000000),
+      transitionDuration: const Duration(milliseconds: 160),
+      pageBuilder: (menuContext, _, _) => _FeaturedPhotoMenu(
+        onDelete: () => Navigator.of(menuContext).pop(true),
+        onCancel: () => Navigator.of(menuContext).pop(false),
+      ),
+      transitionBuilder: (_, animation, _, child) => FadeTransition(
+        opacity: animation,
+        child: SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(0, 0.08),
+            end: Offset.zero,
+          ).animate(animation),
+          child: child,
+        ),
+      ),
+    );
+    if (delete != true || !previewContext.mounted) return;
+    final confirmed = await showAppConfirmDialog(
+      previewContext,
+      title: AppStringKeys.profilePhotoDeleteTitle,
+      message: AppStringKeys.profilePhotoDeleteMessage,
+      confirmText: AppStringKeys.chatDelete,
+      destructive: true,
+    );
+    if (!confirmed || !previewContext.mounted) return;
+    try {
+      await TdClient.shared.query(deleteOwnProfilePhotoRequest(photo.id));
+      if (mounted) {
+        setState(
+          () => _photos = _photos
+              .where((candidate) => candidate.id != photo.id)
+              .toList(growable: false),
+        );
+      }
+      if (previewContext.mounted) {
+        showToast(previewContext, AppStringKeys.profilePhotoDeleted);
+        Navigator.of(previewContext).pop();
+      }
+      unawaited(_load());
+    } catch (error) {
+      if (previewContext.mounted) {
+        showToast(
+          previewContext,
+          AppStrings.t(AppStringKeys.profilePhotoDeleteFailed, {
+            'value1': '$error',
+          }),
+        );
+      }
+    }
   }
 
   Widget _giftsCard() {
@@ -1549,6 +1658,118 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
       ),
     );
   }
+}
+
+class _FeaturedProfilePhoto {
+  const _FeaturedProfilePhoto({required this.id, required this.file});
+
+  final int id;
+  final TdFileRef file;
+}
+
+class _FeaturedPhotoMenu extends StatelessWidget {
+  const _FeaturedPhotoMenu({required this.onDelete, required this.onCancel});
+
+  final VoidCallback onDelete;
+  final VoidCallback onCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return SafeArea(
+      top: false,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: c.card,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x44000000),
+                      blurRadius: 22,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _action(
+                  context,
+                  key: const ValueKey('featured-photo-delete'),
+                  icon: HeroAppIcons.trash,
+                  label: AppStrings.t(AppStringKeys.chatDelete),
+                  color: AppTheme.tagRed,
+                  onTap: onDelete,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Container(
+                decoration: BoxDecoration(
+                  color: c.card,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: _action(
+                  context,
+                  key: const ValueKey('featured-photo-cancel'),
+                  label: AppStrings.t(AppStringKeys.countryPickerCancel),
+                  color: c.textPrimary,
+                  onTap: onCancel,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _action(
+    BuildContext context, {
+    required Key key,
+    AppIconData? icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) => Semantics(
+    button: true,
+    label: label,
+    child: GestureDetector(
+      key: key,
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: 56,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            mainAxisAlignment: icon == null
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
+            children: [
+              if (icon != null) ...[
+                AppIcon(icon, size: 21, color: color),
+                const SizedBox(width: 16),
+              ],
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 enum _ProfileContextAction { manage, copyLink, blockUser }

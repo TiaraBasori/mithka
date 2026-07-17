@@ -1722,6 +1722,11 @@ abstract final class AppStringKeys {
   static const profileDetailPosts = 'profileDetailPosts';
   static const profileDetailSendMessage = 'profileDetailSendMessage';
   static const profileDetailYearMonthDate = 'profileDetailYearMonthDate';
+  static const profilePhotoDeleteFailed = 'profilePhotoDeleteFailed';
+  static const profilePhotoDeleteMessage = 'profilePhotoDeleteMessage';
+  static const profilePhotoDeleteTitle = 'profilePhotoDeleteTitle';
+  static const profilePhotoDeleted = 'profilePhotoDeleted';
+  static const profilePhotoSetAsAvatar = 'profilePhotoSetAsAvatar';
   static const profileLogOutAccount = 'profileLogOutAccount';
   static const profileLogOutAccountConfirm = 'profileLogOutAccountConfirm';
   static const profileNightMode = 'profileNightMode';

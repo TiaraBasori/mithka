@@ -1218,6 +1218,11 @@ const koMessages = <String, String>{
   'profileDetailPosts': "게시물",
   'profileDetailSendMessage': "메시지 보내기",
   'profileDetailYearMonthDate': "{value1}년 {value2}월",
+  'profilePhotoDeleteFailed': "프로필 사진을 삭제할 수 없음: {value1}",
+  'profilePhotoDeleteMessage': "이 사진이 프로필 사진 기록에서 삭제됩니다.",
+  'profilePhotoDeleteTitle': "프로필 사진을 삭제할까요?",
+  'profilePhotoDeleted': "프로필 사진이 삭제됨",
+  'profilePhotoSetAsAvatar': "프로필 사진으로 설정",
   'profileLogOutAccount': "계정 로그아웃",
   'profileLogOutAccountConfirm':
       "{value1}의 Telegram 세션을 해지하고 로컬 데이터와 저장된 Keychain 백업을 삭제합니다.",

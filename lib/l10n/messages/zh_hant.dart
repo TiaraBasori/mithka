@@ -1193,6 +1193,11 @@ const zhHantMessages = <String, String>{
   'profileDetailPosts': "動態",
   'profileDetailSendMessage': "傳送訊息",
   'profileDetailYearMonthDate': "{value1}年{value2}",
+  'profilePhotoDeleteFailed': "無法刪除頭像：{value1}",
+  'profilePhotoDeleteMessage': "這會從你的頭像歷史中移除此照片。",
+  'profilePhotoDeleteTitle': "刪除頭像？",
+  'profilePhotoDeleted': "頭像已刪除",
+  'profilePhotoSetAsAvatar': "設為頭像",
   'profileLogOutAccount': "登出帳號",
   'profileLogOutAccountConfirm':
       "這會撤銷 {value1} 的 Telegram 工作階段，刪除本機資料，並刪除已儲存的 Keychain 備份。",

@@ -1313,6 +1313,12 @@ const esMessages = <String, String>{
   'profileDetailPosts': "Publicaciones",
   'profileDetailSendMessage': "Enviar mensaje",
   'profileDetailYearMonthDate': "{value2} de {value1}",
+  'profilePhotoDeleteFailed': "No se pudo eliminar la foto de perfil: {value1}",
+  'profilePhotoDeleteMessage':
+      "Esta foto se eliminará de tu historial de fotos de perfil.",
+  'profilePhotoDeleteTitle': "¿Eliminar foto de perfil?",
+  'profilePhotoDeleted': "Foto de perfil eliminada",
+  'profilePhotoSetAsAvatar': "Usar como foto de perfil",
   'profileLogOutAccount': "Cerrar sesión de la cuenta",
   'profileLogOutAccountConfirm':
       "Esto revocará la sesión de Telegram de {value1}, eliminará sus datos locales y borrará su copia de Keychain guardada.",

@@ -15,6 +15,11 @@ void main() {
       AppStrings.tForLocale('zhHans', AppStringKeys.stickerStudioFormatTgs),
       '矢量动画 · 最大 64 KB',
     );
+    expect(
+      AppStrings.tForLocale('zhHans', AppStringKeys.profilePhotoSetAsAvatar),
+      '设为头像',
+    );
+    expect(AppStrings.tForLocale('zhHans', AppStringKeys.savedMessages), '收藏夹');
   });
 
   test('gallery and TGS actions have native Traditional Chinese wording', () {
@@ -29,6 +34,10 @@ void main() {
     expect(
       AppStrings.tForLocale('zhHant', AppStringKeys.stickerStudioValidationTgs),
       '所選檔案不是有效的 gzip 壓縮 TGS 動畫。',
+    );
+    expect(
+      AppStrings.tForLocale('zhHant', AppStringKeys.profilePhotoSetAsAvatar),
+      '設為頭像',
     );
   });
 }

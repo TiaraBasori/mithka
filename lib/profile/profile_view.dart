@@ -3,7 +3,8 @@
 //
 //  The "我" side menu (slides in from the left, ~88% width). Redesigned to match
 //  the reference app's drawer: an azure avatar banner → an edit-profile card → a vertical list
-//  of rows (相册 / 收藏 / 文件 / 外观) → account switcher → an icon-only bottom
+//  of rows (Calls / Saved Messages / Files / Videos) → account switcher →
+//  an icon-only bottom
 //  bar. Backed by real TDLib via ProfileViewModel + AccountStore.
 //
 
@@ -37,7 +38,6 @@ import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'emoji_status_picker.dart';
-import 'my_album_view.dart';
 import 'profile_detail_view.dart';
 import 'qr_code_view.dart';
 
@@ -422,22 +422,10 @@ class _ProfileViewState extends State<ProfileView> {
             },
           ),
           _row(
-            HeroAppIcons.image,
-            const Color(0xFFF5A623),
-            AppStrings.t(AppStringKeys.chatInfoAlbum),
-            () {
-              _root.push(
-                MaterialPageRoute(
-                  builder: (_) => MyAlbumView(userId: _vm.user?.id ?? 0),
-                ),
-              );
-            },
-          ),
-          _row(
             HeroAppIcons.star,
             const Color(0xFFFF9D2E),
-            AppStrings.t(AppStringKeys.messageActionFavorite),
-            () => _openSaved(AppStrings.t(AppStringKeys.messageActionFavorite)),
+            AppStrings.t(AppStringKeys.savedMessages),
+            () => _openSaved(AppStrings.t(AppStringKeys.savedMessages)),
           ),
           _row(
             HeroAppIcons.folder,

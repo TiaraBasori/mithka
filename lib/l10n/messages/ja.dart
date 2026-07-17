@@ -1215,6 +1215,11 @@ const jaMessages = <String, String>{
   'profileDetailPosts': "投稿",
   'profileDetailSendMessage': "メッセージを送信",
   'profileDetailYearMonthDate': "{value1}年{value2}月",
+  'profilePhotoDeleteFailed': "プロフィール写真を削除できませんでした: {value1}",
+  'profilePhotoDeleteMessage': "この写真はプロフィール写真の履歴から削除されます。",
+  'profilePhotoDeleteTitle': "プロフィール写真を削除しますか？",
+  'profilePhotoDeleted': "プロフィール写真を削除しました",
+  'profilePhotoSetAsAvatar': "プロフィール写真に設定",
   'profileLogOutAccount': "アカウントをログアウト",
   'profileLogOutAccountConfirm':
       "{value1} の Telegram セッションを無効化し、ローカルデータと保存済み Keychain バックアップを削除します。",

@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
 import '../chat/chat_view.dart';
@@ -14,6 +14,18 @@ import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
 import 'call_manager.dart';
+
+@visibleForTesting
+Map<String, dynamic> callHistorySearchRequest({
+  required String offset,
+  int limit = 50,
+  bool onlyMissed = false,
+}) => {
+  '@type': 'searchCallMessages',
+  'offset': offset,
+  'limit': limit,
+  'only_missed': onlyMissed,
+};
 
 class CallsView extends StatefulWidget {
   const CallsView({super.key});
@@ -60,15 +72,9 @@ class _CallsViewState extends State<CallsView> {
       _failed = false;
     });
     try {
-      final response = await TdClient.shared.query({
-        '@type': 'searchMessages',
-        'query': '',
-        'offset': _nextOffset,
-        'limit': 50,
-        'filter': {'@type': 'searchMessagesFilterCall'},
-        'min_date': 0,
-        'max_date': 0,
-      });
+      final response = await TdClient.shared.query(
+        callHistorySearchRequest(offset: _nextOffset),
+      );
       final messages = response.objects('messages') ?? const [];
       final parsed = messages
           .map(TDParse.message)
@@ -100,7 +106,8 @@ class _CallsViewState extends State<CallsView> {
       final nextOffset = response.str('next_offset') ?? '';
       _hasMore = messages.isNotEmpty && nextOffset.isNotEmpty;
       _nextOffset = nextOffset;
-    } catch (_) {
+    } catch (error) {
+      debugPrint('Could not load call history: $error');
       _failed = true;
     }
     if (!mounted) return;
@@ -121,8 +128,9 @@ class _CallsViewState extends State<CallsView> {
   void _openChat(CallHistoryEntry entry) {
     if (entry.chatId == 0) return;
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ChatView(chatId: entry.chatId, title: entry.title),
+      PageRouteBuilder<void>(
+        pageBuilder: (_, _, _) =>
+            ChatView(chatId: entry.chatId, title: entry.title),
       ),
     );
   }
@@ -136,9 +144,9 @@ class _CallsViewState extends State<CallsView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Scaffold(
-      backgroundColor: c.groupedBackground,
-      body: Column(
+    return ColoredBox(
+      color: c.groupedBackground,
+      child: Column(
         children: [
           NavHeader(
             title: AppStringKeys.callsTitle,

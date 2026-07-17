@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/profile/profile_contact_service.dart';
 
@@ -79,6 +81,18 @@ void main() {
       '@type': 'deleteProfilePhoto',
       'profile_photo_id': 99,
     });
+  });
+
+  test('featured-photo preview wires owned set-avatar and delete actions', () {
+    final source = File(
+      'lib/profile/profile_detail_view.dart',
+    ).readAsStringSync();
+    expect(source, contains('profilePhotoSetAsAvatar'));
+    expect(source, contains('setOwnProfilePhotoRequest('));
+    expect(source, contains('previousChatPhoto(photo.id)'));
+    expect(source, contains('deleteOwnProfilePhotoRequest(photo.id)'));
+    expect(source, contains("ValueKey('featured-photo-delete')"));
+    expect(source, contains('showAppConfirmDialog('));
   });
 
   test('contact personal photo can be set or cleared with null', () {

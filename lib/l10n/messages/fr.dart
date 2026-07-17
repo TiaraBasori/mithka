@@ -1323,6 +1323,13 @@ const frMessages = <String, String>{
   'profileDetailPosts': "Publications",
   'profileDetailSendMessage': "Envoyer un message",
   'profileDetailYearMonthDate': "{value2} {value1}",
+  'profilePhotoDeleteFailed':
+      "Impossible de supprimer la photo de profil : {value1}",
+  'profilePhotoDeleteMessage':
+      "Cette photo sera supprimée de l’historique de vos photos de profil.",
+  'profilePhotoDeleteTitle': "Supprimer la photo de profil ?",
+  'profilePhotoDeleted': "Photo de profil supprimée",
+  'profilePhotoSetAsAvatar': "Utiliser comme photo de profil",
   'profileLogOutAccount': "Déconnecter le compte",
   'profileLogOutAccountConfirm':
       "Cette action révoquera la session Telegram de {value1}, supprimera ses données locales et effacera sa sauvegarde Keychain enregistrée.",

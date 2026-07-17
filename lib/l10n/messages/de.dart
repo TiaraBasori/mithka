@@ -1314,6 +1314,13 @@ const deMessages = <String, String>{
   'profileDetailPosts': "Beiträge",
   'profileDetailSendMessage': "Nachricht senden",
   'profileDetailYearMonthDate': "{value1}, {value2}",
+  'profilePhotoDeleteFailed':
+      "Profilbild konnte nicht gelöscht werden: {value1}",
+  'profilePhotoDeleteMessage':
+      "Dieses Foto wird aus deinem Profilbildverlauf entfernt.",
+  'profilePhotoDeleteTitle': "Profilbild löschen?",
+  'profilePhotoDeleted': "Profilbild gelöscht",
+  'profilePhotoSetAsAvatar': "Als Profilbild verwenden",
   'profileLogOutAccount': "Konto abmelden",
   'profileLogOutAccountConfirm':
       "Dadurch wird die Telegram-Sitzung für {value1} widerrufen, die lokalen Daten werden entfernt und das gespeicherte Keychain-Backup wird gelöscht.",
