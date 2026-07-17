@@ -1981,8 +1981,30 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 : AppStringKeys.composerRichTextSendFailed.l10n(context),
         };
         showToast(context, message);
+        await _reopenFailedRichTextComposer(result);
       }
     }
+  }
+
+  Future<void> _reopenFailedRichTextComposer(
+    RichTextComposerResult failedResult,
+  ) async {
+    if (!mounted) return;
+    final result = await showRichTextComposerSheet(
+      context,
+      initialText: failedResult.text,
+      initialEntities: failedResult.entities,
+      initialAttachments: failedResult.attachments,
+      title: AppStringKeys.composerRichTextMessageTitle,
+      submitText: AppStringKeys.composerSend,
+    );
+    if (result == null || !mounted) return;
+    if (result.text.trim().isEmpty && result.attachments.isEmpty) return;
+    if (vm.requiresPaidMessage) {
+      final ok = await _confirmPaidMessageSend();
+      if (!mounted || !ok) return;
+    }
+    await _sendRichTextResult(result);
   }
 
   bool _isUnsupportedDirectRichMessage(TdError error) {
