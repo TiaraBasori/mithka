@@ -674,6 +674,16 @@ const zhHansMessages = <String, String>{
   'developerModePiPBoundsOverlay': "画中画边界叠层",
   'developerModePiPBoundsOverlayDescription':
       "显示应用内画中画的实际边框和视口尺寸，用于检查旋转、裁切或被其他层遮挡的问题。",
+  'developerPerformanceFrameWork': "帧耗时（构建 / 光栅）",
+  'developerPerformanceImageCache': "解码图片（缓存 / 活跃）",
+  'developerPerformanceProcessMemory': "进程内存",
+  'developerPerformanceProfiler': "帧与内存分析器",
+  'developerPerformanceProfilerDescription':
+      "每 2 秒记录进程和图片缓存内存，并保留最近 240 帧。要获得有代表性的 CPU 耗时，请使用 flutter run --profile 重现操作后返回此页。进入后台时会停止采样，内存压力清理仍会生效。",
+  'developerPerformanceResetSamples': "重置帧样本",
+  'developerPerformanceSlowFrames': "超过 16.7 毫秒的帧",
+  'developerPerformanceTrimCaches': "立即清理内存缓存",
+  'developerPerformanceWaitingForFrames': "等待帧样本",
   'developerModeTitle': "开发者模式",
   'developerModeUnlocked': "已开启开发者模式",
   'editProfileAnimatedAvatar': "动态头像",
