@@ -1090,7 +1090,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             AppActivityIndicator(size: 18, color: c.textSecondary),
             const SizedBox(width: 10),
             Text(
-              'Searching inline results…',
+              AppStrings.t(AppStringKeys.chatInputBarSearchingInlineResults),
               style: TextStyle(color: c.textSecondary, fontSize: 14),
             ),
           ],
@@ -1101,7 +1101,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         height: 54,
         child: Center(
           child: Text(
-            'No inline results',
+            AppStrings.t(AppStringKeys.chatInputBarNoInlineResults),
             style: TextStyle(color: c.textSecondary, fontSize: 14),
           ),
         ),
@@ -1467,7 +1467,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 if (showTools)
                   _botMenuRow(
                     icon: HeroAppIcons.gear,
-                    title: 'Bot tools',
+                    title: AppStrings.t(AppStringKeys.chatInputBarBotTools),
                     subtitle: _guestQueries.isEmpty
                         ? 'Inline mode, topics, and automation'
                         : '${_guestQueries.length} guest ${_guestQueries.length == 1 ? 'query' : 'queries'} waiting',
@@ -1598,7 +1598,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             resolved!.username.trim().isNotEmpty) {
           entries.add((
             icon: HeroAppIcons.at,
-            title: 'Use inline mode',
+            title: AppStrings.t(AppStringKeys.chatInputBarUseInlineMode),
             subtitle: resolved.inlinePlaceholder.trim().isEmpty
                 ? '@${resolved.username}'
                 : resolved.inlinePlaceholder,
@@ -1612,7 +1612,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             resolved?.allowsUsersToCreateTopics == true) {
           entries.add((
             icon: HeroAppIcons.comments,
-            title: 'Create bot topic',
+            title: AppStrings.t(AppStringKeys.chatInputBarCreateBotTopic),
             subtitle: 'Start a named topic in this bot chat',
             onTap: () {
               Navigator.of(sheetContext).pop();
@@ -1623,7 +1623,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         if (resolved?.canManageBots == true) {
           entries.add((
             icon: HeroAppIcons.userPlus,
-            title: 'Create managed bot',
+            title: AppStrings.t(AppStringKeys.chatInputBarCreateManagedBot),
             subtitle: 'Create a bot managed by @${resolved!.username}',
             onTap: () {
               Navigator.of(sheetContext).pop();
@@ -1634,7 +1634,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         if (_guestQueries.isNotEmpty) {
           entries.add((
             icon: HeroAppIcons.comments,
-            title: 'Guest queries',
+            title: AppStrings.t(AppStringKeys.chatInputBarGuestQueries),
             subtitle:
                 '${_guestQueries.length} ${_guestQueries.length == 1 ? 'query' : 'queries'} waiting',
             onTap: () {
@@ -1646,7 +1646,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         if (currentAccountIsBot) {
           entries.add((
             icon: HeroAppIcons.gear,
-            title: 'Automation status',
+            title: AppStrings.t(AppStringKeys.chatInputBarAutomationStatus),
             subtitle: 'Report pending updates or a webhook error',
             onTap: () {
               Navigator.of(sheetContext).pop();
@@ -1667,7 +1667,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 ? Padding(
                     padding: const EdgeInsets.all(20),
                     child: Text(
-                      'No additional tools are available for this bot.',
+                      AppStrings.t(
+                        AppStringKeys
+                            .chatInputBarNoAdditionalToolsAreAvailableForThisBot,
+                      ),
                       textAlign: TextAlign.center,
                       style: TextStyle(color: c.textSecondary, fontSize: 14),
                     ),
@@ -1708,14 +1711,19 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Future<void> _createBotTopic() async {
     final name = await _promptBotText(
-      title: 'Create bot topic',
-      label: 'Topic name',
+      title: AppStrings.t(AppStringKeys.chatInputBarCreateBotTopic),
+      label: AppStrings.t(AppStringKeys.chatInputBarTopicName),
       actionLabel: 'Create',
     );
     if (name == null) return;
     try {
       await _botPlatform.createBotTopic(chatId: vm.chatId, name: name);
-      if (mounted) showToast(context, 'Bot topic created');
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.chatInputBarBotTopicCreated),
+        );
+      }
     } catch (error) {
       _showBotPlatformFailure(error);
     }
@@ -1727,15 +1735,15 @@ class _ChatInputBarState extends State<ChatInputBar> {
     String suggestedUsername = '',
   }) async {
     final name = await _promptBotText(
-      title: 'Create managed bot',
-      label: 'Bot name',
+      title: AppStrings.t(AppStringKeys.chatInputBarCreateManagedBot),
+      label: AppStrings.t(AppStringKeys.chatInputBarBotName),
       initialValue: suggestedName,
       actionLabel: 'Next',
     );
     if (name == null) return;
     final username = await _promptBotText(
-      title: 'Create managed bot',
-      label: 'Username',
+      title: AppStrings.t(AppStringKeys.chatInputBarCreateManagedBot),
+      label: AppStrings.t(AppStringKeys.editProfileUsername),
       initialValue: suggestedUsername,
       actionLabel: 'Create',
     );
@@ -1746,7 +1754,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
         name: name,
         username: username,
       );
-      if (mounted) showToast(context, 'Managed bot created');
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.chatInputBarManagedBotCreated),
+        );
+      }
     } catch (error) {
       _showBotPlatformFailure(error);
     }
@@ -1805,8 +1818,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Future<void> _replyToGuestQuery(BotGuestQuery query) async {
     final reply = await _promptBotText(
-      title: 'Answer guest query',
-      label: 'Reply',
+      title: AppStrings.t(AppStringKeys.chatInputBarAnswerGuestQuery),
+      label: AppStrings.t(AppStringKeys.chatInputBarReply),
       actionLabel: 'Send',
     );
     if (reply == null) return;
@@ -1837,7 +1850,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
       );
       if (!mounted) return;
       setState(() => _guestQueries.removeWhere((item) => item.id == query.id));
-      showToast(context, 'Guest query answered');
+      showToast(
+        context,
+        AppStrings.t(AppStringKeys.chatInputBarGuestQueryAnswered),
+      );
     } catch (error) {
       _showBotPlatformFailure(error);
     }
@@ -1845,8 +1861,8 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Future<void> _updateBotAutomationStatus() async {
     final pendingText = await _promptBotText(
-      title: 'Automation status',
-      label: 'Pending update count',
+      title: AppStrings.t(AppStringKeys.chatInputBarAutomationStatus),
+      label: AppStrings.t(AppStringKeys.chatInputBarPendingUpdateCount),
       initialValue: '0',
       actionLabel: 'Next',
       keyboardType: TextInputType.number,
@@ -1854,12 +1870,17 @@ class _ChatInputBarState extends State<ChatInputBar> {
     if (pendingText == null) return;
     final pendingCount = int.tryParse(pendingText);
     if (pendingCount == null || pendingCount < 0) {
-      if (mounted) showToast(context, 'Enter a non-negative update count');
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.chatInputBarEnterANonNegativeUpdateCount),
+        );
+      }
       return;
     }
     final errorMessage = await _promptBotText(
-      title: 'Automation status',
-      label: 'Error message (optional)',
+      title: AppStrings.t(AppStringKeys.chatInputBarAutomationStatus),
+      label: AppStrings.t(AppStringKeys.chatInputBarErrorMessageOptional),
       actionLabel: 'Report',
       allowEmpty: true,
     );
@@ -1869,7 +1890,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
         pendingUpdateCount: pendingCount,
         errorMessage: errorMessage,
       );
-      if (mounted) showToast(context, 'Automation status updated');
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.chatInputBarAutomationStatusUpdated),
+        );
+      }
     } catch (error) {
       _showBotPlatformFailure(error);
     }
@@ -2046,7 +2072,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
           ] else if (vm.peerIsBot || _guestQueries.isNotEmpty) ...[
             Semantics(
               button: true,
-              label: 'Open bot menu',
+              label: AppStrings.t(AppStringKeys.chatInputBarOpenBotMenu),
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _showBotMenu,
@@ -2256,7 +2282,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     ),
                   ),
                   child: Text(
-                    'Ai',
+                    'AI',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -4114,7 +4140,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         if (index == items.length) {
           return Semantics(
             button: true,
-            label: 'Load more GIF results',
+            label: AppStrings.t(AppStringKeys.chatInputBarLoadMoreGIFResults),
             child: GestureDetector(
               key: const ValueKey('gifSearchLoadMore'),
               behavior: HitTestBehavior.opaque,
@@ -4134,7 +4160,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'More',
+                            AppStrings.t(AppStringKeys.momentsMore),
                             style: TextStyle(
                               fontSize: 12,
                               color: context.colors.textSecondary,
