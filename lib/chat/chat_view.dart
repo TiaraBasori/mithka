@@ -118,6 +118,18 @@ class _MessageDeleteOptions {
       deleteMessage || reportSpam || blockSender || deleteAllFromSender;
 }
 
+class _UnreadSummarySession {
+  const _UnreadSummarySession(this.service, {this.onDispose});
+
+  final UnreadChatSummaryService service;
+  final VoidCallback? onDispose;
+
+  Future<UnreadChatSummary> summarize(UnreadChatRangeSnapshot snapshot) =>
+      service.summarize(snapshot);
+
+  void dispose() => onDispose?.call();
+}
+
 class _ChecklistDialogButton extends StatelessWidget {
   const _ChecklistDialogButton({
     required this.label,
@@ -802,10 +814,10 @@ class _ChatViewState extends State<ChatView> {
   int? _lastOldestMessageId;
   final ChatUnreadProgress _unreadProgress = ChatUnreadProgress();
   int get _liveNewMessageCount => _unreadProgress.liveCount;
-  int get _remainingUnreadCount => _showEntryUnreadBanner
-      ? _entryUnreadCount
-      : _liveNewMessageCount > 0
+  int get _remainingUnreadCount => _liveNewMessageCount > 0
       ? _liveNewMessageCount
+      : _showEntryUnreadBanner
+      ? _entryUnreadCount
       : _unreadProgress.remaining(initialUnreadCount: _vm.unreadCount);
   int _entryUnreadCount = 0;
   bool _showEntryUnreadBanner = false;
@@ -4509,10 +4521,15 @@ class _ChatViewState extends State<ChatView> {
   Widget _transcriptLayer() {
     final aiSettings = context.watch<AiSettingsController?>();
     final transcriptReady = _initialTranscriptReady;
-    final bottomIndicator = chatBottomIndicator(
+    final newMessagesPlacement = chatNewMessagesControlPlacement(
       isScrolledUp: _showJumpDown,
       hasNewMessages: _shouldShowNewMessagesBanner,
-      showNewMessagesAtBottom: _showEntryUnreadBanner,
+      isEntryUnread: _showEntryUnreadBanner,
+    );
+    final bottomIndicator = chatBottomIndicator(
+      isScrolledUp: _showJumpDown,
+      hasNewMessages:
+          newMessagesPlacement == ChatNewMessagesControlPlacement.bottom,
     );
     final showPinnedTodo =
         transcriptReady &&
@@ -4572,21 +4589,36 @@ class _ChatViewState extends State<ChatView> {
           ),
         if (transcriptReady && _isSelecting) _selectToHereButton(),
         if (transcriptReady &&
-            bottomIndicator == ChatBottomIndicator.newMessages)
+            newMessagesPlacement == ChatNewMessagesControlPlacement.top)
+          Positioned(
+            right: 16,
+            top: showPinnedTodo ? 72 : 12,
+            child: _newMessagesControl(
+              aiSettings,
+              pointsDown: false,
+              showsUnreadCount: true,
+            ),
+          ),
+        if (transcriptReady &&
+            newMessagesPlacement == ChatNewMessagesControlPlacement.bottom)
           Positioned(
             right: 16,
             bottom: 12,
             child: _newMessagesControl(
               aiSettings,
-              pointsDown: !_showEntryUnreadBanner,
+              pointsDown: true,
               showsUnreadCount:
-                  _showEntryUnreadBanner ||
-                  (_liveNewMessageCount == 0 && _vm.unreadCount > 0),
+                  _liveNewMessageCount == 0 &&
+                  (_showEntryUnreadBanner || _vm.unreadCount > 0),
             ),
           ),
         if (transcriptReady && _vm.unreadMentionCount > 0)
           Positioned(
-            top: showPinnedTodo ? 72.0 : 8.0,
+            top:
+                (showPinnedTodo ? 72.0 : 8.0) +
+                (newMessagesPlacement == ChatNewMessagesControlPlacement.top
+                    ? 52
+                    : 0),
             right: 12,
             child: _unreadMentionIndicator(),
           ),
@@ -4847,32 +4879,39 @@ class _ChatViewState extends State<ChatView> {
     final endpoint = settings.openAiChatCompletionsUri;
     final model = settings.model;
     final apiKey = settings.apiKey;
-    final messageId = await Navigator.of(context).push<int>(
-      MaterialPageRoute<int>(
-        builder: (_) => UnreadChatSummaryView(
-          snapshot: snapshot,
-          summarize: () => _summarizeUnreadRange(
-            snapshot,
-            providerMode: providerMode,
-            endpoint: endpoint,
-            model: model,
-            apiKey: apiKey,
+    final pccContextSize = settings.pccCapabilities?.contextSize;
+    final session = _createUnreadSummarySession(
+      providerMode: providerMode,
+      endpoint: endpoint,
+      model: model,
+      apiKey: apiKey,
+      pccContextSize: pccContextSize,
+    );
+    int? messageId;
+    try {
+      messageId = await Navigator.of(context).push<int>(
+        MaterialPageRoute<int>(
+          builder: (_) => UnreadChatSummaryView(
+            snapshot: snapshot,
+            summarize: () => session.summarize(snapshot),
           ),
         ),
-      ),
-    );
+      );
+    } finally {
+      session.dispose();
+      if (mounted) setState(() => _openingUnreadSummary = false);
+    }
     if (!mounted) return;
-    setState(() => _openingUnreadSummary = false);
     if (messageId != null) await _scrollToMessage(messageId);
   }
 
-  Future<UnreadChatSummary> _summarizeUnreadRange(
-    UnreadChatRangeSnapshot snapshot, {
+  _UnreadSummarySession _createUnreadSummarySession({
     required AiProviderMode providerMode,
     required Uri? endpoint,
     required String model,
     required String apiKey,
-  }) async {
+    required int? pccContextSize,
+  }) {
     final loader = UnreadChatHistoryLoader(
       query: (accountSlot, request) {
         final clientId = TdClient.shared.clientId(accountSlot);
@@ -4885,14 +4924,18 @@ class _ChatViewState extends State<ChatView> {
 
     switch (providerMode) {
       case AiProviderMode.applePcc:
-        return UnreadChatSummaryService(
-          historyLoader: loader,
-          provider: ApplePccUnreadSummaryProvider(
-            api: ApplePccApi(),
-            reasoningLevel: ApplePccReasoningLevel.light,
-            maximumResponseTokens: 1600,
+        return _UnreadSummarySession(
+          UnreadChatSummaryService(
+            historyLoader: loader,
+            maxChunkTokenEstimate: unreadSummaryChunkTokenBudget(
+              pccContextSize,
+            ),
+            provider: ApplePccUnreadSummaryProvider(
+              api: ApplePccApi(),
+              reasoningLevel: ApplePccReasoningLevel.light,
+            ),
           ),
-        ).summarize(snapshot);
+        );
       case AiProviderMode.openAiCompatible:
         if (endpoint == null || model.trim().isEmpty) {
           throw StateError('The summary server is not configured.');
@@ -4902,14 +4945,10 @@ class _ChatViewState extends State<ChatView> {
           model: model.trim(),
           apiKey: apiKey,
         );
-        try {
-          return await UnreadChatSummaryService(
-            historyLoader: loader,
-            provider: provider,
-          ).summarize(snapshot);
-        } finally {
-          provider.close();
-        }
+        return _UnreadSummarySession(
+          UnreadChatSummaryService(historyLoader: loader, provider: provider),
+          onDispose: provider.close,
+        );
     }
   }
 

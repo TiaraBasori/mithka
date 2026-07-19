@@ -17,19 +17,38 @@ void main() {
     );
   });
 
-  test(
-    'entry unread control remains visible while opened at the newest message',
-    () {
-      expect(
-        chatBottomIndicator(
-          isScrolledUp: false,
-          hasNewMessages: true,
-          showNewMessagesAtBottom: true,
-        ),
-        ChatBottomIndicator.newMessages,
-      );
-    },
-  );
+  test('entry unread control is placed at the top when already latest', () {
+    expect(
+      chatNewMessagesControlPlacement(
+        isScrolledUp: false,
+        hasNewMessages: true,
+        isEntryUnread: true,
+      ),
+      ChatNewMessagesControlPlacement.top,
+    );
+  });
+
+  test('new messages are placed at the bottom while scrolled up', () {
+    expect(
+      chatNewMessagesControlPlacement(
+        isScrolledUp: true,
+        hasNewMessages: true,
+        isEntryUnread: false,
+      ),
+      ChatNewMessagesControlPlacement.bottom,
+    );
+  });
+
+  test('live messages do not cover the transcript while already latest', () {
+    expect(
+      chatNewMessagesControlPlacement(
+        isScrolledUp: false,
+        hasNewMessages: true,
+        isEntryUnread: false,
+      ),
+      ChatNewMessagesControlPlacement.hidden,
+    );
+  });
 
   test('live message buffer reports each TDLib arrival only once', () {
     final buffer = ChatLiveMessageBuffer();

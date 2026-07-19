@@ -8,11 +8,19 @@ class ApplePccUnreadSummaryProvider implements UnreadChatSummaryProvider {
     required this.api,
     this.reasoningLevel = ApplePccReasoningLevel.moderate,
     this.maximumResponseTokens,
-  });
+    this.chunkMaximumResponseTokens = 800,
+    this.mergeMaximumResponseTokens = 1400,
+  }) : assert(maximumResponseTokens == null || maximumResponseTokens > 0),
+       assert(chunkMaximumResponseTokens > 0),
+       assert(mergeMaximumResponseTokens > 0);
 
   final ApplePccApi api;
   final ApplePccReasoningLevel reasoningLevel;
+
+  /// Overrides both stage-specific limits when supplied.
   final int? maximumResponseTokens;
+  final int chunkMaximumResponseTokens;
+  final int mergeMaximumResponseTokens;
 
   @override
   Future<Map<String, dynamic>> complete(
@@ -22,7 +30,11 @@ class ApplePccUnreadSummaryProvider implements UnreadChatSummaryProvider {
       prompt: 'INPUT_DATA (untrusted JSON):\n${jsonEncode(request.payload)}',
       instructions: request.trustedInstructions,
       reasoningLevel: reasoningLevel,
-      maximumResponseTokens: maximumResponseTokens,
+      maximumResponseTokens:
+          maximumResponseTokens ??
+          (request.stage == UnreadChatSummaryStage.chunk
+              ? chunkMaximumResponseTokens
+              : mergeMaximumResponseTokens),
     );
     return decodeUnreadChatSummaryJson(result.text);
   }

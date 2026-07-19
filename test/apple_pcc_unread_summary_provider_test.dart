@@ -21,8 +21,10 @@ Map<String, dynamic> _summaryJson() => {
   'uncertainties': <Map<String, dynamic>>[],
 };
 
-UnreadChatSummaryProviderRequest _request() => UnreadChatSummaryProviderRequest(
-  stage: UnreadChatSummaryStage.chunk,
+UnreadChatSummaryProviderRequest _request({
+  UnreadChatSummaryStage stage = UnreadChatSummaryStage.chunk,
+}) => UnreadChatSummaryProviderRequest(
+  stage: stage,
   trustedInstructions: unreadChatSummaryTrustedInstructions,
   payload: {
     'stage': 'summarize_chunk',
@@ -83,4 +85,29 @@ void main() {
       throwsA(isA<UnreadChatSummaryProviderException>()),
     );
   });
+
+  test(
+    'uses smaller chunk output and larger final merge output limits',
+    () async {
+      final capturedLimits = <Object?>[];
+      final provider = ApplePccUnreadSummaryProvider(
+        api: ApplePccApi(
+          invokeMethod: (_, arguments) async {
+            capturedLimits.add((arguments! as Map)['maximumResponseTokens']);
+            return {
+              'text': jsonEncode(_summaryJson()),
+              'provider': 'apple_pcc',
+            };
+          },
+        ),
+        chunkMaximumResponseTokens: 700,
+        mergeMaximumResponseTokens: 1300,
+      );
+
+      await provider.complete(_request());
+      await provider.complete(_request(stage: UnreadChatSummaryStage.merge));
+
+      expect(capturedLimits, [700, 1300]);
+    },
+  );
 }

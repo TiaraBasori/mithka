@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import '../tdlib/json_helpers.dart';
@@ -105,8 +106,25 @@ Return only one JSON object with this exact shape:
   "questions": [{"text": "string", "evidence_ids": ["m123"]}],
   "uncertainties": [{"text": "string", "evidence_ids": ["m123"]}]
 }
-Use empty arrays when a category has no supported item. Keep the overview concise.
+Use empty arrays when a category has no supported item. Keep the overview to at
+most two short sentences. For summarize_chunk, return at most 4 highlights and
+at most 3 items in every other category. For merge_chunk_summaries, remove
+duplicates and return at most 6 highlights and at most 5 items per other
+category, prioritizing unanswered questions, decisions, and concrete actions.
 ''';
+
+/// Conservative token estimate for JSON sent to unknown model tokenizers.
+///
+/// Dividing UTF-8 bytes by three slightly overestimates ordinary Latin text
+/// while treating most CJK characters as roughly one token.
+int estimateUnreadSummaryPromptTokens(Object? value) =>
+    (utf8.encode(jsonEncode(value)).length + 2) ~/ 3;
+
+/// Leaves room for instructions, a structured response, and tokenizer drift.
+int unreadSummaryChunkTokenBudget(int? contextSize) {
+  if (contextSize == null || contextSize <= 0) return 8000;
+  return (contextSize - 3600).clamp(1200, 20000).toInt();
+}
 
 class UnreadChatHistoryLoader {
   const UnreadChatHistoryLoader({
@@ -239,24 +257,49 @@ class UnreadChatHistoryLoader {
 }
 
 class UnreadChatSummaryService {
-  const UnreadChatSummaryService({
+  UnreadChatSummaryService({
     required this.historyLoader,
     required this.provider,
-    this.maxChunkMessages = 120,
-    this.maxChunkCharacters = 12000,
+    this.maxChunkMessages = 600,
+    this.maxChunkTokenEstimate = 8000,
     this.maxChunks = 16,
+    this.maxMergeSummaries = 8,
+    this.maxMergeTokenEstimate,
   }) : assert(maxChunkMessages > 0),
-       assert(maxChunkCharacters > 0),
-       assert(maxChunks > 0);
+       assert(maxChunkTokenEstimate > 0),
+       assert(maxChunks > 0),
+       assert(maxMergeSummaries >= 2),
+       assert(maxMergeTokenEstimate == null || maxMergeTokenEstimate > 0);
 
   final UnreadChatHistoryLoader historyLoader;
   final UnreadChatSummaryProvider provider;
   final int maxChunkMessages;
-  final int maxChunkCharacters;
+  final int maxChunkTokenEstimate;
   final int maxChunks;
+  final int maxMergeSummaries;
+  final int? maxMergeTokenEstimate;
+  String? _transcriptKey;
+  Future<UnreadChatTranscript>? _transcriptFuture;
+  final Map<String, _GroundedSummary> _completionCache = {};
+  final Map<String, Future<_GroundedSummary>> _inFlightCompletions = {};
 
   Future<UnreadChatSummary> summarize(UnreadChatRangeSnapshot snapshot) async {
-    final transcript = await historyLoader.load(snapshot);
+    final key = jsonEncode(snapshot.toJson());
+    if (_transcriptKey != key || _transcriptFuture == null) {
+      _transcriptKey = key;
+      _transcriptFuture = historyLoader.load(snapshot);
+      _completionCache.clear();
+      _inFlightCompletions.clear();
+    }
+    late final UnreadChatTranscript transcript;
+    try {
+      transcript = await _transcriptFuture!;
+    } catch (_) {
+      if (_transcriptKey == key) {
+        _transcriptFuture = null;
+      }
+      rethrow;
+    }
     return summarizeTranscript(transcript);
   }
 
@@ -279,68 +322,59 @@ class UnreadChatSummaryService {
     final selectedChunks = processingCapped
         ? allChunks.sublist(allChunks.length - maxChunks)
         : allChunks;
+    final summaryScope = jsonEncode(transcript.snapshot.toJson());
     final summarizedMessages = selectedChunks
         .expand((chunk) => chunk)
         .toList(growable: false);
-    final chunkContents = <UnreadChatSummaryContent>[];
+    final chunkContents = <_GroundedSummary>[];
 
     for (var index = 0; index < selectedChunks.length; index++) {
       final chunk = selectedChunks[index];
       final allowedEvidenceIds = {
         for (final message in chunk) message.evidenceId,
       };
-      final raw = await provider.complete(
-        UnreadChatSummaryProviderRequest(
-          stage: UnreadChatSummaryStage.chunk,
-          trustedInstructions: unreadChatSummaryTrustedInstructions,
-          allowedEvidenceIds: allowedEvidenceIds,
-          payload: {
-            'stage': 'summarize_chunk',
-            'output_language': 'same_as_chat',
-            'chunk_index': index + 1,
-            'chunk_count': selectedChunks.length,
-            'range': transcript.snapshot.toJson(),
-            'messages': chunk.map((message) => message.toPromptJson()).toList(),
-          },
-        ),
-      );
       chunkContents.add(
-        UnreadChatSummaryContent.fromJson(
-          raw,
-          allowedEvidenceIds: allowedEvidenceIds,
+        await _completeGrounded(
+          UnreadChatSummaryProviderRequest(
+            stage: UnreadChatSummaryStage.chunk,
+            trustedInstructions: unreadChatSummaryTrustedInstructions,
+            allowedEvidenceIds: allowedEvidenceIds,
+            payload: {
+              'stage': 'summarize_chunk',
+              'output_language': 'same_as_chat',
+              'chunk_index': index + 1,
+              'chunk_count': selectedChunks.length,
+              'range': transcript.snapshot.toJson(),
+              'message_schema': const [
+                'evidence_id',
+                'date_unix',
+                'sender_key',
+                'direction',
+                'is_service',
+                'content_type',
+                'reply_to_evidence_id',
+                'text',
+              ],
+              'messages': chunk.map(_messagePromptRow).toList(),
+            },
+          ),
+          scopeKey: summaryScope,
         ),
       );
     }
 
     final UnreadChatSummaryContent content;
     if (chunkContents.length == 1) {
-      content = chunkContents.single;
+      content = chunkContents.single.content;
     } else {
-      final allowedEvidenceIds = {
-        for (final message in summarizedMessages) message.evidenceId,
-      };
-      final raw = await provider.complete(
-        UnreadChatSummaryProviderRequest(
-          stage: UnreadChatSummaryStage.merge,
-          trustedInstructions: unreadChatSummaryTrustedInstructions,
-          allowedEvidenceIds: allowedEvidenceIds,
-          payload: {
-            'stage': 'merge_chunk_summaries',
-            'output_language': 'same_as_chat',
-            'chunk_summaries': chunkContents
-                .map((summary) => summary.toJson())
-                .toList(),
-            'coverage_is_incomplete':
-                transcript.historyCapped ||
-                transcript.historyStalled ||
-                !transcript.reachedReadBoundary ||
-                processingCapped,
-          },
-        ),
-      );
-      content = UnreadChatSummaryContent.fromJson(
-        raw,
-        allowedEvidenceIds: allowedEvidenceIds,
+      content = await _mergeChunkContents(
+        chunkContents,
+        scopeKey: summaryScope,
+        coverageIsIncomplete:
+            transcript.historyCapped ||
+            transcript.historyStalled ||
+            !transcript.reachedReadBoundary ||
+            processingCapped,
       );
     }
 
@@ -357,24 +391,153 @@ class UnreadChatSummaryService {
   List<List<UnreadChatMessage>> _chunks(List<UnreadChatMessage> messages) {
     final chunks = <List<UnreadChatMessage>>[];
     var current = <UnreadChatMessage>[];
-    var currentCharacters = 0;
+    var currentTokens = 0;
     for (final message in messages) {
-      final messageCharacters = jsonEncode(message.toPromptJson()).length;
+      final messageTokens = estimateUnreadSummaryPromptTokens(
+        _messagePromptRow(message),
+      );
       final exceedsMessageLimit = current.length >= maxChunkMessages;
-      final exceedsCharacterLimit =
+      final exceedsTokenLimit =
           current.isNotEmpty &&
-          currentCharacters + messageCharacters > maxChunkCharacters;
-      if (exceedsMessageLimit || exceedsCharacterLimit) {
+          currentTokens + messageTokens > maxChunkTokenEstimate;
+      if (exceedsMessageLimit || exceedsTokenLimit) {
         chunks.add(current);
         current = <UnreadChatMessage>[];
-        currentCharacters = 0;
+        currentTokens = 0;
       }
       current.add(message);
-      currentCharacters += messageCharacters;
+      currentTokens += messageTokens;
     }
     if (current.isNotEmpty) chunks.add(current);
     return chunks;
   }
+
+  Future<UnreadChatSummaryContent> _mergeChunkContents(
+    List<_GroundedSummary> summaries, {
+    required String scopeKey,
+    required bool coverageIsIncomplete,
+  }) async {
+    var level = List<_GroundedSummary>.of(summaries);
+    var mergeLevel = 1;
+    while (level.length > 1) {
+      final batches = _mergeBatches(level);
+      final nextLevel = <_GroundedSummary>[];
+      for (var index = 0; index < batches.length; index++) {
+        final batch = batches[index];
+        if (batch.length == 1) {
+          nextLevel.add(batch.single);
+          continue;
+        }
+        final allowedEvidenceIds = {
+          for (final summary in batch) ...summary.allowedEvidenceIds,
+        };
+        nextLevel.add(
+          await _completeGrounded(
+            UnreadChatSummaryProviderRequest(
+              stage: UnreadChatSummaryStage.merge,
+              trustedInstructions: unreadChatSummaryTrustedInstructions,
+              allowedEvidenceIds: allowedEvidenceIds,
+              payload: {
+                'stage': 'merge_chunk_summaries',
+                'output_language': 'same_as_chat',
+                'merge_level': mergeLevel,
+                'merge_batch_index': index + 1,
+                'merge_batch_count': batches.length,
+                'chunk_summaries': batch
+                    .map((summary) => summary.content.toJson())
+                    .toList(),
+                'coverage_is_incomplete': coverageIsIncomplete,
+              },
+            ),
+            scopeKey: scopeKey,
+          ),
+        );
+      }
+      level = nextLevel;
+      mergeLevel++;
+    }
+    return level.single.content;
+  }
+
+  Future<_GroundedSummary> _completeGrounded(
+    UnreadChatSummaryProviderRequest request, {
+    required String scopeKey,
+  }) async {
+    final key = jsonEncode({
+      'scope': scopeKey,
+      'stage': request.stage.name,
+      'trusted_instructions': request.trustedInstructions,
+      'allowed_evidence_ids': request.allowedEvidenceIds.toList()..sort(),
+      'payload': request.payload,
+    });
+    final cached = _completionCache[key];
+    if (cached != null) return cached;
+    final pending = _inFlightCompletions[key];
+    if (pending != null) return pending;
+
+    final completion = _requestGroundedCompletion(request);
+    _inFlightCompletions[key] = completion;
+    try {
+      final result = await completion;
+      _completionCache[key] = result;
+      return result;
+    } finally {
+      if (identical(_inFlightCompletions[key], completion)) {
+        unawaited(_inFlightCompletions.remove(key));
+      }
+    }
+  }
+
+  Future<_GroundedSummary> _requestGroundedCompletion(
+    UnreadChatSummaryProviderRequest request,
+  ) async {
+    final raw = await provider.complete(request);
+    return _GroundedSummary(
+      content: UnreadChatSummaryContent.fromJson(
+        raw,
+        allowedEvidenceIds: request.allowedEvidenceIds,
+      ),
+      allowedEvidenceIds: request.allowedEvidenceIds,
+    );
+  }
+
+  List<List<_GroundedSummary>> _mergeBatches(List<_GroundedSummary> summaries) {
+    final tokenLimit = maxMergeTokenEstimate ?? maxChunkTokenEstimate;
+    final batches = <List<_GroundedSummary>>[];
+    var current = <_GroundedSummary>[];
+    var currentTokens = 0;
+    for (final summary in summaries) {
+      final summaryTokens = estimateUnreadSummaryPromptTokens(
+        summary.content.toJson(),
+      );
+      final exceedsCount = current.length >= maxMergeSummaries;
+      // Always admit at least two summaries so each merge level makes
+      // progress, even when one unusually verbose model response exceeds the
+      // estimate on its own.
+      final exceedsTokens =
+          current.length >= 2 && currentTokens + summaryTokens > tokenLimit;
+      if (exceedsCount || exceedsTokens) {
+        batches.add(current);
+        current = <_GroundedSummary>[];
+        currentTokens = 0;
+      }
+      current.add(summary);
+      currentTokens += summaryTokens;
+    }
+    if (current.isNotEmpty) batches.add(current);
+    return batches;
+  }
+
+  List<Object?> _messagePromptRow(UnreadChatMessage message) => [
+    message.evidenceId,
+    message.date,
+    message.senderKey,
+    message.isOutgoing ? 'out' : 'in',
+    message.isService,
+    message.contentType,
+    message.replyToMessageId == null ? null : 'm${message.replyToMessageId}',
+    message.text,
+  ];
 
   UnreadChatSummaryCoverage _coverage(
     UnreadChatTranscript transcript, {
@@ -393,4 +556,14 @@ class UnreadChatSummaryService {
     processingCapped: processingCapped,
     historyStalled: transcript.historyStalled,
   );
+}
+
+class _GroundedSummary {
+  _GroundedSummary({
+    required this.content,
+    required Set<String> allowedEvidenceIds,
+  }) : allowedEvidenceIds = Set.unmodifiable(allowedEvidenceIds);
+
+  final UnreadChatSummaryContent content;
+  final Set<String> allowedEvidenceIds;
 }

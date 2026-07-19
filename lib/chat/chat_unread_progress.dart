@@ -1,17 +1,27 @@
 enum ChatBottomIndicator { none, newMessages, jumpToBottom }
 
+enum ChatNewMessagesControlPlacement { hidden, top, bottom }
+
 ChatBottomIndicator chatBottomIndicator({
   required bool isScrolledUp,
   required bool hasNewMessages,
-  bool showNewMessagesAtBottom = false,
 }) {
-  if (hasNewMessages && showNewMessagesAtBottom) {
-    return ChatBottomIndicator.newMessages;
-  }
   if (!isScrolledUp) return ChatBottomIndicator.none;
   return hasNewMessages
       ? ChatBottomIndicator.newMessages
       : ChatBottomIndicator.jumpToBottom;
+}
+
+ChatNewMessagesControlPlacement chatNewMessagesControlPlacement({
+  required bool isScrolledUp,
+  required bool hasNewMessages,
+  required bool isEntryUnread,
+}) {
+  if (!hasNewMessages) return ChatNewMessagesControlPlacement.hidden;
+  if (isScrolledUp) return ChatNewMessagesControlPlacement.bottom;
+  return isEntryUnread
+      ? ChatNewMessagesControlPlacement.top
+      : ChatNewMessagesControlPlacement.hidden;
 }
 
 /// Buffers only message IDs received through TDLib's `updateNewMessage` path.
