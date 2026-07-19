@@ -43,7 +43,18 @@ final class ApplePCCBridge {
   private func handle(call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
     case "getCapabilities":
-      result(capabilities())
+      Task { @MainActor [weak self] in
+        guard let self else {
+          result(
+            Self.flutterError(
+              code: "pcc_unavailable",
+              message: "The Private Cloud Compute bridge is unavailable.",
+              reason: "bridge_unavailable"
+            ))
+          return
+        }
+        result(await self.capabilities())
+      }
     case "summarize":
       guard activeRequest == nil else {
         result(
@@ -102,10 +113,10 @@ final class ApplePCCBridge {
     }
   }
 
-  private func capabilities() -> [String: Any] {
+  private func capabilities() async -> [String: Any] {
     #if compiler(>=6.4) && canImport(FoundationModels)
       if #available(iOS 27.0, *) {
-        return pccCapabilities()
+        return await pccCapabilities()
       }
       return Self.unavailableCapabilities(
         sdkAvailable: true,
@@ -157,14 +168,20 @@ final class ApplePCCBridge {
 
   #if compiler(>=6.4) && canImport(FoundationModels)
     @available(iOS 27.0, *)
-    private func pccCapabilities() -> [String: Any] {
+    private func pccCapabilities() async -> [String: Any] {
       let model = PrivateCloudComputeLanguageModel()
       let quota = model.quotaUsage
+      let contextSize: Int
+      do {
+        contextSize = try await model.contextSize
+      } catch {
+        contextSize = 0
+      }
       var payload: [String: Any] = [
         "sdkAvailable": true,
         "available": model.isAvailable,
         "reason": Self.availabilityReason(model.availability),
-        "contextSize": model.contextSize,
+        "contextSize": contextSize,
         "quotaLimitReached": quota.isLimitReached,
         "quotaApproachingLimit": false,
       ]
@@ -211,7 +228,7 @@ final class ApplePCCBridge {
             code: "pcc_unavailable",
             message: "Private Cloud Compute is unavailable on this device.",
             reason: Self.availabilityReason(model.availability),
-            extraDetails: pccCapabilities()
+            extraDetails: await pccCapabilities()
           ))
         return
       }
@@ -221,7 +238,7 @@ final class ApplePCCBridge {
             code: "pcc_quota_reached",
             message: "The Private Cloud Compute usage limit has been reached.",
             reason: "quota_limit_reached",
-            extraDetails: pccCapabilities()
+            extraDetails: await pccCapabilities()
           ))
         return
       }
