@@ -1536,10 +1536,13 @@ void main() {
             localizationsDelegates: const [AppLocalizations.delegate],
             supportedLocales: AppLocalizations.supportedLocales,
             home: Scaffold(
-              body: MessageBubble(
-                message: message,
-                peerTitle: 'Test',
-                isGroup: false,
+              body: TickerMode(
+                enabled: false,
+                child: MessageBubble(
+                  message: message,
+                  peerTitle: 'Test',
+                  isGroup: false,
+                ),
               ),
             ),
           ),
@@ -1548,7 +1551,9 @@ void main() {
 
       expect(gifPreview, '[GIF]');
       expect(find.text(gifPreview), findsNothing);
-      expect(find.text('0:25'), findsOneWidget);
+      expect(find.byKey(const ValueKey('message-animation-8')), findsOneWidget);
+      expect(find.byIcon(HeroAppIcons.play.data), findsNothing);
+      expect(find.text('0:25'), findsNothing);
     });
 
     testWidgets('long press reveals retained restricted message content', (

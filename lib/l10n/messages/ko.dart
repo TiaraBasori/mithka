@@ -981,7 +981,7 @@ const koMessages = <String, String>{
   'messageActionPlayMuted': "무음 재생",
   'messageActionQuote': "인용",
   'messageActionRepeat': "반복",
-  'messageActionReplies': "답글",
+  'messageActionReplies': "답글 보기",
   'messageActionReport': "신고",
   'messageActionSaveToPhotos': "사진에 저장",
   'messageActionSelectText': "텍스트 선택",

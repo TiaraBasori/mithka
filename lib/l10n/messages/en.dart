@@ -1094,7 +1094,7 @@ const enMessages = <String, String>{
   'messageActionPlayMuted': "Play muted",
   'messageActionQuote': "Quote",
   'messageActionRepeat': "Repeat",
-  'messageActionReplies': "Replies",
+  'messageActionReplies': "View replies",
   'messageActionReport': "Report",
   'messageActionSaveToPhotos': "Save to Photos",
   'messageActionSelectText': "Select text",

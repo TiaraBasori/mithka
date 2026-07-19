@@ -960,7 +960,7 @@ const zhHansMessages = <String, String>{
   'messageActionPlayMuted': "静音播放",
   'messageActionQuote': "引用",
   'messageActionRepeat': "复读",
-  'messageActionReplies': "回复",
+  'messageActionReplies': "查看回复",
   'messageActionReport': "举报",
   'messageActionSaveToPhotos': "保存到相册",
   'messageActionSelectText': "选择文字",

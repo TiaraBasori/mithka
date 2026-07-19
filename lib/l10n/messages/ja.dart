@@ -980,7 +980,7 @@ const jaMessages = <String, String>{
   'messageActionPlayMuted': "ミュートで再生",
   'messageActionQuote': "引用",
   'messageActionRepeat': "リピート",
-  'messageActionReplies': "返信",
+  'messageActionReplies': "返信を見る",
   'messageActionReport': "報告",
   'messageActionSaveToPhotos': "写真に保存",
   'messageActionSelectText': "テキストを選択",

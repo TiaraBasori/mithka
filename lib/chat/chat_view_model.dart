@@ -348,6 +348,7 @@ class ChatViewModel extends ChangeNotifier {
   bool get canForwardContent => !hasProtectedContent;
   bool get canLoadOlder =>
       !_isLoadingOlder && _allMessages.isNotEmpty && _hasOlderHistory;
+  bool get isLoadingOlder => _isLoadingOlder;
   bool get hasOlderHistory => _hasOlderHistory;
   int get _oldestServerMessageId {
     for (final message in _allMessages) {
@@ -1157,19 +1158,12 @@ class ChatViewModel extends ChangeNotifier {
     return true;
   }
 
-  /// 引用: set (or clear) the reply target. In a group, replying to someone also
-  /// @-mentions them in the draft (messenger behavior).
+  /// Sets or clears the reply target without changing the current draft.
+  ///
+  /// The reply metadata already addresses the sender. Mentions remain an
+  /// explicit action so replying cannot accidentally invoke inline-bot search.
   void setReply(ChatMessage? message) {
     replyTo = message;
-    if (message != null &&
-        isGroup &&
-        !message.isOutgoing &&
-        (message.senderName?.isNotEmpty ?? false)) {
-      final userId = message.senderId;
-      if (userId != null && userId > 0) {
-        _insertMention(message.senderName!, userId);
-      }
-    }
     notifyListeners();
   }
 
@@ -2311,16 +2305,19 @@ class ChatViewModel extends ChangeNotifier {
   Future<bool> loadOlder() async {
     if (!canLoadOlder) return false;
     _isLoadingOlder = true;
+    notifyListeners();
     try {
       return await _fetchHistory(_oldestServerMessageId, 0, 30, isOlder: true);
     } finally {
       _isLoadingOlder = false;
+      notifyListeners();
     }
   }
 
   Future<bool> loadOlderLocal() async {
     if (!canLoadOlder) return false;
     _isLoadingOlder = true;
+    notifyListeners();
     try {
       return await _fetchHistory(
         _oldestServerMessageId,
@@ -2331,6 +2328,7 @@ class ChatViewModel extends ChangeNotifier {
       );
     } finally {
       _isLoadingOlder = false;
+      notifyListeners();
     }
   }
 

@@ -1068,7 +1068,7 @@ const frMessages = <String, String>{
   'messageActionPlayMuted': "Lire sans son",
   'messageActionQuote': "Citer",
   'messageActionRepeat': "Répéter",
-  'messageActionReplies': "Réponses",
+  'messageActionReplies': "Voir les réponses",
   'messageActionReport': "Signaler",
   'messageActionSaveToPhotos': "Enregistrer dans Photos",
   'messageActionSelectText': "Sélectionner le texte",

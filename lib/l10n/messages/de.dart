@@ -1067,7 +1067,7 @@ const deMessages = <String, String>{
   'messageActionPlayMuted': "Stumm abspielen",
   'messageActionQuote': "Zitieren",
   'messageActionRepeat': "Wiederholen",
-  'messageActionReplies': "Antworten",
+  'messageActionReplies': "Antworten anzeigen",
   'messageActionReport': "Melden",
   'messageActionSaveToPhotos': "In Fotos sichern",
   'messageActionSelectText': "Text auswählen",

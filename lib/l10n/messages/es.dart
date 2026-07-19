@@ -1061,7 +1061,7 @@ const esMessages = <String, String>{
   'messageActionPlayMuted': "Reproducir sin sonido",
   'messageActionQuote': "Citar",
   'messageActionRepeat': "Repetir",
-  'messageActionReplies': "Respuestas",
+  'messageActionReplies': "Ver respuestas",
   'messageActionReport': "Reportar",
   'messageActionSaveToPhotos': "Guardar en Fotos",
   'messageActionSelectText': "Seleccionar texto",

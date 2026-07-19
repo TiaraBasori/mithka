@@ -848,7 +848,6 @@ const _telegramKeyForAppKey = <String, String>{
   AppStringKeys.messageActionForward: 'Forward',
   AppStringKeys.messageActionMultiSelect: 'Select',
   AppStringKeys.messageActionQuote: 'QuoteMessage',
-  AppStringKeys.messageActionReplies: 'RepliesTitle',
   AppStringKeys.messageActionReport: 'ReportChat',
   AppStringKeys.messageActionSelectText: 'SelectText',
   AppStringKeys.messageActionSetTodo: 'PinMessage',
