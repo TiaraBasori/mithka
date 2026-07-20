@@ -379,12 +379,13 @@ class _MessageBubbleState extends State<MessageBubble>
                 (message.senderTitle?.trim().isNotEmpty ?? false)),
       _ => true,
     };
-    final premiumNameColor = messageNameColorForSender(
-      theme: theme.cloudThemeFor(Theme.of(context).brightness),
+    final cloudTheme = theme.cloudThemeFor(Theme.of(context).brightness);
+    final senderNameColor = messageNameColorForSender(
+      theme: cloudTheme,
       accentColorId: message.senderAccentColorId,
       isPremium: message.senderIsPremium,
       showPremiumColors: theme.showChatPremiumNameColors,
-      premiumColorsDisabledFallback: c.textSecondary,
+      premiumColorsDisabledFallback: cloudTheme?.senderNameColor ?? c.linkBlue,
     );
     final showPremiumStatus =
         theme.showChatPremiumEmojiStatus &&
@@ -534,7 +535,7 @@ class _MessageBubbleState extends State<MessageBubble>
                                   name: message.senderName!,
                                   nameStyle: TextStyle(
                                     fontSize: 12,
-                                    color: premiumNameColor,
+                                    color: senderNameColor,
                                     fontWeight: message.senderIsPremium
                                         ? FontWeight.w600
                                         : FontWeight.w400,
@@ -549,10 +550,10 @@ class _MessageBubbleState extends State<MessageBubble>
                               ),
                               if (showPremiumStatus) ...[
                                 const SizedBox(width: 3),
-                                CustomEmojiView(
+                                StatusEmojiView(
                                   id: message.senderEmojiStatusId,
                                   size: 14,
-                                  color: premiumNameColor,
+                                  color: senderNameColor,
                                 ),
                               ],
                             ],
@@ -1946,7 +1947,7 @@ class _MessageBubbleState extends State<MessageBubble>
     RichMessageBlock block,
     bool outgoing,
   ) {
-    if (block.caption.isEmpty) return media;
+    if (block.caption.trim().isEmpty) return media;
     final c = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1997,7 +1998,7 @@ class _MessageBubbleState extends State<MessageBubble>
       id: message.id,
       chatId: message.chatId,
       isOutgoing: message.isOutgoing,
-      text: block.caption,
+      text: block.caption.trim().isEmpty ? '' : block.caption,
       date: message.date,
       contentType: contentType,
       image: block.image,

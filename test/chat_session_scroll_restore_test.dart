@@ -243,7 +243,6 @@ void main() {
         hasCachedTranscript: true,
         savedPixels: 640,
         savedAtBottom: false,
-        openAtBottom: false,
       );
 
       expect(plan.initialOffset, 640);
