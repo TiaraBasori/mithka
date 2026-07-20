@@ -536,7 +536,7 @@ class _MessageBubbleState extends State<MessageBubble>
                               ),
                               if (showPremiumStatus) ...[
                                 const SizedBox(width: 3),
-                                CustomEmojiView(
+                                StatusEmojiView(
                                   id: message.senderEmojiStatusId,
                                   size: 14,
                                   color: premiumNameColor,
@@ -1934,7 +1934,7 @@ class _MessageBubbleState extends State<MessageBubble>
     RichMessageBlock block,
     bool outgoing,
   ) {
-    if (block.caption.isEmpty) return media;
+    if (block.caption.trim().isEmpty) return media;
     final c = context.colors;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1985,7 +1985,7 @@ class _MessageBubbleState extends State<MessageBubble>
       id: message.id,
       chatId: message.chatId,
       isOutgoing: message.isOutgoing,
-      text: block.caption,
+      text: block.caption.trim().isEmpty ? '' : block.caption,
       date: message.date,
       contentType: contentType,
       image: block.image,
