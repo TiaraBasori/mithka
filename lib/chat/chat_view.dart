@@ -59,11 +59,13 @@ import 'channel_direct_messages_view.dart';
 import 'chat_auto_scroll_policy.dart';
 import 'chat_first_contact_card.dart';
 import 'chat_first_contact_info.dart';
+import 'chat_frame_scheduler.dart';
 import 'chat_info_view.dart';
 import 'chat_input_bar.dart';
 import 'chat_media_drop_region.dart';
 import 'chat_message_merge.dart';
 import 'chat_picker_view.dart';
+import 'chat_return_to_latest_coordinator.dart';
 import 'chat_scroll_metrics.dart';
 import 'chat_search_view.dart';
 import 'chat_session_cache.dart';
@@ -833,7 +835,7 @@ class _ChatViewState extends State<ChatView> {
   bool _shortFirstContactRevealScheduled = false;
   bool _showingFullyVisibleFirstContactHistory = false;
   bool _transcriptViewportClaimedByUser = false;
-  bool _loadingLatestFromAnchor = false;
+  late final ChatReturnToLatestCoordinator _returnToLatestCoordinator;
   bool _initialTranscriptReady = false;
   final Set<int> _transcriptPointersDown = <int>{};
   bool _bottomScrollScheduled = false;
@@ -844,6 +846,7 @@ class _ChatViewState extends State<ChatView> {
   int? _selectionAnchorId;
   bool _selectionScrollingUp = false;
   double _lastScrollPixels = 0;
+  ScrollDirection _lastTranscriptUserScrollDirection = ScrollDirection.idle;
   bool _backSwipePopping = false;
   bool _loadingOlderFromScroll = false;
   final OldestHistoryPullController _olderHistoryPull =
@@ -989,6 +992,13 @@ class _ChatViewState extends State<ChatView> {
       sessionFirstContactInfo: _sessionRenderState?.firstContactInfo,
       seedMessage: widget.seedMessage,
     );
+    _returnToLatestCoordinator = ChatReturnToLatestCoordinator(
+      loadLatest: _vm.loadLatestHistory,
+      invalidateLatestLoad: _vm.invalidateLatestHistoryLoad,
+      needsLatestLoad: () => _vm.anchoredHistory,
+      onChanged: _onReturnToLatestCoordinatorChanged,
+      onReadyAvailable: _drainReturnToLatestIntent,
+    );
     _historyWindowRevision = _vm.historyWindowRevision;
     _historyWindowInvalidationRevision = _vm.historyWindowInvalidationRevision;
     unawaited(
@@ -1089,10 +1099,8 @@ class _ChatViewState extends State<ChatView> {
         isNearOldest(pos, threshold: 500)) {
       unawaited(_loadOlderFromScroll());
     }
-    if (_vm.anchoredHistory &&
-        pos.userScrollDirection == ScrollDirection.reverse &&
-        isNearLatest(pos, threshold: 36)) {
-      unawaited(_returnToLatest());
+    if (pos.userScrollDirection == ScrollDirection.reverse) {
+      _requestAutomaticReturnToLatestIfNearLatest();
     }
     final nearBottom = _isNearBottom(80);
     if (_isAtLoadedBottom(1)) _autoScrollPolicy.returnToBottom();
@@ -1113,8 +1121,16 @@ class _ChatViewState extends State<ChatView> {
   }
 
   bool _onTranscriptUserScroll(UserScrollNotification notification) {
-    if (_initialTranscriptReady &&
-        notification.direction != ScrollDirection.idle) {
+    if (notification.direction == ScrollDirection.idle) {
+      final endedTowardLatest =
+          _lastTranscriptUserScrollDirection == ScrollDirection.reverse;
+      _lastTranscriptUserScrollDirection = ScrollDirection.idle;
+      _returnToLatestCoordinator.userDragEnded();
+      if (endedTowardLatest) {
+        _requestAutomaticReturnToLatestIfNearLatest();
+      }
+    } else if (_initialTranscriptReady) {
+      _lastTranscriptUserScrollDirection = notification.direction;
       _claimTranscriptViewport();
     }
     return false;
@@ -1197,10 +1213,12 @@ class _ChatViewState extends State<ChatView> {
     _scheduleShortTranscriptFill();
     _scheduleSessionScrollAnchorMaintenance();
     _scheduleRestoredBottomCorrection();
+    if (!_hasTranscriptPointerDown) _drainReturnToLatestIntent();
   }
 
   void _claimTranscriptViewport() {
     _cancelBottomFollow();
+    _returnToLatestCoordinator.cancelForUserDrag();
     ++_shortTranscriptFillGeneration;
     _transcriptViewportClaimedByUser = true;
     _showingFullyVisibleFirstContactHistory = false;
@@ -1472,13 +1490,14 @@ class _ChatViewState extends State<ChatView> {
     }
     _bottomScrollScheduled = true;
     _scheduledBottomAnimated = animated;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    scheduleChatPostFrame(() {
       final shouldAnimate = _scheduledBottomAnimated;
       final scheduledGeneration = _scheduledBottomGeneration;
       _bottomScrollScheduled = false;
       _scheduledBottomAnimated = true;
-      if (!_bottomFollow.isCurrent(scheduledGeneration) ||
-          !_canFollowLoadedBottom()) {
+      if (!_bottomFollow.isCurrent(scheduledGeneration)) return;
+      if (!_canFollowLoadedBottom()) {
+        _autoScrollPolicy.allowViewportPreservation();
         return;
       }
       // Re-measure after this frame's layout before choosing min (fully
@@ -1495,7 +1514,7 @@ class _ChatViewState extends State<ChatView> {
 
   Future<void> _moveToLoadedBottom({required bool animated}) async {
     if (!_canFollowLoadedBottom()) return;
-    _autoScrollPolicy.returnToBottom();
+    _autoScrollPolicy.requestReturnToBottom();
     final target = _loadedBottomOffset;
     final delta = (target - _scroll.position.pixels).abs();
     if (delta <= 0.5) return;
@@ -1525,57 +1544,90 @@ class _ChatViewState extends State<ChatView> {
     _bottomFollow.follow(
       generation: generation,
       remainingFrames: remainingFrames,
-      schedulePostFrame: (callback) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => callback());
-      },
+      schedulePostFrame: scheduleChatPostFrame,
       canFollow: _canFollowLoadedBottom,
       distanceToLatest: () =>
           (_loadedBottomOffset - _scroll.position.pixels).abs(),
       latestExtent: () => _loadedBottomOffset,
       correct: () => _scroll.jumpTo(_loadedBottomOffset),
       settled: () {
+        _autoScrollPolicy.returnToBottom();
         _markReadAtBottomIfNeeded();
         _clearBottomIndicatorsIfNeeded();
         _saveSessionScrollSnapshot();
       },
+      abandoned: _autoScrollPolicy.allowViewportPreservation,
     );
   }
 
   void _cancelBottomFollow() {
     _bottomFollow.cancel();
+    _autoScrollPolicy.allowViewportPreservation();
   }
 
-  Future<void> _returnToLatest() async {
-    if (_loadingLatestFromAnchor) return;
-    _cancelSessionScrollAnchorMaintenance();
-    _autoScrollPolicy.returnToBottom();
-    if (!_vm.anchoredHistory) {
-      _setScrollTarget(null);
-      if (_liveNewMessageCount > 0) {
-        setState(() {
-          _unreadProgress.clearLiveMessages();
-          _bannerDismissed = _vm.unreadCount <= 0;
-        });
+  bool get _showReturnToLatestProgress =>
+      _returnToLatestCoordinator.showProgress;
+
+  void _onReturnToLatestTapped() {
+    _requestReturnToLatest(userInitiated: true);
+  }
+
+  void _onReturnToLatestCoordinatorChanged() {
+    if (!mounted) return;
+    final failure = _returnToLatestCoordinator.takeFailure();
+    if (failure != null) {
+      _autoScrollPolicy.allowViewportPreservation();
+      if (failure.userInitiated) {
+        showToast(context, AppStringKeys.topicPostContentActionFailed);
       }
-      _scheduleScrollToBottom();
-      unawaited(_vm.markLoadedMessagesRead());
-      return;
     }
-    _loadingLatestFromAnchor = true;
+    setState(() {});
+  }
+
+  void _drainReturnToLatestIntent() {
+    if (!mounted || !_scroll.hasClients) return;
+    final intent = _returnToLatestCoordinator.takeReady(
+      pointerDown: _hasTranscriptPointerDown,
+    );
+    if (intent == null) return;
+    _cancelSessionScrollAnchorMaintenance();
+    _stopActiveTranscriptScroll();
+    _autoScrollPolicy.requestReturnToBottom();
     _setScrollTarget(null);
-    try {
-      final ok = await _vm.loadLatestHistory();
-      if (!ok) return;
-      if (!mounted) return;
+    if (intent.userInitiated || _liveNewMessageCount > 0) {
       setState(() {
         _unreadProgress.clearLiveMessages();
         _bannerDismissed = _vm.unreadCount <= 0;
       });
-      _scheduleScrollToBottom();
-      unawaited(_vm.markLoadedMessagesRead());
-    } finally {
-      _loadingLatestFromAnchor = false;
     }
+    _scheduleScrollToBottom();
+    unawaited(_vm.markLoadedMessagesRead());
+  }
+
+  void _requestReturnToLatest({bool userInitiated = false}) {
+    if (!userInitiated && _hasTranscriptPointerDown) return;
+    if (userInitiated) {
+      _cancelSessionScrollAnchorMaintenance();
+      _cancelBottomFollow();
+      _stopActiveTranscriptScroll();
+      _autoScrollPolicy.requestReturnToBottom();
+    }
+    _returnToLatestCoordinator.request(
+      userInitiated
+          ? ChatReturnToLatestSource.user
+          : ChatReturnToLatestSource.automatic,
+    );
+  }
+
+  void _requestAutomaticReturnToLatestIfNearLatest() {
+    if (!_vm.anchoredHistory ||
+        _hasTranscriptPointerDown ||
+        _scrollTargetId != null ||
+        !_scroll.hasClients ||
+        !isNearLatest(_scroll.position, threshold: 36)) {
+      return;
+    }
+    _requestReturnToLatest();
   }
 
   void _markReadAtBottomIfNeeded() {
@@ -1593,7 +1645,7 @@ class _ChatViewState extends State<ChatView> {
     _unreadProgress.clearLiveMessages();
     _bannerDismissed = true;
     if (_vm.anchoredHistory) {
-      unawaited(_returnToLatest());
+      _requestReturnToLatest(userInitiated: true);
       return;
     }
     _scheduleScrollToBottom();
@@ -1613,10 +1665,10 @@ class _ChatViewState extends State<ChatView> {
   void _onComposerMediaSendTapped() {
     _cancelSessionScrollAnchorMaintenance();
     _maintainRestoredBottom = false;
-    _autoScrollPolicy.returnToBottom();
+    _autoScrollPolicy.requestReturnToBottom();
     _setScrollTarget(null);
     if (_vm.anchoredHistory) {
-      unawaited(_returnToLatest());
+      _requestReturnToLatest(userInitiated: true);
       return;
     }
     _scheduleScrollToBottom(animated: false);
@@ -1919,6 +1971,7 @@ class _ChatViewState extends State<ChatView> {
 
   void _setScrollTarget(int? messageId) {
     if (messageId != null) {
+      _returnToLatestCoordinator.cancel();
       _maintainRestoredBottom = false;
       _cancelSessionScrollAnchorMaintenance();
       _cancelBottomFollow();
@@ -2310,8 +2363,9 @@ class _ChatViewState extends State<ChatView> {
   void _scrollToBottom() {
     if (!_scroll.hasClients) return;
     _cancelSessionScrollAnchorMaintenance();
-    _autoScrollPolicy.returnToBottom();
+    _autoScrollPolicy.requestReturnToBottom();
     if (_positionShortFirstContactHistoryIfItFits(requireAtLatest: false)) {
+      _autoScrollPolicy.returnToBottom();
       _markReadAtBottomIfNeeded();
       _clearBottomIndicatorsIfNeeded();
       return;
@@ -4935,8 +4989,9 @@ class _ChatViewState extends State<ChatView> {
   Widget _jumpToBottomButton() {
     final c = context.colors;
     return GestureDetector(
+      key: const ValueKey('chat-jump-to-bottom'),
       behavior: HitTestBehavior.opaque,
-      onTap: _returnToLatest,
+      onTap: _onReturnToLatestTapped,
       child: Container(
         width: 40,
         height: 40,
@@ -4953,11 +5008,9 @@ class _ChatViewState extends State<ChatView> {
             ),
           ],
         ),
-        child: AppIcon(
-          HeroAppIcons.angleDown,
-          size: 22,
-          color: c.textSecondary,
-        ),
+        child: _showReturnToLatestProgress
+            ? AppActivityIndicator(size: 18, color: c.textSecondary)
+            : AppIcon(HeroAppIcons.angleDown, size: 22, color: c.textSecondary),
       ),
     );
   }
@@ -4974,7 +5027,7 @@ class _ChatViewState extends State<ChatView> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: pointsDown
-          ? _returnToLatest
+          ? _onReturnToLatestTapped
           : () => unawaited(_jumpToFirstUnread()),
       child: Container(
         padding: EdgeInsetsDirectional.fromSTEB(
@@ -4998,11 +5051,14 @@ class _ChatViewState extends State<ChatView> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            AppIcon(
-              pointsDown ? HeroAppIcons.arrowDown : HeroAppIcons.arrowUp,
-              size: 14,
-              color: AppTheme.brand,
-            ),
+            if (pointsDown && _showReturnToLatestProgress)
+              AppActivityIndicator(size: 14, color: AppTheme.brand)
+            else
+              AppIcon(
+                pointsDown ? HeroAppIcons.arrowDown : HeroAppIcons.arrowUp,
+                size: 14,
+                color: AppTheme.brand,
+              ),
             const SizedBox(width: 5),
             Text(
               AppStrings.t(
