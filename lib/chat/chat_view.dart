@@ -5355,6 +5355,9 @@ class _ChatViewState extends State<ChatView> {
           if (_vm.businessBotUserId != 0) _businessBotManageBar(),
           ChatInputBar(
             vm: _vm,
+            quickRepliesEnabled: context
+                .watch<ThemeController>()
+                .quickRepliesEnabled,
             onStartCall: _startCall,
             onMessageSent: _onComposerMessageSent,
             onPanelGeometryChanged: _onComposerPanelGeometryChanged,
