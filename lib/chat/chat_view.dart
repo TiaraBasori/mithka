@@ -754,7 +754,10 @@ class _TranscriptEntry {
   ChatMessage get last => messages.last;
   bool get isBlockedRun =>
       messages.isNotEmpty && messages.every((message) => message.blockedByUser);
-  bool get isImageGroup => messages.length > 1 && !isBlockedRun;
+  ChatMediaAlbumKind? get mediaAlbumKind =>
+      messages.length > 1 && !isBlockedRun ? chatMediaAlbumKind(first) : null;
+  bool get isImageGroup => mediaAlbumKind == ChatMediaAlbumKind.visual;
+  bool get isDocumentGroup => mediaAlbumKind == ChatMediaAlbumKind.document;
 
   /// Stable identity for element reuse across index shifts (history pages
   /// prepend and shift every index).
@@ -2324,6 +2327,12 @@ class _ChatViewState extends State<ChatView> {
     if (entry.isImageGroup) {
       return extent + _estimatedImageGroupExtent(entry);
     }
+    if (entry.isDocumentGroup) {
+      final hasCaption = entry.messages.any(
+        (message) => message.text.trim().isNotEmpty,
+      );
+      return extent + entry.messages.length * 71 + (hasCaption ? 54 : 0) + 16;
+    }
     return extent + _estimatedMessageExtent(first);
   }
 
@@ -2899,10 +2908,21 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _messageBubble(ChatMessage message, int messageIndex) {
-    _vm.ensureMessageCapabilities(message);
+  Widget _messageBubble(
+    ChatMessage message,
+    int messageIndex, {
+    List<ChatMessage> groupedMedia = const <ChatMessage>[],
+  }) {
+    if (groupedMedia.isEmpty) {
+      _vm.ensureMessageCapabilities(message);
+    } else {
+      for (final member in groupedMedia) {
+        _vm.ensureMessageCapabilities(member);
+      }
+    }
     return MessageBubble(
       message: message,
+      groupedMedia: groupedMedia,
       peerTitle: _vm.peerTitle,
       peerPhoto: _vm.peerPhoto,
       isGroup: _vm.isGroup,
@@ -4650,21 +4670,7 @@ class _ChatViewState extends State<ChatView> {
   }
 
   String _editableMessageText(ChatMessage message) {
-    final text = message.text.trim();
-    if (text.isEmpty || (text.startsWith('[') && text.endsWith(']'))) return '';
-    final placeholders = <String>{
-      telegramText(AppStringKeys.composerImagePreview),
-      telegramText(AppStringKeys.chatVideoPlaceholder),
-      telegramText(AppStringKeys.composerAnimatedEmojiPreview),
-      telegramText(AppStringKeys.tdMessageGif),
-      telegramText(AppStringKeys.tdMessageMusic),
-      telegramText(AppStringKeys.channelsFileAttachment),
-      if (message.document != null)
-        telegramText(AppStringKeys.tdMessageFileWithName, {
-          'value1': message.document!.fileName,
-        }),
-    };
-    return placeholders.contains(text) ? '' : message.text;
+    return message.text.trim().isEmpty ? '' : message.text;
   }
 
   String _mediaLabel(ChatMessage message) => switch (message.contentType) {
@@ -6929,6 +6935,8 @@ class _ChatViewState extends State<ChatView> {
           _blockedMessagePlaceholder(context, entry)
         else if (entry.isImageGroup)
           _selectionEntry(entry, _imageGroupBubble(entry.messages))
+        else if (entry.isDocumentGroup)
+          _selectionEntry(entry, _documentGroupBubble(entry))
         else
           _selectionEntry(entry, _messageBubble(message, messageIndex)),
       ],
@@ -7189,7 +7197,7 @@ class _ChatViewState extends State<ChatView> {
         i = j;
         continue;
       }
-      if (!_canGroupImage(first)) {
+      if (chatMediaAlbumKind(first) == null || first.mediaAlbumId == 0) {
         entries.add(_TranscriptEntry([first], i));
         i++;
         continue;
@@ -7204,7 +7212,7 @@ class _ChatViewState extends State<ChatView> {
             _needsUnreadDivider(j, messages: messages)) {
           break;
         }
-        if (!_sameImageGroup(group.last, next)) break;
+        if (!areMessagesInSameMediaAlbum(group.last, next)) break;
         group.add(next);
         j++;
       }
@@ -7224,19 +7232,21 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  bool _canGroupImage(ChatMessage message) {
-    return !message.isService && message.isAlbumVisualMedia;
+  Widget _documentGroupBubble(_TranscriptEntry entry) {
+    final owner = _mediaAlbumInteractionOwner(entry.messages);
+    final ownerIndex = entry.startIndex + entry.messages.indexOf(owner);
+    return _messageBubble(owner, ownerIndex, groupedMedia: entry.messages);
   }
 
-  bool _sameImageGroup(ChatMessage previous, ChatMessage next) {
-    if (!_canGroupImage(next)) return false;
-    if (previous.isOutgoing != next.isOutgoing) return false;
-    if (previous.senderId != next.senderId) return false;
-    if (previous.mediaAlbumId != 0 || next.mediaAlbumId != 0) {
-      return previous.mediaAlbumId != 0 &&
-          previous.mediaAlbumId == next.mediaAlbumId;
+  ChatMessage _mediaAlbumInteractionOwner(List<ChatMessage> group) {
+    for (final message in group) {
+      if (message.commentCount > 0 ||
+          message.hasActualReplies ||
+          message.reactions.isNotEmpty) {
+        return message;
+      }
     }
-    return false;
+    return group.first;
   }
 
   Widget _imageGroupBubble(List<ChatMessage> group) {
@@ -7415,11 +7425,8 @@ class _ChatViewState extends State<ChatView> {
   }
 
   String _albumCaption(ChatMessage message) {
-    final text = message.text.trim();
-    if (text.isEmpty || (text.startsWith('[') && text.endsWith(']'))) return '';
-    final imagePlaceholder = telegramText(AppStringKeys.composerImagePreview);
-    final videoPlaceholder = telegramText(AppStringKeys.chatVideoPlaceholder);
-    return text == imagePlaceholder || text == videoPlaceholder ? '' : text;
+    final text = message.text;
+    return text.trim().isEmpty ? '' : text;
   }
 
   Widget _imageGroupTile(

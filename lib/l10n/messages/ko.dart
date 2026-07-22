@@ -258,7 +258,7 @@ const koMessages = <String, String>{
   'appearanceInterfaceSize': "인터페이스 크기",
   'appearanceInUseSize': "사용 중",
   'appearanceManage': "관리",
-  'appearanceMergeConsecutiveImages': "연속 이미지를 합쳐서 표시",
+  'appearanceMergeConsecutiveImages': "미디어 앨범 묶어 보기",
   'appearanceMode': "모드",
   'appearanceMonospaceFont': "고정폭 글꼴",
   'appearanceNoCleanableFonts': "정리할 항목 없음",

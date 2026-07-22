@@ -279,8 +279,7 @@ const deMessages = <String, String>{
   'appearanceInterfaceSize': "Oberflächengröße",
   'appearanceInUseSize': "In Verwendung",
   'appearanceManage': "Verwalten",
-  'appearanceMergeConsecutiveImages':
-      "Aufeinanderfolgende Bilder zusammen anzeigen",
+  'appearanceMergeConsecutiveImages': "Medienalben gruppieren",
   'appearanceMode': "Modus",
   'appearanceMonospaceFont': "Monospace-Schrift",
   'appearanceNoCleanableFonts': "Nichts zu bereinigen",

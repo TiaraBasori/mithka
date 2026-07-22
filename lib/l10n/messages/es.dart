@@ -278,7 +278,7 @@ const esMessages = <String, String>{
   'appearanceInterfaceSize': "Tamaño de la interfaz",
   'appearanceInUseSize': "En uso",
   'appearanceManage': "Gestionar",
-  'appearanceMergeConsecutiveImages': "Combinar imágenes consecutivas",
+  'appearanceMergeConsecutiveImages': "Agrupar álbumes multimedia",
   'appearanceMode': "Modo",
   'appearanceMonospaceFont': "Fuente monoespaciada",
   'appearanceNoCleanableFonts': "Nada para limpiar",

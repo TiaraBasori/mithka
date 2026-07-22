@@ -268,7 +268,7 @@ const enMessages = <String, String>{
   'appearanceInterfaceSize': "Interface Size",
   'appearanceInUseSize': "In Use",
   'appearanceManage': "Manage",
-  'appearanceMergeConsecutiveImages': "Merge Consecutive Images",
+  'appearanceMergeConsecutiveImages': "Group Media Albums",
   'appearanceMode': "Mode",
   'appearanceMonospaceFont': "Monospace Font",
   'appearanceNoCleanableFonts': "Nothing to clean",

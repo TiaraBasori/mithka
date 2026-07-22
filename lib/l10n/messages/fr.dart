@@ -279,7 +279,7 @@ const frMessages = <String, String>{
   'appearanceInterfaceSize': "Taille de l’interface",
   'appearanceInUseSize': "En cours d’utilisation",
   'appearanceManage': "Gérer",
-  'appearanceMergeConsecutiveImages': "Fusionner les images consécutives",
+  'appearanceMergeConsecutiveImages': "Regrouper les albums multimédias",
   'appearanceMode': "Mode",
   'appearanceMonospaceFont': "Police monospace",
   'appearanceNoCleanableFonts': "Rien à nettoyer",

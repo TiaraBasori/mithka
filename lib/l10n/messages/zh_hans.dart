@@ -244,7 +244,7 @@ const zhHansMessages = <String, String>{
   'appearanceInterfaceSize': "界面大小",
   'appearanceInUseSize': "正在使用",
   'appearanceManage': "管理",
-  'appearanceMergeConsecutiveImages': "连续图片合并显示",
+  'appearanceMergeConsecutiveImages': "合并显示媒体相册",
   'appearanceMode': "模式",
   'appearanceMonospaceFont': "等宽字体",
   'appearanceNoCleanableFonts': "无可清理",
