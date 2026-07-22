@@ -1390,6 +1390,7 @@ const esMessages = <String, String>{
   'privacyBlockedUsersEmpty': "La lista negra está vacía",
   'privacyCalls': "Llamadas",
   'privacyCurrentDevice': "Dispositivo actual",
+  'privacyDangerZone': "Zona de peligro",
   'privacyDeleteTelegramAccount': "Eliminar cuenta de Telegram",
   'privacyDeleteTelegramAccountMessage':
       "Las cuentas de Telegram son gestionadas por Telegram y pueden configurarse en Telegram para eliminarse automáticamente tras un periodo de inactividad. Para eliminarla antes, abre la página oficial de eliminación de cuenta de Telegram y completa la eliminación directamente con Telegram.",
@@ -2312,6 +2313,7 @@ const esMessages = <String, String>{
   'accountSecurityChangePhoneNumber': "Cambiar el número de teléfono",
   'accountSecurityConfirmNewPassword': "Confirmar nueva contraseña",
   'accountSecurityCurrentPassword': "Contraseña actual",
+  'accountSecurityDeleteAccountIfAwayFor': "Eliminar la cuenta por inactividad",
   'accountSecurityDeleteAccount': "Eliminar cuenta",
   'accountSecurityDeleteAccountVariant2': "Eliminar cuenta",
   'accountSecurityNewPassword': "Nueva contraseña",

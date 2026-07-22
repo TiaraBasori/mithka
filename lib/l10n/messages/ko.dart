@@ -1290,6 +1290,7 @@ const koMessages = <String, String>{
   'privacyBlockedUsersEmpty': "차단 목록이 비어 있습니다",
   'privacyCalls': "통화",
   'privacyCurrentDevice': "현재 기기",
+  'privacyDangerZone': "위험 구역",
   'privacyDeleteTelegramAccount': "Telegram 계정 삭제",
   'privacyDeleteTelegramAccountMessage':
       "Telegram 계정은 Telegram이 관리하며 Telegram 설정에서 일정 기간 비활성 상태 후 자동 삭제되도록 설정할 수 있습니다. 더 빨리 삭제하려면 Telegram 공식 계정 삭제 페이지를 열고 Telegram에서 직접 삭제를 완료하세요.",
@@ -2162,6 +2163,7 @@ const koMessages = <String, String>{
   'accountSecurityChangePhoneNumber': "전화번호 변경",
   'accountSecurityConfirmNewPassword': "새 비밀번호 확인",
   'accountSecurityCurrentPassword': "현재 비밀번호",
+  'accountSecurityDeleteAccountIfAwayFor': "일정 기간 미접속 시 계정 삭제",
   'accountSecurityDeleteAccount': "계정 삭제",
   'accountSecurityDeleteAccountVariant2': "계정 삭제",
   'accountSecurityNewPassword': "새로운 비밀번호",

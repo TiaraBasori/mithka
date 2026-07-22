@@ -1431,6 +1431,7 @@ const enMessages = <String, String>{
   'privacyBlockedUsersEmpty': "No blocked users",
   'privacyCalls': "Calls",
   'privacyCurrentDevice': "Current device",
+  'privacyDangerZone': "Danger Zone",
   'privacyDeleteTelegramAccount': "Delete Telegram account",
   'privacyDeleteTelegramAccountMessage':
       "Telegram accounts are managed by Telegram and can be set to delete automatically after a period of inactivity in Telegram settings. To delete sooner, open Telegram's official account deletion page and complete deletion directly with Telegram.",
@@ -2250,6 +2251,7 @@ const enMessages = <String, String>{
   'accountSecurityChangePhoneNumber': "Change Phone Number",
   'accountSecurityConfirmNewPassword': "Confirm new password",
   'accountSecurityCurrentPassword': "Current password",
+  'accountSecurityDeleteAccountIfAwayFor': "Delete Account If Away For",
   'accountSecurityDeleteAccount': "Delete Account",
   'accountSecurityDeleteAccountVariant2': "Delete account",
   'accountSecurityNewPassword': "New Password",

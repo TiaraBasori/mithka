@@ -1399,6 +1399,7 @@ const frMessages = <String, String>{
   'privacyBlockedUsersEmpty': "La liste noire est vide",
   'privacyCalls': "Appels",
   'privacyCurrentDevice': "Appareil actuel",
+  'privacyDangerZone': "Zone dangereuse",
   'privacyDeleteTelegramAccount': "Supprimer le compte Telegram",
   'privacyDeleteTelegramAccountMessage':
       "Les comptes Telegram sont gérés par Telegram et peuvent être configurés dans Telegram pour être supprimés automatiquement après une période d’inactivité. Pour supprimer plus tôt, ouvrez la page officielle de suppression de compte Telegram et terminez la suppression directement avec Telegram.",
@@ -2325,6 +2326,8 @@ const frMessages = <String, String>{
   'accountSecurityChangePhoneNumber': "Changer de numéro",
   'accountSecurityConfirmNewPassword': "Confirmer le nouveau mot de passe",
   'accountSecurityCurrentPassword': "Mot de passe actuel",
+  'accountSecurityDeleteAccountIfAwayFor':
+      "Supprimer le compte après inactivité",
   'accountSecurityDeleteAccount': "Supprimer le compte",
   'accountSecurityDeleteAccountVariant2': "Supprimer le compte",
   'accountSecurityNewPassword': "Nouveau mot de passe",

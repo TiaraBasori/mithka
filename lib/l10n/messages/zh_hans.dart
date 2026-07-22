@@ -1266,6 +1266,7 @@ const zhHansMessages = <String, String>{
   'privacyBlockedUsersEmpty': "黑名单为空",
   'privacyCalls': "通话",
   'privacyCurrentDevice': "当前设备",
+  'privacyDangerZone': "危险区域",
   'privacyDeleteTelegramAccount': "删除 Telegram 账号",
   'privacyDeleteTelegramAccountMessage':
       "Telegram 账号由 Telegram 管理，并可在 Telegram 设置中设为闲置一段时间后自动删除。若要更早删除，请打开 Telegram 官方账号删除页面，并直接通过 Telegram 完成删除。",
@@ -2129,6 +2130,7 @@ const zhHansMessages = <String, String>{
   'accountSecurityChangePhoneNumber': "更换手机号码",
   'accountSecurityConfirmNewPassword': "确认新密码",
   'accountSecurityCurrentPassword': "当前密码",
+  'accountSecurityDeleteAccountIfAwayFor': "离开多久后删除账号",
   'accountSecurityDeleteAccount': "删除帐户",
   'accountSecurityDeleteAccountVariant2': "删除帐户",
   'accountSecurityNewPassword': "新密码",

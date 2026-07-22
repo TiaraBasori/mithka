@@ -1805,6 +1805,7 @@ abstract final class AppStringKeys {
   static const privacyBlockedUsersEmpty = 'privacyBlockedUsersEmpty';
   static const privacyCalls = 'privacyCalls';
   static const privacyCurrentDevice = 'privacyCurrentDevice';
+  static const privacyDangerZone = 'privacyDangerZone';
   static const privacyDeleteTelegramAccount = 'privacyDeleteTelegramAccount';
   static const privacyDeleteTelegramAccountMessage =
       'privacyDeleteTelegramAccountMessage';
@@ -2693,6 +2694,8 @@ abstract final class AppStringKeys {
       'accountSecurityConfirmNewPassword';
   static const accountSecurityCurrentPassword =
       'accountSecurityCurrentPassword';
+  static const accountSecurityDeleteAccountIfAwayFor =
+      'accountSecurityDeleteAccountIfAwayFor';
   static const accountSecurityDeleteAccount = 'accountSecurityDeleteAccount';
   static const accountSecurityDeleteAccountVariant2 =
       'accountSecurityDeleteAccountVariant2';

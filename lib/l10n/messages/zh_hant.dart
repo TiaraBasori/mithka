@@ -1268,6 +1268,7 @@ const zhHantMessages = <String, String>{
   'privacyBlockedUsersEmpty': "黑名單為空",
   'privacyCalls': "通話",
   'privacyCurrentDevice': "目前裝置",
+  'privacyDangerZone': "危險區域",
   'privacyDeleteTelegramAccount': "刪除 Telegram 帳號",
   'privacyDeleteTelegramAccountMessage':
       "Telegram 帳號由 Telegram 管理，並可在 Telegram 設定中設為閒置一段時間後自動刪除。若要更早刪除，請開啟 Telegram 官方帳號刪除頁面，並直接透過 Telegram 完成刪除。",
@@ -2131,6 +2132,7 @@ const zhHantMessages = <String, String>{
   'accountSecurityChangePhoneNumber': "變更電話號碼",
   'accountSecurityConfirmNewPassword': "確認新密碼",
   'accountSecurityCurrentPassword': "目前密碼",
+  'accountSecurityDeleteAccountIfAwayFor': "離開多久後刪除帳號",
   'accountSecurityDeleteAccount': "刪除帳戶",
   'accountSecurityDeleteAccountVariant2': "刪除帳戶",
   'accountSecurityNewPassword': "新密碼",

@@ -1289,6 +1289,7 @@ const jaMessages = <String, String>{
   'privacyBlockedUsersEmpty': "ブロック済みユーザーはいません",
   'privacyCalls': "通話",
   'privacyCurrentDevice': "現在のデバイス",
+  'privacyDangerZone': "危険な操作",
   'privacyDeleteTelegramAccount': "Telegram アカウントを削除",
   'privacyDeleteTelegramAccountMessage':
       "Telegram アカウントは Telegram によって管理され、Telegram 設定で一定期間の未使用後に自動削除されるよう設定できます。早めに削除するには、Telegram 公式アカウント削除ページを開き、Telegram 上で直接削除を完了してください。",
@@ -2161,6 +2162,7 @@ const jaMessages = <String, String>{
   'accountSecurityChangePhoneNumber': "電話番号を変更",
   'accountSecurityConfirmNewPassword': "新しいパスワードを確認します",
   'accountSecurityCurrentPassword': "現在のパスワード",
+  'accountSecurityDeleteAccountIfAwayFor': "一定期間後にアカウントを削除",
   'accountSecurityDeleteAccount': "アカウントの削除",
   'accountSecurityDeleteAccountVariant2': "アカウントを削除する",
   'accountSecurityNewPassword': "新しいパスワード",

@@ -1400,6 +1400,7 @@ const deMessages = <String, String>{
   'privacyBlockedUsersEmpty': "Keine blockierten Nutzer",
   'privacyCalls': "Anrufe",
   'privacyCurrentDevice': "Aktuelles Gerät",
+  'privacyDangerZone': "Gefahrenbereich",
   'privacyDeleteTelegramAccount': "Telegram-Konto löschen",
   'privacyDeleteTelegramAccountMessage':
       "Telegram-Konten werden von Telegram verwaltet und können in den Telegram-Einstellungen so konfiguriert werden, dass sie nach einer Inaktivitätsperiode automatisch gelöscht werden. Um früher zu löschen, öffne die offizielle Telegram-Seite zur Kontolöschung und schließe die Löschung direkt bei Telegram ab.",
@@ -2323,6 +2324,7 @@ const deMessages = <String, String>{
   'accountSecurityChangePhoneNumber': "Nummer ändern",
   'accountSecurityConfirmNewPassword': "Bestätigen Sie das neue Passwort",
   'accountSecurityCurrentPassword': "Aktuelles Passwort",
+  'accountSecurityDeleteAccountIfAwayFor': "Konto bei Inaktivität löschen",
   'accountSecurityDeleteAccount': "Konto löschen",
   'accountSecurityDeleteAccountVariant2': "Konto löschen",
   'accountSecurityNewPassword': "Neues Passwort",
