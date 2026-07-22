@@ -245,6 +245,7 @@ abstract final class AppStringKeys {
   static const apiCredentialsCustomClientApi = 'apiCredentialsCustomClientApi';
   static const apiCredentialsDescription = 'apiCredentialsDescription';
   static const apiCredentialsTitle = 'apiCredentialsTitle';
+  static const apiCredentialsUserAgent = 'apiCredentialsUserAgent';
   static const aiInvalidEndpoint = 'aiInvalidEndpoint';
   static const aiInvalidModel = 'aiInvalidModel';
   static const aiAddModel = 'aiAddModel';

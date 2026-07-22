@@ -102,8 +102,10 @@ const zhHantMessages = <String, String>{
   'advancedNetwork': "網路",
   'advancedTitle': "進階",
   'apiCredentialsCustomClientApi': "自訂用戶端 API",
-  'apiCredentialsDescription': "使用你自己的 Telegram 用戶端 API 憑證。變更將於下次啟動或重新登入時生效。",
+  'apiCredentialsDescription':
+      "使用你自己的 Telegram 用戶端 API 憑證，並可覆寫 TDLib 回報的裝置、系統與 App 版本資訊。變更將於下次啟動或重新登入時生效。",
   'apiCredentialsTitle': "自訂 API 憑證",
+  'apiCredentialsUserAgent': "TDLib 使用者代理",
   'aiInvalidEndpoint':
       "請使用以 /v1/chat/completions 結尾的 HTTPS 網址。只有 localhost 可使用 HTTP。",
   'aiInvalidModel': "請輸入模型名稱和有效的上下文 Token 數量。",

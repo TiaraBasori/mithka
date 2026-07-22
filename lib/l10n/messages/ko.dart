@@ -112,8 +112,9 @@ const koMessages = <String, String>{
   'advancedTitle': "고급",
   'apiCredentialsCustomClientApi': "사용자 지정 클라이언트 API",
   'apiCredentialsDescription':
-      "본인의 Telegram 클라이언트 API 정보를 사용합니다. 변경 사항은 다음 실행 또는 재로그인 시 적용됩니다.",
+      "본인의 Telegram 클라이언트 API 정보를 사용하고 필요하면 TDLib가 보고하는 기기, 시스템, 앱 버전 값을 재정의합니다. 변경 사항은 다음 실행 또는 재로그인 시 적용됩니다.",
   'apiCredentialsTitle': "사용자 지정 API 인증 정보",
+  'apiCredentialsUserAgent': "TDLib 사용자 에이전트",
   'aiInvalidEndpoint':
       "/v1/chat/completions로 끝나는 HTTPS URL을 사용하세요. HTTP는 localhost에서만 허용됩니다.",
   'aiInvalidModel': "모델 이름과 올바른 컨텍스트 토큰 수를 입력하세요.",

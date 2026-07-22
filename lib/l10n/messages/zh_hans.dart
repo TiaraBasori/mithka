@@ -100,8 +100,10 @@ const zhHansMessages = <String, String>{
   'advancedNetwork': "网络",
   'advancedTitle': "高级",
   'apiCredentialsCustomClientApi': "自定义客户端 API",
-  'apiCredentialsDescription': "使用你自己的 Telegram 客户端 API 凭据。更改将在下次启动或重新登录时生效。",
+  'apiCredentialsDescription':
+      "使用你自己的 Telegram 客户端 API 凭据，并可覆盖 TDLib 上报的设备、系统和应用版本信息。更改将在下次启动或重新登录时生效。",
   'apiCredentialsTitle': "自定义 API 凭据",
+  'apiCredentialsUserAgent': "TDLib 用户代理",
   'aiInvalidEndpoint':
       "请使用以 /v1/chat/completions 结尾的 HTTPS 地址。只有 localhost 可使用 HTTP。",
   'aiInvalidModel': "请输入模型名称和有效的上下文 Token 数量。",

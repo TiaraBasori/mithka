@@ -117,8 +117,9 @@ const enMessages = <String, String>{
   'advancedTitle': "Advanced",
   'apiCredentialsCustomClientApi': "Custom Client API",
   'apiCredentialsDescription':
-      "Use your own Telegram client API credentials. Changes take effect on the next launch or after signing in again.",
+      "Use your own Telegram client API credentials and optionally override the device, system, and app version values reported by TDLib. Changes take effect on the next launch or after signing in again.",
   'apiCredentialsTitle': "Custom API Credentials",
+  'apiCredentialsUserAgent': "TDLib User Agent",
   'aiInvalidEndpoint':
       "Use an HTTPS URL ending in /v1/chat/completions. HTTP is allowed only for localhost.",
   'aiInvalidModel': "Enter a model name and a valid context token count.",

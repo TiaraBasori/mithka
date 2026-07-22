@@ -121,8 +121,9 @@ const esMessages = <String, String>{
   'advancedTitle': "Avanzado",
   'apiCredentialsCustomClientApi': "API de cliente personalizada",
   'apiCredentialsDescription':
-      "Usa tus propias credenciales de la API de cliente de Telegram. Los cambios se aplicarán en el próximo inicio o al volver a iniciar sesión.",
+      "Usa tus propias credenciales de la API de cliente de Telegram y, si quieres, sustituye los valores de dispositivo, sistema y versión de la app que comunica TDLib. Los cambios se aplicarán en el próximo inicio o al volver a iniciar sesión.",
   'apiCredentialsTitle': "Credenciales de API personalizadas",
+  'apiCredentialsUserAgent': "Agente de usuario de TDLib",
   'aiInvalidEndpoint':
       "Usa una URL HTTPS que termine en /v1/chat/completions. HTTP solo se permite para localhost.",
   'aiInvalidModel':

@@ -122,8 +122,9 @@ const frMessages = <String, String>{
   'advancedTitle': "Avancé",
   'apiCredentialsCustomClientApi': "API client personnalisée",
   'apiCredentialsDescription':
-      "Utilisez vos propres identifiants d’API client Telegram. Les modifications prendront effet au prochain démarrage ou après une nouvelle connexion.",
+      "Utilisez vos propres identifiants d’API client Telegram et remplacez éventuellement les valeurs d’appareil, de système et de version de l’app transmises par TDLib. Les modifications prendront effet au prochain démarrage ou après une nouvelle connexion.",
   'apiCredentialsTitle': "Identifiants d’API personnalisés",
+  'apiCredentialsUserAgent': "Agent utilisateur TDLib",
   'aiInvalidEndpoint':
       "Utilisez une URL HTTPS se terminant par /v1/chat/completions. HTTP n’est autorisé que pour localhost.",
   'aiInvalidModel':

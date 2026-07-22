@@ -111,8 +111,9 @@ const jaMessages = <String, String>{
   'advancedTitle': "詳細設定",
   'apiCredentialsCustomClientApi': "カスタムクライアント API",
   'apiCredentialsDescription':
-      "自分の Telegram クライアント API 情報を使用します。変更は次回起動時または再ログイン時に有効になります。",
+      "自分の Telegram クライアント API 情報を使用し、必要に応じて TDLib が送信する端末、システム、アプリのバージョン情報を上書きします。変更は次回起動時または再ログイン時に有効になります。",
   'apiCredentialsTitle': "カスタム API 認証情報",
+  'apiCredentialsUserAgent': "TDLib ユーザーエージェント",
   'aiInvalidEndpoint':
       "/v1/chat/completions で終わる HTTPS URL を使用してください。HTTP は localhost でのみ使用できます。",
   'aiInvalidModel': "モデル名と有効なコンテキストトークン数を入力してください。",

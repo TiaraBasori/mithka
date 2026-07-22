@@ -120,8 +120,9 @@ const deMessages = <String, String>{
   'advancedTitle': "Erweitert",
   'apiCredentialsCustomClientApi': "Eigene Client-API",
   'apiCredentialsDescription':
-      "Verwende deine eigenen Telegram-Client-API-Zugangsdaten. Änderungen gelten ab dem nächsten Start oder nach erneuter Anmeldung.",
+      "Verwende deine eigenen Telegram-Client-API-Zugangsdaten und überschreibe optional die von TDLib gemeldeten Geräte-, System- und App-Versionen. Änderungen gelten ab dem nächsten Start oder nach erneuter Anmeldung.",
   'apiCredentialsTitle': "Eigene API-Zugangsdaten",
+  'apiCredentialsUserAgent': "TDLib-Benutzeragent",
   'aiInvalidEndpoint':
       "Verwende eine HTTPS-URL, die mit /v1/chat/completions endet. HTTP ist nur für localhost erlaubt.",
   'aiInvalidModel': "Modellname und gültige Kontext-Tokenanzahl eingeben.",
