@@ -68,7 +68,11 @@ import UserNotifications
       options.environment = environment
       options.releaseName = Self.sentryReleaseName(info: info)
       options.sendDefaultPii = false
-      options.tracesSampleRate = 0.0
+      // SentryFlutter configures Dart transactions later, but its iOS bridge
+      // does not copy `tracesSampleRate` into an already-started native SDK.
+      // Keep this in lockstep with `sentryTracesSampleRate` so TestFlight
+      // builds also emit the sampled app-start/native performance traces.
+      options.tracesSampleRate = 0.02
       options.enableWatchdogTerminationTracking = true
     }
   }
