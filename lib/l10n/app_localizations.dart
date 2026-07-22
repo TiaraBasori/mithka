@@ -246,14 +246,22 @@ abstract final class AppStringKeys {
   static const apiCredentialsDescription = 'apiCredentialsDescription';
   static const apiCredentialsTitle = 'apiCredentialsTitle';
   static const aiInvalidEndpoint = 'aiInvalidEndpoint';
+  static const aiInvalidModel = 'aiInvalidModel';
+  static const aiAddModel = 'aiAddModel';
   static const aiAddProvider = 'aiAddProvider';
+  static const aiAddProviderFirst = 'aiAddProviderFirst';
   static const aiContextWindow = 'aiContextWindow';
   static const aiContextDetected = 'aiContextDetected';
   static const aiContextManual = 'aiContextManual';
   static const aiDeleteProvider = 'aiDeleteProvider';
+  static const aiDeleteModel = 'aiDeleteModel';
+  static const aiEnterModelManually = 'aiEnterModelManually';
+  static const aiModelProvider = 'aiModelProvider';
+  static const aiModels = 'aiModels';
   static const aiModelsFailed = 'aiModelsFailed';
   static const aiModelsLoaded = 'aiModelsLoaded';
   static const aiNoProvider = 'aiNoProvider';
+  static const aiNoModel = 'aiNoModel';
   static const aiOnDevicePrivacy = 'aiOnDevicePrivacy';
   static const aiOnDeviceUnavailableDescription =
       'aiOnDeviceUnavailableDescription';
@@ -272,6 +280,8 @@ abstract final class AppStringKeys {
   static const aiProviders = 'aiProviders';
   static const aiRefreshModels = 'aiRefreshModels';
   static const aiSave = 'aiSave';
+  static const aiSaveModel = 'aiSaveModel';
+  static const aiSaveProvider = 'aiSaveProvider';
   static const aiSaved = 'aiSaved';
   static const aiServerApiKey = 'aiServerApiKey';
   static const aiServerApiKeyOptional = 'aiServerApiKeyOptional';
@@ -803,6 +813,8 @@ abstract final class AppStringKeys {
   static const chatTodoSetSuccess = 'chatTodoSetSuccess';
   static const chatTodoUnsetFailed = 'chatTodoUnsetFailed';
   static const chatTodoUnsetSuccess = 'chatTodoUnsetSuccess';
+  static const chatTranslationShowOriginal = 'chatTranslationShowOriginal';
+  static const chatTranslationTranslateTo = 'chatTranslationTranslateTo';
   static const chatTranslateFailed = 'chatTranslateFailed';
   static const chatTyping = 'chatTyping';
   static const chatUnmute = 'chatUnmute';
@@ -2424,6 +2436,8 @@ abstract final class AppStringKeys {
   static const transferBoostUploadSection = 'transferBoostUploadSection';
   static const translationInternalNoExternalApi =
       'translationInternalNoExternalApi';
+  static const translationAiProviderUnavailable =
+      'translationAiProviderUnavailable';
   static const translationLibreTranslateNoResult =
       'translationLibreTranslateNoResult';
   static const translationLibreTranslateUrlRequired =
@@ -2442,9 +2456,38 @@ abstract final class AppStringKeys {
       'translationServiceReturnedStatus';
   static const translationServiceUrlInvalid = 'translationServiceUrlInvalid';
   static const translationSettingsService = 'translationSettingsService';
+  static const translationSettingsAiDescription =
+      'translationSettingsAiDescription';
+  static const translationSettingsAiEnabled = 'translationSettingsAiEnabled';
+  static const translationSettingsAiProvider = 'translationSettingsAiProvider';
+  static const translationSettingsAiPrompt = 'translationSettingsAiPrompt';
+  static const translationSettingsAiPromptCustom =
+      'translationSettingsAiPromptCustom';
+  static const translationSettingsAiPromptDefault =
+      'translationSettingsAiPromptDefault';
+  static const translationSettingsAiPromptDescription =
+      'translationSettingsAiPromptDescription';
+  static const translationSettingsAiPromptEmpty =
+      'translationSettingsAiPromptEmpty';
+  static const translationSettingsAiPromptReset =
+      'translationSettingsAiPromptReset';
+  static const translationSettingsAiPromptSave =
+      'translationSettingsAiPromptSave';
+  static const translationSettingsAiSection = 'translationSettingsAiSection';
+  static const translationSettingsShowTranslateButton =
+      'translationSettingsShowTranslateButton';
+  static const translationSettingsDoNotTranslate =
+      'translationSettingsDoNotTranslate';
+  static const translationSettingsLanguageCount =
+      'translationSettingsLanguageCount';
+  static const translationSettingsNone = 'translationSettingsNone';
   static const translationSettingsTargetLanguage =
       'translationSettingsTargetLanguage';
+  static const translationSettingsStandardSection =
+      'translationSettingsStandardSection';
   static const translationSettingsTitle = 'translationSettingsTitle';
+  static const translationSettingsTranslateChats =
+      'translationSettingsTranslateChats';
   static const translationSystem = 'translationSystem';
   static const translationTelegram = 'translationTelegram';
   static const updateAction = 'updateAction';

@@ -124,17 +124,25 @@ const deMessages = <String, String>{
   'apiCredentialsTitle': "Eigene API-Zugangsdaten",
   'aiInvalidEndpoint':
       "Verwende eine HTTPS-URL, die mit /v1/chat/completions endet. HTTP ist nur für localhost erlaubt.",
+  'aiInvalidModel': "Modellname und gültige Kontext-Tokenanzahl eingeben.",
+  'aiAddModel': "Modell hinzufügen",
   'aiAddProvider': "Anbieter hinzufügen",
+  'aiAddProviderFirst': "Zuerst einen Anbieter hinzufügen",
   'aiContextWindow': "Kontext-Token",
   'aiContextDetected': "Vom Anbieter erkannt",
   'aiContextManual': "Nicht gemeldet; bitte manuell prüfen",
   'aiDeleteProvider': "Anbieter löschen",
+  'aiDeleteModel': "Ausgewähltes Modell löschen",
+  'aiEnterModelManually': "Modell manuell eingeben",
+  'aiModelProvider': "Bereitgestellt von {value1}",
+  'aiModels': "Modelle",
   'aiModelsFailed':
       "Modelle konnten nicht geladen werden. Prüfe Endpunkt und API-Schlüssel.",
   'aiModelsLoaded': "{value1} Modelle geladen",
   'aiNoProvider': "Kein Anbieter ausgewählt",
+  'aiNoModel': "Kein Modell ausgewählt",
   'aiOnDevicePrivacy':
-      "Ungelesene Nachrichten werden vollständig auf diesem Gerät mit Apple Intelligence verarbeitet und nicht an einen Server gesendet.",
+      "Text für KI-Funktionen wird vollständig auf diesem Gerät mit Apple Intelligence verarbeitet und nicht an einen Server gesendet.",
   'aiOnDeviceUnavailableDescription':
       "Das On-Device-Modell erfordert ein unterstütztes Apple-Intelligence-Gerät, iOS 26 oder neuer und ein geladenes Modell.",
   'aiTokenContext': "{value1}K-Token-Kontextfenster",
@@ -142,7 +150,7 @@ const deMessages = <String, String>{
   'aiOutputSameLanguage': "Gleiche Sprache wie die ungelesenen Nachrichten",
   'aiPccAvailable': "Auf diesem Gerät verfügbar",
   'aiPccPrivacy':
-      "Ungelesene Nachrichten werden mit Apple Private Cloud Compute verarbeitet und nicht an den konfigurierten Server gesendet.",
+      "Text für KI-Funktionen wird mit Apple Private Cloud Compute verarbeitet und nicht an den konfigurierten Server gesendet.",
   'aiPccUnavailable': "Auf diesem Gerät nicht verfügbar",
   'aiPccUnavailableDescription':
       "Private Cloud Compute erfordert ein unterstütztes Apple-Gerät, eine kompatible Softwareversion und verfügbares Apple Intelligence.",
@@ -155,6 +163,8 @@ const deMessages = <String, String>{
   'aiProviders': "Anbieter",
   'aiRefreshModels': "Modelle laden",
   'aiSave': "Konfiguration speichern",
+  'aiSaveModel': "Modell speichern",
+  'aiSaveProvider': "Anbieter speichern",
   'aiSaved': "KI-Einstellungen gespeichert",
   'aiServerApiKey': "API-Schlüssel",
   'aiServerApiKeyOptional': "Optional für lokale oder schlüssellose Server",
@@ -163,7 +173,7 @@ const deMessages = <String, String>{
   'aiServerModel': "Modell",
   'aiServerModelHint': "Modellname",
   'aiServerPrivacy':
-      "Der Text ungelesener Nachrichten wird an diesen Endpunkt gesendet. Dein API-Schlüssel bleibt im sicheren Speicher dieses Geräts.",
+      "Text für aktivierte KI-Funktionen wird an diesen Endpunkt gesendet. Dein API-Schlüssel bleibt im sicheren Speicher dieses Geräts.",
   'aiSettingsTitle': "KI-Einstellungen",
   'aiSummaryActions': "Aufgaben",
   'aiSummaryAssembling': "Zusammenfassung wird zusammengestellt…",
@@ -1896,6 +1906,8 @@ const deMessages = <String, String>{
   'transferBoostUploadSection': "Upload",
   'translationInternalNoExternalApi':
       "Interne Übersetzung nutzt keine externe API",
+  'translationAiProviderUnavailable':
+      "Konfiguriere zuerst einen verfügbaren Anbieter in den KI-Einstellungen.",
   'translationLibreTranslateNoResult':
       "LibreTranslate hat keine Übersetzung zurückgegeben",
   'translationLibreTranslateUrlRequired':
@@ -1915,8 +1927,30 @@ const deMessages = <String, String>{
   'translationServiceUrlInvalid':
       "Adresse des Übersetzungsdienstes ist ungültig",
   'translationSettingsService': "Übersetzungsdienst",
+  'translationSettingsAiDescription':
+      "Die KI-Übersetzung verwendet den in den KI-Einstellungen konfigurierten Anbieter. Chattext wird nur beim Übersetzen einer Nachricht oder nach Aktivierung für diesen Chat gesendet.",
+  'translationSettingsAiEnabled': "KI für Übersetzungen verwenden",
+  'translationSettingsAiProvider': "KI-Anbieter",
+  'translationSettingsAiPrompt': "Übersetzungsanweisung",
+  'translationSettingsAiPromptCustom': "Benutzerdefiniert",
+  'translationSettingsAiPromptDefault': "Standard",
+  'translationSettingsAiPromptDescription':
+      "Bearbeite die Anweisungen für die KI. Ausgangs- und Zielsprache, der letzte Kontext und die aktuelle Nachricht werden automatisch als strukturierte Daten ergänzt.",
+  'translationSettingsAiPromptEmpty':
+      "Die Übersetzungsanweisung darf nicht leer sein.",
+  'translationSettingsAiPromptReset': "Auf Standard zurücksetzen",
+  'translationSettingsAiPromptSave': "Anweisung speichern",
+  'translationSettingsAiSection': "KI-Übersetzung",
+  'translationSettingsShowTranslateButton': "Übersetzen-Schaltfläche anzeigen",
+  'translationSettingsDoNotTranslate': "Nicht übersetzen",
+  'translationSettingsLanguageCount': "{value1} Sprachen",
+  'translationSettingsNone': "Keine",
   'translationSettingsTargetLanguage': "Zielsprache",
+  'translationSettingsStandardSection': "Standardübersetzung",
   'translationSettingsTitle': "Nachrichtenübersetzung",
+  'translationSettingsTranslateChats': "Ganze Chats übersetzen",
+  'chatTranslationShowOriginal': "Original anzeigen",
+  'chatTranslationTranslateTo': "In {value1} übersetzen",
   'translationSystem': "Systemübersetzung",
   'translationTelegram': "Telegram-Übersetzung",
   'updateAction': "Aktualisieren",

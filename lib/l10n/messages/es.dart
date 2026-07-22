@@ -125,17 +125,26 @@ const esMessages = <String, String>{
   'apiCredentialsTitle': "Credenciales de API personalizadas",
   'aiInvalidEndpoint':
       "Usa una URL HTTPS que termine en /v1/chat/completions. HTTP solo se permite para localhost.",
+  'aiInvalidModel':
+      "Introduce un modelo y una cantidad válida de tokens de contexto.",
+  'aiAddModel': "Añadir modelo",
   'aiAddProvider': "Añadir proveedor",
+  'aiAddProviderFirst': "Añade primero un proveedor",
   'aiContextWindow': "Tokens de contexto",
   'aiContextDetected': "Detectado por el proveedor",
   'aiContextManual': "No indicado; compruébalo manualmente",
   'aiDeleteProvider': "Eliminar proveedor",
+  'aiDeleteModel': "Eliminar modelo seleccionado",
+  'aiEnterModelManually': "Introducir modelo manualmente",
+  'aiModelProvider': "Proporcionado por {value1}",
+  'aiModels': "Modelos",
   'aiModelsFailed':
       "No se pudieron cargar los modelos. Revisa el punto de conexión y la clave de API.",
   'aiModelsLoaded': "Se cargaron {value1} modelos",
   'aiNoProvider': "Ningún proveedor seleccionado",
+  'aiNoModel': "Ningún modelo seleccionado",
   'aiOnDevicePrivacy':
-      "Los mensajes no leídos se procesan por completo en este dispositivo con Apple Intelligence y no se envían a un servidor.",
+      "El texto usado por las funciones de IA se procesa por completo en este dispositivo con Apple Intelligence y no se envía a un servidor.",
   'aiOnDeviceUnavailableDescription':
       "El modelo local requiere un dispositivo compatible con Apple Intelligence, iOS 26 o posterior y un modelo descargado.",
   'aiTokenContext': "Ventana de contexto de {value1}K tokens",
@@ -143,7 +152,7 @@ const esMessages = <String, String>{
   'aiOutputSameLanguage': "El mismo idioma que los mensajes no leídos",
   'aiPccAvailable': "Disponible en este dispositivo",
   'aiPccPrivacy':
-      "Los mensajes no leídos se procesan con Apple Private Cloud Compute y no se envían al servidor configurado.",
+      "El texto usado por las funciones de IA se procesa con Apple Private Cloud Compute y no se envía al servidor configurado.",
   'aiPccUnavailable': "No disponible en este dispositivo",
   'aiPccUnavailableDescription':
       "Private Cloud Compute requiere un dispositivo Apple y una versión de software compatibles, además de Apple Intelligence disponible.",
@@ -156,6 +165,8 @@ const esMessages = <String, String>{
   'aiProviders': "Proveedores",
   'aiRefreshModels': "Cargar modelos",
   'aiSave': "Guardar configuración",
+  'aiSaveModel': "Guardar modelo",
+  'aiSaveProvider': "Guardar proveedor",
   'aiSaved': "Ajustes de IA guardados",
   'aiServerApiKey': "Clave de API",
   'aiServerApiKeyOptional': "Opcional para servidores locales o sin clave",
@@ -164,7 +175,7 @@ const esMessages = <String, String>{
   'aiServerModel': "Modelo",
   'aiServerModelHint': "Nombre del modelo",
   'aiServerPrivacy':
-      "El texto de los mensajes no leídos se envía a este punto de conexión. La clave de API permanece en el almacenamiento seguro del dispositivo.",
+      "El texto usado por las funciones de IA activadas se envía a este punto de conexión. La clave de API permanece en el almacenamiento seguro del dispositivo.",
   'aiSettingsTitle': "Ajustes de IA",
   'aiSummaryActions': "Tareas",
   'aiSummaryAssembling': "Preparando el resumen…",
@@ -1883,6 +1894,8 @@ const esMessages = <String, String>{
   'transferBoostUploadSection': "Subida",
   'translationInternalNoExternalApi':
       "La traducción interna no usa API externas",
+  'translationAiProviderUnavailable':
+      "Configura primero un proveedor disponible en Ajustes de IA.",
   'translationLibreTranslateNoResult':
       "LibreTranslate no devolvió ninguna traducción",
   'translationLibreTranslateUrlRequired':
@@ -1903,8 +1916,30 @@ const esMessages = <String, String>{
   'translationServiceUrlInvalid':
       "Dirección del servicio de traducción no válida",
   'translationSettingsService': "Servicio de traducción",
+  'translationSettingsAiDescription':
+      "La traducción con IA usa el proveedor configurado en Ajustes de IA. El texto del chat solo se envía al traducir un mensaje o activar la traducción para ese chat.",
+  'translationSettingsAiEnabled': "Usar IA para traducir",
+  'translationSettingsAiProvider': "Proveedor de IA",
+  'translationSettingsAiPrompt': "Instrucciones de traducción",
+  'translationSettingsAiPromptCustom': "Personalizadas",
+  'translationSettingsAiPromptDefault': "Predeterminadas",
+  'translationSettingsAiPromptDescription':
+      "Edita las instrucciones enviadas a la IA. Los idiomas de origen y destino, el contexto reciente y el mensaje actual se añaden automáticamente como datos estructurados.",
+  'translationSettingsAiPromptEmpty':
+      "Las instrucciones de traducción no pueden estar vacías.",
+  'translationSettingsAiPromptReset': "Restablecer valores predeterminados",
+  'translationSettingsAiPromptSave': "Guardar instrucciones",
+  'translationSettingsAiSection': "Traducción con IA",
+  'translationSettingsShowTranslateButton': "Mostrar botón Traducir",
+  'translationSettingsDoNotTranslate': "No traducir",
+  'translationSettingsLanguageCount': "{value1} idiomas",
+  'translationSettingsNone': "Ninguno",
   'translationSettingsTargetLanguage': "Idioma de destino",
+  'translationSettingsStandardSection': "Traducción estándar",
   'translationSettingsTitle': "Traducción de mensajes",
+  'translationSettingsTranslateChats': "Traducir chats enteros",
+  'chatTranslationShowOriginal': "Mostrar original",
+  'chatTranslationTranslateTo': "Traducir al {value1}",
   'translationSystem': "Traducción del sistema",
   'translationTelegram': "Traducción de Telegram",
   'updateAction': "Actualizar",
