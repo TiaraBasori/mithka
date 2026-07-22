@@ -242,7 +242,6 @@ const frMessages = <String, String>{
   'appearanceClearTextFonts': "Effacer les polices de texte",
   'appearanceColor': "Couleur",
   'appearanceDisableChatListSwipeActions': "Désactiver les balayages",
-  'appearanceDisplay': "Affichage",
   'appearanceSavedMessagesBookmarkView':
       "Vue des signets des Messages enregistrés",
   'appearanceGestures': "Gestes",
@@ -298,7 +297,7 @@ const frMessages = <String, String>{
   'appearanceShowPremiumNameColor': "Couleurs de nom Premium",
   'appearanceShowPremiumStatusEmoji': "Emoji de statut Premium",
   'appearanceShowUnreadChatCount': "Discussions non lues",
-  'appearanceSize': "Taille",
+  'appearanceSize': "Interface",
   'appearanceSystem': "Système",
   'appearanceSystemEmojiFont': "Police emoji système",
   'appearanceTextFont': "Police de texte",

@@ -242,7 +242,6 @@ const deMessages = <String, String>{
   'appearanceClearTextFonts': "Textschriften löschen",
   'appearanceColor': "Farbe",
   'appearanceDisableChatListSwipeActions': "Wischaktionen deaktivieren",
-  'appearanceDisplay': "Anzeige",
   'appearanceSavedMessagesBookmarkView':
       "Lesezeichenansicht für gespeicherte Nachrichten",
   'appearanceGestures': "Gesten",
@@ -298,7 +297,7 @@ const deMessages = <String, String>{
   'appearanceShowPremiumNameColor': "Premium-Namensfarben",
   'appearanceShowPremiumStatusEmoji': "Premium-Status-emoji",
   'appearanceShowUnreadChatCount': "Ungelesene Chats",
-  'appearanceSize': "Größe",
+  'appearanceSize': "Oberfläche",
   'appearanceSystem': "System",
   'appearanceSystemEmojiFont': "System-emoji-Schrift",
   'appearanceTextFont': "Textschrift",

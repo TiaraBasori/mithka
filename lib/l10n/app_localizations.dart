@@ -354,7 +354,6 @@ abstract final class AppStringKeys {
   static const appearanceColor = 'appearanceColor';
   static const appearanceDisableChatListSwipeActions =
       'appearanceDisableChatListSwipeActions';
-  static const appearanceDisplay = 'appearanceDisplay';
   static const appearanceSavedMessagesBookmarkView =
       'appearanceSavedMessagesBookmarkView';
   static const appearanceGestures = 'appearanceGestures';

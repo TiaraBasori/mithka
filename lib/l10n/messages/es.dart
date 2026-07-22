@@ -241,7 +241,6 @@ const esMessages = <String, String>{
   'appearanceClearTextFonts': "Borrar fuentes de texto",
   'appearanceColor': "Color",
   'appearanceDisableChatListSwipeActions': "Desactivar gestos laterales",
-  'appearanceDisplay': "Pantalla",
   'appearanceSavedMessagesBookmarkView':
       "Vista de marcadores de Mensajes guardados",
   'appearanceGestures': "Gestos",
@@ -295,7 +294,7 @@ const esMessages = <String, String>{
   'appearanceShowPremiumNameColor': "Colores de nombre Premium",
   'appearanceShowPremiumStatusEmoji': "Emoji de estado Premium",
   'appearanceShowUnreadChatCount': "Chats sin leer",
-  'appearanceSize': "Tamaño",
+  'appearanceSize': "Interfaz",
   'appearanceSystem': "Sistema",
   'appearanceSystemEmojiFont': "Fuente de emoji del sistema",
   'appearanceTextFont': "Fuente de texto",
