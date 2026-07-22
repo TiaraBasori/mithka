@@ -257,7 +257,7 @@ const zhHansMessages = <String, String>{
   'appearanceShowEditAndReadMarks': "显示编辑和已读标记",
   'appearanceShowGroupMemberTitles': "群成员显示头衔",
   'appearanceShowPlainMemberRoleTags': "显示普通成员标签",
-  'appearanceShowPremiumNameColor': "Premium 名字颜色",
+  'appearanceShowNameColors': "名字颜色",
   'appearanceShowPremiumStatusEmoji': "Premium 状态表情",
   'appearanceShowUnreadChatCount': "未读会话数",
   'appearanceSize': "界面",

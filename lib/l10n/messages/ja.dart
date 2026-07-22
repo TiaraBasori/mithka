@@ -270,7 +270,7 @@ const jaMessages = <String, String>{
   'appearanceShowEditAndReadMarks': "編集済み・既読マークを表示",
   'appearanceShowGroupMemberTitles': "グループメンバーの肩書きを表示",
   'appearanceShowPlainMemberRoleTags': "一般メンバーバッジを表示",
-  'appearanceShowPremiumNameColor': "Premium の名前色",
+  'appearanceShowNameColors': "名前の色",
   'appearanceShowPremiumStatusEmoji': "Premium ステータス emoji",
   'appearanceShowUnreadChatCount': "未読チャット数",
   'appearanceSize': "インターフェース",

@@ -405,9 +405,8 @@ class _MessageBubbleState extends State<MessageBubble>
     final senderNameColor = messageNameColorForSender(
       theme: cloudTheme,
       accentColorId: message.senderAccentColorId,
-      isPremium: message.senderIsPremium,
-      showPremiumColors: theme.showChatPremiumNameColors,
-      premiumColorsDisabledFallback: cloudTheme?.senderNameColor ?? c.linkBlue,
+      showNameColors: theme.showChatNameColors,
+      nameColorsDisabledFallback: cloudTheme?.senderNameColor ?? c.linkBlue,
     );
     final showPremiumStatus =
         theme.showChatPremiumEmojiStatus &&

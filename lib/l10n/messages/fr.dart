@@ -294,7 +294,7 @@ const frMessages = <String, String>{
   'appearanceShowGroupMemberTitles':
       "Afficher les titres des membres du groupe",
   'appearanceShowPlainMemberRoleTags': "Afficher les badges de membre simples",
-  'appearanceShowPremiumNameColor': "Couleurs de nom Premium",
+  'appearanceShowNameColors': "Couleurs de nom",
   'appearanceShowPremiumStatusEmoji': "Emoji de statut Premium",
   'appearanceShowUnreadChatCount': "Discussions non lues",
   'appearanceSize': "Interface",

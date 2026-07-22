@@ -294,7 +294,7 @@ const deMessages = <String, String>{
       "Bearbeitet- und Gelesen-Markierungen anzeigen",
   'appearanceShowGroupMemberTitles': "Titel von Gruppenmitgliedern anzeigen",
   'appearanceShowPlainMemberRoleTags': "Einfache Mitgliederabzeichen anzeigen",
-  'appearanceShowPremiumNameColor': "Premium-Namensfarben",
+  'appearanceShowNameColors': "Namensfarben",
   'appearanceShowPremiumStatusEmoji': "Premium-Status-emoji",
   'appearanceShowUnreadChatCount': "Ungelesene Chats",
   'appearanceSize': "Oberfläche",

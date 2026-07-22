@@ -291,7 +291,7 @@ const esMessages = <String, String>{
   'appearanceShowEditAndReadMarks': "Mostrar marcas de edición y lectura",
   'appearanceShowGroupMemberTitles': "Mostrar cargos de miembros del grupo",
   'appearanceShowPlainMemberRoleTags': "Mostrar insignias de miembro simples",
-  'appearanceShowPremiumNameColor': "Colores de nombre Premium",
+  'appearanceShowNameColors': "Colores de nombre",
   'appearanceShowPremiumStatusEmoji': "Emoji de estado Premium",
   'appearanceShowUnreadChatCount': "Chats sin leer",
   'appearanceSize': "Interfaz",

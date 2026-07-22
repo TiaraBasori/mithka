@@ -79,6 +79,26 @@ void main() {
     }
   });
 
+  test('name colors are described without a Premium restriction', () {
+    const expected = <String, String>{
+      'zhHans': '名字颜色',
+      'zhHant': '名稱顏色',
+      'ja': '名前の色',
+      'ko': '이름 색상',
+      'en': 'Name colors',
+      'fr': 'Couleurs de nom',
+      'es': 'Colores de nombre',
+      'de': 'Namensfarben',
+    };
+
+    for (final entry in expected.entries) {
+      expect(
+        localeTables[entry.key]?[AppStringKeys.appearanceShowNameColors],
+        entry.value,
+      );
+    }
+  });
+
   test('placeholders match the English source in every locale', () {
     for (final entry in localeTables.entries) {
       for (final kv in entry.value.entries) {

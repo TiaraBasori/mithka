@@ -527,7 +527,7 @@ class ChatSummary {
   int archiveOrder; // > 0 when the chat is in the Archive list
   bool isMarkedUnread; // "标为未读" with no unread count
   String draftText; // unsent draft; shown as "[草稿]" prefix when non-empty
-  int? peerUserId; // private/secret chat peer, used for chat-list Premium UI
+  int? peerUserId; // private/secret chat peer, used for chat-list identity UI
   bool peerIsContact;
   String? peerPhoneNumber;
   bool peerIsPremium;

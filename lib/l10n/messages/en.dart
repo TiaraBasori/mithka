@@ -281,7 +281,7 @@ const enMessages = <String, String>{
   'appearanceShowEditAndReadMarks': "Show Edit and Read Marks",
   'appearanceShowGroupMemberTitles': "Show Group Member Titles",
   'appearanceShowPlainMemberRoleTags': "Show Plain Member Badges",
-  'appearanceShowPremiumNameColor': "Premium name colors",
+  'appearanceShowNameColors': "Name colors",
   'appearanceShowPremiumStatusEmoji': "Premium status emoji",
   'appearanceShowUnreadChatCount': "Unread chat count",
   'appearanceSize': "Interface",

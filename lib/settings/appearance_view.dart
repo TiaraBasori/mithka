@@ -465,9 +465,9 @@ class InterfaceSizeSettingsView extends StatelessWidget {
                   _toggleRow(
                     context,
                     HeroAppIcons.palette.data,
-                    AppStrings.t(AppStringKeys.appearanceShowPremiumNameColor),
-                    theme.showChatPremiumNameColors,
-                    (v) => theme.showChatPremiumNameColors = v,
+                    AppStrings.t(AppStringKeys.appearanceShowNameColors),
+                    theme.showChatNameColors,
+                    (v) => theme.showChatNameColors = v,
                   ),
                   _toggleRow(
                     context,
@@ -555,9 +555,9 @@ class InterfaceSizeSettingsView extends StatelessWidget {
                   _toggleRow(
                     context,
                     HeroAppIcons.wandMagicSparkles.data,
-                    AppStrings.t(AppStringKeys.appearanceShowPremiumNameColor),
-                    theme.showPremiumNameColors,
-                    (v) => theme.showPremiumNameColors = v,
+                    AppStrings.t(AppStringKeys.appearanceShowNameColors),
+                    theme.showNameColors,
+                    (v) => theme.showNameColors = v,
                   ),
                   _toggleRow(
                     context,

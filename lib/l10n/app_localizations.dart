@@ -412,8 +412,7 @@ abstract final class AppStringKeys {
       'appearanceShowGroupMemberTitles';
   static const appearanceShowPlainMemberRoleTags =
       'appearanceShowPlainMemberRoleTags';
-  static const appearanceShowPremiumNameColor =
-      'appearanceShowPremiumNameColor';
+  static const appearanceShowNameColors = 'appearanceShowNameColors';
   static const appearanceShowPremiumStatusEmoji =
       'appearanceShowPremiumStatusEmoji';
   static const appearanceShowUnreadChatCount = 'appearanceShowUnreadChatCount';
