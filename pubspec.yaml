@@ -68,6 +68,8 @@ dependencies:
   video_compress: ^3.1.4
   video_thumbnail_gen: ^0.6.3
   fvp: ^0.37.2
+  system_picture_in_picture:
+    path: third_party/system_picture_in_picture
   flutter_local_notifications: ^22.0.1
   google_fonts: ^8.1.0
   firebase_core: ^4.11.0
