@@ -122,7 +122,7 @@ const frMessages = <String, String>{
   'apiCredentialsTitle': "Identifiants d’API personnalisés",
   'apiCredentialsUserAgent': "Agent utilisateur TDLib",
   'aiInvalidEndpoint':
-      "Utilisez une URL HTTPS se terminant par /v1/chat/completions. HTTP n’est autorisé que pour localhost.",
+      "Utilisez une URL HTTPS correspondant au style d’API sélectionné. HTTP n’est autorisé que pour localhost.",
   'aiInvalidModel':
       "Saisissez un modèle et un nombre valide de jetons de contexte.",
   'aiAddModel': "Ajouter un modèle",
@@ -141,6 +141,11 @@ const frMessages = <String, String>{
       "Apple Private Cloud Compute, le modèle Apple sur l’appareil et les modèles serveur enregistrés peuvent être choisis séparément pour traduire ou résumer.",
   'aiModelConfiguration': "Configuration des modèles",
   'aiModels': "Modèles",
+  'aiEndpointStyle': "Style d’API",
+  'aiEndpointStyleAnthropicMessages': "Messages Anthropic",
+  'aiEndpointStyleOllamaChat': "Chat Ollama",
+  'aiEndpointStyleOpenAiChatCompletions': "Chat Completions OpenAI",
+  'aiEndpointStyleOpenAiResponses': "Responses OpenAI",
   'aiModelsFailed':
       "Impossible de charger les modèles. Vérifiez le point de terminaison et la clé API.",
   'aiModelsLoaded': "{value1} modèles chargés",

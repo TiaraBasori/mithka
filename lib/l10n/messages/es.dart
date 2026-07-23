@@ -120,7 +120,7 @@ const esMessages = <String, String>{
   'apiCredentialsTitle': "Credenciales de API personalizadas",
   'apiCredentialsUserAgent': "Agente de usuario de TDLib",
   'aiInvalidEndpoint':
-      "Usa una URL HTTPS que termine en /v1/chat/completions. HTTP solo se permite para localhost.",
+      "Usa una URL HTTPS que coincida con el estilo de API seleccionado. HTTP solo se permite para localhost.",
   'aiInvalidModel':
       "Introduce un modelo y una cantidad válida de tokens de contexto.",
   'aiAddModel': "Añadir modelo",
@@ -139,6 +139,11 @@ const esMessages = <String, String>{
       "Apple Private Cloud Compute, el modelo local de Apple y los modelos de servidor guardados se pueden elegir por separado para traducir o resumir.",
   'aiModelConfiguration': "Configuración de modelos",
   'aiModels': "Modelos",
+  'aiEndpointStyle': "Estilo de API",
+  'aiEndpointStyleAnthropicMessages': "Mensajes de Anthropic",
+  'aiEndpointStyleOllamaChat': "Chat de Ollama",
+  'aiEndpointStyleOpenAiChatCompletions': "Chat Completions de OpenAI",
+  'aiEndpointStyleOpenAiResponses': "Responses de OpenAI",
   'aiModelsFailed':
       "No se pudieron cargar los modelos. Revisa el punto de conexión y la clave de API.",
   'aiModelsLoaded': "Se cargaron {value1} modelos",

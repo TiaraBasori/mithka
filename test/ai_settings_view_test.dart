@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/settings/ai_endpoint_style.dart';
 import 'package:mithka/settings/ai_settings_controller.dart';
 import 'package:mithka/settings/ai_settings_view.dart';
 import 'package:mithka/settings/apple_pcc_api.dart';
@@ -46,7 +47,7 @@ void main() {
           if (request.method == 'POST') {
             modelTestPayload = jsonDecode(request.body) as Map<String, dynamic>;
             return http.Response(
-              '{"choices":[{"message":{"content":"Hello from the model"}}]}',
+              '{"output":[{"type":"message","content":[{"type":"output_text","text":"Hello from the model"}]}]}',
               200,
             );
           }
@@ -111,9 +112,14 @@ void main() {
     expect(fields, findsNWidgets(3));
     expect(tester.widget<TextField>(fields.at(2)).obscureText, isTrue);
     await tester.enterText(fields.at(0), 'Summary Provider');
+    expect(find.text('OpenAI Chat Completions'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('aiEndpointStyleRow')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OpenAI Responses'));
+    await tester.pumpAndSettle();
     await tester.enterText(
       fields.at(1),
-      'https://summary.example/v1/chat/completions',
+      'https://summary.example/v1/responses',
     );
     await tester.enterText(fields.at(2), 'sk-user-owned');
     await tester.scrollUntilVisible(
@@ -126,6 +132,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(settings.serverProviders, hasLength(1));
+    expect(
+      settings.serverProviders.single.endpointStyle,
+      AiEndpointStyle.openAiResponses,
+    );
     expect(settings.modelProfiles, isEmpty);
     expect(find.text('Summary Provider'), findsOneWidget);
 
@@ -175,10 +185,7 @@ void main() {
     expect(find.text('Response'), findsOneWidget);
     expect(find.text('Hello from the model'), findsOneWidget);
     expect(modelTestPayload?['model'], 'summary-model');
-    expect(
-      (modelTestPayload?['messages'] as List).single['content'],
-      'Reply with a friendly greeting',
-    );
+    expect(modelTestPayload?['input'], 'Reply with a friendly greeting');
     await tester.scrollUntilVisible(
       find.text('Save Model'),
       250,

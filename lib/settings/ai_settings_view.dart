@@ -8,6 +8,7 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_theme.dart';
+import 'ai_endpoint_style.dart';
 import 'ai_settings_controller.dart';
 import 'openai_compatible_models_api.dart';
 
@@ -261,6 +262,7 @@ class _AiProviderEditorViewState extends State<AiProviderEditorView> {
   late final TextEditingController _name;
   late final TextEditingController _endpoint;
   late final TextEditingController _apiKey;
+  late AiEndpointStyle _endpointStyle;
   bool _obscureApiKey = true;
   bool _saving = false;
 
@@ -270,6 +272,8 @@ class _AiProviderEditorViewState extends State<AiProviderEditorView> {
     _name = TextEditingController(text: widget.provider?.name ?? '');
     _endpoint = TextEditingController(text: widget.provider?.endpoint ?? '');
     _apiKey = TextEditingController(text: widget.initialApiKey);
+    _endpointStyle =
+        widget.provider?.endpointStyle ?? AiEndpointStyle.openAiChatCompletions;
   }
 
   @override
@@ -312,12 +316,27 @@ class _AiProviderEditorViewState extends State<AiProviderEditorView> {
                   hint: AppStringKeys.aiProviderNameHint.l10n(context),
                 ),
                 const SizedBox(height: AppSpacing.sm),
+                SettingsCard(
+                  children: [
+                    SettingsRow(
+                      key: const ValueKey('aiEndpointStyleRow'),
+                      title: AppStringKeys.aiEndpointStyle.l10n(context),
+                      value: _endpointStyleLabel(context, _endpointStyle),
+                      leading: const SettingsIconTile(
+                        icon: HeroAppIcons.code,
+                        backgroundColor: Color(0xFF7467F0),
+                      ),
+                      onTap: _pickEndpointStyle,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
                 _inputField(
                   context,
                   controller: _endpoint,
                   icon: HeroAppIcons.link,
                   label: AppStringKeys.aiServerEndpoint.l10n(context),
-                  hint: AppStringKeys.aiServerEndpointHint.l10n(context),
+                  hint: _endpointStyle.exampleEndpoint,
                   keyboardType: TextInputType.url,
                 ),
                 const SizedBox(height: AppSpacing.sm),
@@ -379,6 +398,7 @@ class _AiProviderEditorViewState extends State<AiProviderEditorView> {
         name: _name.text,
         endpoint: _endpoint.text,
         apiKey: _apiKey.text,
+        endpointStyle: _endpointStyle,
       );
       if (!mounted) return;
       showToast(context, AppStringKeys.aiSaved.l10n(context));
@@ -388,6 +408,43 @@ class _AiProviderEditorViewState extends State<AiProviderEditorView> {
       showToast(context, AppStringKeys.aiInvalidEndpoint.l10n(context));
       setState(() => _saving = false);
     }
+  }
+
+  Future<void> _pickEndpointStyle() async {
+    final selected = await showModalBottomSheet<AiEndpointStyle>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => _PickerCard(
+        children: [
+          for (final style in AiEndpointStyle.values)
+            _pickerRow(
+              sheetContext,
+              icon: HeroAppIcons.code,
+              color: const Color(0xFF7467F0),
+              title: _endpointStyleLabel(sheetContext, style),
+              value: style.endpointSuffix,
+              selected: style == _endpointStyle,
+              onTap: () => Navigator.of(sheetContext).pop(style),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || selected == _endpointStyle || !mounted) return;
+    final previous = _endpointStyle;
+    setState(() {
+      _endpointStyle = selected;
+      final current = _endpoint.text.trim();
+      if (current.isEmpty) return;
+      final uri = Uri.tryParse(current);
+      if (uri == null || !uri.path.endsWith(previous.endpointSuffix)) return;
+      final prefix = uri.path.substring(
+        0,
+        uri.path.length - previous.endpointSuffix.length,
+      );
+      _endpoint.text = uri
+          .replace(path: '$prefix${selected.endpointSuffix}')
+          .toString();
+    });
   }
 
   Future<void> _delete() async {
@@ -982,6 +1039,7 @@ class _AiModelEditorViewState extends State<AiModelEditorView> {
               endpoint: provider.endpoint,
               apiKey: settings.apiKeyForServerProvider(provider.id),
               model: selected.id,
+              endpointStyle: provider.endpointStyle,
             ) ??
             selected;
       } on Object {
@@ -1185,6 +1243,18 @@ String _candidateLabel(BuildContext context, AiModelCandidate candidate) =>
       AiModelCandidateKind.appleOnDevice =>
         AppStringKeys.aiProviderAppleOnDevice.l10n(context),
       AiModelCandidateKind.server => candidate.model,
+    };
+
+String _endpointStyleLabel(BuildContext context, AiEndpointStyle style) =>
+    switch (style) {
+      AiEndpointStyle.openAiChatCompletions =>
+        AppStringKeys.aiEndpointStyleOpenAiChatCompletions.l10n(context),
+      AiEndpointStyle.openAiResponses =>
+        AppStringKeys.aiEndpointStyleOpenAiResponses.l10n(context),
+      AiEndpointStyle.anthropicMessages =>
+        AppStringKeys.aiEndpointStyleAnthropicMessages.l10n(context),
+      AiEndpointStyle.ollamaChat =>
+        AppStringKeys.aiEndpointStyleOllamaChat.l10n(context),
     };
 
 String _candidateDetail(

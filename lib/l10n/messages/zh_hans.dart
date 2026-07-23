@@ -101,8 +101,7 @@ const zhHansMessages = <String, String>{
       "使用你自己的 Telegram 客户端 API 凭据，并可覆盖 TDLib 上报的设备、系统和应用版本信息。更改将在下次启动或重新登录时生效。",
   'apiCredentialsTitle': "自定义 API 凭据",
   'apiCredentialsUserAgent': "TDLib 用户代理",
-  'aiInvalidEndpoint':
-      "请使用以 /v1/chat/completions 结尾的 HTTPS 地址。只有 localhost 可使用 HTTP。",
+  'aiInvalidEndpoint': "请使用与所选 API 格式匹配的 HTTPS 地址。只有 localhost 可使用 HTTP。",
   'aiInvalidModel': "请输入模型名称和有效的上下文 Token 数量。",
   'aiAddModel': "添加模型",
   'aiAddProvider': "添加服务商",
@@ -119,6 +118,11 @@ const zhHansMessages = <String, String>{
   'aiModelCandidatesDescription':
       "Apple 私有云计算、Apple 本机模型和已保存的服务商模型均可分别用于翻译或总结。",
   'aiModelConfiguration': "模型配置",
+  'aiEndpointStyle': "API 格式",
+  'aiEndpointStyleAnthropicMessages': "Anthropic Messages",
+  'aiEndpointStyleOllamaChat': "Ollama Chat",
+  'aiEndpointStyleOpenAiChatCompletions': "OpenAI Chat Completions",
+  'aiEndpointStyleOpenAiResponses': "OpenAI Responses",
   'aiModels': "模型",
   'aiModelsFailed': "无法获取模型列表，请检查端点和 API 密钥。",
   'aiModelsLoaded': "已加载 {value1} 个模型",

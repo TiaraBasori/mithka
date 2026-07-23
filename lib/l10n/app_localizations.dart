@@ -260,6 +260,14 @@ abstract final class AppStringKeys {
   static const aiModelCandidatesDescription = 'aiModelCandidatesDescription';
   static const aiModelConfiguration = 'aiModelConfiguration';
   static const aiModels = 'aiModels';
+  static const aiEndpointStyle = 'aiEndpointStyle';
+  static const aiEndpointStyleAnthropicMessages =
+      'aiEndpointStyleAnthropicMessages';
+  static const aiEndpointStyleOllamaChat = 'aiEndpointStyleOllamaChat';
+  static const aiEndpointStyleOpenAiChatCompletions =
+      'aiEndpointStyleOpenAiChatCompletions';
+  static const aiEndpointStyleOpenAiResponses =
+      'aiEndpointStyleOpenAiResponses';
   static const aiModelsFailed = 'aiModelsFailed';
   static const aiModelsLoaded = 'aiModelsLoaded';
   static const aiNoProvider = 'aiNoProvider';
