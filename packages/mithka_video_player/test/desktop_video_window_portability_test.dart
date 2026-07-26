@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -134,10 +135,14 @@ void main() {
 
       expect(ids, [40, 41]);
       expect(MithkaDesktopVideoWindows.instance.activeWindowIds, {40, 41});
-      expect(windowCalls.where((call) => call.method == 'show'), hasLength(2));
+      final hostConfiguresWindows = !Platform.isLinux;
+      expect(
+        windowCalls.where((call) => call.method == 'show'),
+        hasLength(hostConfiguresWindows ? 2 : 0),
+      );
       expect(
         windowCalls.where((call) => call.method == 'setMinimumSize'),
-        hasLength(2),
+        hasLength(hostConfiguresWindows ? 2 : 0),
       );
 
       // Reuse-close is intentionally not forwarded to public global window
@@ -201,8 +206,9 @@ void main() {
       // already-released host resource again.
       await _sendEvent(messenger, window.name, 'initialized', 70);
       await _flushMicrotasks();
+      final releaseMethod = Platform.isLinux ? 'close' : 'destroy';
       expect(
-        windowCalls.where((call) => call.method == 'destroy'),
+        windowCalls.where((call) => call.method == releaseMethod),
         hasLength(1),
       );
       await _sendEvent(messenger, window.name, 'close', 70);
