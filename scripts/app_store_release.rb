@@ -3,13 +3,15 @@
 
 # Prepares and optionally submits one exact Mithka iOS build to App Store
 # review. The script is dry-run-only unless --apply is supplied. It resolves
-# the App Store build through an exact Xcode Cloud build run and verifies the
-# run's source commit, marketing version, build number, app, processing state,
+# the App Store build through either an exact Xcode Cloud build run or a
+# checksum-pinned uploaded IPA. It verifies build identity, processing state,
 # and distribution audience before writing anything.
 
 require "base64"
+require "digest"
 require "json"
 require "net/http"
+require "open3"
 require "openssl"
 require "optparse"
 require "time"
@@ -176,8 +178,9 @@ module MithkaAppStoreRelease
 
     attr_reader :resolved_build_id
 
-    def initialize(client:, app_id:, version:, binary_version:, build_number:, ci_build_run_id:,
-                   source_commit:, release_notes:, apply:, submit:,
+    def initialize(client:, app_id:, version:, binary_version:, build_number:, source_commit:,
+                   release_notes:, apply:, submit:, ci_build_run_id: nil,
+                   uploaded_build_id: nil, artifact_path: nil, artifact_sha256: nil,
                    wait_seconds: 0, out: $stdout, sleeper: Kernel)
       @client = client
       @app_id = app_id
@@ -185,6 +188,9 @@ module MithkaAppStoreRelease
       @binary_version = binary_version
       @build_number = build_number.to_s
       @ci_build_run_id = ci_build_run_id
+      @uploaded_build_id = uploaded_build_id
+      @artifact_path = artifact_path
+      @artifact_sha256 = artifact_sha256&.downcase
       @source_commit = source_commit.downcase
       @release_notes = release_notes
       @apply = apply
@@ -233,9 +239,20 @@ module MithkaAppStoreRelease
       raise Error, "--version must be a dotted numeric version" unless @version.match?(/\A\d+(?:\.\d+){1,2}\z/)
       raise Error, "--binary-version must be a dotted numeric version" unless @binary_version.match?(/\A\d+(?:\.\d+){1,2}\z/)
       raise Error, "--build-number must be numeric" unless @build_number.match?(/\A\d+\z/)
-      raise Error, "--ci-build-run-id must be a UUID" unless @ci_build_run_id.match?(/\A[0-9a-fA-F-]{36}\z/)
       raise Error, "--source-commit must be the full 40-character SHA" unless @source_commit.match?(/\A[0-9a-f]{40}\z/)
       raise Error, "--wait-seconds cannot be negative" if @wait_seconds.negative?
+      upload_fields = [@uploaded_build_id, @artifact_path, @artifact_sha256]
+      if upload_fields.any? { |value| !value.to_s.empty? } && upload_fields.any? { |value| value.to_s.empty? }
+        raise Error, "--uploaded-build-id, --artifact-path, and --artifact-sha256 must be supplied together"
+      end
+      if upload_fields.all? { |value| !value.to_s.empty? }
+        raise Error, "--uploaded-build-id must be a UUID" unless @uploaded_build_id.match?(/\A[0-9a-fA-F-]{36}\z/)
+        raise Error, "artifact does not exist: #{@artifact_path}" unless File.file?(@artifact_path)
+        raise Error, "--artifact-sha256 must be a full 64-character SHA-256" unless @artifact_sha256.match?(/\A[0-9a-f]{64}\z/)
+        raise Error, "use either --ci-build-run-id or --uploaded-build-id, not both" if @ci_build_run_id
+      elsif !@ci_build_run_id&.match?(/\A[0-9a-fA-F-]{36}\z/)
+        raise Error, "--ci-build-run-id must be a UUID unless --uploaded-build-id is supplied"
+      end
     end
 
     def validate_release_notes(release_notes)
@@ -255,6 +272,8 @@ module MithkaAppStoreRelease
     end
 
     def resolve_exact_build
+      return resolve_exact_uploaded_build if @uploaded_build_id
+
       deadline = Time.now + @wait_seconds
       loop do
         run = @client.get("/ciBuildRuns/#{@ci_build_run_id}").fetch("data")
@@ -294,6 +313,39 @@ module MithkaAppStoreRelease
       end
     end
 
+    def resolve_exact_uploaded_build
+      actual_sha256 = Digest::SHA256.file(@artifact_path).hexdigest
+      unless actual_sha256 == @artifact_sha256
+        raise Error, "artifact SHA-256 is #{actual_sha256}, expected #{@artifact_sha256}"
+      end
+
+      deadline = Time.now + @wait_seconds
+      loop do
+        build = @client.get("/builds/#{@uploaded_build_id}").fetch("data")
+        actual_number = build.dig("attributes", "version").to_s
+        unless actual_number == @build_number
+          raise Error, "uploaded build #{@uploaded_build_id} is numbered #{actual_number}, expected #{@build_number}"
+        end
+        app = assert_build_identity!(build)
+        expected_bundle_id = app.dig("attributes", "bundleId").to_s
+        raise Error, "App Store app #{@app_id} has no bundle ID to verify against the uploaded artifact" if expected_bundle_id.empty?
+
+        assert_uploaded_ipa_identity!(expected_bundle_id)
+        state = build.dig("attributes", "processingState")
+        if state == "VALID"
+          log("Resolved uploaded artifact #{@artifact_path} (SHA-256 #{@artifact_sha256}) to binary #{@binary_version} (#{@build_number}), build #{build['id']}; declared source provenance #{@source_commit}, listing version #{@version}")
+          return build
+        end
+        raise Error, "uploaded build #{@build_number} entered terminal state #{state}" if %w[FAILED INVALID].include?(state)
+        if Time.now >= deadline
+          raise Error, "exact uploaded build is not ready: App Store build #{state || 'not available'}"
+        end
+
+        log("Waiting for exact uploaded App Store build #{@build_number} (#{state || 'not available'})")
+        @sleeper.sleep([30, [deadline - Time.now, 1].max].min)
+      end
+    end
+
     def assert_build_identity!(build)
       build_id = build.fetch("id")
       attributes = build.fetch("attributes")
@@ -310,6 +362,40 @@ module MithkaAppStoreRelease
       unless marketing_version == @binary_version
         raise Error, "build #{build_id} has binary marketing version #{marketing_version}, expected #{@binary_version}"
       end
+
+      app
+    end
+
+    def assert_uploaded_ipa_identity!(expected_bundle_id)
+      entries = run_command!("unzip", "-Z1", @artifact_path).lines.map(&:strip)
+      info_entries = entries.grep(%r{\APayload/[^/]+\.app/Info\.plist\z})
+      unless info_entries.length == 1
+        raise Error, "uploaded artifact must contain exactly one top-level app Info.plist; found #{info_entries.length}"
+      end
+
+      plist = run_command!("unzip", "-p", @artifact_path, info_entries.first)
+      json = run_command!("plutil", "-convert", "json", "-o", "-", "--", "-", stdin_data: plist)
+      info = JSON.parse(json)
+      expected = {
+        "CFBundleIdentifier" => expected_bundle_id,
+        "CFBundleShortVersionString" => @binary_version,
+        "CFBundleVersion" => @build_number
+      }
+      expected.each do |key, value|
+        actual = info[key].to_s
+        raise Error, "uploaded artifact #{key} is #{actual.inspect}, expected #{value.inspect}" unless actual == value
+      end
+    rescue JSON::ParserError => error
+      raise Error, "uploaded artifact Info.plist is not valid JSON after conversion: #{error.message}"
+    end
+
+    def run_command!(*command, stdin_data: "")
+      stdout, stderr, status = Open3.capture3(*command, stdin_data: stdin_data)
+      return stdout if status.success?
+
+      detail = stderr.to_s.strip
+      detail = "exit #{status.exitstatus}" if detail.empty?
+      raise Error, "#{command.first} failed while inspecting uploaded artifact: #{detail}"
     end
 
     def find_version
@@ -552,7 +638,11 @@ module MithkaAppStoreRelease
       submission = active.first
       if submission
         items = review_submission_items(submission.fetch("id"))
-        unrelated = items.reject { |item| review_item_version_id(item) == version_id }
+        item = items.find { |candidate| review_item_version_id(candidate) == version_id }
+        if items.any? { |candidate| review_item_version_id(candidate).nil? }
+          raise Error, "active review submission #{submission['id']} contains items whose App Store versions cannot be resolved"
+        end
+        unrelated = items.reject { |candidate| candidate == item }
         unless unrelated.empty?
           raise Error, "active review submission #{submission['id']} contains another App Store version"
         end
@@ -575,12 +665,24 @@ module MithkaAppStoreRelease
         return nil
       end
 
-      items = review_submission_items(submission.fetch("id"))
-      item = items.find { |candidate| review_item_version_id(candidate) == version_id }
-      if item && %w[REJECTED UNRESOLVED_ISSUES].include?(item.dig("attributes", "state"))
-        raise Error, "review item #{item['id']} has unresolved state #{item.dig('attributes', 'state')}; resolve it explicitly before resubmitting"
+      items ||= review_submission_items(submission.fetch("id"))
+      item ||= items.find { |candidate| review_item_version_id(candidate) == version_id }
+      rejected_item = item && %w[REJECTED UNRESOLVED_ISSUES].include?(item.dig("attributes", "state"))
+      if rejected_item && @apply
+        log("RESOLVE rejected review item #{item['id']} after updating version #{@version}")
+        item = @client.patch(
+          "/reviewSubmissionItems/#{item.fetch('id')}",
+          {
+            "data" => {
+              "type" => "reviewSubmissionItems",
+              "id" => item.fetch("id"),
+              "attributes" => { "resolved" => true }
+            }
+          }
+        ).fetch("data")
       end
       unless @apply
+        log("PLAN mark rejected review item #{item['id']} resolved after updating version #{@version}") if rejected_item
         log(item ? "Version resource is already in review submission #{submission['id']}" : "PLAN add version #{@version} to review submission #{submission['id']}")
         log("PLAN submit review submission #{submission['id']}")
         return submission
@@ -645,7 +747,11 @@ module MithkaAppStoreRelease
     end
 
     def review_submission_items(submission_id)
-      @client.get("/reviewSubmissions/#{submission_id}/items", "limit" => "200").fetch("data")
+      @client.get(
+        "/reviewSubmissions/#{submission_id}/items",
+        "include" => "appStoreVersion",
+        "limit" => "200"
+      ).fetch("data")
     end
 
     def review_item_version_id(item)
@@ -653,15 +759,22 @@ module MithkaAppStoreRelease
     end
 
     def find_submission_for_version(version_id)
-      @client.get(
+      submissions = @client.get(
         "/apps/#{@app_id}/reviewSubmissions",
         "filter[platform]" => "IOS",
+        "include" => "appStoreVersionForReview",
         "limit" => "200"
-      ).fetch("data").find do |submission|
-        review_submission_items(submission.fetch("id")).any? do |item|
-          review_item_version_id(item) == version_id
-        end
+      ).fetch("data")
+      matches = submissions.select do |submission|
+        submission.dig("relationships", "appStoreVersionForReview", "data", "id") == version_id
       end
+      active_matches = matches.reject { |submission| submission.dig("attributes", "state") == "COMPLETE" }
+      matches = active_matches unless active_matches.empty?
+      if matches.length > 1
+        raise Error, "multiple iOS review submissions are associated with App Store version #{@version}"
+      end
+
+      matches.first
     end
 
     def verify(version_id, build_id, release_notes, submission)
@@ -685,14 +798,23 @@ module MithkaAppStoreRelease
 
       return unless @submit && @apply
 
-      submission = @client.get("/reviewSubmissions/#{submission.fetch('id')}").fetch("data")
+      submission = @client.get(
+        "/reviewSubmissions/#{submission.fetch('id')}",
+        "include" => "appStoreVersionForReview"
+      ).fetch("data")
       state = submission.dig("attributes", "state")
       unless SUBMITTED_REVIEW_STATES.include?(state)
         raise Error, "verification failed: review submission is #{state}"
       end
+      associated_version_id = submission.dig("relationships", "appStoreVersionForReview", "data", "id")
+      unless associated_version_id == version_id
+        raise Error, "verification failed: review submission is associated with #{associated_version_id || 'no App Store version'}, expected #{@version}"
+      end
       items = review_submission_items(submission.fetch("id"))
-      unless items.any? { |item| review_item_version_id(item) == version_id }
-        raise Error, "verification failed: review submission does not contain version #{@version}"
+      item = items.find { |candidate| review_item_version_id(candidate) == version_id }
+      raise Error, "verification failed: review submission does not contain version #{@version}" unless item
+      if %w[REJECTED UNRESOLVED_ISSUES].include?(item.dig("attributes", "state"))
+        raise Error, "verification failed: review item is #{item.dig('attributes', 'state')}"
       end
       log("SUBMITTED #{@version} (#{@build_number}) to App Review; submission #{submission['id']} is #{state}")
     end
@@ -727,12 +849,15 @@ module MithkaAppStoreRelease
       wait_seconds: 0
     }
     parser = OptionParser.new do |opts|
-      opts.banner = "Usage: scripts/app_store_release.rb --version VERSION --binary-version VERSION --build-number NUMBER --ci-build-run-id UUID --source-commit SHA [--apply --submit]"
+      opts.banner = "Usage: scripts/app_store_release.rb --version VERSION --binary-version VERSION --build-number NUMBER (--ci-build-run-id UUID | --uploaded-build-id UUID --artifact-path PATH --artifact-sha256 SHA256) --source-commit SHA [--apply --submit]"
       opts.on("--version VERSION", "Exact App Store listing version, for example 0.7.41") { |value| options[:version] = value }
       opts.on("--binary-version VERSION", "Exact marketing version embedded in the compiled binary") { |value| options[:binary_version] = value }
       opts.on("--build-number NUMBER", "Exact CFBundleVersion/App Store build number") { |value| options[:build_number] = value }
       opts.on("--ci-build-run-id UUID", "Exact Xcode Cloud build run ID") { |value| options[:ci_build_run_id] = value }
-      opts.on("--source-commit SHA", "Exact 40-character source commit SHA") { |value| options[:source_commit] = value }
+      opts.on("--uploaded-build-id UUID", "Exact App Store build resource ID for a locally uploaded artifact") { |value| options[:uploaded_build_id] = value }
+      opts.on("--artifact-path PATH", "Local uploaded IPA path used to verify exact artifact identity") { |value| options[:artifact_path] = File.expand_path(value) }
+      opts.on("--artifact-sha256 SHA256", "Expected SHA-256 of the locally uploaded IPA") { |value| options[:artifact_sha256] = value }
+      opts.on("--source-commit SHA", "Source SHA (verified for Xcode Cloud; declared provenance for an uploaded IPA)") { |value| options[:source_commit] = value }
       opts.on("--release-notes-json PATH", "JSON object mapping en-US and zh-Hans to release notes") do |value|
         options[:release_notes] = JSON.parse(File.read(value, encoding: "UTF-8"))
       end
@@ -750,7 +875,7 @@ module MithkaAppStoreRelease
       end
     end
     parser.parse!(argv)
-    %i[version binary_version build_number ci_build_run_id source_commit].each do |key|
+    %i[version binary_version build_number source_commit].each do |key|
       raise Error, "missing --#{key.to_s.tr('_', '-')}" if options[key].to_s.empty?
     end
     options[:issuer_id] = read_issuer_id(options[:issuer_id], options[:issuer_path])
@@ -769,6 +894,9 @@ module MithkaAppStoreRelease
       binary_version: options[:binary_version],
       build_number: options[:build_number],
       ci_build_run_id: options[:ci_build_run_id],
+      uploaded_build_id: options[:uploaded_build_id],
+      artifact_path: options[:artifact_path],
+      artifact_sha256: options[:artifact_sha256],
       source_commit: options[:source_commit],
       release_notes: options[:release_notes],
       apply: options[:apply],
