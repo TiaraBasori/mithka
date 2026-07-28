@@ -38,6 +38,7 @@ import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'emoji_status_picker.dart';
 import 'profile_detail_view.dart';
+import 'profile_username_summary.dart';
 import 'qr_code_view.dart';
 
 class ProfileViewModel extends ChangeNotifier {
@@ -240,7 +241,7 @@ class _ProfileViewState extends State<ProfileView> {
     final foreground = context.colors.onAccent;
     final hidePhone = context.watch<ThemeController>().hideSidebarPhone;
     final identities = _vm.usernames.isNotEmpty
-        ? [for (final username in _vm.usernames) '@$username']
+        ? compactProfileUsernameLabels(_vm.usernames)
         : [
             if (!hidePhone && (user?.phoneNumber ?? '').isNotEmpty)
               user!.phoneNumber,
