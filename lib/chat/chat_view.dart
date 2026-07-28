@@ -4637,13 +4637,15 @@ class _ChatViewState extends State<ChatView> {
       final senderTitle = (m.senderName ?? m.senderTitle ?? _vm.peerTitle)
           .trim();
       final title = senderTitle.isEmpty ? _vm.peerTitle : senderTitle;
-      final Widget destination = senderChatId == widget.chatId
-          ? ChatInfoView(chatId: senderChatId, title: title)
-          : ChatView(chatId: senderChatId, title: title);
-      final route = destination is ChatView
-          ? AppChatPageRoute<void>(builder: (_) => destination)
-          : AppPageRoute<void>(pageBuilder: (_, _, _) => destination);
-      Navigator.of(context).push(route);
+      if (senderChatId == widget.chatId) {
+        unawaited(_openChatInfo(title: title, useAppPageRoute: true));
+        return;
+      }
+      Navigator.of(context).push(
+        AppChatPageRoute<void>(
+          builder: (_) => ChatView(chatId: senderChatId, title: title),
+        ),
+      );
       return;
     }
     final uid = m.isOutgoing
@@ -4654,6 +4656,25 @@ class _ChatViewState extends State<ChatView> {
       uid,
       m.isOutgoing ? _vm.meName : (m.senderName ?? _vm.peerTitle),
     );
+  }
+
+  Future<void> _openChatInfo({
+    String? title,
+    bool useAppPageRoute = false,
+  }) async {
+    final chatTitle = title ?? _vm.peerTitle;
+    final Route<int> route = useAppPageRoute
+        ? AppPageRoute<int>(
+            pageBuilder: (_, _, _) =>
+                ChatInfoView(chatId: widget.chatId, title: chatTitle),
+          )
+        : MaterialPageRoute<int>(
+            builder: (_) =>
+                ChatInfoView(chatId: widget.chatId, title: chatTitle),
+          );
+    final messageId = await Navigator.of(context).push<int>(route);
+    if (!mounted || messageId == null) return;
+    await _scrollToMessage(messageId);
   }
 
   void _openPeerProfile() {
@@ -5956,14 +5977,7 @@ class _ChatViewState extends State<ChatView> {
                   Expanded(child: _headerTitleBlock(subtitle, actionActive)),
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => ChatInfoView(
-                          chatId: widget.chatId,
-                          title: _vm.peerTitle,
-                        ),
-                      ),
-                    ),
+                    onTap: () => unawaited(_openChatInfo()),
                     child: AppIcon(
                       HeroAppIcons.bars,
                       size: 22,
