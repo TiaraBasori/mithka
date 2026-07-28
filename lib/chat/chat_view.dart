@@ -23,6 +23,7 @@ import '../app/video_split_controller.dart';
 import '../auth/telegram_country_names.dart';
 import '../call/call_manager.dart';
 import '../channels/topic_chat_view.dart';
+import '../components/app_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
 import '../components/full_page_back_swipe.dart';
@@ -73,6 +74,7 @@ import 'chat_picker_view.dart';
 import 'chat_return_to_latest_coordinator.dart';
 import 'chat_scroll_metrics.dart';
 import 'chat_search_view.dart';
+import 'chat_send_failure.dart';
 import 'chat_session_cache.dart';
 import 'chat_translation_panel.dart';
 import 'chat_unread_progress.dart';
@@ -918,6 +920,7 @@ class _ChatViewState extends State<ChatView> {
   bool _autoTranslationPassPending = false;
   final Set<int> _autoTranslationFailedMessageIds = <int>{};
   final Set<int> _autoTranslatedMessageIds = <int>{};
+  bool _sendFailureDialogVisible = false;
 
   /// Gap (seconds) between messages that triggers a fresh time separator.
   static const _separatorGap = 300;
@@ -1834,6 +1837,87 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
+  void _scheduleSendFailureDialog(ChatSendFailure failure) {
+    _sendFailureDialogVisible = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        _sendFailureDialogVisible = false;
+        return;
+      }
+      unawaited(_showSendFailureDialog(failure));
+    });
+  }
+
+  Future<void> _showSendFailureDialog(ChatSendFailure failure) async {
+    final message = switch (failure.kind) {
+      ChatSendFailureKind.paidMessageRequired
+          when failure.paidMessageStarCount > 0 =>
+        AppStrings.t(AppStringKeys.chatSendFailedPaidCount, {
+          'value1': failure.paidMessageStarCount,
+        }),
+      ChatSendFailureKind.paidMessageRequired => AppStrings.t(
+        AppStringKeys.chatSendFailedPaid,
+      ),
+      ChatSendFailureKind.insufficientStars => AppStrings.t(
+        AppStringKeys.chatSendFailedInsufficientStars,
+      ),
+      ChatSendFailureKind.premiumRequired => AppStrings.t(
+        AppStringKeys.chatSendFailedPremium,
+      ),
+      ChatSendFailureKind.mutualContactRequired => AppStrings.t(
+        AppStringKeys.chatSendFailedMutualContact,
+      ),
+      ChatSendFailureKind.privacyRestricted => AppStrings.t(
+        AppStringKeys.chatSendFailedPrivacy,
+      ),
+      ChatSendFailureKind.blocked => AppStrings.t(
+        AppStringKeys.chatSendFailedBlocked,
+      ),
+      ChatSendFailureKind.chatPermissionDenied => AppStrings.t(
+        AppStringKeys.chatSendFailedPermission,
+      ),
+      ChatSendFailureKind.recipientUnavailable => AppStrings.t(
+        AppStringKeys.chatSendFailedUnavailable,
+      ),
+      ChatSendFailureKind.rateLimited => AppStrings.t(
+        AppStringKeys.chatSendFailedRateLimited,
+      ),
+      ChatSendFailureKind.generic => AppStrings.t(
+        AppStringKeys.chatSendFailedGeneric,
+        {'value1': failure.technicalMessage},
+      ),
+    };
+    await showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: AppStrings.t(AppStringKeys.confirmOk),
+      barrierColor: Colors.black.withValues(alpha: 0.52),
+      transitionDuration: AppMotion.duration(context, AppMotion.responsive),
+      transitionBuilder: AppMotion.dialogTransition,
+      pageBuilder: (dialogContext, _, _) => AppDialogSurface(
+        title: AppStrings.t(AppStringKeys.chatSendFailedTitle),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: AppTextStyle.body(
+            dialogContext.colors.textSecondary,
+          ).copyWith(height: 1.4),
+        ),
+        actions: [
+          AppDialogAction(
+            label: AppStrings.t(AppStringKeys.confirmOk),
+            primary: true,
+            onTap: () => Navigator.of(dialogContext).pop(),
+          ),
+        ],
+      ),
+    );
+    if (!mounted) return;
+    _sendFailureDialogVisible = false;
+    final nextFailure = _vm.consumeSendFailure();
+    if (nextFailure != null) _scheduleSendFailureDialog(nextFailure);
+  }
+
   void _onModel() {
     if (!mounted) return;
     if (!_viewTickerEnabled) {
@@ -1841,6 +1925,10 @@ class _ChatViewState extends State<ChatView> {
       return;
     }
     _modelDirtyWhileInactive = false;
+    if (!_sendFailureDialogVisible) {
+      final failure = _vm.consumeSendFailure();
+      if (failure != null) _scheduleSendFailureDialog(failure);
+    }
     final olderLoadFinished = _wasLoadingOlder && !_vm.isLoadingOlder;
     _wasLoadingOlder = _vm.isLoadingOlder;
     final oldest = _oldestServerMessage(_vm.messages);
