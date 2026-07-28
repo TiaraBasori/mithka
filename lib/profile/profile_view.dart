@@ -42,6 +42,7 @@ import 'qr_code_view.dart';
 
 class ProfileViewModel extends ChangeNotifier {
   CurrentUser? user;
+  List<String> usernames = const [];
   int? savedChatId;
   bool _loaded = false;
   StreamSubscription? _sub;
@@ -61,11 +62,12 @@ class ProfileViewModel extends ChangeNotifier {
   }
 
   void _applyUser(Map<String, dynamic> me) {
+    usernames = TDParse.activeUsernames(me);
     user = CurrentUser(
       id: me.int64('id') ?? user?.id ?? 0,
       name: TDParse.userName(me),
       phoneNumber: TDParse.formatPhone(me.str('phone_number')),
-      username: me.obj('usernames')?.str('editable_username'),
+      username: usernames.isEmpty ? null : usernames.first,
       photo: TDParse.smallPhoto(me.obj('profile_photo')),
       emojiStatusId: TDParse.emojiStatusCustomEmojiId(me.obj('emoji_status')),
       isPremium: me.boolean('is_premium') ?? false,
@@ -237,9 +239,12 @@ class _ProfileViewState extends State<ProfileView> {
     final user = _vm.user;
     final foreground = context.colors.onAccent;
     final hidePhone = context.watch<ThemeController>().hideSidebarPhone;
-    final username = (user?.username?.isNotEmpty ?? false)
-        ? '@${user!.username}'
-        : (hidePhone ? '' : (user?.phoneNumber ?? ''));
+    final identities = _vm.usernames.isNotEmpty
+        ? [for (final username in _vm.usernames) '@$username']
+        : [
+            if (!hidePhone && (user?.phoneNumber ?? '').isNotEmpty)
+              user!.phoneNumber,
+          ];
     return Container(
       padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
       decoration: BoxDecoration(gradient: AppTheme.brandGradient),
@@ -334,16 +339,22 @@ class _ProfileViewState extends State<ProfileView> {
                           ],
                         ],
                       ),
-                      if (username.isNotEmpty) ...[
+                      if (identities.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(
-                          username,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: foreground.withValues(alpha: 0.78),
-                          ),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 2,
+                          children: [
+                            for (final identity in identities)
+                              Text(
+                                identity,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.25,
+                                  color: foreground.withValues(alpha: 0.78),
+                                ),
+                              ),
+                          ],
                         ),
                       ],
                     ],
