@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chats/chat_list_preview.dart';
@@ -246,6 +247,57 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(AppPressRipple.rippleLayerKey), findsNothing);
+  });
+
+  testWidgets('secondary mouse click invokes chat-row preview callback', (
+    tester,
+  ) async {
+    var taps = 0;
+    var previewRequests = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          height: 64,
+          child: ChatSwipeRow(
+            rowId: 2,
+            openRowId: null,
+            onOpenChanged: (_) {},
+            onTap: () => taps++,
+            onLongPress: () => previewRequests++,
+            actions: [
+              SwipeActionItem(
+                title: AppStringKeys.chatInfoPin,
+                color: Colors.blue,
+                onTap: () {},
+              ),
+            ],
+            child: const SizedBox(
+              key: ValueKey('secondary-click-row'),
+              width: 390,
+              height: 64,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final contextGesture = find.descendant(
+      of: find.byType(ChatSwipeRow),
+      matching: find.byWidgetPredicate(
+        (widget) => widget is GestureDetector && widget.onSecondaryTap != null,
+      ),
+    );
+    expect(contextGesture, findsOneWidget);
+
+    await tester.tap(
+      contextGesture,
+      buttons: kSecondaryMouseButton,
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump();
+
+    expect(previewRequests, 1);
+    expect(taps, 0);
   });
 
   testWidgets('hold-and-drag rows reserve long press for swipe actions', (

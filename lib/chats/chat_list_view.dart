@@ -12,10 +12,12 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
+import '../app/adaptive_split_layout.dart';
 import '../app/app_navigator.dart';
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
@@ -113,6 +115,21 @@ double chatListItemScrollOffset({
 /// Keeps the pull-down archive slot after the search row when search is shown.
 int chatListPullDownArchiveItemIndex({required bool showSearch}) =>
     showSearch ? 1 : 0;
+
+/// Keeps the touch-first pull-down archive interaction on mobile while making
+/// the same preference explicitly reachable with a mouse on native desktop.
+ArchivedChatsDisplayMode effectiveChatListArchiveDisplayMode(
+  ArchivedChatsDisplayMode requested, {
+  TargetPlatform? platform,
+  bool isWeb = kIsWeb,
+}) {
+  if (!isWeb &&
+      isDesktopTargetPlatform(platform) &&
+      requested == ArchivedChatsDisplayMode.pullDown) {
+    return ArchivedChatsDisplayMode.firstPosition;
+  }
+  return requested;
+}
 
 /// Returns the distance that leading chat-list content must move up to cancel
 /// the viewport's native top overscroll in the same frame.
@@ -408,10 +425,13 @@ class _ChatListViewState extends State<ChatListView>
     final position = positions.single;
     final theme = context.read<ThemeController>();
     final rowHeight = theme.rowHeight + 0.5;
+    final archiveMode = effectiveChatListArchiveDisplayMode(
+      theme.archivedChatsDisplayMode,
+    );
     final archiveEnabled =
         _model.isAllFilter &&
         _model.archived.isNotEmpty &&
-        theme.archivedChatsDisplayMode == ArchivedChatsDisplayMode.pullDown;
+        archiveMode == ArchivedChatsDisplayMode.pullDown;
     if (archiveEnabled && position.hasContentDimensions) {
       final pullOffset = chatListTopOverscrollOffset(
         position.pixels,
@@ -817,9 +837,9 @@ class _ChatListViewState extends State<ChatListView>
 
     var itemIndex = entryIndex;
     if (_model.isAllFilter && _model.filtered.isNotEmpty) itemIndex++;
-    final archiveMode = context
-        .read<ThemeController>()
-        .archivedChatsDisplayMode;
+    final archiveMode = effectiveChatListArchiveDisplayMode(
+      context.read<ThemeController>().archivedChatsDisplayMode,
+    );
     final pullDownArchiveVisible =
         archiveMode == ArchivedChatsDisplayMode.pullDown && _archiveRevealed;
     if (_model.isAllFilter &&
@@ -1256,7 +1276,9 @@ class _ChatListViewState extends State<ChatListView>
     final c = context.colors;
     final theme = context.watch<ThemeController>();
     final showSearch = theme.showChatListSearch;
-    final archiveMode = theme.archivedChatsDisplayMode;
+    final archiveMode = effectiveChatListArchiveDisplayMode(
+      theme.archivedChatsDisplayMode,
+    );
     return Container(
       color: c.background,
       child: LayoutBuilder(
@@ -2297,6 +2319,14 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
     if (widget.openRowId == widget.rowId) widget.onOpenChanged(null);
   }
 
+  void _handleContextRequest() {
+    if (_offset != 0) {
+      _close();
+      return;
+    }
+    widget.onLongPress?.call();
+  }
+
   void _settle(double velocity) {
     if (velocity < -520 || (velocity <= 360 && _offset < -_totalWidth * 0.38)) {
       _animateTo(-_totalWidth);
@@ -2357,13 +2387,12 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
                 onTap: () => _offset != 0 ? _close() : widget.onTap(),
                 onLongPress: widget.requiresLongPressDrag
                     ? null
-                    : () {
-                        if (_offset != 0) {
-                          _close();
-                          return;
-                        }
-                        widget.onLongPress?.call();
-                      },
+                    : widget.onLongPress == null
+                    ? null
+                    : _handleContextRequest,
+                onSecondaryTap: widget.onLongPress == null
+                    ? null
+                    : _handleContextRequest,
                 onLongPressStart: (_) {
                   _stopAnimation();
                   _longPressStartOffset = _offset;
