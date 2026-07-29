@@ -6620,7 +6620,8 @@ class _ChatViewState extends State<ChatView> {
     double? alignment,
     bool forceAlignment = false,
   }) async {
-    final targetAlignment = alignment ?? (pinnedJump ? 0.08 : 0.3);
+    final targetAlignment =
+        alignment ?? (pinnedJump ? pinnedMessageScrollAlignment : 0.3);
     for (var tries = 0; tries < 6; tries++) {
       final activeKey = _scrollTargetId == messageId ? _targetKey : _pinnedKey;
       final ctx = activeKey.currentContext;
@@ -6644,7 +6645,7 @@ class _ChatViewState extends State<ChatView> {
               : const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           alignmentPolicy: pinnedJump && alignment == null
-              ? ScrollPositionAlignmentPolicy.keepVisibleAtStart
+              ? pinnedMessageScrollAlignmentPolicy
               : ScrollPositionAlignmentPolicy.explicit,
         );
         if (mounted && _scrollTargetId == messageId) {
