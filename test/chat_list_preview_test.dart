@@ -6,6 +6,7 @@ import 'package:mithka/chats/chat_list_preview.dart';
 import 'package:mithka/chats/chat_list_view.dart';
 import 'package:mithka/chats/chat_list_view_model.dart';
 import 'package:mithka/components/app_icons.dart';
+import 'package:mithka/components/app_press_ripple.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/td_models.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -230,12 +231,21 @@ void main() {
       ),
     );
 
-    await tester.longPressAt(
+    final gesture = await tester.startGesture(
       tester.getCenter(find.byKey(const ValueKey('preview-row'))),
     );
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+
+    expect(find.byKey(AppPressRipple.rippleLayerKey), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 500));
 
     expect(longPresses, 1);
+
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(AppPressRipple.rippleLayerKey), findsNothing);
   });
 
   testWidgets('hold-and-drag rows reserve long press for swipe actions', (

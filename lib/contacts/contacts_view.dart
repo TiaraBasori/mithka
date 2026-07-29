@@ -15,6 +15,7 @@ import 'package:provider/provider.dart';
 import '../app/app_navigator.dart';
 import '../chat/chat_view.dart';
 import '../components/app_icons.dart';
+import '../components/app_press_ripple.dart';
 import '../components/drawer_controller.dart' as dc;
 import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
@@ -266,55 +267,60 @@ class _ContactsViewState extends State<ContactsView> {
     }
     return _card([
       for (final contact in contacts) ...[
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => _openDetail(
-            ProfileDetailView(
-              userId: contact.id,
-              name: contact.name,
-              showBackButton: widget.onOpenDetail == null,
+        AppPressRipple(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _openDetail(
+              ProfileDetailView(
+                userId: contact.id,
+                name: contact.name,
+                showBackButton: widget.onOpenDetail == null,
+              ),
             ),
-          ),
-          child: SizedBox(
-            height: 64,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  PhotoAvatar(
-                    title: contact.name,
-                    photo: contact.photo,
-                    size: 44,
-                    showOnlineDot: contact.isOnline,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          contact.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 16, color: c.textPrimary),
-                        ),
-                        if (contact.statusText.isNotEmpty) ...[
-                          const SizedBox(height: 3),
+            child: SizedBox(
+              height: 64,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    PhotoAvatar(
+                      title: contact.name,
+                      photo: contact.photo,
+                      size: 44,
+                      showOnlineDot: contact.isOnline,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
                           Text(
-                            contact.statusText.l10n(context),
+                            contact.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 13,
-                              color: c.textSecondary,
+                              fontSize: 16,
+                              color: c.textPrimary,
                             ),
                           ),
+                          if (contact.statusText.isNotEmpty) ...[
+                            const SizedBox(height: 3),
+                            Text(
+                              contact.statusText.l10n(context),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: c.textSecondary,
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -337,39 +343,41 @@ class _ContactsViewState extends State<ContactsView> {
     }
     return _card([
       for (final group in chats) ...[
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => _openDetail(
-            ChatView(
-              chatId: group.id,
-              title: group.title,
-              showBackButton: widget.onOpenDetail == null,
-              showHeaderDivider: widget.onOpenDetail == null,
+        AppPressRipple(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _openDetail(
+              ChatView(
+                chatId: group.id,
+                title: group.title,
+                showBackButton: widget.onOpenDetail == null,
+                showHeaderDivider: widget.onOpenDetail == null,
+              ),
+              outsideTabs: true,
             ),
-            outsideTabs: true,
-          ),
-          child: SizedBox(
-            height: 64,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  PhotoAvatar(
-                    title: group.title,
-                    photo: group.photo,
-                    size: 44,
-                    square: !circleGroups,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      group.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 16, color: c.textPrimary),
+            child: SizedBox(
+              height: 64,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14),
+                child: Row(
+                  children: [
+                    PhotoAvatar(
+                      title: group.title,
+                      photo: group.photo,
+                      size: 44,
+                      square: !circleGroups,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        group.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 16, color: c.textPrimary),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

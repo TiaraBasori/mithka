@@ -26,6 +26,7 @@ import '../chat/link_handler.dart';
 import '../communities/community_models.dart';
 import '../communities/community_view.dart';
 import '../components/app_icons.dart';
+import '../components/app_press_ripple.dart';
 import '../components/drawer_controller.dart' as dc;
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
@@ -2211,7 +2212,6 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
   Animation<double>? _animation;
   VoidCallback? _animationListener;
   double _offset = 0;
-  bool _longPressHighlighted = false;
   double _longPressStartOffset = 0;
 
   double get _totalWidth => widget.actions.length * _buttonWidth;
@@ -2351,70 +2351,54 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
           // The row, sliding left to uncover the blocks.
           Transform.translate(
             offset: Offset(_offset, 0),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _offset != 0 ? _close() : widget.onTap(),
-              onLongPress: widget.requiresLongPressDrag
-                  ? null
-                  : () {
-                      if (_offset != 0) {
-                        _close();
-                        return;
+            child: AppPressRipple(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _offset != 0 ? _close() : widget.onTap(),
+                onLongPress: widget.requiresLongPressDrag
+                    ? null
+                    : () {
+                        if (_offset != 0) {
+                          _close();
+                          return;
+                        }
+                        widget.onLongPress?.call();
+                      },
+                onLongPressStart: (_) {
+                  _stopAnimation();
+                  _longPressStartOffset = _offset;
+                },
+                onLongPressMoveUpdate: widget.requiresLongPressDrag
+                    ? (details) {
+                        setState(() {
+                          _offset = _rubberBandOffset(
+                            _longPressStartOffset +
+                                details.localOffsetFromOrigin.dx,
+                          );
+                        });
                       }
-                      widget.onLongPress?.call();
-                    },
-              onLongPressStart: (_) {
-                _stopAnimation();
-                _longPressStartOffset = _offset;
-                setState(() => _longPressHighlighted = true);
-              },
-              onLongPressMoveUpdate: widget.requiresLongPressDrag
-                  ? (details) {
-                      setState(() {
-                        _offset = _rubberBandOffset(
-                          _longPressStartOffset +
-                              details.localOffsetFromOrigin.dx,
-                        );
-                      });
-                    }
-                  : null,
-              onLongPressEnd: (details) {
-                setState(() => _longPressHighlighted = false);
-                if (widget.requiresLongPressDrag) {
-                  _settle(details.velocity.pixelsPerSecond.dx);
-                }
-              },
-              onLongPressCancel: () =>
-                  setState(() => _longPressHighlighted = false),
-              onHorizontalDragStart: widget.requiresLongPressDrag
-                  ? null
-                  : (_) => _stopAnimation(),
-              onHorizontalDragUpdate: widget.requiresLongPressDrag
-                  ? null
-                  : (details) {
-                      setState(
-                        () => _offset = _rubberBandOffset(
-                          _offset + details.delta.dx,
-                        ),
-                      );
-                    },
-              onHorizontalDragEnd: widget.requiresLongPressDrag
-                  ? null
-                  : (details) => _settle(details.primaryVelocity ?? 0),
-              child: Stack(
-                children: [
-                  widget.child,
-                  if (_longPressHighlighted)
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.08),
+                    : null,
+                onLongPressEnd: (details) {
+                  if (widget.requiresLongPressDrag) {
+                    _settle(details.velocity.pixelsPerSecond.dx);
+                  }
+                },
+                onHorizontalDragStart: widget.requiresLongPressDrag
+                    ? null
+                    : (_) => _stopAnimation(),
+                onHorizontalDragUpdate: widget.requiresLongPressDrag
+                    ? null
+                    : (details) {
+                        setState(
+                          () => _offset = _rubberBandOffset(
+                            _offset + details.delta.dx,
                           ),
-                        ),
-                      ),
-                    ),
-                ],
+                        );
+                      },
+                onHorizontalDragEnd: widget.requiresLongPressDrag
+                    ? null
+                    : (details) => _settle(details.primaryVelocity ?? 0),
+                child: widget.child,
               ),
             ),
           ),
