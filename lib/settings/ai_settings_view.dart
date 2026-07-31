@@ -145,6 +145,30 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                               color: const Color(0xFF16A085),
                             ),
                             const InsetDivider(leadingInset: 56),
+                            SettingsRow(
+                              key: const ValueKey('aiTranslationPromptRow'),
+                              title: AppStringKeys.aiTranslatePrompts.l10n(
+                                context,
+                              ),
+                              value: translation.hasCustomAiTranslationPrompt
+                                  ? AppStringKeys
+                                        .translationSettingsAiPromptCustom
+                                        .l10n(context)
+                                  : AppStringKeys.editProfileDefault.l10n(
+                                      context,
+                                    ),
+                              leading: const SettingsIconTile(
+                                icon: HeroAppIcons.language,
+                                backgroundColor: Color(0xFF16A085),
+                              ),
+                              onTap: () => _push(
+                                context,
+                                AiTranslationPromptEditorView(
+                                  translation: translation,
+                                ),
+                              ),
+                            ),
+                            const InsetDivider(leadingInset: 56),
                             _featureModelRow(
                               context,
                               settings: settings,
@@ -154,6 +178,28 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                               ),
                               icon: HeroAppIcons.listCheck,
                               color: const Color(0xFF7467F0),
+                            ),
+                            const InsetDivider(leadingInset: 56),
+                            SettingsRow(
+                              key: const ValueKey('aiSummaryPromptRow'),
+                              title: AppStringKeys.aiSummarizePrompts.l10n(
+                                context,
+                              ),
+                              value: settings.hasCustomAiSummaryPrompt
+                                  ? AppStringKeys
+                                        .translationSettingsAiPromptCustom
+                                        .l10n(context)
+                                  : AppStringKeys.editProfileDefault.l10n(
+                                      context,
+                                    ),
+                              leading: const SettingsIconTile(
+                                icon: HeroAppIcons.listCheck,
+                                backgroundColor: Color(0xFF7467F0),
+                              ),
+                              onTap: () => _push(
+                                context,
+                                AiSummaryPromptEditorView(settings: settings),
+                              ),
                             ),
                             const InsetDivider(leadingInset: 56),
                             _featureModelRow(
@@ -182,52 +228,6 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                               onTap: () => _push(
                                 context,
                                 AiReplyPromptEditorView(settings: settings),
-                              ),
-                            ),
-                            const InsetDivider(leadingInset: 56),
-                            SettingsRow(
-                              key: const ValueKey('aiTranslationPromptRow'),
-                              title: AppStringKeys.aiTranslatePrompts.l10n(
-                                context,
-                              ),
-                              value: translation.hasCustomAiTranslationPrompt
-                                  ? AppStringKeys
-                                        .translationSettingsAiPromptCustom
-                                        .l10n(context)
-                                  : AppStringKeys.editProfileDefault.l10n(
-                                      context,
-                                    ),
-                              leading: const SettingsIconTile(
-                                icon: HeroAppIcons.language,
-                                backgroundColor: Color(0xFF16A085),
-                              ),
-                              onTap: () => _push(
-                                context,
-                                AiTranslationPromptEditorView(
-                                  translation: translation,
-                                ),
-                              ),
-                            ),
-                            const InsetDivider(leadingInset: 56),
-                            SettingsRow(
-                              key: const ValueKey('aiSummaryPromptRow'),
-                              title: AppStringKeys.aiSummarizePrompts.l10n(
-                                context,
-                              ),
-                              value: settings.hasCustomAiSummaryPrompt
-                                  ? AppStringKeys
-                                        .translationSettingsAiPromptCustom
-                                        .l10n(context)
-                                  : AppStringKeys.editProfileDefault.l10n(
-                                      context,
-                                    ),
-                              leading: const SettingsIconTile(
-                                icon: HeroAppIcons.listCheck,
-                                backgroundColor: Color(0xFF7467F0),
-                              ),
-                              onTap: () => _push(
-                                context,
-                                AiSummaryPromptEditorView(settings: settings),
                               ),
                             ),
                           ],

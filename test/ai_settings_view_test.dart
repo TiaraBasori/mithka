@@ -107,6 +107,25 @@ void main() {
     expect(find.text('Translate using'), findsOneWidget);
     expect(find.text('Summarize using'), findsOneWidget);
     expect(find.text(replyUsingLabel), findsOneWidget);
+    final modelConfigurationCard = tester.widget<SettingsCard>(
+      find.ancestor(
+        of: find.byKey(const ValueKey('aiTranslationPromptRow')),
+        matching: find.byType(SettingsCard),
+      ),
+    );
+    expect(
+      modelConfigurationCard.children.whereType<SettingsRow>().map(
+        (row) => row.title,
+      ),
+      [
+        'Translate using',
+        'Translate Prompts',
+        'Summarize using',
+        'Summarize Prompts',
+        replyUsingLabel,
+        'Reply Prompts',
+      ],
+    );
     expect(tester.widget<AppSwitch>(find.byType(AppSwitch)).value, isFalse);
 
     await tester.tap(find.byType(SettingsSwitchRow));
