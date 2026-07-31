@@ -1,8 +1,31 @@
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/chat_scroll_metrics.dart';
 
 void main() {
+  test('loaded message jumps wait for the retargeted key layout', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final methodStart = source.indexOf('Future<void> _scrollToMessage(');
+    final methodEnd = source.indexOf(
+      'Future<void> _openHashtagSearch(',
+      methodStart,
+    );
+    expect(methodStart, greaterThanOrEqualTo(0));
+    expect(methodEnd, greaterThan(methodStart));
+
+    final method = source.substring(methodStart, methodEnd);
+    final layoutWait = method.indexOf(
+      'await WidgetsBinding.instance.endOfFrame;',
+    );
+    final mountedGuard = method.indexOf('if (!mounted) return;', layoutWait);
+    final loadedFastPath = method.indexOf('if (_vm.messages.any');
+    expect(layoutWait, greaterThanOrEqualTo(0));
+    expect(mountedGuard, greaterThan(layoutWait));
+    expect(mountedGuard, lessThan(loadedFastPath));
+  });
+
   group('oldest history pull', () {
     test(
       'fires once after accumulated clamped overscroll crosses threshold',

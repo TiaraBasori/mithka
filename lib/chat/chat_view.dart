@@ -6586,6 +6586,11 @@ class _ChatViewState extends State<ChatView> {
   }) async {
     if (mounted) {
       setState(() => _setScrollTarget(messageId));
+      // The target key moves to the requested row during layout. Waiting for
+      // that frame prevents an already-loaded jump from reusing the previous
+      // pinned row's context.
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
     } else {
       _setScrollTarget(messageId);
     }
