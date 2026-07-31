@@ -206,44 +206,123 @@ void main() {
       );
     });
 
-    test('only a newer boundary with a net unread increase is confirmed', () {
+    test('a concrete newer incoming unread confirms the reopen override', () {
       expect(
-        hasConfirmedNewUnreadSinceChatSession(
-          savedUnreadCount: 0,
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: false,
+          isService: false,
           savedKnownLatestMessageId: 100,
-          currentUnreadCount: 3,
+          currentLastReadInboxId: 90,
+        ),
+        isTrue,
+        reason: 'the concrete message remains proof if counts are stale',
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: true,
+          isService: false,
+          savedKnownLatestMessageId: 100,
+          currentLastReadInboxId: 90,
+        ),
+        isFalse,
+        reason: 'a newer outgoing message is not an incoming unread',
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: false,
+          isService: true,
+          savedKnownLatestMessageId: 100,
+          currentLastReadInboxId: 90,
+        ),
+        isFalse,
+        reason: 'service messages must not displace the saved viewport',
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 100,
+          isOutgoing: false,
+          isService: false,
+          savedKnownLatestMessageId: 100,
+          currentLastReadInboxId: 90,
+        ),
+        isFalse,
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: false,
+          isService: false,
+          savedKnownLatestMessageId: 100,
+          currentLastReadInboxId: 130,
+        ),
+        isFalse,
+        reason: 'a message already inside the read boundary is not unread',
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: false,
+          isService: false,
+          savedKnownLatestMessageId: 0,
+          currentLastReadInboxId: 90,
+        ),
+        isFalse,
+        reason: 'an uncertain saved boundary must preserve the viewport',
+      );
+    });
+
+    test('history probing requires a nonzero unread count', () {
+      expect(
+        shouldProbeChatSessionUnreadHistory(
+          savedKnownLatestMessageId: 100,
           currentKnownLatestMessageId: 130,
+          currentUnreadCount: 0,
+        ),
+        isFalse,
+        reason: 'zero unread must not issue a history query',
+      );
+      expect(
+        shouldProbeChatSessionUnreadHistory(
+          savedKnownLatestMessageId: 100,
+          currentKnownLatestMessageId: 130,
+          currentUnreadCount: 2,
         ),
         isTrue,
       );
       expect(
-        hasConfirmedNewUnreadSinceChatSession(
-          savedUnreadCount: 3,
+        shouldProbeChatSessionUnreadHistory(
           savedKnownLatestMessageId: 100,
-          currentUnreadCount: 3,
-          currentKnownLatestMessageId: 130,
-        ),
-        isFalse,
-        reason: 'a newer outgoing or service message is not enough',
-      );
-      expect(
-        hasConfirmedNewUnreadSinceChatSession(
-          savedUnreadCount: 0,
-          savedKnownLatestMessageId: 100,
-          currentUnreadCount: 3,
           currentKnownLatestMessageId: 100,
+          currentUnreadCount: 2,
         ),
         isFalse,
       );
+    });
+
+    test('an inconclusive bounded probe preserves the saved position', () {
       expect(
-        hasConfirmedNewUnreadSinceChatSession(
-          savedUnreadCount: 0,
-          savedKnownLatestMessageId: 0,
-          currentUnreadCount: 3,
-          currentKnownLatestMessageId: 130,
-        ),
+        shouldContinueChatSessionUnreadHistoryProbe(pagesScanned: 0),
+        isTrue,
+      );
+      expect(
+        shouldContinueChatSessionUnreadHistoryProbe(pagesScanned: 4),
+        isTrue,
+      );
+      expect(
+        shouldContinueChatSessionUnreadHistoryProbe(pagesScanned: 5),
         isFalse,
-        reason: 'an uncertain saved boundary must preserve the viewport',
+        reason: 'five 100-message pages is the fixed probe budget',
+      );
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: false,
+          hasSavedPosition: true,
+          hasConfirmedNewUnread: false,
+        ),
+        ChatReopenDisposition.savedPosition,
       );
     });
 

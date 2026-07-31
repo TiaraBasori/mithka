@@ -809,7 +809,6 @@ class _ChatScrollSnapshot {
     required this.pixels,
     required this.wasAtLoadedBottom,
     required this.knownLatestMessageId,
-    required this.unreadCount,
     this.pivotMessageId,
     this.anchorMessageId,
     this.anchorViewportOffset,
@@ -818,7 +817,6 @@ class _ChatScrollSnapshot {
   final double pixels;
   final bool wasAtLoadedBottom;
   final int knownLatestMessageId;
-  final int unreadCount;
   final int? pivotMessageId;
   final int? anchorMessageId;
   final double? anchorViewportOffset;
@@ -885,8 +883,12 @@ class _ChatViewState extends State<ChatView> {
   bool _transcriptViewportClaimedByUser = false;
   late final ChatReturnToLatestCoordinator _returnToLatestCoordinator;
   late final ChatRestoredPositionGuard _restoredPositionGuard;
+  final ChatSessionReopenNavigationGuard _sessionReopenNavigationGuard =
+      ChatSessionReopenNavigationGuard();
   late bool _sessionReopenDispositionResolved;
+  bool _sessionReopenResolutionInFlight = false;
   bool _prioritizingSessionUnread = false;
+  bool _preserveSnapshotAfterFailedSessionJump = false;
   bool _initialTranscriptReady = false;
   final Set<int> _transcriptPointersDown = <int>{};
   bool _bottomScrollScheduled = false;
@@ -1016,7 +1018,6 @@ class _ChatViewState extends State<ChatView> {
           pixels: snapshot.pixels,
           wasAtLoadedBottom: snapshot.wasAtLoadedBottom,
           knownLatestMessageId: snapshot.knownLatestMessageId,
-          unreadCount: snapshot.unreadCount,
           anchorMessageId: snapshot.anchorMessageId,
           anchorViewportOffset: snapshot.anchorViewportOffset,
         );
@@ -1062,7 +1063,10 @@ class _ChatViewState extends State<ChatView> {
     _returnToLatestCoordinator = ChatReturnToLatestCoordinator(
       loadLatest: _vm.loadLatestHistory,
       invalidateLatestLoad: _vm.invalidateLatestHistoryLoad,
-      needsLatestLoad: () => _vm.anchoredHistory,
+      needsLatestLoad: () => shouldLoadLatestChatHistory(
+        anchoredHistory: _vm.anchoredHistory,
+        historyReachesLatest: _vm.historyReachesLatest,
+      ),
       onChanged: _onReturnToLatestCoordinatorChanged,
       onReadyAvailable: _drainReturnToLatestIntent,
     );
@@ -1297,6 +1301,7 @@ class _ChatViewState extends State<ChatView> {
 
   void _onTranscriptPointerDown(PointerDownEvent event) {
     _transcriptPointersDown.add(event.pointer);
+    _cancelSessionReopenNavigation();
     // A hold cancels an in-flight driven scroll immediately. It does not claim
     // the viewport permanently unless it becomes an actual drag.
     _cancelBottomFollow();
@@ -1315,6 +1320,7 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _claimTranscriptViewport() {
+    _cancelSessionReopenNavigation(userClaimedViewport: true);
     _cancelBottomFollow();
     _returnToLatestCoordinator.cancelForUserDrag();
     ++_shortTranscriptFillGeneration;
@@ -1342,6 +1348,11 @@ class _ChatViewState extends State<ChatView> {
   void _saveSessionScrollSnapshot({bool captureAnchor = true}) {
     if (!_didInitialScroll ||
         !_initialTranscriptReady ||
+        !shouldSaveChatSessionScrollSnapshot(
+          sessionReopenPending: _sessionReopenPending,
+          preservingSnapshotAfterFailedJump:
+              _preserveSnapshotAfterFailedSessionJump,
+        ) ||
         _maintainSessionScrollAnchor ||
         !_scroll.hasClients ||
         widget.initialMessageId != null) {
@@ -1360,19 +1371,49 @@ class _ChatViewState extends State<ChatView> {
         _vm.knownLatestMessageId,
         _latestServerMessage(_vm.messages)?.id ?? 0,
       ),
-      unreadCount: _vm.unreadCount,
       pivotMessageId: _transcriptPivot?.cutoffMessageId,
       anchorMessageId: anchor?.messageId,
       anchorViewportOffset: anchor?.viewportOffset,
     );
   }
 
+  bool get _sessionReopenPending =>
+      !_sessionReopenDispositionResolved ||
+      _sessionReopenResolutionInFlight ||
+      _prioritizingSessionUnread;
+
+  void _cancelSessionReopenNavigation({bool userClaimedViewport = false}) {
+    final wasPending = _sessionReopenPending;
+    _sessionReopenNavigationGuard.cancel();
+    _sessionReopenResolutionInFlight = false;
+    _sessionReopenDispositionResolved = true;
+    if (_prioritizingSessionUnread) {
+      _prioritizingSessionUnread = false;
+      _scrollTargetId = null;
+    }
+    if (userClaimedViewport) {
+      _preserveSnapshotAfterFailedSessionJump = false;
+    } else if (wasPending) {
+      _preserveSnapshotAfterFailedSessionJump = true;
+    }
+  }
+
   void _prepareExitState() {
     if (_exitStatePrepared) return;
     _exitStatePrepared = true;
-    if (!_maintainSessionScrollAnchor) _saveSessionScrollSnapshot();
+    final sessionReopenPending = _sessionReopenPending;
+    _cancelSessionReopenNavigation();
+    if (!sessionReopenPending && !_maintainSessionScrollAnchor) {
+      _saveSessionScrollSnapshot();
+    }
     _cacheCurrentTranscript();
-    if (_isAtLoadedBottom(80)) {
+    if (shouldMarkChatReadOnExit(
+      isAtLoadedBottom: _isAtLoadedBottom(80),
+      sessionReopenPending: sessionReopenPending,
+      restoredPositionProtected: _restoredPositionGuard.blocksAutomaticReturn,
+      preservesViewport: _autoScrollPolicy.preservesViewport,
+      historyReachesLatest: _vm.historyReachesLatest,
+    )) {
       unawaited(_vm.markLoadedMessagesRead());
     }
   }
@@ -1707,12 +1748,13 @@ class _ChatViewState extends State<ChatView> {
       });
     }
     _scheduleScrollToBottom();
-    unawaited(_vm.markLoadedMessagesRead());
+    _markReadAtBottomIfNeeded();
   }
 
   void _requestReturnToLatest({bool userInitiated = false}) {
     if (!userInitiated && _hasTranscriptPointerDown) return;
     if (userInitiated) {
+      _cancelSessionReopenNavigation(userClaimedViewport: true);
       _restoredPositionGuard.cancel();
       _cancelSessionScrollAnchorMaintenance();
       _cancelBottomFollow();
@@ -1742,7 +1784,13 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _markReadAtBottomIfNeeded() {
-    if (_prioritizingSessionUnread ||
+    if (!shouldAllowAutomaticChatRead(
+          sessionReopenPending: _sessionReopenPending,
+          restoredPositionProtected:
+              _restoredPositionGuard.blocksAutomaticReturn,
+          preservesViewport: _autoScrollPolicy.preservesViewport,
+          historyReachesLatest: _vm.historyReachesLatest,
+        ) ||
         !_vm.initialLoaded ||
         _vm.messages.isEmpty ||
         _vm.anchoredHistory) {
@@ -1824,6 +1872,19 @@ class _ChatViewState extends State<ChatView> {
   /// boundary may already point at the newest message after the chat is marked
   /// read, so it cannot be used to resolve this button later.
   Future<void> _jumpToFirstUnread() async {
+    _cancelSessionReopenNavigation(userClaimedViewport: true);
+    await _jumpToFirstUnreadImpl();
+  }
+
+  Future<bool> _jumpToFirstUnreadForSession(int generation) =>
+      _jumpToFirstUnreadImpl(sessionReopenGeneration: generation);
+
+  Future<bool> _jumpToFirstUnreadImpl({int? sessionReopenGeneration}) async {
+    bool isCancelled() =>
+        sessionReopenGeneration != null &&
+        !_sessionReopenNavigationGuard.isCurrent(sessionReopenGeneration);
+
+    if (isCancelled()) return false;
     var targetMessageId = _entryFirstUnreadMessageId;
     final entryBoundaryId = _entryLastReadInboxId;
     _cancelSessionScrollAnchorMaintenance();
@@ -1840,10 +1901,14 @@ class _ChatViewState extends State<ChatView> {
 
     if (targetMessageId == null && entryBoundaryId > 0) {
       setState(() => _setScrollTarget(entryBoundaryId));
-      await _vm.loadAroundMessage(entryBoundaryId, scrollToTarget: false);
-      if (!mounted) return;
+      await _vm.loadAroundMessage(
+        entryBoundaryId,
+        scrollToTarget: false,
+        isCancelled: isCancelled,
+      );
+      if (!mounted || isCancelled()) return false;
       await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
+      if (!mounted || isCancelled()) return false;
       targetMessageId = _firstLoadedEntryUnreadMessageId();
       if (targetMessageId == null &&
           _vm.messages.any((message) => message.id == entryBoundaryId)) {
@@ -1857,14 +1922,16 @@ class _ChatViewState extends State<ChatView> {
     targetMessageId ??= _firstLoadedEntryUnreadMessageId();
     if (targetMessageId == null) {
       if (_scrollTargetId != null) setState(() => _setScrollTarget(null));
-      return;
+      return false;
     }
     _entryFirstUnreadMessageId = targetMessageId;
-    await _scrollToMessage(
+    final didReachTarget = await _scrollToMessageAndReport(
       targetMessageId,
       alignment: _initialUnreadAlignment,
       forceAlignment: true,
+      isCancelled: isCancelled,
     );
+    return didReachTarget && !isCancelled();
   }
 
   void _scheduleSendFailureDialog(ChatSendFailure failure) {
@@ -1949,19 +2016,65 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _resolveRestoredSessionEntry() {
-    if (_sessionReopenDispositionResolved || !_vm.chatHeaderLoaded) return;
-    _sessionReopenDispositionResolved = true;
+    if (_sessionReopenDispositionResolved ||
+        _sessionReopenResolutionInFlight ||
+        !_vm.chatReadStateLoaded) {
+      return;
+    }
     final snapshot = _sessionScrollSnapshot;
-    if (snapshot == null) return;
+    if (snapshot == null) {
+      _sessionReopenDispositionResolved = true;
+      return;
+    }
+    _sessionReopenResolutionInFlight = true;
+    final generation = _sessionReopenNavigationGuard.begin();
+    final readStateRevision = _vm.chatReadStateRevision;
+    unawaited(
+      _resolveRestoredSessionEntryAsync(
+        snapshot: snapshot,
+        generation: generation,
+        readStateRevision: readStateRevision,
+      ),
+    );
+  }
+
+  Future<void> _resolveRestoredSessionEntryAsync({
+    required _ChatScrollSnapshot snapshot,
+    required int generation,
+    required int readStateRevision,
+  }) async {
+    // TDLib can deliver updateNewMessage and the paired unread-count update as
+    // separate events. Let the current event batch settle, then retry whenever
+    // either boundary changes during the read-only confirmation probe.
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted || !_sessionReopenNavigationGuard.isCurrent(generation)) {
+      return;
+    }
+    if (_vm.chatReadStateRevision != readStateRevision) {
+      _sessionReopenResolutionInFlight = false;
+      _resolveRestoredSessionEntry();
+      return;
+    }
+    final confirmedUnreadMessageId = await _vm
+        .confirmedNewIncomingUnreadSinceSession(
+          savedKnownLatestMessageId: snapshot.knownLatestMessageId,
+          expectedReadStateRevision: readStateRevision,
+        );
+    if (!mounted || !_sessionReopenNavigationGuard.isCurrent(generation)) {
+      return;
+    }
+    if (_vm.chatReadStateRevision != readStateRevision) {
+      _sessionReopenResolutionInFlight = false;
+      _resolveRestoredSessionEntry();
+      return;
+    }
+
+    _sessionReopenResolutionInFlight = false;
+    _sessionReopenDispositionResolved = true;
     final disposition = resolveChatReopenDisposition(
       hasExplicitTarget: widget.initialMessageId != null,
       hasSavedPosition: true,
-      hasConfirmedNewUnread: hasConfirmedNewUnreadSinceChatSession(
-        savedUnreadCount: snapshot.unreadCount,
-        savedKnownLatestMessageId: snapshot.knownLatestMessageId,
-        currentUnreadCount: _vm.unreadCount,
-        currentKnownLatestMessageId: _vm.knownLatestMessageId,
-      ),
+      hasConfirmedNewUnread: confirmedUnreadMessageId != null,
     );
     if (disposition != ChatReopenDisposition.firstUnread) return;
 
@@ -1972,17 +2085,28 @@ class _ChatViewState extends State<ChatView> {
     _cancelBottomFollow();
     _stopActiveTranscriptScroll();
     _resetTranscriptPivot();
-    _sessionScrollSnapshots.remove(widget.chatId);
     _entryUnreadCount = _vm.unreadCount;
     _entryLastReadInboxId = _vm.lastReadInboxId;
-    _entryFirstUnreadMessageId = _firstLoadedEntryUnreadMessageId();
-    unawaited(
-      _jumpToFirstUnread().whenComplete(() {
-        if (!mounted) return;
-        _prioritizingSessionUnread = false;
-        _saveSessionScrollSnapshot();
-      }),
-    );
+    _entryFirstUnreadMessageId = _entryLastReadInboxId == 0
+        ? confirmedUnreadMessageId
+        : _firstLoadedEntryUnreadMessageId();
+    var jumped = false;
+    try {
+      jumped = await _jumpToFirstUnreadForSession(generation);
+    } catch (_) {
+      jumped = false;
+    }
+    if (!mounted || !_sessionReopenNavigationGuard.isCurrent(generation)) {
+      return;
+    }
+    _prioritizingSessionUnread = false;
+    if (jumped) {
+      _preserveSnapshotAfterFailedSessionJump = false;
+      _sessionScrollSnapshots.remove(widget.chatId);
+      _saveSessionScrollSnapshot();
+    } else {
+      _preserveSnapshotAfterFailedSessionJump = true;
+    }
   }
 
   void _onModel() {
@@ -2448,7 +2572,7 @@ class _ChatViewState extends State<ChatView> {
     if (_vm.anchoredHistory) return true;
     if (_shouldOpenAtBottom) {
       _scrollToBottom();
-      unawaited(_vm.markLoadedMessagesRead());
+      _markReadAtBottomIfNeeded();
       return true;
     }
     final i = _firstUnreadIndex();
@@ -6653,37 +6777,57 @@ class _ChatViewState extends State<ChatView> {
     double? alignment,
     bool forceAlignment = false,
   }) async {
+    _cancelSessionReopenNavigation(userClaimedViewport: true);
+    await _scrollToMessageAndReport(
+      messageId,
+      pinnedJump: pinnedJump,
+      alignment: alignment,
+      forceAlignment: forceAlignment,
+    );
+  }
+
+  Future<bool> _scrollToMessageAndReport(
+    int messageId, {
+    bool pinnedJump = false,
+    double? alignment,
+    bool forceAlignment = false,
+    bool Function()? isCancelled,
+  }) async {
+    if (isCancelled?.call() ?? false) return false;
     if (mounted) {
       setState(() => _setScrollTarget(messageId));
       // The target key moves to the requested row during layout. Waiting for
       // that frame prevents an already-loaded jump from reusing the previous
       // pinned row's context.
       await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
+      if (!mounted || (isCancelled?.call() ?? false)) return false;
     } else {
-      _setScrollTarget(messageId);
+      return false;
     }
+    if (isCancelled?.call() ?? false) return false;
     if (_vm.messages.any((m) => m.id == messageId)) {
-      await _ensureMessageVisible(
+      return _ensureMessageVisibleAndReport(
         messageId,
         pinnedJump: pinnedJump,
         alignment: alignment,
         forceAlignment: forceAlignment,
+        isCancelled: isCancelled,
       );
-      return;
     }
     final loaded = await _vm.loadAroundMessage(
       messageId,
       scrollToTarget: false,
+      isCancelled: isCancelled,
     );
-    if (!loaded || !mounted) return;
+    if (!loaded || !mounted || (isCancelled?.call() ?? false)) return false;
     await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return;
-    await _ensureMessageVisible(
+    if (!mounted || (isCancelled?.call() ?? false)) return false;
+    return _ensureMessageVisibleAndReport(
       messageId,
       pinnedJump: pinnedJump,
       alignment: alignment,
       forceAlignment: forceAlignment,
+      isCancelled: isCancelled,
     );
   }
 
@@ -6710,9 +6854,27 @@ class _ChatViewState extends State<ChatView> {
     double? alignment,
     bool forceAlignment = false,
   }) async {
+    await _ensureMessageVisibleAndReport(
+      messageId,
+      pinnedJump: pinnedJump,
+      instant: instant,
+      alignment: alignment,
+      forceAlignment: forceAlignment,
+    );
+  }
+
+  Future<bool> _ensureMessageVisibleAndReport(
+    int messageId, {
+    bool pinnedJump = false,
+    bool instant = false,
+    double? alignment,
+    bool forceAlignment = false,
+    bool Function()? isCancelled,
+  }) async {
     final targetAlignment =
         alignment ?? (pinnedJump ? pinnedMessageScrollAlignment : 0.3);
     for (var tries = 0; tries < 6; tries++) {
+      if (isCancelled?.call() ?? false) return false;
       final activeKey = _scrollTargetId == messageId ? _targetKey : _pinnedKey;
       final ctx = activeKey.currentContext;
       if (ctx != null && ctx.mounted) {
@@ -6743,7 +6905,7 @@ class _ChatViewState extends State<ChatView> {
             if (mounted && _scrollTargetId == messageId) {
               setState(() => _setScrollTarget(null));
             }
-            return;
+            return !(isCancelled?.call() ?? false);
           }
         }
         // Do not realign a message that is already on screen. Reply, search,
@@ -6753,7 +6915,7 @@ class _ChatViewState extends State<ChatView> {
           if (mounted && _scrollTargetId == messageId) {
             setState(() => _setScrollTarget(null));
           }
-          return;
+          return !(isCancelled?.call() ?? false);
         }
         await Scrollable.ensureVisible(
           ctx,
@@ -6768,17 +6930,18 @@ class _ChatViewState extends State<ChatView> {
         if (mounted && _scrollTargetId == messageId) {
           setState(() => _setScrollTarget(null));
         }
-        return;
+        return !(isCancelled?.call() ?? false);
       }
-      if (!_scroll.hasClients) return;
+      if (!_scroll.hasClients) return false;
       final estimate = _estimateMessageOffset(messageId, targetAlignment);
       if (estimate != null) _scroll.jumpTo(estimate);
       await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (!mounted) return;
+      if (!mounted || (isCancelled?.call() ?? false)) return false;
     }
     if (mounted && _scrollTargetId == messageId) {
       setState(() => _setScrollTarget(null));
     }
+    return false;
   }
 
   bool _isKeyMostlyVisible(GlobalKey key) {
