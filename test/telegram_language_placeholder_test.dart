@@ -43,6 +43,20 @@ void main() {
     );
   });
 
+  test('keeps the source name in forwarded-message attribution', () {
+    final controller = TelegramLanguageController.test(
+      strings: const {'ForwardedFrom': 'Forwarded from'},
+    );
+
+    expect(
+      controller.text(
+        AppStringKeys.messageBubbleForwardedFrom,
+        placeholders: const {'value1': 'Original Channel'},
+      ),
+      'Forwarded from Original Channel',
+    );
+  });
+
   test('familiar glossary keeps familiar archived-chat wording', () {
     final controller = TelegramLanguageController.test(
       activePackId: 'zhhanscn-qq',
