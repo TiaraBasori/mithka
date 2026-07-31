@@ -24,15 +24,26 @@ import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
 import 'topic_chat_view.dart';
 
+typedef ForumTopicBrowserQuery =
+    Future<Map<String, dynamic>> Function(Map<String, dynamic> request);
+typedef ForumTopicRouteOpener =
+    Future<void> Function(BuildContext context, ChatSummary chat, int topicId);
+
 class ForumTopicBrowserView extends StatefulWidget {
   const ForumTopicBrowserView({
     super.key,
     required this.chats,
     required this.initialChat,
+    this.query,
+    this.openTopicRoute,
   });
 
   final List<ChatSummary> chats;
   final ChatSummary initialChat;
+  @visibleForTesting
+  final ForumTopicBrowserQuery? query;
+  @visibleForTesting
+  final ForumTopicRouteOpener? openTopicRoute;
 
   @override
   State<ForumTopicBrowserView> createState() => _ForumTopicBrowserViewState();
@@ -78,13 +89,14 @@ class _ForumTopicBrowserViewState extends State<ForumTopicBrowserView> {
     _loadTopics(chat);
   }
 
-  Future<void> _loadTopics(ChatSummary chat) async {
-    if (_topicsByChat.containsKey(chat.id) || _loadingChats.contains(chat.id)) {
+  Future<void> _loadTopics(ChatSummary chat, {bool refresh = false}) async {
+    final hadCachedTopics = _topicsByChat.containsKey(chat.id);
+    if ((!refresh && hadCachedTopics) || _loadingChats.contains(chat.id)) {
       return;
     }
     setState(() => _loadingChats.add(chat.id));
     try {
-      final response = await TdClient.shared.query({
+      final request = <String, dynamic>{
         '@type': 'getForumTopics',
         'chat_id': chat.id,
         'query': '',
@@ -92,7 +104,8 @@ class _ForumTopicBrowserViewState extends State<ForumTopicBrowserView> {
         'offset_message_id': 0,
         'offset_forum_topic_id': 0,
         'limit': 100,
-      });
+      };
+      final response = await (widget.query ?? TdClient.shared.query)(request);
       final rawTopics =
           response.objects('topics') ?? const <Map<String, dynamic>>[];
       final topics = <_ForumTopicEntry>[];
@@ -131,7 +144,9 @@ class _ForumTopicBrowserViewState extends State<ForumTopicBrowserView> {
       setState(() => _topicsByChat[chat.id] = topics);
       _resolveTopicSenders(topics);
     } catch (_) {
-      if (mounted) setState(() => _topicsByChat[chat.id] = const []);
+      if (mounted && !hadCachedTopics) {
+        setState(() => _topicsByChat[chat.id] = const []);
+      }
     } finally {
       if (mounted) setState(() => _loadingChats.remove(chat.id));
     }
@@ -228,14 +243,21 @@ class _ForumTopicBrowserViewState extends State<ForumTopicBrowserView> {
     }
   }
 
-  void _openTopic(_ForumTopicEntry topic) {
-    pushAppChatRoute(
-      context,
-      MaterialPageRoute(
-        builder: (_) =>
-            TopicChatView(chat: _selectedChat, initialThreadId: topic.id),
-      ),
-    );
+  Future<void> _openTopic(_ForumTopicEntry topic) async {
+    final chat = _selectedChat;
+    final opener = widget.openTopicRoute;
+    if (opener != null) {
+      await opener(context, chat, topic.id);
+    } else {
+      await pushAppChatRoute(
+        context,
+        MaterialPageRoute(
+          builder: (_) => TopicChatView(chat: chat, initialThreadId: topic.id),
+        ),
+      );
+    }
+    if (!mounted) return;
+    await _loadTopics(chat, refresh: true);
   }
 
   @override
