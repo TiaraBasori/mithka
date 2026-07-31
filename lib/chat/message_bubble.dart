@@ -1093,6 +1093,7 @@ class _MessageBubbleState extends State<MessageBubble>
           else if (outgoing)
             _MessageDeliveryIndicator(
               isSending: message.isSending && !message.isSendAcknowledged,
+              isRead: widget.isRead,
               pendingColor: _outgoingTextColor,
               size: 10,
             ),
@@ -3188,6 +3189,7 @@ class _MessageBubbleState extends State<MessageBubble>
             else if (outgoing)
               _MessageDeliveryIndicator(
                 isSending: message.isSending && !message.isSendAcknowledged,
+                isRead: widget.isRead,
                 pendingColor: _outgoingTextColor,
                 size: 10,
               ),
@@ -5002,11 +5004,13 @@ class _LatexView extends StatelessWidget {
 class _MessageDeliveryIndicator extends StatefulWidget {
   const _MessageDeliveryIndicator({
     required this.isSending,
+    required this.isRead,
     required this.pendingColor,
     required this.size,
   });
 
   final bool isSending;
+  final bool isRead;
   final Color pendingColor;
   final double size;
 
@@ -5017,14 +5021,15 @@ class _MessageDeliveryIndicator extends StatefulWidget {
 
 class _MessageDeliveryIndicatorState extends State<_MessageDeliveryIndicator>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 900),
-  );
+  late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
     if (widget.isSending) _controller.repeat();
   }
 
@@ -5047,21 +5052,46 @@ class _MessageDeliveryIndicatorState extends State<_MessageDeliveryIndicator>
   }
 
   @override
-  Widget build(BuildContext context) => SizedBox.square(
-    key: ValueKey(
-      widget.isSending ? 'messageDeliverySending' : 'messageDeliverySent',
-    ),
-    dimension: widget.size,
-    child: CustomPaint(
-      painter: _MessageDeliveryPainter(
-        rotation: _controller,
-        isSending: widget.isSending,
-        color: widget.isSending
-            ? widget.pendingColor.withValues(alpha: 0.72)
-            : const Color(0xFF34C759),
+  Widget build(BuildContext context) {
+    if (!widget.isSending) {
+      final diameter = widget.size * 0.36;
+      Widget dot(int index) => Container(
+        key: ValueKey('messageDeliveryDot-$index'),
+        width: diameter,
+        height: diameter,
+        decoration: const BoxDecoration(
+          color: Color(0xFF34C759),
+          shape: BoxShape.circle,
+        ),
+      );
+      return SizedBox.square(
+        key: ValueKey(
+          widget.isRead ? 'messageDeliveryRead' : 'messageDeliverySent',
+        ),
+        dimension: widget.size,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              dot(0),
+              if (widget.isRead) ...[SizedBox(width: diameter * 0.75), dot(1)],
+            ],
+          ),
+        ),
+      );
+    }
+    return SizedBox.square(
+      key: const ValueKey('messageDeliverySending'),
+      dimension: widget.size,
+      child: CustomPaint(
+        painter: _MessageDeliveryPainter(
+          rotation: _controller,
+          isSending: true,
+          color: widget.pendingColor.withValues(alpha: 0.72),
+        ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _MessageDeliveryPainter extends CustomPainter {
