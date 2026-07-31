@@ -128,6 +128,12 @@ class _FocusTestChatViewModel extends ChatViewModel {
     ];
     notifyListeners();
   }
+
+  void completeInitialLoad({String remoteDraft = ''}) {
+    draft = remoteDraft;
+    initialLoaded = true;
+    notifyListeners();
+  }
 }
 
 class _ControlledMediaChatViewModel extends ChatViewModel {
@@ -997,6 +1003,49 @@ void main() {
 
       return (vm, target);
     }
+
+    testWidgets('quick reply focuses only after restoring the remote draft', (
+      tester,
+    ) async {
+      final vm = _FocusTestChatViewModel();
+      addTearDown(vm.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: ChatInputBar(
+                vm: vm,
+                requestInitialFocus: true,
+                onStartCall: (_) {},
+                onMessageSent: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      var field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.focusNode?.hasFocus, isFalse);
+      expect(field.controller?.text, isEmpty);
+
+      vm.completeInitialLoad(remoteDraft: 'Preserved Telegram draft');
+      await tester.pump();
+      await tester.pump();
+
+      field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller?.text, 'Preserved Telegram draft');
+      expect(field.focusNode?.hasFocus, isTrue);
+    });
 
     testWidgets('shows AI Reply inside an empty input and inserts its draft', (
       tester,

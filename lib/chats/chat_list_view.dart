@@ -87,18 +87,35 @@ class ChatListSelection {
     required this.title,
     this.chat,
     this.initialMessageId,
+    this.composerFocusRequestId = 0,
   });
 
-  ChatListSelection.fromChat(ChatSummary chat)
-    : this(chatId: chat.id, title: chat.title, chat: chat);
+  ChatListSelection.fromChat(
+    ChatSummary chat, {
+    this.composerFocusRequestId = 0,
+  }) : chatId = chat.id,
+       title = chat.title,
+       chat = chat,
+       initialMessageId = null;
 
   final int chatId;
   final String title;
   final ChatSummary? chat;
   final int? initialMessageId;
+  final int composerFocusRequestId;
 
   bool get isForum => chat?.isForum ?? false;
 }
+
+bool chatListPreviewSupportsQuickReply(ChatSummary chat) =>
+    !chat.isForum &&
+    switch (chat.kind) {
+      ChatKind.privateChat ||
+      ChatKind.group ||
+      ChatKind.bot ||
+      ChatKind.secret => true,
+      ChatKind.channel || ChatKind.unknown => false,
+    };
 
 /// Returns the exact leading offset for a chat-list item.
 ///
@@ -466,6 +483,7 @@ class _ChatListViewState extends State<ChatListView>
   bool _reactivationSyncScheduled = false;
   int _lastVisibleRows = 1;
   final ChatListSwipeSession _chatListSwipeSession = ChatListSwipeSession();
+  int _nextComposerFocusRequestId = 0;
 
   static const double _refreshPullThreshold = 72;
 
@@ -617,10 +635,18 @@ class _ChatListViewState extends State<ChatListView>
     } catch (_) {}
   }
 
-  Future<void> _openChat(ChatSummary chat) async {
+  Future<void> _openChat(ChatSummary chat, {bool focusComposer = false}) async {
+    final composerFocusRequestId = focusComposer
+        ? ++_nextComposerFocusRequestId
+        : 0;
     final onChatSelected = widget.onChatSelected;
     if (onChatSelected != null) {
-      onChatSelected(ChatListSelection.fromChat(chat));
+      onChatSelected(
+        ChatListSelection.fromChat(
+          chat,
+          composerFocusRequestId: composerFocusRequestId,
+        ),
+      );
       return;
     }
     if (chat.isSavedMessages) {
@@ -632,6 +658,7 @@ class _ChatListViewState extends State<ChatListView>
               chatId: chat.id,
               title: AppStrings.t(AppStringKeys.savedMessages),
               seedMessage: chat.lastChatMessage,
+              requestComposerFocusOnReady: focusComposer,
             ),
           ),
         ),
@@ -650,6 +677,7 @@ class _ChatListViewState extends State<ChatListView>
                 chatId: chat.id,
                 title: chat.title,
                 seedMessage: chat.lastChatMessage,
+                requestComposerFocusOnReady: focusComposer,
               ),
             ),
           ),
@@ -681,6 +709,7 @@ class _ChatListViewState extends State<ChatListView>
             chatId: chat.id,
             title: chat.title,
             seedMessage: chat.lastChatMessage,
+            requestComposerFocusOnReady: focusComposer,
           ),
         ),
       ),
@@ -1727,6 +1756,12 @@ class _ChatListViewState extends State<ChatListView>
         context,
         chat: chat,
         actions: [
+          if (chatListPreviewSupportsQuickReply(chat))
+            ChatListPreviewAction(
+              label: AppStringKeys.chatInputBarReply,
+              icon: HeroAppIcons.reply,
+              onSelected: () => unawaited(_openChat(chat, focusComposer: true)),
+            ),
           ChatListPreviewAction(
             label: AppStringKeys.linkHandlerOpenChat,
             icon: HeroAppIcons.message,

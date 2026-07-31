@@ -751,6 +751,7 @@ class ChatView extends StatefulWidget {
     this.showHeaderDivider = true,
     this.headerBottom,
     this.headerBottomHeight = 44,
+    this.requestComposerFocusOnReady = false,
     this.onOpenTopicMode,
     this.onBack,
   });
@@ -764,6 +765,7 @@ class ChatView extends StatefulWidget {
   final bool showHeaderDivider;
   final Widget? headerBottom;
   final double headerBottomHeight;
+  final bool requestComposerFocusOnReady;
   final ValueChanged<int?>? onOpenTopicMode;
   final VoidCallback? onBack;
 
@@ -5937,6 +5939,7 @@ class _ChatViewState extends State<ChatView> {
           if (_vm.businessBotUserId != 0) _businessBotManageBar(),
           ChatInputBar(
             vm: _vm,
+            requestInitialFocus: widget.requestComposerFocusOnReady,
             quickRepliesEnabled: context
                 .watch<ThemeController>()
                 .quickRepliesEnabled,
