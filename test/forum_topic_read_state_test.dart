@@ -124,7 +124,7 @@ void main() {
               topicLoads++;
               return _forumTopicsResponse(unreadCount: topicLoads == 1 ? 2 : 0);
             },
-            openTopicRoute: (_, openedChat, topicId) {
+            openTopicRoute: (_, openedChat, topicId, _) {
               expect(openedChat.id, chat.id);
               expect(topicId, 77);
               return route.future;
@@ -145,6 +145,151 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(topicLoads, 2);
+    expect(find.byType(UnreadBadge), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'topic browser waits for a replacement chat route before refreshing',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      final theme = ThemeController(preferences);
+      addTearDown(theme.dispose);
+      final topicRoute = Completer<void>();
+      final replacementChatRoute = Completer<void>();
+      late TopicChatRouteSession routeSession;
+      var topicLoads = 0;
+      final chat = ChatSummary(
+        id: -10042,
+        title: 'Forum',
+        lastMessage: 'Latest',
+        lastMessageId: 100,
+        date: 1,
+        unreadCount: 0,
+        order: 1,
+        isMuted: false,
+        isForum: true,
+      );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ThemeController>.value(
+          value: theme,
+          child: MaterialApp(
+            locale: const Locale('en'),
+            localizationsDelegates: const [AppLocalizations.delegate],
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: ForumTopicBrowserView(
+              chats: [chat],
+              initialChat: chat,
+              query: (_) async {
+                topicLoads++;
+                return _forumTopicsResponse(
+                  unreadCount: topicLoads == 1 ? 2 : 0,
+                );
+              },
+              openTopicRoute: (_, _, _, session) {
+                routeSession = session;
+                return topicRoute.future;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Topic A'));
+      await tester.pump();
+      routeSession.trackRoute(() => replacementChatRoute.future);
+      topicRoute.complete();
+      await tester.pump();
+
+      expect(
+        topicLoads,
+        1,
+        reason: 'replacing the topic route does not reveal the browser',
+      );
+
+      replacementChatRoute.complete();
+      await tester.pumpAndSettle();
+
+      expect(topicLoads, 2);
+      expect(find.byType(UnreadBadge), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('forced topic refreshes queue behind an in-flight load', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = await SharedPreferences.getInstance();
+    final theme = ThemeController(preferences);
+    addTearDown(theme.dispose);
+    final delayedRefresh = Completer<Map<String, dynamic>>();
+    final openedRoutes = <Completer<void>>[];
+    var topicLoads = 0;
+    final chat = ChatSummary(
+      id: -10042,
+      title: 'Forum',
+      lastMessage: 'Latest',
+      lastMessageId: 100,
+      date: 1,
+      unreadCount: 0,
+      order: 1,
+      isMuted: false,
+      isForum: true,
+    );
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ThemeController>.value(
+        value: theme,
+        child: MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [AppLocalizations.delegate],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: ForumTopicBrowserView(
+            chats: [chat],
+            initialChat: chat,
+            query: (_) {
+              topicLoads++;
+              if (topicLoads == 2) return delayedRefresh.future;
+              return Future.value(
+                _forumTopicsResponse(unreadCount: topicLoads == 1 ? 2 : 0),
+              );
+            },
+            openTopicRoute: (_, _, _, _) {
+              final route = Completer<void>();
+              openedRoutes.add(route);
+              return route.future;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Topic A'));
+    await tester.pump();
+    openedRoutes.single.complete();
+    await tester.pump();
+    expect(topicLoads, 2);
+
+    await tester.tap(find.text('Topic A'));
+    await tester.pump();
+    expect(openedRoutes, hasLength(2));
+    openedRoutes.last.complete();
+    await tester.pump();
+    expect(
+      topicLoads,
+      2,
+      reason: 'the second return queues behind the active refresh',
+    );
+
+    delayedRefresh.complete(_forumTopicsResponse(unreadCount: 1));
+    await tester.pumpAndSettle();
+
+    expect(topicLoads, 3);
     expect(find.byType(UnreadBadge), findsNothing);
     expect(tester.takeException(), isNull);
   });

@@ -39,6 +39,55 @@ import '../theme/date_text.dart';
 import '../theme/theme_controller.dart';
 import 'topic_post_content.dart';
 
+/// Keeps a forum browser suspended while its topic route is replaced by other
+/// views in the same conversation. Only the newest route can reveal it.
+class TopicChatRouteSession {
+  final _browserRevealed = Completer<void>();
+  var _routeGeneration = 0;
+
+  Future<void> get whenBrowserRevealed => _browserRevealed.future;
+
+  void trackRoute<T>(Future<T> Function() openRoute) {
+    final generation = ++_routeGeneration;
+    final route = openRoute();
+    unawaited(_completeWhenCurrentRouteCloses(generation, route));
+  }
+
+  Future<void> _completeWhenCurrentRouteCloses<T>(
+    int generation,
+    Future<T> route,
+  ) async {
+    try {
+      await route;
+    } catch (_) {
+      // A failed route still uncovers the browser; refresh its cached topics.
+    }
+    if (generation == _routeGeneration && !_browserRevealed.isCompleted) {
+      _browserRevealed.complete();
+    }
+  }
+}
+
+void _replaceTrackedChatWithTopic(
+  BuildContext context,
+  ChatSummary chat,
+  TopicChatRouteSession routeSession,
+  int? threadId,
+) {
+  routeSession.trackRoute(
+    () => replaceWithAppChatRoute<void, void>(
+      context,
+      AppChatPageRoute<void>(
+        builder: (_) => TopicChatView(
+          chat: chat,
+          initialThreadId: threadId,
+          routeSession: routeSession,
+        ),
+      ),
+    ),
+  );
+}
+
 class TopicChatView extends StatefulWidget {
   const TopicChatView({
     super.key,
@@ -50,6 +99,7 @@ class TopicChatView extends StatefulWidget {
     this.headerColor,
     this.chatRouteBelow = false,
     this.onOpenChatView,
+    this.routeSession,
   });
 
   final ChatSummary chat;
@@ -60,6 +110,7 @@ class TopicChatView extends StatefulWidget {
   final Color? headerColor;
   final bool chatRouteBelow;
   final VoidCallback? onOpenChatView;
+  final TopicChatRouteSession? routeSession;
 
   @override
   State<TopicChatView> createState() => _TopicChatViewState();
@@ -613,18 +664,30 @@ class _TopicChatViewState extends State<TopicChatView> {
       Navigator.of(context).pop();
       return;
     }
-    unawaited(
-      replaceWithAppChatRoute(
-        context,
-        AppChatPageRoute(
-          builder: (_) => ChatView(
-            chatId: widget.chat.id,
-            title: widget.chat.title,
-            seedMessage: widget.chat.lastChatMessage,
-          ),
-        ),
+    final routeSession = widget.routeSession;
+    final chat = widget.chat;
+    final route = AppChatPageRoute<void>(
+      builder: (chatContext) => ChatView(
+        chatId: chat.id,
+        title: chat.title,
+        seedMessage: chat.lastChatMessage,
+        onOpenTopicMode: routeSession == null
+            ? null
+            : (threadId) => _replaceTrackedChatWithTopic(
+                chatContext,
+                chat,
+                routeSession,
+                threadId,
+              ),
       ),
     );
+    if (routeSession == null) {
+      unawaited(replaceWithAppChatRoute<void, void>(context, route));
+    } else {
+      routeSession.trackRoute(
+        () => replaceWithAppChatRoute<void, void>(context, route),
+      );
+    }
   }
 
   void _openComments(_TopicPost post) {

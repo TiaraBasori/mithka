@@ -27,7 +27,12 @@ import 'topic_chat_view.dart';
 typedef ForumTopicBrowserQuery =
     Future<Map<String, dynamic>> Function(Map<String, dynamic> request);
 typedef ForumTopicRouteOpener =
-    Future<void> Function(BuildContext context, ChatSummary chat, int topicId);
+    Future<void> Function(
+      BuildContext context,
+      ChatSummary chat,
+      int topicId,
+      TopicChatRouteSession routeSession,
+    );
 
 class ForumTopicBrowserView extends StatefulWidget {
   const ForumTopicBrowserView({
@@ -52,6 +57,8 @@ class ForumTopicBrowserView extends StatefulWidget {
 class _ForumTopicBrowserViewState extends State<ForumTopicBrowserView> {
   final _topicsByChat = <int, List<_ForumTopicEntry>>{};
   final _loadingChats = <int>{};
+  final _queuedRefreshChats = <int>{};
+  final _topicLoadCompleters = <int, Completer<void>>{};
   final _senderCache = <int, String>{};
   final _resolvingSenders = <int>{};
   late ChatSummary _selectedChat = widget.initialChat;
@@ -89,12 +96,45 @@ class _ForumTopicBrowserViewState extends State<ForumTopicBrowserView> {
     _loadTopics(chat);
   }
 
-  Future<void> _loadTopics(ChatSummary chat, {bool refresh = false}) async {
-    final hadCachedTopics = _topicsByChat.containsKey(chat.id);
-    if ((!refresh && hadCachedTopics) || _loadingChats.contains(chat.id)) {
-      return;
+  Future<void> _loadTopics(ChatSummary chat, {bool refresh = false}) {
+    final activeLoad = _topicLoadCompleters[chat.id];
+    if (activeLoad != null) {
+      if (refresh) _queuedRefreshChats.add(chat.id);
+      return activeLoad.future;
     }
+    if (!refresh && _topicsByChat.containsKey(chat.id)) {
+      return Future.value();
+    }
+    final completion = Completer<void>();
+    _topicLoadCompleters[chat.id] = completion;
     setState(() => _loadingChats.add(chat.id));
+    unawaited(_runTopicLoadQueue(chat, completion));
+    return completion.future;
+  }
+
+  Future<void> _runTopicLoadQueue(
+    ChatSummary chat,
+    Completer<void> completion,
+  ) async {
+    try {
+      do {
+        _queuedRefreshChats.remove(chat.id);
+        await _fetchTopics(chat);
+      } while (mounted && _queuedRefreshChats.remove(chat.id));
+    } finally {
+      _topicLoadCompleters.remove(chat.id);
+      _queuedRefreshChats.remove(chat.id);
+      if (mounted) {
+        setState(() => _loadingChats.remove(chat.id));
+      } else {
+        _loadingChats.remove(chat.id);
+      }
+      if (!completion.isCompleted) completion.complete();
+    }
+  }
+
+  Future<void> _fetchTopics(ChatSummary chat) async {
+    final hadCachedTopics = _topicsByChat.containsKey(chat.id);
     try {
       final request = <String, dynamic>{
         '@type': 'getForumTopics',
@@ -147,8 +187,6 @@ class _ForumTopicBrowserViewState extends State<ForumTopicBrowserView> {
       if (mounted && !hadCachedTopics) {
         setState(() => _topicsByChat[chat.id] = const []);
       }
-    } finally {
-      if (mounted) setState(() => _loadingChats.remove(chat.id));
     }
   }
 
@@ -245,17 +283,27 @@ class _ForumTopicBrowserViewState extends State<ForumTopicBrowserView> {
 
   Future<void> _openTopic(_ForumTopicEntry topic) async {
     final chat = _selectedChat;
+    final routeSession = TopicChatRouteSession();
     final opener = widget.openTopicRoute;
     if (opener != null) {
-      await opener(context, chat, topic.id);
+      routeSession.trackRoute(
+        () => opener(context, chat, topic.id, routeSession),
+      );
     } else {
-      await pushAppChatRoute(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TopicChatView(chat: chat, initialThreadId: topic.id),
+      routeSession.trackRoute(
+        () => pushAppChatRoute<void>(
+          context,
+          MaterialPageRoute<void>(
+            builder: (_) => TopicChatView(
+              chat: chat,
+              initialThreadId: topic.id,
+              routeSession: routeSession,
+            ),
+          ),
         ),
       );
     }
+    await routeSession.whenBrowserRevealed;
     if (!mounted) return;
     await _loadTopics(chat, refresh: true);
   }
