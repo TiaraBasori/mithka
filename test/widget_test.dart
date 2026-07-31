@@ -3324,13 +3324,19 @@ void main() {
       );
       var isRead = false;
 
-      BoxDecoration dotDecoration(int index) =>
-          tester
-                  .widget<Container>(
-                    find.byKey(ValueKey('messageDeliveryDot-$index')),
-                  )
-                  .decoration
-              as BoxDecoration;
+      ({Color color, bool isSending}) indicatorPaint(String statusKey) {
+        final customPaint = tester.widget<CustomPaint>(
+          find.descendant(
+            of: find.byKey(ValueKey(statusKey)),
+            matching: find.byType(CustomPaint),
+          ),
+        );
+        final dynamic painter = customPaint.painter;
+        return (
+          color: painter.color as Color,
+          isSending: painter.isSending as bool,
+        );
+      }
 
       Future<void> pumpBubble() {
         return tester.pumpWidget(
@@ -3356,8 +3362,7 @@ void main() {
         find.byKey(const ValueKey('messageDeliverySending')),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('messageDeliveryDot-0')), findsNothing);
-      expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
+      expect(indicatorPaint('messageDeliverySending').isSending, isTrue);
 
       message.isSendAcknowledged = true;
       await pumpBubble();
@@ -3366,47 +3371,36 @@ void main() {
         find.byKey(const ValueKey('messageDeliverySending')),
         findsNothing,
       );
-      expect(
-        find.byKey(const ValueKey('messageDeliveryDot-0')),
-        findsOneWidget,
-      );
-      expect(dotDecoration(0).color, const Color(0xFFFFFFFF));
-      expect(dotDecoration(0).shape, BoxShape.circle);
-      expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
+      expect(indicatorPaint('messageDeliverySent'), (
+        color: const Color(0xFFFFFFFF),
+        isSending: false,
+      ));
 
       message.isSending = false;
       await pumpBubble();
       expect(find.byKey(const ValueKey('messageDeliverySent')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('messageDeliveryDot-0')),
-        findsOneWidget,
-      );
-      expect(dotDecoration(0).color, const Color(0xFFFFFFFF));
-      expect(dotDecoration(0).shape, BoxShape.circle);
-      expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
+      expect(indicatorPaint('messageDeliverySent'), (
+        color: const Color(0xFFFFFFFF),
+        isSending: false,
+      ));
 
       isRead = true;
       await pumpBubble();
       expect(find.byKey(const ValueKey('messageDeliveryRead')), findsOneWidget);
       expect(find.byKey(const ValueKey('messageDeliverySent')), findsNothing);
-      expect(
-        find.byKey(const ValueKey('messageDeliveryDot-0')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('messageDeliveryDot-1')),
-        findsOneWidget,
-      );
-      for (final index in [0, 1]) {
-        expect(dotDecoration(index).color, const Color(0xFF34C759));
-        expect(dotDecoration(index).shape, BoxShape.circle);
-      }
+      expect(indicatorPaint('messageDeliveryRead'), (
+        color: const Color(0xFF34C759),
+        isSending: false,
+      ));
 
       isRead = false;
       await pumpBubble();
       expect(find.byKey(const ValueKey('messageDeliverySent')), findsOneWidget);
       expect(find.byKey(const ValueKey('messageDeliveryRead')), findsNothing);
-      expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
+      expect(indicatorPaint('messageDeliverySent'), (
+        color: const Color(0xFFFFFFFF),
+        isSending: false,
+      ));
 
       isRead = true;
       message.isEdited = true;
@@ -3439,13 +3433,19 @@ void main() {
       );
       var isRead = false;
 
-      BoxDecoration dotDecoration(int index) =>
-          tester
-                  .widget<Container>(
-                    find.byKey(ValueKey('messageDeliveryDot-$index')),
-                  )
-                  .decoration
-              as BoxDecoration;
+      ({Color color, bool isSending}) indicatorPaint(String statusKey) {
+        final customPaint = tester.widget<CustomPaint>(
+          find.descendant(
+            of: find.byKey(ValueKey(statusKey)),
+            matching: find.byType(CustomPaint),
+          ),
+        );
+        final dynamic painter = customPaint.painter;
+        return (
+          color: painter.color as Color,
+          isSending: painter.isSending as bool,
+        );
+      }
 
       Future<void> pumpBubble() => tester.pumpWidget(
         ChangeNotifierProvider<ThemeController>.value(
@@ -3465,30 +3465,19 @@ void main() {
 
       await pumpBubble();
       expect(find.byKey(const ValueKey('messageDeliverySent')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('messageDeliveryDot-0')),
-        findsOneWidget,
-      );
-      expect(dotDecoration(0).color, const Color(0xFFFFFFFF));
-      expect(dotDecoration(0).shape, BoxShape.circle);
-      expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
+      expect(indicatorPaint('messageDeliverySent'), (
+        color: const Color(0xFFFFFFFF),
+        isSending: false,
+      ));
 
       isRead = true;
       await pumpBubble();
       expect(find.byKey(const ValueKey('messageDeliveryRead')), findsOneWidget);
       expect(find.byKey(const ValueKey('messageDeliverySent')), findsNothing);
-      expect(
-        find.byKey(const ValueKey('messageDeliveryDot-0')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('messageDeliveryDot-1')),
-        findsOneWidget,
-      );
-      for (final index in [0, 1]) {
-        expect(dotDecoration(index).color, const Color(0xFF34C759));
-        expect(dotDecoration(index).shape, BoxShape.circle);
-      }
+      expect(indicatorPaint('messageDeliveryRead'), (
+        color: const Color(0xFF34C759),
+        isSending: false,
+      ));
 
       // Expire the media lookup timeout scheduled by the image placeholder.
       await tester.pump(const Duration(minutes: 3, seconds: 1));

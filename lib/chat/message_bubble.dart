@@ -5052,48 +5052,27 @@ class _MessageDeliveryIndicatorState extends State<_MessageDeliveryIndicator>
   }
 
   @override
-  Widget build(BuildContext context) {
-    if (!widget.isSending) {
-      final diameter = widget.size * 0.36;
-      Widget dot(int index) => Container(
-        key: ValueKey('messageDeliveryDot-$index'),
-        width: diameter,
-        height: diameter,
-        decoration: BoxDecoration(
-          color: widget.isRead
-              ? const Color(0xFF34C759)
-              : const Color(0xFFFFFFFF),
-          shape: BoxShape.circle,
-        ),
-      );
-      return SizedBox.square(
-        key: ValueKey(
-          widget.isRead ? 'messageDeliveryRead' : 'messageDeliverySent',
-        ),
-        dimension: widget.size,
-        child: Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              dot(0),
-              if (widget.isRead) ...[SizedBox(width: diameter * 0.75), dot(1)],
-            ],
-          ),
-        ),
-      );
-    }
-    return SizedBox.square(
-      key: const ValueKey('messageDeliverySending'),
-      dimension: widget.size,
-      child: CustomPaint(
-        painter: _MessageDeliveryPainter(
-          rotation: _controller,
-          isSending: true,
-          color: widget.pendingColor.withValues(alpha: 0.72),
-        ),
+  Widget build(BuildContext context) => SizedBox.square(
+    key: ValueKey(
+      widget.isSending
+          ? 'messageDeliverySending'
+          : widget.isRead
+          ? 'messageDeliveryRead'
+          : 'messageDeliverySent',
+    ),
+    dimension: widget.size,
+    child: CustomPaint(
+      painter: _MessageDeliveryPainter(
+        rotation: _controller,
+        isSending: widget.isSending,
+        color: widget.isSending
+            ? widget.pendingColor.withValues(alpha: 0.72)
+            : widget.isRead
+            ? const Color(0xFF34C759)
+            : const Color(0xFFFFFFFF),
       ),
-    );
-  }
+    ),
+  );
 }
 
 class _MessageDeliveryPainter extends CustomPainter {
