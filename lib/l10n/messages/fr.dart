@@ -305,11 +305,15 @@ const frMessages = <String, String>{
   'appearanceDisableChatListSwipeActions': "Désactiver les balayages",
   'appearanceGestures': "Gestes",
   'gesturesChatActions': "Actions du chat",
+  'gesturesChatActionsModeDescription':
+      "1 doigt : actions du chat · 2 doigts : dossiers · 3 doigts : comptes",
   'gesturesChatListSwipe': "Balayage de la liste des chats",
   'gesturesDoNothing': "Ne rien faire",
   'gesturesHoldSwipeActions': "Maintenir puis balayer pour les actions",
   'gesturesSwitchAccounts': "Changer de compte",
   'gesturesSwitchFolders': "Changer de dossier",
+  'gesturesSwitchFoldersModeDescription':
+      "1 doigt : dossiers · 3 doigts : comptes",
   'gesturesThreeFingerSwipe': "Balayage à trois doigts",
   'appearanceDownloadFailed': "Téléchargement échoué",
   'appearanceEmojiFont': "Police emoji",

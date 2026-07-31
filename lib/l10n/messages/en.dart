@@ -293,11 +293,15 @@ const enMessages = <String, String>{
   'appearanceDisableChatListSwipeActions': "Disable swipe actions",
   'appearanceGestures': "Gestures",
   'gesturesChatActions': "Chat actions",
+  'gesturesChatActionsModeDescription':
+      "1 finger: chat actions · 2 fingers: folders · 3 fingers: accounts",
   'gesturesChatListSwipe': "Chat list swipe",
   'gesturesDoNothing': "Do nothing",
   'gesturesHoldSwipeActions': "Hold and swipe for chat actions",
   'gesturesSwitchAccounts': "Switch accounts",
   'gesturesSwitchFolders': "Switch folders",
+  'gesturesSwitchFoldersModeDescription':
+      "1 finger: folders · 3 fingers: accounts",
   'gesturesThreeFingerSwipe': "Three-finger swipe",
   'appearanceDownloadFailed': "Download failed",
   'appearanceEmojiFont': "Emoji Font",
