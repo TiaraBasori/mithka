@@ -1338,7 +1338,11 @@ class _MessageBubbleState extends State<MessageBubble>
     );
   }
 
-  Widget _textBubble(String text, bool outgoing) {
+  Widget _textBubble(
+    String text,
+    bool outgoing, {
+    bool includeForwardHeader = true,
+  }) {
     final c = context.colors;
     final baseColor = outgoing ? _outgoingTextColor : _incomingTextColor;
     final linkColor = _bubbleBackgroundStyle.isDecorative
@@ -1375,7 +1379,8 @@ class _MessageBubbleState extends State<MessageBubble>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          if ((message.forwardOrigin ?? '').isNotEmpty) ...[
+          if (includeForwardHeader &&
+              (message.forwardOrigin ?? '').isNotEmpty) ...[
             _forwardHeader(outgoing),
             const SizedBox(height: 3),
           ],
@@ -3035,6 +3040,7 @@ class _MessageBubbleState extends State<MessageBubble>
     final c = context.colors;
     final accent = outgoing ? _outgoingTextColor : AppTheme.brand;
     return Row(
+      key: ValueKey('messageForwardHeader-${message.id}'),
       mainAxisSize: MainAxisSize.min,
       children: [
         AppIcon(
@@ -4004,17 +4010,42 @@ class _MessageBubbleState extends State<MessageBubble>
     required String? caption,
     required bool outgoing,
   }) {
+    final hasForwardHeader = message.forwardOrigin?.trim().isNotEmpty ?? false;
     if (!_groupsMediaCaption(caption)) {
+      final attributedMedia = hasForwardHeader
+          ? _bubbleBackground(
+              key: ValueKey('messageForwardedMedia-${message.id}'),
+              outgoing: outgoing,
+              constraints: BoxConstraints(maxWidth: _mediaMaxWidth()),
+              padding: EdgeInsets.zero,
+              borderRadius: _messageBorderRadius(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 7, 10, 6),
+                    child: _forwardHeader(outgoing),
+                  ),
+                  media,
+                ],
+              ),
+            )
+          : media;
       return Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: outgoing
             ? CrossAxisAlignment.end
             : CrossAxisAlignment.start,
         children: [
-          media,
+          attributedMedia,
           if (caption != null) ...[
             const SizedBox(height: 4),
-            _textBubble(caption, outgoing),
+            _textBubble(
+              caption,
+              outgoing,
+              includeForwardHeader: !hasForwardHeader,
+            ),
           ],
         ],
       );
@@ -4034,6 +4065,11 @@ class _MessageBubbleState extends State<MessageBubble>
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (hasForwardHeader)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 7, 10, 6),
+              child: _forwardHeader(outgoing),
+            ),
           media,
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 7, 6, 3),
