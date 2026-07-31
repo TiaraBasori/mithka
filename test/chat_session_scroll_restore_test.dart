@@ -171,6 +171,82 @@ void main() {
       );
     });
 
+    test('reopen precedence is target, new unread, saved, then default', () {
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: true,
+          hasSavedPosition: true,
+          hasConfirmedNewUnread: true,
+        ),
+        ChatReopenDisposition.explicitTarget,
+      );
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: false,
+          hasSavedPosition: true,
+          hasConfirmedNewUnread: true,
+        ),
+        ChatReopenDisposition.firstUnread,
+      );
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: false,
+          hasSavedPosition: true,
+          hasConfirmedNewUnread: false,
+        ),
+        ChatReopenDisposition.savedPosition,
+      );
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: false,
+          hasSavedPosition: false,
+          hasConfirmedNewUnread: false,
+        ),
+        ChatReopenDisposition.defaultPosition,
+      );
+    });
+
+    test('only a newer boundary with a net unread increase is confirmed', () {
+      expect(
+        hasConfirmedNewUnreadSinceChatSession(
+          savedUnreadCount: 0,
+          savedKnownLatestMessageId: 100,
+          currentUnreadCount: 3,
+          currentKnownLatestMessageId: 130,
+        ),
+        isTrue,
+      );
+      expect(
+        hasConfirmedNewUnreadSinceChatSession(
+          savedUnreadCount: 3,
+          savedKnownLatestMessageId: 100,
+          currentUnreadCount: 3,
+          currentKnownLatestMessageId: 130,
+        ),
+        isFalse,
+        reason: 'a newer outgoing or service message is not enough',
+      );
+      expect(
+        hasConfirmedNewUnreadSinceChatSession(
+          savedUnreadCount: 0,
+          savedKnownLatestMessageId: 100,
+          currentUnreadCount: 3,
+          currentKnownLatestMessageId: 100,
+        ),
+        isFalse,
+      );
+      expect(
+        hasConfirmedNewUnreadSinceChatSession(
+          savedUnreadCount: 0,
+          savedKnownLatestMessageId: 0,
+          currentUnreadCount: 3,
+          currentKnownLatestMessageId: 130,
+        ),
+        isFalse,
+        reason: 'an uncertain saved boundary must preserve the viewport',
+      );
+    });
+
     test('an explicit message target overrides session restoration', () {
       expect(
         shouldRestoreChatSessionOffset(

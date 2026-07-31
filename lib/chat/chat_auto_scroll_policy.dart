@@ -54,6 +54,85 @@ class ChatAutoScrollPolicy {
       !_preserveViewport && wasNearBottom;
 }
 
+enum ChatReopenDisposition {
+  explicitTarget,
+  firstUnread,
+  savedPosition,
+  defaultPosition,
+}
+
+ChatReopenDisposition resolveChatReopenDisposition({
+  required bool hasExplicitTarget,
+  required bool hasSavedPosition,
+  required bool hasConfirmedNewUnread,
+}) {
+  if (hasExplicitTarget) return ChatReopenDisposition.explicitTarget;
+  if (hasConfirmedNewUnread) return ChatReopenDisposition.firstUnread;
+  if (hasSavedPosition) return ChatReopenDisposition.savedPosition;
+  return ChatReopenDisposition.defaultPosition;
+}
+
+/// A higher unread count plus a newer known chat boundary proves that at least
+/// one unread message arrived after the saved session. Missing boundaries are
+/// treated conservatively so a cached reading position is never discarded on
+/// a guess.
+bool hasConfirmedNewUnreadSinceChatSession({
+  required int savedUnreadCount,
+  required int savedKnownLatestMessageId,
+  required int currentUnreadCount,
+  required int currentKnownLatestMessageId,
+}) {
+  return savedKnownLatestMessageId > 0 &&
+      currentUnreadCount > savedUnreadCount &&
+      currentKnownLatestMessageId > savedKnownLatestMessageId;
+}
+
+/// Protects the first real gesture after restoring a non-bottom viewport.
+///
+/// Centered history windows can report their loaded edge as "near latest".
+/// Consuming the first gesture prevents that edge from immediately replacing
+/// the restored window with the newest messages.
+class ChatRestoredPositionGuard {
+  ChatRestoredPositionGuard(this._armed);
+
+  bool _armed;
+  bool _gestureActive = false;
+
+  bool get blocksAutomaticReturn => _armed;
+
+  void noteUserScroll() {
+    if (_armed) _gestureActive = true;
+  }
+
+  bool finishUserScroll() {
+    if (!_armed || !_gestureActive) return false;
+    _armed = false;
+    _gestureActive = false;
+    return true;
+  }
+
+  void cancel() {
+    _armed = false;
+    _gestureActive = false;
+  }
+}
+
+bool shouldRequestAutomaticReturnToLatest({
+  required bool anchoredHistory,
+  required bool restoredPositionProtected,
+  required bool pointerDown,
+  required bool hasScrollTarget,
+  required bool hasScrollClients,
+  required bool isNearLatestEdge,
+}) {
+  return anchoredHistory &&
+      !restoredPositionProtected &&
+      !pointerDown &&
+      !hasScrollTarget &&
+      hasScrollClients &&
+      isNearLatestEdge;
+}
+
 class ChatInitialScrollPlan {
   const ChatInitialScrollPlan({
     required this.initialOffset,

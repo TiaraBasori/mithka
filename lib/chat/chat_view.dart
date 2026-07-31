@@ -808,6 +808,8 @@ class _ChatScrollSnapshot {
   const _ChatScrollSnapshot({
     required this.pixels,
     required this.wasAtLoadedBottom,
+    required this.knownLatestMessageId,
+    required this.unreadCount,
     this.pivotMessageId,
     this.anchorMessageId,
     this.anchorViewportOffset,
@@ -815,6 +817,8 @@ class _ChatScrollSnapshot {
 
   final double pixels;
   final bool wasAtLoadedBottom;
+  final int knownLatestMessageId;
+  final int unreadCount;
   final int? pivotMessageId;
   final int? anchorMessageId;
   final double? anchorViewportOffset;
@@ -880,6 +884,9 @@ class _ChatViewState extends State<ChatView> {
   bool _showingFullyVisibleFirstContactHistory = false;
   bool _transcriptViewportClaimedByUser = false;
   late final ChatReturnToLatestCoordinator _returnToLatestCoordinator;
+  late final ChatRestoredPositionGuard _restoredPositionGuard;
+  late bool _sessionReopenDispositionResolved;
+  bool _prioritizingSessionUnread = false;
   bool _initialTranscriptReady = false;
   final Set<int> _transcriptPointersDown = <int>{};
   bool _bottomScrollScheduled = false;
@@ -1008,6 +1015,8 @@ class _ChatViewState extends State<ChatView> {
         _sessionScrollSnapshots[widget.chatId] = _ChatScrollSnapshot(
           pixels: snapshot.pixels,
           wasAtLoadedBottom: snapshot.wasAtLoadedBottom,
+          knownLatestMessageId: snapshot.knownLatestMessageId,
+          unreadCount: snapshot.unreadCount,
           anchorMessageId: snapshot.anchorMessageId,
           anchorViewportOffset: snapshot.anchorViewportOffset,
         );
@@ -1024,6 +1033,11 @@ class _ChatViewState extends State<ChatView> {
     _maintainSessionScrollAnchor =
         sessionScrollSnapshot?.anchorMessageId != null &&
         sessionScrollSnapshot?.anchorViewportOffset != null;
+    _sessionReopenDispositionResolved =
+        sessionScrollSnapshot == null || widget.initialMessageId != null;
+    _restoredPositionGuard = ChatRestoredPositionGuard(
+      sessionScrollSnapshot != null && !sessionScrollSnapshot.wasAtLoadedBottom,
+    );
     _autoScrollPolicy = ChatAutoScrollPolicy(
       preserveViewport:
           sessionScrollSnapshot != null &&
@@ -1205,12 +1219,15 @@ class _ChatViewState extends State<ChatView> {
       final endedTowardLatest =
           _lastTranscriptUserScrollDirection == ScrollDirection.reverse;
       _lastTranscriptUserScrollDirection = ScrollDirection.idle;
+      final protectedRestoredPosition = _restoredPositionGuard
+          .finishUserScroll();
       _returnToLatestCoordinator.userDragEnded();
-      if (endedTowardLatest) {
+      if (endedTowardLatest && !protectedRestoredPosition) {
         _requestAutomaticReturnToLatestIfNearLatest();
       }
     } else if (_initialTranscriptReady) {
       _lastTranscriptUserScrollDirection = notification.direction;
+      _restoredPositionGuard.noteUserScroll();
       _claimTranscriptViewport();
     }
     return false;
@@ -1339,6 +1356,11 @@ class _ChatViewState extends State<ChatView> {
     _sessionScrollSnapshots[widget.chatId] = _ChatScrollSnapshot(
       pixels: clampScrollOffset(pos, pos.pixels),
       wasAtLoadedBottom: wasAtLoadedBottom,
+      knownLatestMessageId: math.max(
+        _vm.knownLatestMessageId,
+        _latestServerMessage(_vm.messages)?.id ?? 0,
+      ),
+      unreadCount: _vm.unreadCount,
       pivotMessageId: _transcriptPivot?.cutoffMessageId,
       anchorMessageId: anchor?.messageId,
       anchorViewportOffset: anchor?.viewportOffset,
@@ -1691,6 +1713,7 @@ class _ChatViewState extends State<ChatView> {
   void _requestReturnToLatest({bool userInitiated = false}) {
     if (!userInitiated && _hasTranscriptPointerDown) return;
     if (userInitiated) {
+      _restoredPositionGuard.cancel();
       _cancelSessionScrollAnchorMaintenance();
       _cancelBottomFollow();
       _stopActiveTranscriptScroll();
@@ -1704,18 +1727,25 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _requestAutomaticReturnToLatestIfNearLatest() {
-    if (!_vm.anchoredHistory ||
-        _hasTranscriptPointerDown ||
-        _scrollTargetId != null ||
-        !_scroll.hasClients ||
-        !isNearLatest(_scroll.position, threshold: 36)) {
+    if (!shouldRequestAutomaticReturnToLatest(
+      anchoredHistory: _vm.anchoredHistory,
+      restoredPositionProtected: _restoredPositionGuard.blocksAutomaticReturn,
+      pointerDown: _hasTranscriptPointerDown,
+      hasScrollTarget: _scrollTargetId != null,
+      hasScrollClients: _scroll.hasClients,
+      isNearLatestEdge:
+          _scroll.hasClients && isNearLatest(_scroll.position, threshold: 36),
+    )) {
       return;
     }
     _requestReturnToLatest();
   }
 
   void _markReadAtBottomIfNeeded() {
-    if (!_vm.initialLoaded || _vm.messages.isEmpty || _vm.anchoredHistory) {
+    if (_prioritizingSessionUnread ||
+        !_vm.initialLoaded ||
+        _vm.messages.isEmpty ||
+        _vm.anchoredHistory) {
       return;
     }
     unawaited(_vm.markLoadedMessagesRead());
@@ -1918,6 +1948,43 @@ class _ChatViewState extends State<ChatView> {
     if (nextFailure != null) _scheduleSendFailureDialog(nextFailure);
   }
 
+  void _resolveRestoredSessionEntry() {
+    if (_sessionReopenDispositionResolved || !_vm.chatHeaderLoaded) return;
+    _sessionReopenDispositionResolved = true;
+    final snapshot = _sessionScrollSnapshot;
+    if (snapshot == null) return;
+    final disposition = resolveChatReopenDisposition(
+      hasExplicitTarget: widget.initialMessageId != null,
+      hasSavedPosition: true,
+      hasConfirmedNewUnread: hasConfirmedNewUnreadSinceChatSession(
+        savedUnreadCount: snapshot.unreadCount,
+        savedKnownLatestMessageId: snapshot.knownLatestMessageId,
+        currentUnreadCount: _vm.unreadCount,
+        currentKnownLatestMessageId: _vm.knownLatestMessageId,
+      ),
+    );
+    if (disposition != ChatReopenDisposition.firstUnread) return;
+
+    _prioritizingSessionUnread = true;
+    _maintainRestoredBottom = false;
+    _restoredPositionGuard.cancel();
+    _cancelSessionScrollAnchorMaintenance();
+    _cancelBottomFollow();
+    _stopActiveTranscriptScroll();
+    _resetTranscriptPivot();
+    _sessionScrollSnapshots.remove(widget.chatId);
+    _entryUnreadCount = _vm.unreadCount;
+    _entryLastReadInboxId = _vm.lastReadInboxId;
+    _entryFirstUnreadMessageId = _firstLoadedEntryUnreadMessageId();
+    unawaited(
+      _jumpToFirstUnread().whenComplete(() {
+        if (!mounted) return;
+        _prioritizingSessionUnread = false;
+        _saveSessionScrollSnapshot();
+      }),
+    );
+  }
+
   void _onModel() {
     if (!mounted) return;
     if (!_viewTickerEnabled) {
@@ -1929,6 +1996,7 @@ class _ChatViewState extends State<ChatView> {
       final failure = _vm.consumeSendFailure();
       if (failure != null) _scheduleSendFailureDialog(failure);
     }
+    _resolveRestoredSessionEntry();
     final olderLoadFinished = _wasLoadingOlder && !_vm.isLoadingOlder;
     _wasLoadingOlder = _vm.isLoadingOlder;
     final oldest = _oldestServerMessage(_vm.messages);
@@ -2156,6 +2224,7 @@ class _ChatViewState extends State<ChatView> {
 
   void _setScrollTarget(int? messageId) {
     if (messageId != null) {
+      _restoredPositionGuard.cancel();
       _returnToLatestCoordinator.cancel();
       _maintainRestoredBottom = false;
       _cancelSessionScrollAnchorMaintenance();

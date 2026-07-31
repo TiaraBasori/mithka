@@ -404,8 +404,11 @@ class ChatViewModel extends ChangeNotifier {
   int? _lastForcedReadMessageId;
   bool _markReadInFlight = false;
   bool _restoredFromSession = false;
+  bool _chatHeaderLoaded = false;
+  bool get chatHeaderLoaded => _chatHeaderLoaded;
   bool _historyReachesLatest = false;
   int _knownLatestMessageId = 0;
+  int get knownLatestMessageId => _knownLatestMessageId;
   bool _latestHistoryLoadInFlight = false;
   final Map<int, ChatMessage> _latestHistoryLiveArrivals = {};
   final Set<int> _latestHistoryDeletedMessageIds = {};
@@ -3127,6 +3130,7 @@ class ChatViewModel extends ChangeNotifier {
         AppStringKeys.chatRestrictedTelegramTosMessage,
       );
     }
+    _chatHeaderLoaded = true;
     notifyListeners();
     unawaited(_loadPinnedMessage());
   }
@@ -4041,6 +4045,7 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   Future<void> markLoadedMessagesRead() async {
+    if (!_chatHeaderLoaded) return;
     if (_markReadInFlight) return;
     _markReadInFlight = true;
     try {

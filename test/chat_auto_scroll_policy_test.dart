@@ -100,6 +100,51 @@ void main() {
     );
   });
 
+  test('first restored-position gesture cannot return to latest', () {
+    final guard = ChatRestoredPositionGuard(true);
+
+    expect(guard.blocksAutomaticReturn, isTrue);
+    guard.noteUserScroll();
+    expect(guard.finishUserScroll(), isTrue);
+    expect(guard.blocksAutomaticReturn, isFalse);
+    expect(guard.finishUserScroll(), isFalse);
+  });
+
+  test('pointer activity alone does not consume restored-position guard', () {
+    final guard = ChatRestoredPositionGuard(true);
+
+    expect(guard.finishUserScroll(), isFalse);
+    expect(guard.blocksAutomaticReturn, isTrue);
+    guard.cancel();
+    expect(guard.blocksAutomaticReturn, isFalse);
+  });
+
+  test('automatic latest return respects restored-position protection', () {
+    bool decide({required bool protected}) =>
+        shouldRequestAutomaticReturnToLatest(
+          anchoredHistory: true,
+          restoredPositionProtected: protected,
+          pointerDown: false,
+          hasScrollTarget: false,
+          hasScrollClients: true,
+          isNearLatestEdge: true,
+        );
+
+    expect(decide(protected: true), isFalse);
+    expect(decide(protected: false), isTrue);
+    expect(
+      shouldRequestAutomaticReturnToLatest(
+        anchoredHistory: true,
+        restoredPositionProtected: false,
+        pointerDown: true,
+        hasScrollTarget: false,
+        hasScrollClients: true,
+        isNearLatestEdge: true,
+      ),
+      isFalse,
+    );
+  });
+
   test('bottom follow corrects only while laid-out geometry has a gap', () {
     final coordinator = ChatBottomFollowCoordinator();
     final callbacks = <void Function()>[];
