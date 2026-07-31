@@ -366,6 +366,9 @@ abstract final class AppStringKeys {
   static const aiReplyUnavailable = 'aiReplyUnavailable';
   static const aiReplyUseReply = 'aiReplyUseReply';
   static const aiReplyUsing = 'aiReplyUsing';
+  static const aiReplyPrompts = 'aiReplyPrompts';
+  static const aiTranslatePrompts = 'aiTranslatePrompts';
+  static const aiSummarizePrompts = 'aiSummarizePrompts';
   static const aiTestFailed = 'aiTestFailed';
   static const aiTestModel = 'aiTestModel';
   static const aiTestPrompt = 'aiTestPrompt';
