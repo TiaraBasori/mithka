@@ -5059,8 +5059,10 @@ class _MessageDeliveryIndicatorState extends State<_MessageDeliveryIndicator>
         key: ValueKey('messageDeliveryDot-$index'),
         width: diameter,
         height: diameter,
-        decoration: const BoxDecoration(
-          color: Color(0xFF34C759),
+        decoration: BoxDecoration(
+          color: widget.isRead
+              ? const Color(0xFF34C759)
+              : const Color(0xFFFFFFFF),
           shape: BoxShape.circle,
         ),
       );

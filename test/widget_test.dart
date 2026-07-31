@@ -3324,6 +3324,14 @@ void main() {
       );
       var isRead = false;
 
+      BoxDecoration dotDecoration(int index) =>
+          tester
+                  .widget<Container>(
+                    find.byKey(ValueKey('messageDeliveryDot-$index')),
+                  )
+                  .decoration
+              as BoxDecoration;
+
       Future<void> pumpBubble() {
         return tester.pumpWidget(
           ChangeNotifierProvider<ThemeController>.value(
@@ -3362,6 +3370,8 @@ void main() {
         find.byKey(const ValueKey('messageDeliveryDot-0')),
         findsOneWidget,
       );
+      expect(dotDecoration(0).color, const Color(0xFFFFFFFF));
+      expect(dotDecoration(0).shape, BoxShape.circle);
       expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
 
       message.isSending = false;
@@ -3371,6 +3381,8 @@ void main() {
         find.byKey(const ValueKey('messageDeliveryDot-0')),
         findsOneWidget,
       );
+      expect(dotDecoration(0).color, const Color(0xFFFFFFFF));
+      expect(dotDecoration(0).shape, BoxShape.circle);
       expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
 
       isRead = true;
@@ -3385,6 +3397,10 @@ void main() {
         find.byKey(const ValueKey('messageDeliveryDot-1')),
         findsOneWidget,
       );
+      for (final index in [0, 1]) {
+        expect(dotDecoration(index).color, const Color(0xFF34C759));
+        expect(dotDecoration(index).shape, BoxShape.circle);
+      }
 
       isRead = false;
       await pumpBubble();
@@ -3423,6 +3439,14 @@ void main() {
       );
       var isRead = false;
 
+      BoxDecoration dotDecoration(int index) =>
+          tester
+                  .widget<Container>(
+                    find.byKey(ValueKey('messageDeliveryDot-$index')),
+                  )
+                  .decoration
+              as BoxDecoration;
+
       Future<void> pumpBubble() => tester.pumpWidget(
         ChangeNotifierProvider<ThemeController>.value(
           value: theme,
@@ -3445,6 +3469,8 @@ void main() {
         find.byKey(const ValueKey('messageDeliveryDot-0')),
         findsOneWidget,
       );
+      expect(dotDecoration(0).color, const Color(0xFFFFFFFF));
+      expect(dotDecoration(0).shape, BoxShape.circle);
       expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
 
       isRead = true;
@@ -3459,6 +3485,10 @@ void main() {
         find.byKey(const ValueKey('messageDeliveryDot-1')),
         findsOneWidget,
       );
+      for (final index in [0, 1]) {
+        expect(dotDecoration(index).color, const Color(0xFF34C759));
+        expect(dotDecoration(index).shape, BoxShape.circle);
+      }
 
       // Expire the media lookup timeout scheduled by the image placeholder.
       await tester.pump(const Duration(minutes: 3, seconds: 1));
