@@ -1247,6 +1247,7 @@ const koMessages = <String, String>{
   'momentsLikeFailed': "좋아요 실패: {value1}",
   'momentsLoadingPosts': "게시물 불러오는 중…",
   'momentsMore': "더보기",
+  'momentsMusic': "음악",
   'momentsNewPostsCount': "새 게시물 {value1}개",
   'momentsNoChannelContent': "채널 콘텐츠가 없습니다",
   'momentsNoComments': "댓글이 없습니다",

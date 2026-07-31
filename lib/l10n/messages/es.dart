@@ -1354,6 +1354,7 @@ const esMessages = <String, String>{
   'momentsLikeFailed': "No se pudo dar Me gusta: {value1}",
   'momentsLoadingPosts': "Cargando actualizaciones…",
   'momentsMore': "Más",
+  'momentsMusic': "Música",
   'momentsNewPostsCount': "{value1} actualizaciones nuevas",
   'momentsNoChannelContent': "Aún no hay contenido del canal",
   'momentsNoComments': "Aún no hay comentarios",

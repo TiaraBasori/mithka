@@ -1398,6 +1398,7 @@ const enMessages = <String, String>{
   'momentsLikeFailed': "Like failed: {value1}",
   'momentsLoadingPosts': "Loading posts…",
   'momentsMore': "More",
+  'momentsMusic': "Music",
   'momentsNewPostsCount': "{value1} new posts",
   'momentsNoChannelContent': "No channel content yet",
   'momentsNoComments': "No comments yet",

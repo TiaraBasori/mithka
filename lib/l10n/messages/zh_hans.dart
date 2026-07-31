@@ -1217,6 +1217,7 @@ const zhHansMessages = <String, String>{
   'momentsLikeFailed': "点赞失败：{value1}",
   'momentsLoadingPosts': "加载动态…",
   'momentsMore': "更多",
+  'momentsMusic': "音乐",
   'momentsNewPostsCount': "{value1} 条新动态",
   'momentsNoChannelContent': "暂无频道内容",
   'momentsNoComments': "暂无评论",

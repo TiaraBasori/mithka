@@ -1219,6 +1219,7 @@ const zhHantMessages = <String, String>{
   'momentsLikeFailed': "按讚失敗：{value1}",
   'momentsLoadingPosts': "載入動態…",
   'momentsMore': "更多",
+  'momentsMusic': "音樂",
   'momentsNewPostsCount': "{value1} 則新動態",
   'momentsNoChannelContent': "暫無頻道內容",
   'momentsNoComments': "暫無留言",

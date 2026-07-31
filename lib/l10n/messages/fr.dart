@@ -1361,6 +1361,7 @@ const frMessages = <String, String>{
   'momentsLikeFailed': "Échec du J’aime : {value1}",
   'momentsLoadingPosts': "Chargement des moments…",
   'momentsMore': "Plus",
+  'momentsMusic': "Musique",
   'momentsNewPostsCount': "{value1} nouveaux moments",
   'momentsNoChannelContent': "Aucun contenu de chaîne",
   'momentsNoComments': "Aucun commentaire",

@@ -87,6 +87,19 @@ void main() {
     );
   });
 
+  test('keeps the Moments music label in natural localized casing', () {
+    final controller = TelegramLanguageController.test(
+      strings: const {'SharedMusicTab': 'MUSIC'},
+    );
+
+    expect(controller.text(AppStringKeys.profileDetailMusic), 'MUSIC');
+    expect(
+      controller.resolveMappedText(AppStringKeys.momentsMusic, const {}),
+      isNull,
+    );
+    expect(controller.text(AppStringKeys.momentsMusic), 'Music');
+  });
+
   test('uses Telegram Business bot permission wording', () {
     final controller = TelegramLanguageController.test(
       strings: const {

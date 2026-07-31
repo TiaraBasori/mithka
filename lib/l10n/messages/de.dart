@@ -1363,6 +1363,7 @@ const deMessages = <String, String>{
   'momentsLikeFailed': "Gefällt mir fehlgeschlagen: {value1}",
   'momentsLoadingPosts': "Beiträge werden geladen…",
   'momentsMore': "Mehr",
+  'momentsMusic': "Musik",
   'momentsNewPostsCount': "{value1} neue Beiträge",
   'momentsNoChannelContent': "Noch keine Kanalinhalte",
   'momentsNoComments': "Noch keine Kommentare",

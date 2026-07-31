@@ -1759,6 +1759,7 @@ abstract final class AppStringKeys {
   static const momentsLikeFailed = 'momentsLikeFailed';
   static const momentsLoadingPosts = 'momentsLoadingPosts';
   static const momentsMore = 'momentsMore';
+  static const momentsMusic = 'momentsMusic';
   static const momentsNewPostsCount = 'momentsNewPostsCount';
   static const momentsNoChannelContent = 'momentsNoChannelContent';
   static const momentsNoComments = 'momentsNoComments';

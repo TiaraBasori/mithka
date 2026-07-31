@@ -1246,6 +1246,7 @@ const jaMessages = <String, String>{
   'momentsLikeFailed': "いいねに失敗しました: {value1}",
   'momentsLoadingPosts': "投稿を読み込み中…",
   'momentsMore': "もっと見る",
+  'momentsMusic': "音楽",
   'momentsNewPostsCount': "{value1} 件の新着投稿",
   'momentsNoChannelContent': "チャンネルのコンテンツはありません",
   'momentsNoComments': "コメントはありません",
