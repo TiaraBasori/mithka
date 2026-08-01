@@ -3348,7 +3348,6 @@ class _MessageBubbleState extends State<MessageBubble>
     List<MessageTextEntity> entities,
     double fontSize,
   ) {
-    final c = context.colors;
     final key = '${quote.offset}:${quote.length}';
     final expanded =
         !quote.isExpandableBlockQuote || _expandedQuotes.contains(key);
@@ -3367,7 +3366,7 @@ class _MessageBubbleState extends State<MessageBubble>
           : null,
       child: Container(
         decoration: BoxDecoration(
-          color: c.searchFill.withValues(alpha: 0.65),
+          color: base.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(6),
           border: Border(left: BorderSide(color: AppTheme.brand, width: 3)),
         ),
