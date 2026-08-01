@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/custom_emoji.dart';
 import 'package:mithka/chat/message_bubble.dart';
 import 'package:mithka/chat/stretchable_message_bubble_background.dart';
+import 'package:mithka/components/photo_avatar.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/td_models.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -174,6 +175,65 @@ void main() {
     expect(
       tester.getBottomLeft(header).dy,
       lessThan(tester.getTopLeft(comments).dy),
+    );
+
+    // Expire the mocked TDLib image lookup timeout before test teardown.
+    await tester.pump(const Duration(minutes: 3, seconds: 1));
+  });
+
+  testWidgets('photo replies keep one quote above the media', (tester) async {
+    final message =
+        ChatMessage(
+            id: 7,
+            isOutgoing: false,
+            text: '',
+            date: 1,
+            contentType: 'messagePhoto',
+            image: TdFileRef(
+              id: 107,
+              miniThumb: base64Decode(
+                'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+              ),
+            ),
+            imageWidth: 600,
+            imageHeight: 400,
+            replyToMessageId: 5,
+            replyToDate: 1,
+          )
+          ..replyToSender = 'Original Channel'
+          ..replyToPreview = 'Earlier post';
+
+    final theme = await pumpBubble(tester, message);
+
+    final quote = find.byKey(const ValueKey('messageReplyQuote'));
+    final media = find.byType(TDImage);
+    expect(quote, findsOneWidget);
+    expect(media, findsOneWidget);
+    expect(find.byKey(const ValueKey('messageForwardHeader-7')), findsNothing);
+    expect(
+      tester.getRect(quote).bottom,
+      lessThanOrEqualTo(tester.getRect(media).top),
+    );
+
+    message.text = 'Photo caption';
+    theme.groupImageMessages = true;
+    await tester.pump();
+
+    expect(quote, findsOneWidget);
+    expect(find.text('Photo caption', findRichText: true), findsOneWidget);
+    expect(
+      tester.getRect(quote).bottom,
+      lessThanOrEqualTo(tester.getRect(media).top),
+    );
+
+    theme.groupImageMessages = false;
+    await tester.pump();
+
+    expect(quote, findsOneWidget);
+    expect(find.text('Photo caption', findRichText: true), findsOneWidget);
+    expect(
+      tester.getRect(quote).bottom,
+      lessThanOrEqualTo(tester.getRect(media).top),
     );
 
     // Expire the mocked TDLib image lookup timeout before test teardown.

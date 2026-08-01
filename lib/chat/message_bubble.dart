@@ -1343,6 +1343,7 @@ class _MessageBubbleState extends State<MessageBubble>
     String text,
     bool outgoing, {
     bool includeForwardHeader = true,
+    bool includeReplyQuote = true,
   }) {
     final c = context.colors;
     final baseColor = outgoing ? _outgoingTextColor : _incomingTextColor;
@@ -1385,7 +1386,7 @@ class _MessageBubbleState extends State<MessageBubble>
             _forwardHeader(outgoing),
             const SizedBox(height: 3),
           ],
-          if (message.replyToPreview != null) ...[
+          if (includeReplyQuote && message.replyToPreview != null) ...[
             _replyQuote(outgoing),
             const SizedBox(height: 5),
           ],
@@ -4013,10 +4014,15 @@ class _MessageBubbleState extends State<MessageBubble>
     required bool outgoing,
   }) {
     final hasForwardHeader = message.forwardOrigin?.trim().isNotEmpty ?? false;
+    final hasReplyQuote = message.replyToPreview != null;
     if (!_groupsMediaCaption(caption)) {
-      final attributedMedia = hasForwardHeader
+      final attributedMedia = hasForwardHeader || hasReplyQuote
           ? _bubbleBackground(
-              key: ValueKey('messageForwardedMedia-${message.id}'),
+              key: ValueKey(
+                hasForwardHeader
+                    ? 'messageForwardedMedia-${message.id}'
+                    : 'messageRepliedMedia-${message.id}',
+              ),
               outgoing: outgoing,
               constraints: BoxConstraints(maxWidth: _mediaMaxWidth()),
               padding: EdgeInsets.zero,
@@ -4025,10 +4031,21 @@ class _MessageBubbleState extends State<MessageBubble>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(10, 7, 10, 6),
-                    child: _forwardHeader(outgoing),
-                  ),
+                  if (hasForwardHeader)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 7, 10, 6),
+                      child: _forwardHeader(outgoing),
+                    ),
+                  if (hasReplyQuote)
+                    Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        6,
+                        hasForwardHeader ? 0 : 6,
+                        6,
+                        6,
+                      ),
+                      child: _replyQuote(outgoing),
+                    ),
                   media,
                 ],
               ),
@@ -4047,6 +4064,7 @@ class _MessageBubbleState extends State<MessageBubble>
               caption,
               outgoing,
               includeForwardHeader: !hasForwardHeader,
+              includeReplyQuote: false,
             ),
           ],
         ],
@@ -4071,6 +4089,11 @@ class _MessageBubbleState extends State<MessageBubble>
             Padding(
               padding: const EdgeInsets.fromLTRB(10, 7, 10, 6),
               child: _forwardHeader(outgoing),
+            ),
+          if (hasReplyQuote)
+            Padding(
+              padding: EdgeInsets.fromLTRB(6, hasForwardHeader ? 0 : 6, 6, 6),
+              child: _replyQuote(outgoing),
             ),
           media,
           Padding(
