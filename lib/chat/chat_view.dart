@@ -86,6 +86,7 @@ import 'emoji_store.dart';
 import 'emoji_text_controller.dart';
 import 'forward_options.dart';
 import 'full_image_viewer.dart';
+import 'group_remark_controller.dart';
 import 'image_edit_view.dart';
 import 'link_handler.dart';
 import 'media_album_layout.dart';
@@ -6374,8 +6375,19 @@ class _ChatViewState extends State<ChatView> {
 
   Widget _headerTitleBlock(String subtitle, bool actionActive) {
     final c = context.colors;
+    final serverTitle = _vm.peerTitle;
+    final displayTitle = _vm.isGroup && !_vm.isChannel
+        ? context.watch<GroupRemarkController?>()?.displayTitleFor(
+                widget.chatId,
+                serverTitle,
+              ) ??
+              serverTitle
+        : serverTitle;
+    final headerTitle = _vm.isGroup && _vm.memberCount > 0
+        ? '$displayTitle(${_vm.memberCount})'
+        : displayTitle;
     final titleText = Text(
-      _vm.headerTitle,
+      headerTitle,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(

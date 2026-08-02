@@ -787,6 +787,13 @@ abstract final class AppStringKeys {
   static const chatInfoGroupChat = 'chatInfoGroupChat';
   static const chatInfoGroupFiles = 'chatInfoGroupFiles';
   static const chatInfoGroupId = 'chatInfoGroupId';
+  static const chatInfoGroupAnnouncement = 'chatInfoGroupAnnouncement';
+  static const chatInfoGroupAnnouncementEmpty =
+      'chatInfoGroupAnnouncementEmpty';
+  static const chatInfoGroupRemark = 'chatInfoGroupRemark';
+  static const chatInfoGroupRemarkEmpty = 'chatInfoGroupRemarkEmpty';
+  static const chatInfoGroupRemarkHint = 'chatInfoGroupRemarkHint';
+  static const chatInfoGroupRemarkLocalOnly = 'chatInfoGroupRemarkLocalOnly';
   static const chatInfoGroupMembers = 'chatInfoGroupMembers';
   static const chatInfoGroupVideos = 'chatInfoGroupVideos';
   static const chatInfoLeaveGroup = 'chatInfoLeaveGroup';
