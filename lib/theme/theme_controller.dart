@@ -1060,6 +1060,7 @@ class ThemeController extends ChangeNotifier {
     _showMessageMetaIndicators =
         _prefs.getBool(_messageMetaIndicatorsKey) ?? false;
     _alwaysShowMessageTime = _prefs.getBool(_alwaysShowMessageTimeKey) ?? false;
+    _enterToSend = _prefs.getBool(_enterToSendKey) ?? false;
     _openChatsAtLatest = _prefs.getBool(_openChatsAtLatestKey) ?? false;
     _preserveSenderWhenRepeating =
         _prefs.getBool(_preserveSenderWhenRepeatingKey) ?? true;
@@ -1162,6 +1163,7 @@ class ThemeController extends ChangeNotifier {
   static const _senderNameReadabilityModeKey = 'senderNameReadabilityMode.v1';
   static const _messageMetaIndicatorsKey = 'showMessageMetaIndicators';
   static const _alwaysShowMessageTimeKey = 'alwaysShowMessageTime';
+  static const _enterToSendKey = 'enterToSend';
   static const _openChatsAtLatestKey = 'openChatsAtLatest';
   static const _preserveSenderWhenRepeatingKey = 'preserveSenderWhenRepeating';
   static const _quickRepliesEnabledKey = 'quickRepliesEnabled';
@@ -1223,6 +1225,7 @@ class ThemeController extends ChangeNotifier {
       SenderNameReadabilityMode.shadow;
   bool _showMessageMetaIndicators = false;
   bool _alwaysShowMessageTime = false;
+  bool _enterToSend = false;
   bool _openChatsAtLatest = false;
   bool _preserveSenderWhenRepeating = true;
   bool _quickRepliesEnabled = true;
@@ -1587,6 +1590,7 @@ class ThemeController extends ChangeNotifier {
       _senderNameReadabilityMode;
   bool get showMessageMetaIndicators => _showMessageMetaIndicators;
   bool get alwaysShowMessageTime => _alwaysShowMessageTime;
+  bool get enterToSend => _enterToSend;
   bool get openChatsAtLatest => _openChatsAtLatest;
   bool get preserveSenderWhenRepeating => _preserveSenderWhenRepeating;
   bool get quickRepliesEnabled => _quickRepliesEnabled;
@@ -2216,6 +2220,13 @@ class ThemeController extends ChangeNotifier {
     if (_alwaysShowMessageTime == value) return;
     _alwaysShowMessageTime = value;
     _prefs.setBool(_alwaysShowMessageTimeKey, value);
+    notifyListeners();
+  }
+
+  set enterToSend(bool value) {
+    if (_enterToSend == value) return;
+    _enterToSend = value;
+    _prefs.setBool(_enterToSendKey, value);
     notifyListeners();
   }
 

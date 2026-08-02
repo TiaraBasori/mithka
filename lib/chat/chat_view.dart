@@ -5999,6 +5999,7 @@ class _ChatViewState extends State<ChatView> {
           ChatInputBar(
             vm: _vm,
             requestInitialFocus: widget.requestComposerFocusOnReady,
+            enterToSend: context.watch<ThemeController>().enterToSend,
             quickRepliesEnabled: context
                 .watch<ThemeController>()
                 .quickRepliesEnabled,
