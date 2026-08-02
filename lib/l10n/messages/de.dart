@@ -1359,6 +1359,7 @@ const deMessages = <String, String>{
   'messageViewInChat': "Im Chat anzeigen",
   'miniAppCannotStart': "Die Mini-App kann gerade nicht gestartet werden",
   'miniAppClose': "Mini-App schließen",
+  'miniAppName': "Mini-App",
   'miniAppNoMatches': "Keine passenden Mini-Apps",
   'miniAppOpenInBrowser': "Im Browser öffnen",
   'miniAppRecentEmpty': "Keine kürzlich verwendeten Mini-Apps",

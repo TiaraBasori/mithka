@@ -1393,6 +1393,7 @@ const enMessages = <String, String>{
   'messageViewInChat': "View in chat",
   'miniAppCannotStart': "Mini App can't be launched right now",
   'miniAppClose': "Close Mini App",
+  'miniAppName': "Mini App",
   'miniAppNoMatches': "No matching Mini Apps",
   'miniAppOpenInBrowser': "Open in Browser",
   'miniAppRecentEmpty': "No recently used Mini Apps",

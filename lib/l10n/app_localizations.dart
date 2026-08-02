@@ -1753,6 +1753,7 @@ abstract final class AppStringKeys {
   static const messageViewInChat = 'messageViewInChat';
   static const miniAppCannotStart = 'miniAppCannotStart';
   static const miniAppClose = 'miniAppClose';
+  static const miniAppName = 'miniAppName';
   static const miniAppNoMatches = 'miniAppNoMatches';
   static const miniAppOpenInBrowser = 'miniAppOpenInBrowser';
   static const miniAppRecentEmpty = 'miniAppRecentEmpty';
