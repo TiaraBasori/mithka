@@ -337,9 +337,10 @@ jobs:
           test -x "$apksigner"
           # Build Tools 36 reports "Signer #1" while Build Tools 37 reports
           # per-scheme labels such as "V2 Signer:" for the same certificate.
-          signer_digests="$("$apksigner" verify --print-certs "$apk" \
+          signer_output="$("$apksigner" verify --print-certs "$apk")"
+          signer_digests="$(printf '%s\n' "$signer_output" \
             | awk -F': ' '
-                /^(Signer #[0-9]+|V[0-9.]+ Signer:) certificate SHA-256 digest:/ {
+                /^(Signer #[0-9]+|V[0-9.]+ Signer( #[0-9]+)?:) certificate SHA-256 digest:/ {
                   print tolower($NF)
                 }
               ' \
