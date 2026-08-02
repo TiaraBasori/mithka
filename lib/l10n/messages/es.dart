@@ -346,6 +346,9 @@ const esMessages = <String, String>{
   'appearanceMergeConsecutiveImages': "Agrupar álbumes multimedia",
   'appearanceMode': "Modo",
   'appearanceMessageBubbles': "Burbujas de mensaje",
+  'appearanceShowMessageBubbles': "Mostrar burbujas de mensajes",
+  'appearanceShowMessageBubblesDescription':
+      "Si se desactiva, se ocultan los fondos de mensaje estándar. Las burbujas de temas personalizados siguen visibles y se conserva el estilo elegido.",
   'appearanceMonospaceFont': "Fuente monoespaciada",
   'appearanceNoCleanableFonts': "Nada para limpiar",
   'appearanceNoDownloadedFontCache': "No hay caché de fuentes descargadas.",
@@ -1857,11 +1860,7 @@ const esMessages = <String, String>{
   'settingsLogOut': "Cerrar sesión",
   'settingsNoResults': "No hay ajustes coincidentes",
   'settingsScopeMithka': "Mithka",
-  'settingsScopeMithkaDescription':
-      "Apariencia, comportamiento y herramientas de Mithka en este dispositivo.",
   'settingsScopeTelegram': "Cuenta de Telegram",
-  'settingsScopeTelegramDescription':
-      "Perfil, privacidad, notificaciones y servicios vinculados a tu cuenta de Telegram.",
   'settingsSearchHint': "Buscar ajustes",
   'sharedMediaCacheDeleted': "Caché local eliminada",
   'sharedMediaCacheDeleteFailed': "No se pudo eliminar la caché",

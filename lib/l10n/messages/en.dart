@@ -334,6 +334,9 @@ const enMessages = <String, String>{
   'appearanceMergeConsecutiveImages': "Group Media Albums",
   'appearanceMode': "Mode",
   'appearanceMessageBubbles': "Message Bubbles",
+  'appearanceShowMessageBubbles': "Show Message Bubbles",
+  'appearanceShowMessageBubblesDescription':
+      "When off, standard message backgrounds are hidden. Custom theme bubbles stay visible, and your selected bubble style is kept.",
   'appearanceMonospaceFont': "Monospace Font",
   'appearanceNoCleanableFonts': "Nothing to clean",
   'appearanceNoDownloadedFontCache': "No downloaded font cache.",
@@ -1888,11 +1891,7 @@ const enMessages = <String, String>{
   'settingsLogOut': "Log Out",
   'settingsNoResults': "No matching settings",
   'settingsScopeMithka': "Mithka",
-  'settingsScopeMithkaDescription':
-      "Appearance, behavior, and tools used by Mithka on this device.",
   'settingsScopeTelegram': "Telegram Account",
-  'settingsScopeTelegramDescription':
-      "Profile, privacy, notifications, and services tied to your Telegram account.",
   'settingsSearchHint': "Search settings",
   'sharedMediaCacheDeleted': "Local cache deleted",
   'sharedMediaCacheDeleteFailed': "Couldn't delete cache",

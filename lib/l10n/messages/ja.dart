@@ -318,6 +318,9 @@ const jaMessages = <String, String>{
   'appearanceMergeConsecutiveImages': "メディアアルバムをまとめて表示",
   'appearanceMode': "モード",
   'appearanceMessageBubbles': "メッセージバブル",
+  'appearanceShowMessageBubbles': "メッセージバブルを表示",
+  'appearanceShowMessageBubblesDescription':
+      "オフにすると標準のメッセージ背景が非表示になります。カスタムテーマのバブルは表示され、選択したバブルスタイルも保持されます。",
   'appearanceMonospaceFont': "等幅フォント",
   'appearanceNoCleanableFonts': "クリーンアップ可能な項目なし",
   'appearanceNoDownloadedFontCache': "ダウンロード済みのフォントキャッシュはありません。",
@@ -1713,10 +1716,7 @@ const jaMessages = <String, String>{
   'settingsLogOut': "ログアウト",
   'settingsNoResults': "一致する設定がありません",
   'settingsScopeMithka': "Mithka",
-  'settingsScopeMithkaDescription': "このデバイスで使う Mithka の外観、動作、ツール。",
   'settingsScopeTelegram': "Telegram アカウント",
-  'settingsScopeTelegramDescription':
-      "Telegram アカウントに紐づくプロフィール、プライバシー、通知、サービス。",
   'settingsSearchHint': "設定を検索",
   'sharedMediaCacheDeleted': "ローカルキャッシュを削除しました",
   'sharedMediaCacheDeleteFailed': "キャッシュの削除に失敗しました",

@@ -347,6 +347,9 @@ const frMessages = <String, String>{
   'appearanceMergeConsecutiveImages': "Regrouper les albums multimédias",
   'appearanceMode': "Mode",
   'appearanceMessageBubbles': "Bulles de message",
+  'appearanceShowMessageBubbles': "Afficher les bulles de messages",
+  'appearanceShowMessageBubblesDescription':
+      "Lorsque cette option est désactivée, les arrière-plans standard sont masqués. Les bulles des thèmes personnalisés restent visibles et le style choisi est conservé.",
   'appearanceMonospaceFont': "Police monospace",
   'appearanceNoCleanableFonts': "Rien à nettoyer",
   'appearanceNoDownloadedFontCache': "Aucun cache de police téléchargé.",
@@ -1870,11 +1873,7 @@ const frMessages = <String, String>{
   'settingsLogOut': "Se déconnecter",
   'settingsNoResults': "Aucun réglage correspondant",
   'settingsScopeMithka': "Mithka",
-  'settingsScopeMithkaDescription':
-      "Apparence, comportement et outils de Mithka sur cet appareil.",
   'settingsScopeTelegram': "Compte Telegram",
-  'settingsScopeTelegramDescription':
-      "Profil, confidentialité, notifications et services liés à votre compte Telegram.",
   'settingsSearchHint': "Rechercher dans les paramètres",
   'sharedMediaCacheDeleted': "Cache local supprimé",
   'sharedMediaCacheDeleteFailed': "Impossible de supprimer le cache",

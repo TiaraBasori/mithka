@@ -915,6 +915,8 @@ class ThemeController extends ChangeNotifier {
     _customMessageBubbleBackground = _decodeCustomMessageBubbleBackground(
       _scopedThemeKey(_customMessageBubbleBackgroundKey),
     );
+    _messageBubblesEnabled =
+        _prefs.getBool(_scopedThemeKey(_messageBubblesEnabledKey)) ?? true;
     _messageBubbleBackground = MessageBubbleBackground.fromStorage(
       _prefs.getString(_scopedThemeKey(_messageBubbleBackgroundKey)),
     );
@@ -1108,6 +1110,7 @@ class ThemeController extends ChangeNotifier {
   static const _darkCloudThemeKey = 'telegramCloudThemeDark';
   static const _installedCloudThemesKey = 'installedTelegramCloudThemes';
   static const _legacyUseTelegramThemeForUiKey = 'useTelegramThemeForUi';
+  static const _messageBubblesEnabledKey = 'messageBubblesEnabled.v1';
   static const _messageBubbleBackgroundKey = 'messageBubbleBackground.v1';
   static const _messageBubbleApplicationScopeKey =
       'messageBubbleApplicationScope.v1';
@@ -1188,6 +1191,7 @@ class ThemeController extends ChangeNotifier {
   TelegramCloudTheme? _lightCloudTheme;
   TelegramCloudTheme? _darkCloudTheme;
   late List<TelegramCloudTheme> _installedCloudThemes;
+  late bool _messageBubblesEnabled;
   late MessageBubbleBackground _messageBubbleBackground;
   late MessageBubbleApplicationScope _messageBubbleApplicationScope;
   CustomMessageBubbleBackground? _customMessageBubbleBackground;
@@ -1255,6 +1259,7 @@ class ThemeController extends ChangeNotifier {
   });
   bool usesCloudThemeForUi(Brightness brightness) =>
       cloudThemeFor(brightness) != null;
+  bool get messageBubblesEnabled => _messageBubblesEnabled;
   MessageBubbleBackground get messageBubbleBackground =>
       _messageBubbleBackground;
   MessageBubbleBackground get effectiveMessageBubbleBackground =>
@@ -1286,6 +1291,20 @@ class ThemeController extends ChangeNotifier {
     return messageBubbleBackgroundSpec;
   }
 
+  bool shouldRenderMessageBubbleSurface({
+    required bool outgoing,
+    required Brightness brightness,
+    bool hasCustomChatTheme = false,
+  }) {
+    final cloudTheme = cloudThemeFor(brightness);
+    return _messageBubblesEnabled ||
+        effectiveMessageBubbleBackgroundSpecFor(
+          outgoing: outgoing,
+        ).isDecorative ||
+        (cloudTheme != null && !cloudTheme.isBuiltIn) ||
+        (_themingEnabled && hasCustomChatTheme);
+  }
+
   MessageBubbleBackgroundSpec messageBubbleBackgroundSpecFor(
     MessageBubbleBackground selection,
   ) => MessageBubbleBackgroundSpec.resolve(
@@ -1310,6 +1329,7 @@ class ThemeController extends ChangeNotifier {
       _lightCloudThemeKey,
       _darkCloudThemeKey,
       _legacyUseTelegramThemeForUiKey,
+      _messageBubblesEnabledKey,
       _messageBubbleBackgroundKey,
       _messageBubbleApplicationScopeKey,
       _customMessageBubbleBackgroundKey,
@@ -1391,6 +1411,8 @@ class ThemeController extends ChangeNotifier {
     _customMessageBubbleBackground = _decodeCustomMessageBubbleBackground(
       _scopedThemeKey(_customMessageBubbleBackgroundKey),
     );
+    _messageBubblesEnabled =
+        _prefs.getBool(_scopedThemeKey(_messageBubblesEnabledKey)) ?? true;
     _messageBubbleBackground = MessageBubbleBackground.fromStorage(
       _prefs.getString(_scopedThemeKey(_messageBubbleBackgroundKey)),
     );
@@ -1410,6 +1432,10 @@ class ThemeController extends ChangeNotifier {
   void _persistScopedThemeSettings() {
     _prefs.setString(_scopedThemeKey(_modeKey), _mode.name);
     _prefs.setInt(_scopedThemeKey(_brandKey), _brandColor.toARGB32());
+    _prefs.setBool(
+      _scopedThemeKey(_messageBubblesEnabledKey),
+      _messageBubblesEnabled,
+    );
     _prefs.setString(
       _scopedThemeKey(_messageBubbleBackgroundKey),
       _messageBubbleBackground.name,
@@ -1446,6 +1472,7 @@ class ThemeController extends ChangeNotifier {
     final brand = _brandColor;
     final light = _lightCloudTheme;
     final dark = _darkCloudTheme;
+    final messageBubblesEnabled = _messageBubblesEnabled;
     final bubbleBackground = _messageBubbleBackground;
     final bubbleApplicationScope = _messageBubbleApplicationScope;
     final customBubbleBackground = _customMessageBubbleBackground;
@@ -1457,6 +1484,7 @@ class ThemeController extends ChangeNotifier {
           _prefs.containsKey(_scopedThemeKey(_brandKey)) ||
           _prefs.containsKey(_scopedThemeKey(_lightCloudThemeKey)) ||
           _prefs.containsKey(_scopedThemeKey(_darkCloudThemeKey)) ||
+          _prefs.containsKey(_scopedThemeKey(_messageBubblesEnabledKey)) ||
           _prefs.containsKey(_scopedThemeKey(_messageBubbleBackgroundKey)) ||
           _prefs.containsKey(
             _scopedThemeKey(_messageBubbleApplicationScopeKey),
@@ -1469,6 +1497,7 @@ class ThemeController extends ChangeNotifier {
         _brandColor = brand;
         _lightCloudTheme = light;
         _darkCloudTheme = dark;
+        _messageBubblesEnabled = messageBubblesEnabled;
         _messageBubbleBackground = bubbleBackground;
         _messageBubbleApplicationScope = bubbleApplicationScope;
         _customMessageBubbleBackground = customBubbleBackground;
@@ -1747,6 +1776,13 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
+  set messageBubblesEnabled(bool value) {
+    if (_messageBubblesEnabled == value) return;
+    _messageBubblesEnabled = value;
+    _prefs.setBool(_scopedThemeKey(_messageBubblesEnabledKey), value);
+    notifyListeners();
+  }
+
   set messageBubbleBackground(MessageBubbleBackground value) {
     if (value == MessageBubbleBackground.custom &&
         _customMessageBubbleBackground == null) {
@@ -1772,7 +1808,9 @@ class ThemeController extends ChangeNotifier {
     CustomMessageBubbleBackground value,
   ) {
     _customMessageBubbleBackground = value;
+    _messageBubblesEnabled = true;
     _messageBubbleBackground = MessageBubbleBackground.custom;
+    _prefs.setBool(_scopedThemeKey(_messageBubblesEnabledKey), true);
     _prefs.setString(
       _scopedThemeKey(_customMessageBubbleBackgroundKey),
       jsonEncode(value.toJson()),

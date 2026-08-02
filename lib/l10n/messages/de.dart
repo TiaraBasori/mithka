@@ -346,6 +346,9 @@ const deMessages = <String, String>{
   'appearanceMergeConsecutiveImages': "Medienalben gruppieren",
   'appearanceMode': "Modus",
   'appearanceMessageBubbles': "Nachrichtenblasen",
+  'appearanceShowMessageBubbles': "Nachrichtenblasen anzeigen",
+  'appearanceShowMessageBubblesDescription':
+      "Wenn deaktiviert, werden Standard-Nachrichtenhintergründe ausgeblendet. Blasen aus benutzerdefinierten Themes bleiben sichtbar und der ausgewählte Stil bleibt erhalten.",
   'appearanceMonospaceFont': "Monospace-Schrift",
   'appearanceNoCleanableFonts': "Nichts zu bereinigen",
   'appearanceNoDownloadedFontCache':
@@ -1871,11 +1874,7 @@ const deMessages = <String, String>{
   'settingsLogOut': "Abmelden",
   'settingsNoResults': "Keine passenden Einstellungen",
   'settingsScopeMithka': "Mithka",
-  'settingsScopeMithkaDescription':
-      "Darstellung, Verhalten und Werkzeuge von Mithka auf diesem Gerät.",
   'settingsScopeTelegram': "Telegram-Konto",
-  'settingsScopeTelegramDescription':
-      "Profil, Datenschutz, Benachrichtigungen und Dienste deines Telegram-Kontos.",
   'settingsSearchHint': "Einstellungen durchsuchen",
   'sharedMediaCacheDeleted': "Lokaler Cache gelöscht",
   'sharedMediaCacheDeleteFailed': "Cache konnte nicht gelöscht werden",

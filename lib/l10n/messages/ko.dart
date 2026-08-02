@@ -320,6 +320,9 @@ const koMessages = <String, String>{
   'appearanceMergeConsecutiveImages': "미디어 앨범 묶어 보기",
   'appearanceMode': "모드",
   'appearanceMessageBubbles': "메시지 말풍선",
+  'appearanceShowMessageBubbles': "메시지 말풍선 표시",
+  'appearanceShowMessageBubblesDescription':
+      "끄면 기본 메시지 배경이 숨겨집니다. 사용자 지정 테마의 말풍선은 계속 표시되며 선택한 말풍선 스타일도 유지됩니다.",
   'appearanceMonospaceFont': "고정폭 글꼴",
   'appearanceNoCleanableFonts': "정리할 항목 없음",
   'appearanceNoDownloadedFontCache': "다운로드된 글꼴 캐시가 없습니다.",
@@ -1713,10 +1716,7 @@ const koMessages = <String, String>{
   'settingsLogOut': "로그아웃",
   'settingsNoResults': "일치하는 설정이 없습니다",
   'settingsScopeMithka': "Mithka",
-  'settingsScopeMithkaDescription': "이 기기에서 사용하는 Mithka의 모양, 동작 및 도구입니다.",
   'settingsScopeTelegram': "Telegram 계정",
-  'settingsScopeTelegramDescription':
-      "Telegram 계정에 연결된 프로필, 개인정보 보호, 알림 및 서비스입니다.",
   'settingsSearchHint': "설정 검색",
   'sharedMediaCacheDeleted': "로컬 캐시 삭제됨",
   'sharedMediaCacheDeleteFailed': "캐시 삭제 실패",

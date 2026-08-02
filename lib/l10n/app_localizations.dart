@@ -405,6 +405,9 @@ abstract final class AppStringKeys {
       'appearanceChatListFolderSwipeSwitching';
   static const appearanceChatView = 'appearanceChatView';
   static const appearanceMessageBubbles = 'appearanceMessageBubbles';
+  static const appearanceShowMessageBubbles = 'appearanceShowMessageBubbles';
+  static const appearanceShowMessageBubblesDescription =
+      'appearanceShowMessageBubblesDescription';
   static const appearanceChatNameColorsTitle = 'appearanceChatNameColorsTitle';
   static const appearanceCleanableSize = 'appearanceCleanableSize';
   static const appearanceCleanUnusedFonts = 'appearanceCleanUnusedFonts';
@@ -2273,11 +2276,7 @@ abstract final class AppStringKeys {
   static const settingsLogOut = 'settingsLogOut';
   static const settingsNoResults = 'settingsNoResults';
   static const settingsScopeMithka = 'settingsScopeMithka';
-  static const settingsScopeMithkaDescription =
-      'settingsScopeMithkaDescription';
   static const settingsScopeTelegram = 'settingsScopeTelegram';
-  static const settingsScopeTelegramDescription =
-      'settingsScopeTelegramDescription';
   static const settingsSearchHint = 'settingsSearchHint';
   static const sharedMediaCacheDeleted = 'sharedMediaCacheDeleted';
   static const sharedMediaCacheDeleteFailed = 'sharedMediaCacheDeleteFailed';
