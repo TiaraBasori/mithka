@@ -1100,11 +1100,13 @@ class ChatPreviewText extends StatelessWidget {
     required this.message,
     this.draft = false,
     this.alertPrefix,
+    this.fontSize = AppTextSize.footnote,
   });
   final String? sender;
   final String message;
   final bool draft; // render a red "[草稿]" prefix and ignore sender
   final String? alertPrefix;
+  final double fontSize;
 
   static const _redTags = [
     AppStringKeys.commonUiNewFileBadge,
@@ -1119,7 +1121,7 @@ class ChatPreviewText extends StatelessWidget {
     final isRed = _redTags.any(message.startsWith);
     final baseStyle = DefaultTextStyle.of(
       context,
-    ).style.merge(const TextStyle(fontSize: AppTextSize.footnote));
+    ).style.merge(TextStyle(fontSize: fontSize));
     return RichText(
       maxLines: 1,
       overflow: TextOverflow.ellipsis,

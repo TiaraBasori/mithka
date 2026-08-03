@@ -36,11 +36,17 @@ class ChatRowView extends StatelessWidget {
     this.archived = false,
     this.selected = false,
     this.onClearUnread,
+    this.avatarBuilder,
+    this.titleTrailing,
+    this.trailingIndicator,
   });
   final ChatSummary chat;
   final bool archived;
   final bool selected;
   final VoidCallback? onClearUnread;
+  final Widget Function(double size)? avatarBuilder;
+  final Widget? titleTrailing;
+  final Widget? trailingIndicator;
 
   @override
   Widget build(BuildContext context) {
@@ -53,7 +59,11 @@ class ChatRowView extends StatelessWidget {
               ) ??
               chat.title
         : chat.title;
-    final rowHeight = theme.rowHeight;
+    final rowHeight = AppMetric.chatListRowHeight();
+    final avatarSize = AppMetric.chatListAvatarSize();
+    final titleFontSize = AppTextSize.chatListTitle();
+    final previewFontSize = AppTextSize.chatListPreview();
+    final timestampFontSize = AppTextSize.chatListTimestamp();
     final nameColor =
         theme.chatListNameColorAudience.shows(isPremium: chat.peerIsPremium) &&
             chat.peerAccentColorId >= 0
@@ -69,7 +79,7 @@ class ChatRowView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Row(
         children: [
-          _avatar(context, title),
+          _avatar(context, title, avatarSize),
           const SizedBox(width: AppSpacing.lg),
           Expanded(
             child: Column(
@@ -92,7 +102,7 @@ class ChatRowView extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: AppTextSize.body,
+                          fontSize: titleFontSize,
                           fontWeight: chat.peerIsPremium
                               ? FontWeight.w600
                               : FontWeight.w500,
@@ -100,6 +110,10 @@ class ChatRowView extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (titleTrailing case final trailing?) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      trailing,
+                    ],
                     if (showStatus) ...[
                       const SizedBox(width: AppSpacing.xs),
                       StatusEmojiView(
@@ -113,16 +127,21 @@ class ChatRowView extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 chat.draftText.trim().isNotEmpty
-                    ? ChatPreviewText(message: chat.draftText, draft: true)
+                    ? ChatPreviewText(
+                        message: chat.draftText,
+                        draft: true,
+                        fontSize: previewFontSize,
+                      )
                     : ChatPreviewText(
                         sender: chat.lastSender,
                         message: chat.lastMessage,
+                        fontSize: previewFontSize,
                       ),
               ],
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          _rightColumn(context),
+          _rightColumn(context, rowHeight, timestampFontSize),
         ],
       ),
     );
@@ -135,23 +154,23 @@ class ChatRowView extends StatelessWidget {
     return AppTheme.brand;
   }
 
-  Widget _avatar(BuildContext context, String title) {
+  Widget _avatar(BuildContext context, String title, double avatarSize) {
     final theme = context.watch<ThemeController>();
     final circleGroups = theme.circularGroupAvatars;
-    final avatarSize = theme.avatarSize;
     return SizedBox(
       width: avatarSize,
       height: avatarSize,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          PhotoAvatar(
-            title: title,
-            photo: chat.photo,
-            size: avatarSize,
-            square: chat.usesSquareAvatar && !circleGroups,
-            allowAnimation: false,
-          ),
+          avatarBuilder?.call(avatarSize) ??
+              PhotoAvatar(
+                title: title,
+                photo: chat.photo,
+                size: avatarSize,
+                square: chat.usesSquareAvatar && !circleGroups,
+                allowAnimation: false,
+              ),
           if (chat.unreadCount > 0)
             Positioned(
               right: 0,
@@ -183,9 +202,12 @@ class ChatRowView extends StatelessWidget {
     );
   }
 
-  Widget _rightColumn(BuildContext context) {
+  Widget _rightColumn(
+    BuildContext context,
+    double rowHeight,
+    double timestampFontSize,
+  ) {
     final c = context.colors;
-    final rowHeight = context.watch<ThemeController>().rowHeight;
     return SizedBox(
       height: rowHeight,
       child: Padding(
@@ -198,7 +220,7 @@ class ChatRowView extends StatelessWidget {
             Text(
               DateText.listLabel(chat.date),
               style: TextStyle(
-                fontSize: AppTextSize.caption,
+                fontSize: timestampFontSize,
                 color: c.textTertiary,
               ),
             ),
@@ -209,6 +231,8 @@ class ChatRowView extends StatelessWidget {
                 size: AppIconSize.sm,
                 color: c.textTertiary,
               )
+            else if (trailingIndicator case final indicator?)
+              indicator
             else if (chat.isPinned)
               Transform.rotate(
                 angle: 0.785, // 45°
