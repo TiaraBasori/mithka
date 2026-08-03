@@ -169,10 +169,16 @@ Color _momentQuoteFill(AppColors c) =>
     c.groupedBackground.withValues(alpha: 0.88);
 
 class MomentsView extends StatefulWidget {
-  const MomentsView({super.key, this.onOpenDetail, this.storyService});
+  const MomentsView({
+    super.key,
+    this.onOpenDetail,
+    this.storyService,
+    this.desktopSidebar = false,
+  });
 
   final ValueChanged<Widget>? onOpenDetail;
   final StoryService? storyService;
+  final bool desktopSidebar;
 
   @override
   State<MomentsView> createState() => _MomentsViewState();
@@ -295,7 +301,8 @@ class _MomentsViewState extends State<MomentsView> {
       color: c.groupedBackground,
       child: Column(
         children: [
-          const NavHeader(title: AppStringKeys.tabMoments),
+          if (!widget.desktopSidebar)
+            const NavHeader(title: AppStringKeys.tabMoments),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.only(top: AppSpacing.md),

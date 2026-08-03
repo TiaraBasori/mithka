@@ -1544,7 +1544,7 @@ class _MessageBubbleState extends State<MessageBubble>
     }
     _linkRecognizers.clear();
     final emojiOnly = _isEmojiOnlyText(text);
-    final textFontSize = emojiOnly ? 34.0 : 15.0;
+    final textFontSize = emojiOnly ? 34.0 : AppTextSize.messageBody();
     final bubblePadding = emojiOnly
         ? const EdgeInsets.symmetric(horizontal: 10, vertical: 7)
         : const EdgeInsets.symmetric(horizontal: 12, vertical: 9);
@@ -3426,6 +3426,9 @@ class _MessageBubbleState extends State<MessageBubble>
     List<MessageTextEntity>? entities,
     double fontSize = 15,
   ]) {
+    final resolvedFontSize = fontSize == AppTextSize.body
+        ? AppTextSize.messageBody()
+        : fontSize;
     final sourceEntities = entities ?? message.textEntities;
     final blocks =
         sourceEntities.where((e) => e.isBlockQuote || e.isPreBlock).toList()
@@ -3441,7 +3444,7 @@ class _MessageBubbleState extends State<MessageBubble>
           outgoing,
           appendMeta,
           entities: sourceEntities,
-          fontSize: fontSize,
+          fontSize: resolvedFontSize,
         ),
       ];
     }
@@ -3464,7 +3467,7 @@ class _MessageBubbleState extends State<MessageBubble>
             outgoing,
             false,
             entities: sourceEntities,
-            fontSize: fontSize,
+            fontSize: resolvedFontSize,
           ),
         );
         widgets.add(const SizedBox(height: 5));
@@ -3479,7 +3482,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 base,
                 link,
                 sourceEntities,
-                fontSize,
+                resolvedFontSize,
               )
             : _quoteBlock(
                 block,
@@ -3490,7 +3493,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 link,
                 outgoing,
                 sourceEntities,
-                fontSize,
+                resolvedFontSize,
               ),
       );
       cursor = end;
@@ -3507,7 +3510,7 @@ class _MessageBubbleState extends State<MessageBubble>
           outgoing,
           appendMeta,
           entities: sourceEntities,
-          fontSize: fontSize,
+          fontSize: resolvedFontSize,
         ),
       );
       metaAdded = appendMeta;

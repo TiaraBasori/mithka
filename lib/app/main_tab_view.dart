@@ -18,8 +18,13 @@ import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../channels/topic_channels_view.dart';
 import '../channels/topic_chat_view.dart';
+import '../chat/chat_info_view.dart';
+import '../chat/chat_members_view.dart';
+import '../chat/chat_search_view.dart';
 import '../chat/chat_view.dart';
+import '../chat/desktop_chat_context_pane.dart';
 import '../chat/music_player_controller.dart';
+import '../chats/archived_chats_view.dart';
 import '../chats/chat_list_view.dart';
 import '../communities/community_view.dart';
 import '../components/app_icons.dart';
@@ -28,6 +33,7 @@ import '../components/ui_components.dart';
 import '../contacts/contacts_view.dart';
 import '../l10n/app_localizations.dart';
 import '../moments/moments_view.dart';
+import '../profile/profile_detail_view.dart';
 import '../profile/profile_view.dart';
 import '../settings/topic_group_display_mode.dart';
 import '../tdlib/td_models.dart';
@@ -39,7 +45,12 @@ import '../update/update_checker.dart';
 import 'adaptive_split_layout.dart';
 import 'app_navigator.dart';
 import 'chat_deep_link_controller.dart';
+import 'desktop_navigation_rail.dart';
 import 'unread_badge_model.dart';
+
+@visibleForTesting
+bool desktopChatKindUsesContextPane(ChatKind? kind) =>
+    kind == ChatKind.group || kind == ChatKind.channel;
 
 class MainTabView extends StatefulWidget {
   const MainTabView({super.key});
@@ -75,6 +86,8 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       ChatViewExitController();
   ChatListSelection? _selectedMessageChat;
   CommunityListSelection? _selectedMessageCommunity;
+  ArchivedChatListSelection? _selectedArchivedChats;
+  int? _closedDesktopInfoChatId;
   Widget? _selectedChannelDetail;
   Widget? _selectedContactDetail;
   Widget? _selectedMomentDetail;
@@ -132,6 +145,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     final usesTabletSplit = _usesTabletSplit(context);
     if (_wasUsingTabletSplit == true && !usesTabletSplit) {
       _messageChatExitController.prepareExit();
+      _selectedArchivedChats = null;
     }
     _wasUsingTabletSplit = usesTabletSplit;
     final accounts = context.read<AccountStore>();
@@ -165,6 +179,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     if (accounts == null || accounts.activeSlot == _observedAccountSlot) return;
     _messageChatExitController.prepareExit();
     _observedAccountSlot = accounts.activeSlot;
+    _closedDesktopInfoChatId = null;
   }
 
   late final List<GlobalKey<NavigatorState>> _navKeys = List.generate(
@@ -197,6 +212,10 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     if (_usesTabletSplit(context)) {
       switch (_selection) {
         case 0:
+          if (_selectedArchivedChats != null) {
+            setState(() => _selectedArchivedChats = null);
+            return false;
+          }
           if (_selectedMessageChat != null) {
             _messageChatExitController.prepareExit();
             setState(() => _selectedMessageChat = null);
@@ -239,6 +258,12 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     final shouldToggleMessages = tabIndex == 0;
     if (tabIndex == _selection) {
       // Tapping the active tab pops to its root.
+      if (_usesTabletSplit(context) &&
+          tabIndex == 0 &&
+          _selectedArchivedChats != null) {
+        setState(() => _selectedArchivedChats = null);
+        return;
+      }
       _navKeys[tabIndex].currentState?.popUntil((r) => r.isFirst);
       if (_usesTabletSplit(context)) _clearTabletDetail(tabIndex);
       if (shouldToggleMessages) _toggleMessagesListTarget(theme);
@@ -410,6 +435,9 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     }
     final selection = _visibleSelection(tabs);
     final activeTabIndex = tabs[selection].index;
+    if (_usesDesktopShell(context)) {
+      return _desktopSplitTabs(tabs, selection, activeTabIndex);
+    }
     if (_usesTabletSplit(context)) {
       return _tabletSplitTabs(tabs, selection, activeTabIndex);
     }
@@ -487,6 +515,162 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       },
     );
   }
+
+  Widget _desktopSplitTabs(
+    List<_MainTabItem> tabs,
+    int selection,
+    int activeTabIndex,
+  ) {
+    final theme = context.watch<ThemeController>();
+    final size = MediaQuery.sizeOf(context);
+    final contentWidth = size.width - desktopNavigationRailWidth;
+    final requestedSidebarWidth =
+        _splitSidebarWidth ?? defaultSplitSidebarWidth(contentWidth);
+    final messageSelection = activeTabIndex == 0 ? _selectedMessageChat : null;
+    final selectedChat =
+        desktopChatKindUsesContextPane(messageSelection?.chat?.kind)
+        ? messageSelection
+        : null;
+    final infoPaneRequested =
+        selectedChat != null && _closedDesktopInfoChatId != selectedChat.chatId;
+    final geometry = resolveDesktopShellGeometry(
+      totalWidth: size.width,
+      requestedSidebarWidth: requestedSidebarWidth,
+      infoPaneRequested: infoPaneRequested,
+    );
+    final canToggleInfoPane =
+        geometry.showListPane &&
+        selectedChat != null &&
+        canShowDesktopInfoPane(
+          totalWidth: size.width,
+          sidebarWidth: geometry.sidebarWidth,
+        );
+    final destinations = [
+      for (final tab in tabs)
+        DesktopNavigationDestination(
+          label: tab.label.l10n(context),
+          icon: tab.icon,
+        ),
+    ];
+    return AnimatedBuilder(
+      animation: _tabBar,
+      builder: (context, _) => Column(
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                Row(
+                  children: [
+                    AnimatedBuilder(
+                      animation: _unread,
+                      builder: (context, _) => DesktopNavigationRail(
+                        destinations: destinations,
+                        selection: selection,
+                        onSelect: _select,
+                        unread: _unread.countFor(theme.unreadBadgeMode),
+                        onClearUnread: _chatListController.markAllRead,
+                      ),
+                    ),
+                    if (geometry.showListPane)
+                      SizedBox(
+                        key: const ValueKey('desktop-list-pane'),
+                        width: geometry.sidebarWidth,
+                        child: _LazyTabStack(
+                          selection: selection,
+                          items: tabs,
+                          builder: (tab) => _tabletSidebarRoot(
+                            tab.index,
+                            desktopSidebar: true,
+                          ),
+                        ),
+                      ),
+                    SizedBox(
+                      key: const ValueKey('desktop-conversation-pane'),
+                      width: geometry.conversationWidth,
+                      child: _musicAwareContent(
+                        geometry.showListPane ||
+                                _hasSelectedDesktopDetail(activeTabIndex)
+                            ? _animatedTabletDetailPane(
+                                activeTabIndex,
+                                onMessageInfoPressed: canToggleInfoPane
+                                    ? () => setState(
+                                        () => _closedDesktopInfoChatId =
+                                            geometry.showInfoPane
+                                            ? selectedChat.chatId
+                                            : null,
+                                      )
+                                    : null,
+                              )
+                            : _LazyTabStack(
+                                selection: selection,
+                                items: tabs,
+                                builder: (tab) => _tabletSidebarRoot(
+                                  tab.index,
+                                  desktopSidebar: true,
+                                ),
+                              ),
+                      ),
+                    ),
+                    if (geometry.showInfoPane && selectedChat != null) ...[
+                      VerticalDivider(
+                        width: desktopInfoPaneHandleWidth,
+                        thickness: desktopInfoPaneHandleWidth,
+                        color: context.colors.divider,
+                      ),
+                      SizedBox(
+                        key: ValueKey(
+                          'desktop-chat-context-pane-'
+                          '${selectedChat.chatId}',
+                        ),
+                        width: desktopInfoPaneWidth,
+                        child: DesktopChatContextPane(
+                          chatId: selectedChat.chatId,
+                          title: selectedChat.title,
+                          onSearch: () =>
+                              unawaited(_openDesktopChatSearch(selectedChat)),
+                          onClose: () => setState(
+                            () =>
+                                _closedDesktopInfoChatId = selectedChat.chatId,
+                          ),
+                          onOpenFullInfo: () =>
+                              unawaited(_openDesktopFullChatInfo(selectedChat)),
+                          onOpenMembers: () =>
+                              unawaited(_openDesktopChatMembers(selectedChat)),
+                          onOpenMember: _openDesktopChatMember,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                if (geometry.showListPane)
+                  Positioned(
+                    left:
+                        desktopNavigationRailWidth +
+                        geometry.sidebarWidth -
+                        splitResizeHandleWidth / 2,
+                    top: 0,
+                    bottom: 0,
+                    child: _splitResizeHandle(
+                      totalWidth: contentWidth,
+                      sidebarWidth: geometry.sidebarWidth,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          _fixedMusicPlayer(safeBottom: true),
+        ],
+      ),
+    );
+  }
+
+  bool _hasSelectedDesktopDetail(int activeTabIndex) =>
+      switch (activeTabIndex) {
+        0 => _selectedMessageChat != null || _selectedMessageCommunity != null,
+        1 => _selectedChannelDetail != null,
+        2 => _selectedContactDetail != null,
+        _ => _selectedMomentDetail != null,
+      };
 
   Widget _tabletSplitTabs(
     List<_MainTabItem> tabs,
@@ -616,44 +800,29 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     );
   }
 
-  Widget _tabletSidebarRoot(int tabIndex) {
+  Widget _tabletSidebarRoot(int tabIndex, {bool desktopSidebar = false}) {
     final communitiesEnabled = context
         .watch<ThemeController>()
         .communitiesEnabled;
     return switch (tabIndex) {
-      0 => ChatListView(
-        controller: _chatListController,
-        selectedChatId: _selectedMessageChat?.chatId,
-        selectedCommunityId: communitiesEnabled
-            ? _selectedMessageCommunity?.community.id
-            : null,
-        onChatSelected: (chat) {
-          _prepareMessageChatReplacement(chat);
-          setState(() {
-            _selectedMessageCommunity = null;
-            _selectedMessageChat = chat;
-          });
-        },
-        onCommunitySelected: (community) {
-          if (!communitiesEnabled) return;
-          _messageChatExitController.prepareExit();
-          setState(() {
-            _selectedMessageChat = null;
-            _selectedMessageCommunity = community;
-          });
-        },
+      0 => _tabletMessagesSidebar(
+        communitiesEnabled,
+        desktopSidebar: desktopSidebar,
       ),
       1 => TopicChannelsView(
+        desktopSidebar: desktopSidebar,
         onOpenDetail: (detail) {
           setState(() => _selectedChannelDetail = detail);
         },
       ),
       2 => ContactsView(
+        desktopSidebar: desktopSidebar,
         onOpenDetail: (detail) {
           setState(() => _selectedContactDetail = detail);
         },
       ),
       _ => MomentsView(
+        desktopSidebar: desktopSidebar,
         onOpenDetail: (detail) {
           setState(() => _selectedMomentDetail = detail);
         },
@@ -661,8 +830,71 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     };
   }
 
-  Widget _tabletDetailPane(int activeTabIndex) => switch (activeTabIndex) {
-    0 => _messageDetailPane(),
+  Widget _tabletMessagesSidebar(
+    bool communitiesEnabled, {
+    bool desktopSidebar = false,
+  }) {
+    final archivedSelection = _selectedArchivedChats;
+    return IndexedStack(
+      index: archivedSelection == null ? 0 : 1,
+      children: [
+        TickerMode(
+          enabled: archivedSelection == null,
+          child: ChatListView(
+            desktopSidebar: desktopSidebar,
+            controller: _chatListController,
+            selectedChatId: _selectedMessageChat?.chatId,
+            selectedCommunityId: communitiesEnabled
+                ? _selectedMessageCommunity?.community.id
+                : null,
+            onChatSelected: (chat) {
+              _prepareMessageChatReplacement(chat);
+              setState(() {
+                _selectedMessageCommunity = null;
+                _selectedMessageChat = chat;
+              });
+            },
+            onCommunitySelected: (community) {
+              if (!communitiesEnabled) return;
+              _messageChatExitController.prepareExit();
+              setState(() {
+                _selectedMessageChat = null;
+                _selectedMessageCommunity = community;
+              });
+            },
+            onOpenArchived: (selection) {
+              setState(() => _selectedArchivedChats = selection);
+            },
+          ),
+        ),
+        if (archivedSelection == null)
+          const SizedBox.shrink()
+        else
+          AnimatedBuilder(
+            animation: archivedSelection.updates,
+            builder: (context, _) => ArchivedChatsView(
+              chats: archivedSelection.chatsProvider(),
+              onClearUnread: archivedSelection.onClearUnread,
+              onBack: () => setState(() => _selectedArchivedChats = null),
+              onChatSelected: (chat) {
+                final nextSelection = ChatListSelection.fromChat(chat);
+                _prepareMessageChatReplacement(nextSelection);
+                setState(() {
+                  _selectedMessageCommunity = null;
+                  _selectedMessageChat = nextSelection;
+                });
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _tabletDetailPane(
+    int activeTabIndex, {
+    VoidCallback? onMessageInfoPressed,
+  }) => switch (activeTabIndex) {
+    0 => _messageDetailPane(onInfoPressed: onMessageInfoPressed),
     1 =>
       _selectedChannelDetail ??
           const _SplitEmptyPane(
@@ -686,8 +918,14 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           ),
   };
 
-  Widget _animatedTabletDetailPane(int activeTabIndex) {
-    final detail = _tabletDetailPane(activeTabIndex);
+  Widget _animatedTabletDetailPane(
+    int activeTabIndex, {
+    VoidCallback? onMessageInfoPressed,
+  }) {
+    final detail = _tabletDetailPane(
+      activeTabIndex,
+      onMessageInfoPressed: onMessageInfoPressed,
+    );
     final motionKey = switch (activeTabIndex) {
       0 when _selectedMessageCommunity != null => ValueKey(
         'tablet-message-community-${_selectedMessageCommunity!.community.id}',
@@ -713,7 +951,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     return _ContentReveal(motionKey: motionKey, child: detail);
   }
 
-  Widget _messageDetailPane() {
+  Widget _messageDetailPane({VoidCallback? onInfoPressed}) {
     final selectedCommunity =
         context.watch<ThemeController>().communitiesEnabled
         ? _selectedMessageCommunity
@@ -761,6 +999,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               headerHeight: headerHeight,
               headerColor: headerColor,
               exitController: _messageChatExitController,
+              onInfoPressed: onInfoPressed,
             )
           : ChatView(
               chatId: selected.chatId,
@@ -773,8 +1012,73 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               showHeaderDivider: false,
               requestComposerFocusOnReady: selected.composerFocusRequestId != 0,
               exitController: _messageChatExitController,
+              onInfoPressed: onInfoPressed,
               onBack: () => setState(() => _selectedMessageChat = null),
             ),
+    );
+  }
+
+  Future<void> _openDesktopChatSearch(ChatListSelection selected) async {
+    final messageId = await Navigator.of(context, rootNavigator: true)
+        .push<int>(
+          AppPageRoute<int>(
+            pageBuilder: (_, _, _) =>
+                ChatSearchView(chatId: selected.chatId, title: selected.title),
+          ),
+        );
+    if (!mounted ||
+        messageId == null ||
+        _selectedMessageChat?.chatId != selected.chatId) {
+      return;
+    }
+    final nextSelection = ChatListSelection(
+      chatId: selected.chatId,
+      title: selected.title,
+      chat: selected.chat,
+      initialMessageId: messageId,
+    );
+    _prepareMessageChatReplacement(nextSelection);
+    setState(() => _selectedMessageChat = nextSelection);
+  }
+
+  Future<void> _openDesktopFullChatInfo(ChatListSelection selected) async {
+    final messageId = await Navigator.of(context, rootNavigator: true)
+        .push<int>(
+          AppPageRoute<int>(
+            pageBuilder: (_, _, _) =>
+                ChatInfoView(chatId: selected.chatId, title: selected.title),
+          ),
+        );
+    if (!mounted ||
+        messageId == null ||
+        _selectedMessageChat?.chatId != selected.chatId) {
+      return;
+    }
+    final nextSelection = ChatListSelection(
+      chatId: selected.chatId,
+      title: selected.title,
+      chat: selected.chat,
+      initialMessageId: messageId,
+    );
+    _prepareMessageChatReplacement(nextSelection);
+    setState(() => _selectedMessageChat = nextSelection);
+  }
+
+  Future<void> _openDesktopChatMembers(ChatListSelection selected) async {
+    await Navigator.of(context, rootNavigator: true).push<void>(
+      AppPageRoute<void>(
+        pageBuilder: (_, _, _) =>
+            ChatMembersView(chatId: selected.chatId, title: selected.title),
+      ),
+    );
+  }
+
+  void _openDesktopChatMember(ChatMember member) {
+    Navigator.of(context, rootNavigator: true).push<void>(
+      AppPageRoute<void>(
+        pageBuilder: (_, _, _) =>
+            ProfileDetailView(userId: member.id, name: member.name),
+      ),
     );
   }
 
@@ -794,6 +1098,10 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
 
   bool _usesTabletSplit(BuildContext context) {
     return usesAdaptiveSplitLayout(MediaQuery.of(context).size);
+  }
+
+  bool _usesDesktopShell(BuildContext context) {
+    return usesDesktopShellLayout(MediaQuery.sizeOf(context));
   }
 
   // MARK: - Drawer overlay (the "我" profile drawer)
@@ -975,12 +1283,14 @@ class _ForumSplitDetailPane extends StatefulWidget {
     required this.headerHeight,
     required this.headerColor,
     required this.exitController,
+    this.onInfoPressed,
   });
 
   final ChatSummary chat;
   final double headerHeight;
   final Color headerColor;
   final ChatViewExitController exitController;
+  final VoidCallback? onInfoPressed;
 
   @override
   State<_ForumSplitDetailPane> createState() => _ForumSplitDetailPaneState();
@@ -1020,6 +1330,7 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
             headerColor: widget.headerColor,
             headerBottom: _tabSwitcher(c),
             exitController: widget.exitController,
+            onInfoPressed: widget.onInfoPressed,
             onOpenTopicMode: (threadId) =>
                 unawaited(_showChannelMode(threadId)),
           )

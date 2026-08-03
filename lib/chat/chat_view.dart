@@ -771,6 +771,7 @@ class ChatView extends StatefulWidget {
     this.headerBottomHeight = 44,
     this.requestComposerFocusOnReady = false,
     this.onOpenTopicMode,
+    this.onInfoPressed,
     this.onBack,
     this.exitController,
   });
@@ -786,6 +787,7 @@ class ChatView extends StatefulWidget {
   final double headerBottomHeight;
   final bool requestComposerFocusOnReady;
   final ValueChanged<int?>? onOpenTopicMode;
+  final VoidCallback? onInfoPressed;
   final VoidCallback? onBack;
   final ChatViewExitController? exitController;
 
@@ -5048,6 +5050,15 @@ class _ChatViewState extends State<ChatView> {
     await _scrollToMessage(messageId);
   }
 
+  void _handleInfoPressed() {
+    final onInfoPressed = widget.onInfoPressed;
+    if (onInfoPressed != null) {
+      onInfoPressed();
+      return;
+    }
+    unawaited(_openChatInfo());
+  }
+
   void _openPeerProfile() {
     final uid = _vm.peerUserId;
     if (uid == null || uid <= 0) return;
@@ -6394,7 +6405,7 @@ class _ChatViewState extends State<ChatView> {
                   Expanded(child: _headerTitleBlock(subtitle, actionActive)),
                   GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onTap: () => unawaited(_openChatInfo()),
+                    onTap: _handleInfoPressed,
                     child: AppIcon(
                       HeroAppIcons.bars,
                       size: 22,

@@ -60,4 +60,114 @@ void main() {
       1200 - splitDetailMinWidth,
     );
   });
+
+  test('native desktop always uses its dedicated shell', () {
+    expect(
+      usesDesktopShellLayout(
+        const Size(640, 480),
+        platform: TargetPlatform.macOS,
+        isWeb: false,
+      ),
+      isTrue,
+    );
+    expect(
+      usesDesktopShellLayout(
+        const Size(1200, 800),
+        platform: TargetPlatform.iOS,
+        isWeb: false,
+      ),
+      isFalse,
+    );
+  });
+
+  test(
+    'desktop rail survives when the list and conversation cannot both fit',
+    () {
+      final geometry = resolveDesktopShellGeometry(
+        totalWidth: 780,
+        requestedSidebarWidth: 420,
+        infoPaneRequested: true,
+      );
+
+      expect(geometry.showListPane, isFalse);
+      expect(geometry.showInfoPane, isFalse);
+      expect(geometry.sidebarWidth, 0);
+      expect(geometry.conversationWidth, 780 - desktopNavigationRailWidth);
+    },
+  );
+
+  test(
+    '820px desktop constrains the list to preserve a 440px conversation',
+    () {
+      final geometry = resolveDesktopShellGeometry(
+        totalWidth: 820,
+        requestedSidebarWidth: 420,
+        infoPaneRequested: true,
+      );
+
+      expect(geometry.showListPane, isTrue);
+      expect(geometry.showInfoPane, isFalse);
+      expect(geometry.sidebarWidth, 312);
+      expect(geometry.conversationWidth, desktopConversationMinWidth);
+    },
+  );
+
+  test(
+    '1100px desktop shows info only for the actual constrained list width',
+    () {
+      final defaultGeometry = resolveDesktopShellGeometry(
+        totalWidth: 1100,
+        requestedSidebarWidth: defaultSplitSidebarWidth(
+          1100 - desktopNavigationRailWidth,
+        ),
+        infoPaneRequested: true,
+      );
+      final wideListGeometry = resolveDesktopShellGeometry(
+        totalWidth: 1100,
+        requestedSidebarWidth: 420,
+        infoPaneRequested: true,
+      );
+
+      expect(defaultGeometry.showInfoPane, isTrue);
+      expect(
+        defaultGeometry.conversationWidth,
+        greaterThanOrEqualTo(desktopConversationMinWidth),
+      );
+      expect(wideListGeometry.sidebarWidth, 420);
+      expect(wideListGeometry.showInfoPane, isFalse);
+      expect(
+        wideListGeometry.conversationWidth,
+        greaterThanOrEqualTo(desktopConversationMinWidth),
+      );
+    },
+  );
+
+  test('context pane hides before a 420px list as the window narrows', () {
+    final full = resolveDesktopShellGeometry(
+      totalWidth: 1280,
+      requestedSidebarWidth: 420,
+      infoPaneRequested: true,
+    );
+    final narrowed = resolveDesktopShellGeometry(
+      totalWidth: 1100,
+      requestedSidebarWidth: 420,
+      infoPaneRequested: true,
+    );
+
+    expect(full.showListPane, isTrue);
+    expect(full.showInfoPane, isTrue);
+    expect(full.sidebarWidth, 420);
+    expect(full.conversationWidth, 531);
+    expect(narrowed.showListPane, isTrue);
+    expect(narrowed.showInfoPane, isFalse);
+    expect(narrowed.sidebarWidth, 420);
+  });
+
+  test('desktop info fit uses the actual sidebar width', () {
+    expect(
+      canShowDesktopInfoPane(totalWidth: 1188, sidebarWidth: 420),
+      isFalse,
+    );
+    expect(canShowDesktopInfoPane(totalWidth: 1189, sidebarWidth: 420), isTrue);
+  });
 }

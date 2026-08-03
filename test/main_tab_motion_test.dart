@@ -1,15 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/app/adaptive_split_layout.dart';
 import 'package:mithka/app/chat_deep_link_controller.dart';
 import 'package:mithka/app/main_tab_view.dart';
 import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
+import 'package:mithka/chats/archived_chats_view.dart';
+import 'package:mithka/chats/chat_list_view.dart';
 import 'package:mithka/components/drawer_controller.dart' as dc;
 import 'package:mithka/contacts/contacts_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/profile/profile_view.dart';
 import 'package:mithka/settings/translation_controller.dart';
+import 'package:mithka/tdlib/td_models.dart';
 import 'package:mithka/theme/app_theme.dart';
 import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
@@ -102,6 +107,118 @@ void main() {
     expect(opacity.opacity, 1);
     expect(transform.transform.getTranslation().x, 0);
     await _disposeShell(tester);
+  });
+
+  testWidgets('tablet archive replaces only the sidebar pane', (tester) async {
+    await _setSurfaceSize(tester, const Size(1024, 800));
+    await _pumpMainShell(tester, reducedMotion: true);
+
+    final emptyDetail = find.byKey(const ValueKey('tablet-message-empty'));
+    final detailElement = tester.element(emptyDetail);
+    final updates = ChangeNotifier();
+    addTearDown(updates.dispose);
+    final archived = [
+      ChatSummary(
+        id: 77,
+        title: 'Archived conversation',
+        lastMessage: 'Still in the list pane',
+        lastMessageId: 2,
+        date: 1,
+        unreadCount: 0,
+        order: 1,
+        isMuted: false,
+      ),
+    ];
+
+    final chatList = tester.widget<ChatListView>(find.byType(ChatListView));
+    chatList.onOpenArchived!(
+      ArchivedChatListSelection(
+        chatsProvider: () => archived,
+        updates: updates,
+        onClearUnread: (_) {},
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byType(ArchivedChatsView), findsOneWidget);
+    expect(find.text('Archived conversation'), findsOneWidget);
+    expect(identical(tester.element(emptyDetail), detailElement), isTrue);
+
+    tester.widget<ArchivedChatsView>(find.byType(ArchivedChatsView)).onBack!();
+    await tester.pump();
+
+    expect(find.byType(ArchivedChatsView), findsNothing);
+    expect(find.byType(ChatListView), findsOneWidget);
+    expect(identical(tester.element(emptyDetail), detailElement), isTrue);
+    await _disposeShell(tester);
+  });
+
+  testWidgets('macOS uses an icon rail and embedded list-pane chrome', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      await _setSurfaceSize(tester, const Size(1100, 720));
+      await _pumpMainShell(tester, reducedMotion: true);
+
+      final rail = find.byKey(const ValueKey('desktop-navigation-rail'));
+      final listPane = find.byKey(const ValueKey('desktop-list-pane'));
+      expect(rail, findsOneWidget);
+      expect(tester.getSize(rail).width, 68);
+      expect(tester.getSize(listPane).width, inInclusiveRange(320, 420));
+      expect(
+        tester.widget<ChatListView>(find.byType(ChatListView)).desktopSidebar,
+        isTrue,
+      );
+      expect(
+        find.byKey(const ValueKey('chat-list-desktop-toolbar')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('desktop-navigation-item-1')));
+      await tester.pump();
+      final contacts = tester.widget<ContactsView>(find.byType(ContactsView));
+      expect(contacts.desktopSidebar, isTrue);
+      expect(find.byKey(const ValueKey('contacts-root-header')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('contacts-desktop-toolbar')),
+        findsOneWidget,
+      );
+      expect(tester.takeException(), isNull);
+      await _disposeShell(tester);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
+  testWidgets('narrow macOS keeps the rail and collapses the list column', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    try {
+      await _setSurfaceSize(tester, const Size(780, 620));
+      await _pumpMainShell(tester, reducedMotion: true);
+
+      expect(
+        find.byKey(const ValueKey('desktop-navigation-rail')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('desktop-list-pane')), findsNothing);
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('desktop-conversation-pane')))
+            .width,
+        780 - desktopNavigationRailWidth,
+      );
+      expect(
+        tester.widget<ChatListView>(find.byType(ChatListView)).desktopSidebar,
+        isTrue,
+      );
+      expect(tester.takeException(), isNull);
+      await _disposeShell(tester);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 }
 

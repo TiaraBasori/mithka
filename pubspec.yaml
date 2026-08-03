@@ -73,6 +73,9 @@ dependencies:
   # Reusable player controls, scrub previews, and independent desktop windows.
   mithka_video_player:
     path: packages/mithka_video_player
+  # Main-window chrome uses DragToMoveArea on desktop. Keep this direct rather
+  # than relying on the video-player package's transitive dependency.
+  multi_window_manager: ^1.3.0
   # Optional FVP registration kept outside the reusable player core.
   mithka_video_player_fvp:
     path: packages/mithka_video_player_fvp

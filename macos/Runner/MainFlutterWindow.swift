@@ -13,5 +13,13 @@ class MainFlutterWindow: NSWindow {
     MultiWindowManagerPlugin.RegisterGeneratedPlugins = RegisterGeneratedPlugins
 
     super.awakeFromNib()
+
+    titleVisibility = .hidden
+    titlebarAppearsTransparent = true
+    styleMask.insert(.fullSizeContentView)
+    minSize = NSSize(width: 820, height: 560)
+    if #available(macOS 11.0, *) {
+      titlebarSeparatorStyle = .none
+    }
   }
 }

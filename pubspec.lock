@@ -930,7 +930,7 @@ packages:
     source: hosted
     version: "7.4.0"
   multi_window_manager:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: multi_window_manager
       sha256: "75d81f9c5dfb101079059b4d63cb8600b748378bf31bfc0b221edba604b8c5a8"

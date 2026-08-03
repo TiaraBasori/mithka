@@ -5,12 +5,17 @@
 //  Port of the Swift `ContentView` / `SplashView`.
 //
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../auth/login_view.dart';
+import '../components/app_interactive_surface.dart';
+import '../components/drawer_controller.dart' as dc;
 import '../theme/app_theme.dart';
+import 'macos_desktop_title_bar.dart';
 import 'main_tab_view.dart';
 
 class ContentView extends StatelessWidget {
@@ -24,9 +29,92 @@ class ContentView extends StatelessWidget {
       AuthInitializing() || AuthLoggingOut() => const SplashView(),
       _ => const LoginView(),
     };
-    return AnimatedSwitcher(
+    final content = AnimatedSwitcher(
       duration: const Duration(milliseconds: 250),
       child: KeyedSubtree(key: ValueKey(child.runtimeType), child: child),
+    );
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) {
+      return content;
+    }
+    return _MacosPrimaryWindowFrame(
+      accountReady: step is AuthReady,
+      child: content,
+    );
+  }
+}
+
+class _MacosPrimaryWindowFrame extends StatelessWidget {
+  const _MacosPrimaryWindowFrame({
+    required this.accountReady,
+    required this.child,
+  });
+
+  final bool accountReady;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final accounts = context.watch<AccountStore>();
+    final activeAccount = accounts.summaries
+        .where((account) => account.slot == accounts.activeSlot)
+        .firstOrNull;
+    final identity = activeAccount?.name.trim();
+    final label = identity == null || identity.isEmpty ? 'Mithka' : identity;
+    return ColoredBox(
+      color: context.colors.background,
+      child: Column(
+        children: [
+          MacosDesktopTitleBar(
+            appIdentity: AppInteractiveSurface(
+              key: const ValueKey('macos-title-bar-account'),
+              semanticLabel: label,
+              enabled: accountReady,
+              onTap: accountReady
+                  ? () => context.read<dc.DrawerController>().open()
+                  : null,
+              borderRadius: BorderRadius.circular(7),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ClipOval(
+                      child: Image.asset(
+                        'assets/app_icon.png',
+                        width: 24,
+                        height: 24,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 220),
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.colors.textPrimary,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: true,
+              child: child,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
