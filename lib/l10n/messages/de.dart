@@ -714,6 +714,12 @@ const deMessages = <String, String>{
   'chatListLeaveAndDeleteGroupConfirmation':
       "„{value1}“ verlassen und den Verlauf aus deinem Telegram-Konto auf allen Geräten löschen?",
   'chatListMarkUnread': "Als ungelesen markieren",
+  'desktopChatOpenSeparate': "In separatem Chatfenster öffnen",
+  'desktopChatWindowUnavailable':
+      "Ein separates Chatfenster kann nicht geöffnet werden",
+  'desktopWindowClose': "Fenster schließen",
+  'desktopWindowMaximizeRestore': "Maximieren oder wiederherstellen",
+  'desktopWindowMinimize': "Minimieren",
   'chatListNoChats': "Noch keine Chats",
   'chatListScanQrCode': "QR-Code scannen",
   'chatListUnpin': "Lösen",

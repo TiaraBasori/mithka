@@ -134,45 +134,46 @@ class _GroupDetailRow extends StatelessWidget {
             AppSpacing.xl,
             AppSpacing.md,
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
                       title.l10n(context),
                       style: AppTextStyle.body(c.textPrimary),
                     ),
-                    if (subtitle != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        subtitle!.l10n(context),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppTextStyle.caption(c.textTertiary),
-                      ),
-                    ],
+                  ),
+                  const SizedBox(width: AppSpacing.lg),
+                  Expanded(
+                    child: Text(
+                      value,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.right,
+                      style: AppTextStyle.footnote(c.textTertiary),
+                    ),
+                  ),
+                  if (onTap != null) ...[
+                    const SizedBox(width: AppSpacing.md),
+                    AppIcon(
+                      HeroAppIcons.chevronRight,
+                      size: AppIconSize.chevron,
+                      color: c.textTertiary,
+                    ),
                   ],
-                ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.lg),
-              Flexible(
-                child: Text(
-                  value,
+              if (subtitle != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  subtitle!.l10n(context),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: AppTextStyle.footnote(c.textTertiary),
-                ),
-              ),
-              if (onTap != null) ...[
-                const SizedBox(width: AppSpacing.md),
-                AppIcon(
-                  HeroAppIcons.chevronRight,
-                  size: AppIconSize.chevron,
-                  color: c.textTertiary,
+                  style: AppTextStyle.caption(c.textTertiary),
                 ),
               ],
             ],
@@ -209,40 +210,39 @@ class _GroupAnnouncementRow extends StatelessWidget {
             AppSpacing.xl,
             AppSpacing.lg,
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
                       AppStringKeys.chatInfoGroupAnnouncement.l10n(context),
                       style: AppTextStyle.body(c.textPrimary),
                     ),
-                    const SizedBox(height: AppSpacing.sm),
-                    Text(
-                      empty
-                          ? AppStringKeys.chatInfoGroupAnnouncementEmpty.l10n(
-                              context,
-                            )
-                          : announcement,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        height: 1.35,
-                        color: empty ? c.textTertiary : c.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  AppIcon(
+                    HeroAppIcons.chevronRight,
+                    size: AppIconSize.chevron,
+                    color: c.textTertiary,
+                  ),
+                ],
               ),
-              const SizedBox(width: AppSpacing.md),
-              AppIcon(
-                HeroAppIcons.chevronRight,
-                size: AppIconSize.chevron,
-                color: c.textTertiary,
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                empty
+                    ? AppStringKeys.chatInfoGroupAnnouncementEmpty.l10n(context)
+                    : announcement,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: empty ? c.textTertiary : c.textSecondary,
+                ),
               ),
             ],
           ),

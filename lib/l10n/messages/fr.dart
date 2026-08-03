@@ -714,6 +714,12 @@ const frMessages = <String, String>{
   'chatListLeaveAndDeleteGroupConfirmation':
       "Quitter « {value1} » et supprimer son historique de votre compte Telegram sur tous vos appareils ?",
   'chatListMarkUnread': "Marquer comme non lu",
+  'desktopChatOpenSeparate': "Ouvrir dans une fenêtre de discussion séparée",
+  'desktopChatWindowUnavailable':
+      "Impossible d’ouvrir une fenêtre de discussion séparée",
+  'desktopWindowClose': "Fermer la fenêtre",
+  'desktopWindowMaximizeRestore': "Agrandir ou restaurer",
+  'desktopWindowMinimize': "Réduire",
   'chatListNoChats': "Aucune discussion pour le moment",
   'chatListScanQrCode': "Scanner un QR code",
   'chatListUnpin': "Désépingler",

@@ -12,6 +12,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_sound/flutter_sound.dart';
@@ -274,6 +275,22 @@ class _AiReplyContextSnapshot {
 
 class _SendComposerIntent extends Intent {
   const _SendComposerIntent();
+}
+
+class _SendComposerAction extends Action<_SendComposerIntent> {
+  _SendComposerAction({required this.canInvoke, required this.onInvoke});
+
+  final bool Function() canInvoke;
+  final VoidCallback onInvoke;
+
+  @override
+  bool isEnabled(_SendComposerIntent intent) => canInvoke();
+
+  @override
+  Object? invoke(_SendComposerIntent intent) {
+    onInvoke();
+    return null;
+  }
 }
 
 @visibleForTesting
@@ -2001,6 +2018,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final aiSettings = context.watch<AiSettingsController?>();
+    final desktopComposer = _usesNativeDesktopComposer(context);
     final replyKeyboard = _activeReplyKeyboard();
     final replyKeyboardPanelVisible =
         replyKeyboard != null && _replyKeyboardVisible && !_hasText;
@@ -2027,11 +2045,22 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   _mentionMenu()
                 else if (_quickReplyContextVisible && _quickReplies.isNotEmpty)
                   _quickReplyContextMenu(),
-                _inputRow(replyKeyboard, aiSettings: aiSettings),
-                if (replyKeyboardPanelVisible)
-                  _replyKeyboardPanel(replyKeyboard)
-                else
-                  _iconStrip(),
+                if (desktopComposer) ...[
+                  _desktopIconStrip(aiSettings: aiSettings),
+                  _inputRow(
+                    replyKeyboard,
+                    aiSettings: aiSettings,
+                    desktop: true,
+                  ),
+                  if (replyKeyboardPanelVisible)
+                    _replyKeyboardPanel(replyKeyboard),
+                ] else ...[
+                  _inputRow(replyKeyboard, aiSettings: aiSettings),
+                  if (replyKeyboardPanelVisible)
+                    _replyKeyboardPanel(replyKeyboard)
+                  else
+                    _iconStrip(),
+                ],
                 if (_panel == _Panel.function) _functionPanel(),
                 if (_panel == _Panel.emoji) _emojiPanel(),
                 if (_panel == _Panel.sticker) _stickerPanel(),
@@ -3376,6 +3405,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Widget _inputRow(
     _ReplyKeyboard? replyKeyboard, {
     required AiSettingsController? aiSettings,
+    bool desktop = false,
   }) {
     final c = context.colors;
     final hasText = _hasText;
@@ -3391,7 +3421,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final menuWebApp = botMenu?.isWebApp == true ? botMenu : null;
     final webAppButton = _webAppButton(replyKeyboard);
     return Padding(
-      padding: const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
+      key: desktop ? const ValueKey('desktopComposerInput') : null,
+      padding: desktop
+          ? const EdgeInsets.fromLTRB(18, 2, 18, 12)
+          : const EdgeInsets.only(left: 12, right: 12, top: 8, bottom: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -3438,20 +3471,23 @@ class _ChatInputBarState extends State<ChatInputBar> {
                 ],
                 Container(
                   key: const ValueKey('composerTextInputBox'),
-                  decoration: BoxDecoration(
-                    color: c.searchFill,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 9,
-                  ),
+                  decoration: desktop
+                      ? const BoxDecoration()
+                      : BoxDecoration(
+                          color: c.searchFill,
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                  padding: desktop
+                      ? const EdgeInsets.symmetric(horizontal: 2, vertical: 6)
+                      : const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
                   child: Row(
                     crossAxisAlignment: hasText
                         ? CrossAxisAlignment.end
                         : CrossAxisAlignment.center,
                     children: [
-                      if (vm.canChooseMessageSender && sender != null) ...[
+                      if (!desktop &&
+                          vm.canChooseMessageSender &&
+                          sender != null) ...[
                         GestureDetector(
                           key: const ValueKey('composerSenderPicker'),
                           behavior: HitTestBehavior.opaque,
@@ -3503,25 +3539,24 @@ class _ChatInputBarState extends State<ChatInputBar> {
                                   return null;
                                 },
                               ),
-                              _SendComposerIntent:
-                                  CallbackAction<_SendComposerIntent>(
-                                    onInvoke: (_) {
-                                      unawaited(_sendCurrentText());
-                                      return null;
-                                    },
-                                  ),
+                              _SendComposerIntent: _SendComposerAction(
+                                canInvoke: () => !_hasActiveTextComposition,
+                                onInvoke: () => unawaited(_sendCurrentText()),
+                              ),
                             },
                             child: TextField(
                               controller: _controller,
                               focusNode: _focus,
                               onTap: _handleEmptyInputTap,
-                              minLines: 1,
-                              maxLines: 4,
+                              minLines: desktop ? 3 : 1,
+                              maxLines: desktop ? 6 : 4,
                               keyboardType: TextInputType.multiline,
-                              textInputAction: widget.enterToSend
+                              textInputAction: desktop
+                                  ? TextInputAction.newline
+                                  : widget.enterToSend
                                   ? TextInputAction.send
                                   : TextInputAction.newline,
-                              onSubmitted: widget.enterToSend
+                              onSubmitted: !desktop && widget.enterToSend
                                   ? (_) => unawaited(_sendCurrentText())
                                   : null,
                               inputFormatters:
@@ -3641,7 +3676,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                         const SizedBox(width: 4),
                         _autoDeleteInputIndicator(),
                       ],
-                      if (showAiReply) ...[
+                      if (!desktop && showAiReply) ...[
                         const SizedBox(width: 4),
                         _aiReplyInputButton(replyTarget),
                       ],
@@ -3656,7 +3691,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (vm.canUseAiComposition && _aiDraftEligible) ...[
+                if (!desktop && vm.canUseAiComposition && _aiDraftEligible) ...[
                   Semantics(
                     button: true,
                     label: AppStringKeys.telegramAiEditorTelegramAIEditor.l10n(
@@ -3689,56 +3724,148 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   ),
                   const SizedBox(height: 6),
                 ],
-                GestureDetector(
-                  key: const ValueKey('composerSendButton'),
-                  onTap: _aiReplyWorkingTargetId != null
-                      ? null
-                      : () => unawaited(_sendCurrentText()),
-                  onLongPress: _aiReplyWorkingTargetId != null
-                      ? null
-                      : () => unawaited(_showTextSendOptions()),
-                  child: Container(
-                    width: vm.requiresPaidMessage ? 58 : 36,
-                    height: 36,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: _aiReplyWorkingTargetId != null
-                          ? AppTheme.brand.withValues(alpha: 0.42)
-                          : AppTheme.brand,
-                      shape: BoxShape.circle,
-                    ),
-                    child: vm.requiresPaidMessage
-                        ? Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const AppIcon(
-                                HeroAppIcons.solidStar,
-                                size: 14,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 3),
-                              Text(
-                                'x${vm.paidMessageStarCount}',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
+                if (desktop)
+                  _desktopSendButton()
+                else
+                  GestureDetector(
+                    key: const ValueKey('composerSendButton'),
+                    onTap: _aiReplyWorkingTargetId != null
+                        ? null
+                        : () => unawaited(_sendCurrentText()),
+                    onLongPress: _aiReplyWorkingTargetId != null
+                        ? null
+                        : () => unawaited(_showTextSendOptions()),
+                    child: Container(
+                      width: vm.requiresPaidMessage ? 58 : 36,
+                      height: 36,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _aiReplyWorkingTargetId != null
+                            ? AppTheme.brand.withValues(alpha: 0.42)
+                            : AppTheme.brand,
+                        shape: BoxShape.circle,
+                      ),
+                      child: vm.requiresPaidMessage
+                          ? Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const AppIcon(
+                                  HeroAppIcons.solidStar,
+                                  size: 14,
                                   color: Colors.white,
                                 ),
-                              ),
-                            ],
-                          )
-                        : const AppIcon(
-                            HeroAppIcons.solidPaperPlane,
-                            size: 17,
-                            color: Colors.white,
-                          ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'x${vm.paidMessageStarCount}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            )
+                          : const AppIcon(
+                              HeroAppIcons.solidPaperPlane,
+                              size: 17,
+                              color: Colors.white,
+                            ),
+                    ),
                   ),
-                ),
               ],
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  bool _usesNativeDesktopComposer(BuildContext context) {
+    if (kIsWeb) return false;
+    return switch (Theme.of(context).platform) {
+      TargetPlatform.macOS ||
+      TargetPlatform.windows ||
+      TargetPlatform.linux => true,
+      _ => false,
+    };
+  }
+
+  bool get _hasActiveTextComposition {
+    final composing = _controller.value.composing;
+    return composing.isValid && !composing.isCollapsed;
+  }
+
+  Widget _desktopSendButton() {
+    final disabled = _aiReplyWorkingTargetId != null;
+    final shortcut = widget.enterToSend ? 'Enter' : 'Ctrl+Enter';
+    final sendLabel = AppStringKeys.composerSend.l10n(context);
+    final radius = BorderRadius.circular(6);
+    return AppInteractiveSurface(
+      key: const ValueKey('composerSendButton'),
+      semanticLabel: '$sendLabel ($shortcut)',
+      enabled: !disabled,
+      onTap: disabled ? null : () => unawaited(_sendCurrentText()),
+      onLongPress: disabled ? null : () => unawaited(_showTextSendOptions()),
+      borderRadius: radius,
+      child: Container(
+        key: const ValueKey('desktopComposerSendButton'),
+        constraints: const BoxConstraints(minWidth: 112),
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: disabled
+              ? AppTheme.brand.withValues(alpha: 0.42)
+              : AppTheme.brand,
+          borderRadius: radius,
+        ),
+        child: vm.requiresPaidMessage
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const AppIcon(
+                    HeroAppIcons.solidStar,
+                    size: 14,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 3),
+                  Text(
+                    'x${vm.paidMessageStarCount}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    sendLabel,
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    shortcut,
+                    key: const ValueKey('desktopComposerShortcutHint'),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white.withValues(alpha: 0.78),
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -4134,6 +4261,237 @@ class _ChatInputBarState extends State<ChatInputBar> {
   }
 
   // MARK: - Icon strip
+
+  Widget _desktopIconStrip({required AiSettingsController? aiSettings}) {
+    final c = context.colors;
+    final sender = vm.selectedMessageSender;
+    final replyTarget = _currentAiReplyTarget();
+    final aiReplyWorking = _aiReplyWorkingTargetId != null;
+    final canUseAiReply =
+        aiReplyWorking ||
+        (!_hasText &&
+            replyTarget != null &&
+            _canOfferAiReply(replyTarget, aiSettings));
+    final canUseAiEditor =
+        !aiReplyWorking && vm.canUseAiComposition && _aiDraftEligible;
+    return Container(
+      key: const ValueKey('desktopComposerToolbar'),
+      height: 45,
+      padding: const EdgeInsets.fromLTRB(14, 4, 14, 4),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: c.divider, width: 0.5)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (vm.canChooseMessageSender && sender != null) ...[
+              _desktopSenderPicker(sender),
+              Container(
+                width: 0.5,
+                height: 22,
+                margin: const EdgeInsets.fromLTRB(5.5, 0, 9, 0),
+                color: c.divider,
+              ),
+            ],
+            _desktopIcon(
+              key: const ValueKey('desktopComposerEmojiAction'),
+              icon: HeroAppIcons.solidFaceSmile,
+              semanticLabel: AppStrings.t(AppStringKeys.composerEmoji),
+              active: _panel == _Panel.emoji,
+              onTap: () {
+                _toggle(_Panel.emoji);
+                if (_panel == _Panel.emoji) {
+                  EmojiStore.shared.loadIfNeeded();
+                  if (_isPanelSearchSelected &&
+                      _panelSearch.text.trim().isNotEmpty) {
+                    _queuePanelSearch();
+                  }
+                }
+              },
+            ),
+            _desktopIcon(
+              key: const ValueKey('desktopComposerVoiceAction'),
+              icon: HeroAppIcons.microphone,
+              semanticLabel: AppStrings.t(AppStringKeys.composerHoldToTalk),
+              active: _panel == _Panel.voice,
+              onTap: _toggleVoice,
+            ),
+            _desktopIcon(
+              key: const ValueKey('desktopComposerImageAction'),
+              icon: HeroAppIcons.image,
+              semanticLabel: AppStrings.t(AppStringKeys.composerImage),
+              active: false,
+              onTap: _pickPhotos,
+            ),
+            _desktopIcon(
+              key: const ValueKey('desktopComposerStickerAction'),
+              icon: HeroAppIcons.grip,
+              semanticLabel: AppStrings.t(AppStringKeys.composerStickers),
+              active: _panel == _Panel.sticker,
+              onTap: () {
+                _toggle(_Panel.sticker);
+                if (_panel == _Panel.sticker) {
+                  StickerStore.shared.loadIfNeeded();
+                  GifStore.shared.loadIfNeeded();
+                  if (_isPanelSearchSelected &&
+                      _panelSearch.text.trim().isNotEmpty) {
+                    _queuePanelSearch();
+                  }
+                }
+              },
+            ),
+            _desktopIcon(
+              key: const ValueKey('desktopComposerMoreAction'),
+              icon: _panel != _Panel.none
+                  ? HeroAppIcons.xmark
+                  : HeroAppIcons.circlePlus,
+              semanticLabel: AppStrings.t(
+                _panel != _Panel.none
+                    ? AppStringKeys.composerCloseMenu
+                    : AppStringKeys.composerOpenMenu,
+              ),
+              active: _panel == _Panel.function,
+              onTap: () {
+                if (_panel == _Panel.none) {
+                  _toggle(_Panel.function);
+                } else {
+                  _focus.unfocus();
+                  _setPanel(_Panel.none);
+                }
+              },
+            ),
+            Container(
+              width: 0.5,
+              height: 22,
+              margin: const EdgeInsets.fromLTRB(5.5, 0, 9, 0),
+              color: c.divider,
+            ),
+            _desktopIcon(
+              key: const ValueKey('desktopComposerRichTextAction'),
+              icon: HeroAppIcons.font,
+              semanticLabel: AppStringKeys.composerRichText.l10n(context),
+              active: false,
+              onTap: () => unawaited(_openRichTextComposer()),
+            ),
+            _desktopIcon(
+              key: const ValueKey('desktopComposerAiReplyAction'),
+              icon: aiReplyWorking
+                  ? HeroAppIcons.xmark
+                  : HeroAppIcons.wandMagicSparkles,
+              semanticLabel: aiReplyWorking
+                  ? AppStringKeys.confirmCancel.l10n(context)
+                  : AppStringKeys.aiReplyAction.l10n(context),
+              active: aiReplyWorking,
+              enabled: canUseAiReply,
+              onTap: aiReplyWorking
+                  ? () => _invalidateAiReplyGeneration(clearProgress: true)
+                  : replyTarget == null
+                  ? null
+                  : () => unawaited(_generateAiReply(replyTarget)),
+              onLongPress:
+                  !aiReplyWorking && canUseAiReply && replyTarget != null
+                  ? () => unawaited(_showAiReplyModelPicker(replyTarget))
+                  : null,
+            ),
+            _desktopIcon(
+              key: const ValueKey('desktopComposerAiEditorAction'),
+              icon: HeroAppIcons.palette,
+              semanticLabel: AppStringKeys.telegramAiEditorTelegramAIEditor
+                  .l10n(context),
+              active: false,
+              enabled: canUseAiEditor,
+              onTap: canUseAiEditor
+                  ? () => unawaited(_openTelegramAiEditor())
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _desktopSenderPicker(MessageSenderOption sender) {
+    final label =
+        '${AppStringKeys.composerSend.l10n(context)}: ${sender.title}';
+    final radius = BorderRadius.circular(6);
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Tooltip(
+        message: label,
+        child: AppInteractiveSurface(
+          key: const ValueKey('desktopComposerSenderPicker'),
+          semanticLabel: label,
+          onTap: _showSenderPicker,
+          borderRadius: radius,
+          child: SizedBox(
+            height: 36,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PhotoAvatar(
+                    title: sender.title,
+                    photo: sender.photo,
+                    size: 26,
+                  ),
+                  const SizedBox(width: 2),
+                  AppIcon(
+                    HeroAppIcons.chevronDown,
+                    size: 14,
+                    color: context.colors.textTertiary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _desktopIcon({
+    required Key key,
+    required AppIconData icon,
+    required String semanticLabel,
+    required bool active,
+    bool enabled = true,
+    VoidCallback? onTap,
+    VoidCallback? onLongPress,
+  }) {
+    final radius = BorderRadius.circular(6);
+    return Padding(
+      padding: const EdgeInsets.only(right: 4),
+      child: Tooltip(
+        message: semanticLabel,
+        child: AppInteractiveSurface(
+          key: key,
+          semanticLabel: semanticLabel,
+          selected: active,
+          enabled: enabled,
+          onTap: enabled ? onTap : null,
+          onLongPress: enabled ? onLongPress : null,
+          borderRadius: radius,
+          child: SizedBox.square(
+            dimension: 36,
+            child: Center(
+              child: AppIcon(
+                icon,
+                size: 20,
+                color: !enabled
+                    ? context.colors.textTertiary.withValues(alpha: 0.52)
+                    : active
+                    ? AppTheme.brand
+                    : context.colors.textSecondary,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _iconStrip() {
     return Padding(
@@ -5190,6 +5548,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     ];
     final c = context.colors;
     return Container(
+      key: const ValueKey('composerFunctionPanel'),
       width: double.infinity,
       color: c.panelBackground,
       padding: const EdgeInsets.fromLTRB(12, 16, 12, 16),

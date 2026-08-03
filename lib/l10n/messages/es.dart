@@ -708,6 +708,12 @@ const esMessages = <String, String>{
   'chatListLeaveAndDeleteGroupConfirmation':
       "¿Salir de «{value1}» y eliminar su historial de tu cuenta de Telegram en todos tus dispositivos?",
   'chatListMarkUnread': "Marcar como no leído",
+  'desktopChatOpenSeparate': "Abrir en una ventana de chat separada",
+  'desktopChatWindowUnavailable':
+      "No se puede abrir una ventana de chat separada",
+  'desktopWindowClose': "Cerrar ventana",
+  'desktopWindowMaximizeRestore': "Maximizar o restaurar",
+  'desktopWindowMinimize': "Minimizar",
   'chatListNoChats': "Aún no hay chats",
   'chatListScanQrCode': "Escanear código QR",
   'chatListUnpin': "Desfijar",

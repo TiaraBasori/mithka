@@ -312,6 +312,7 @@ class ChatViewModel extends ChangeNotifier {
   String peerTitle;
   TdFileRef? peerPhoto;
   ChatFirstContactInfo? firstContactInfo;
+  ChatKind? chatKind;
   bool isGroup = false;
   int memberCount = 0;
   int? peerUserId; // private chat → call target
@@ -2983,6 +2984,7 @@ class ChatViewModel extends ChangeNotifier {
     _setPaidMessageStarCount(_paidMessageStars(chat), notify: false);
     _applyRemoteDraft(chat.obj('draft_message'), force: true, notify: false);
     final kind = TDParse.chatKind(chat);
+    chatKind = kind;
     isGroup = kind == ChatKind.group || kind == ChatKind.channel;
     isSecretChat = kind == ChatKind.secret;
     final entryUpperMessageId = chat.obj('last_message')?.int64('id') ?? 0;

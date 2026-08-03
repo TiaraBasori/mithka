@@ -31,6 +31,29 @@ void main() {
     );
   });
 
+  test(
+    'desktop keeps split-selection navigation below the tablet threshold',
+    () {
+      const size = Size(700, 500);
+      expect(
+        usesAdaptiveSplitLayout(
+          size,
+          platform: TargetPlatform.macOS,
+          isWeb: false,
+        ),
+        isFalse,
+      );
+      expect(
+        usesSplitSelectionLayout(
+          size,
+          platform: TargetPlatform.macOS,
+          isWeb: false,
+        ),
+        isTrue,
+      );
+    },
+  );
+
   test('tablet split remains limited to sufficiently large landscape UI', () {
     expect(
       usesAdaptiveSplitLayout(
@@ -93,6 +116,7 @@ void main() {
       expect(geometry.showInfoPane, isFalse);
       expect(geometry.sidebarWidth, 0);
       expect(geometry.conversationWidth, 780 - desktopNavigationRailWidth);
+      expect(desktopDetailNeedsBackButton(geometry), isTrue);
     },
   );
 
@@ -109,6 +133,7 @@ void main() {
       expect(geometry.showInfoPane, isFalse);
       expect(geometry.sidebarWidth, 312);
       expect(geometry.conversationWidth, desktopConversationMinWidth);
+      expect(desktopDetailNeedsBackButton(geometry), isFalse);
     },
   );
 

@@ -41,6 +41,17 @@ bool usesDesktopShellLayout(
   return !isWeb && isDesktopTargetPlatform(target);
 }
 
+bool usesSplitSelectionLayout(
+  Size size, {
+  TargetPlatform? platform,
+  bool isWeb = kIsWeb,
+}) =>
+    usesDesktopShellLayout(size, platform: platform, isWeb: isWeb) ||
+    usesAdaptiveSplitLayout(size, platform: platform, isWeb: isWeb);
+
+bool desktopDetailNeedsBackButton(DesktopShellGeometry geometry) =>
+    !geometry.showListPane;
+
 bool canShowDesktopListPane(double totalWidth) =>
     totalWidth >=
     desktopNavigationRailWidth +

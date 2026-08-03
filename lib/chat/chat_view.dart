@@ -771,6 +771,7 @@ class ChatView extends StatefulWidget {
     this.headerBottomHeight = 44,
     this.requestComposerFocusOnReady = false,
     this.onOpenTopicMode,
+    this.onChatKindResolved,
     this.onInfoPressed,
     this.onBack,
     this.exitController,
@@ -787,6 +788,7 @@ class ChatView extends StatefulWidget {
   final double headerBottomHeight;
   final bool requestComposerFocusOnReady;
   final ValueChanged<int?>? onOpenTopicMode;
+  final ValueChanged<ChatKind>? onChatKindResolved;
   final VoidCallback? onInfoPressed;
   final VoidCallback? onBack;
   final ChatViewExitController? exitController;
@@ -853,6 +855,7 @@ class _ChatViewState extends State<ChatView> {
   late final ChatSessionRenderState? _sessionRenderState;
   late bool _olderHistoryExhaustedHint;
   late final ChatViewModel _vm;
+  ChatKind? _reportedChatKind;
   late final TranslationController _translation;
   late final ScrollController _scroll;
   final _pinnedKey = GlobalKey(); // the pinned message's row, for scroll-to
@@ -2138,6 +2141,7 @@ class _ChatViewState extends State<ChatView> {
 
   void _onModel() {
     if (!mounted) return;
+    _reportChatKindIfReady();
     if (!_viewTickerEnabled) {
       _modelDirtyWhileInactive = true;
       return;
@@ -2371,6 +2375,17 @@ class _ChatViewState extends State<ChatView> {
     _scheduleSessionScrollAnchorMaintenance();
     _scheduleRestoredBottomCorrection();
     _scheduleParkedShortTranscriptRepair();
+  }
+
+  void _reportChatKindIfReady() {
+    final kind = _vm.chatKind;
+    final callback = widget.onChatKindResolved;
+    if (kind == null || callback == null || kind == _reportedChatKind) return;
+    _reportedChatKind = kind;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _vm.chatKind != kind) return;
+      widget.onChatKindResolved?.call(kind);
+    });
   }
 
   void _setScrollTarget(int? messageId) {

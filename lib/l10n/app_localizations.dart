@@ -829,6 +829,11 @@ abstract final class AppStringKeys {
   static const chatListLeaveAndDeleteGroupConfirmation =
       'chatListLeaveAndDeleteGroupConfirmation';
   static const chatListMarkUnread = 'chatListMarkUnread';
+  static const desktopChatOpenSeparate = 'desktopChatOpenSeparate';
+  static const desktopChatWindowUnavailable = 'desktopChatWindowUnavailable';
+  static const desktopWindowClose = 'desktopWindowClose';
+  static const desktopWindowMaximizeRestore = 'desktopWindowMaximizeRestore';
+  static const desktopWindowMinimize = 'desktopWindowMinimize';
   static const chatListNoChats = 'chatListNoChats';
   static const chatListScanQrCode = 'chatListScanQrCode';
   static const chatListUnpin = 'chatListUnpin';

@@ -634,6 +634,11 @@ const zhHansMessages = <String, String>{
   'chatListLeaveAndDeleteGroupConfirmation':
       "退出“{value1}”并在所有设备上删除你的 Telegram 账户中的聊天记录？",
   'chatListMarkUnread': "标为未读",
+  'desktopChatOpenSeparate': "打开独立聊天窗口",
+  'desktopChatWindowUnavailable': "无法打开独立聊天窗口",
+  'desktopWindowClose': "关闭窗口",
+  'desktopWindowMaximizeRestore': "最大化或还原",
+  'desktopWindowMinimize': "最小化",
   'chatListNoChats': "还没有聊天",
   'chatListScanQrCode': "扫描二维码",
   'chatListUnpin': "取消置顶",

@@ -96,7 +96,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   int? _observedAccountSlot;
   double? _splitSidebarWidth;
   bool _splitResizeHandleHovered = false;
-  bool? _wasUsingTabletSplit;
+  bool? _wasUsingSplitSelection;
 
   @override
   void initState() {
@@ -142,12 +142,12 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final usesTabletSplit = _usesTabletSplit(context);
-    if (_wasUsingTabletSplit == true && !usesTabletSplit) {
+    final usesSplitSelection = _usesSplitSelection(context);
+    if (_wasUsingSplitSelection == true && !usesSplitSelection) {
       _messageChatExitController.prepareExit();
       _selectedArchivedChats = null;
     }
-    _wasUsingTabletSplit = usesTabletSplit;
+    _wasUsingSplitSelection = usesSplitSelection;
     final accounts = context.read<AccountStore>();
     if (!identical(_observedAccounts, accounts)) {
       _observedAccounts?.removeListener(_handleAccountStoreChanged);
@@ -209,7 +209,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   };
 
   Future<bool> _onWillPop() async {
-    if (_usesTabletSplit(context)) {
+    if (_usesSplitSelection(context)) {
       switch (_selection) {
         case 0:
           if (_selectedArchivedChats != null) {
@@ -258,18 +258,18 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     final shouldToggleMessages = tabIndex == 0;
     if (tabIndex == _selection) {
       // Tapping the active tab pops to its root.
-      if (_usesTabletSplit(context) &&
+      if (_usesSplitSelection(context) &&
           tabIndex == 0 &&
           _selectedArchivedChats != null) {
         setState(() => _selectedArchivedChats = null);
         return;
       }
       _navKeys[tabIndex].currentState?.popUntil((r) => r.isFirst);
-      if (_usesTabletSplit(context)) _clearTabletDetail(tabIndex);
+      if (_usesSplitSelection(context)) _clearTabletDetail(tabIndex);
       if (shouldToggleMessages) _toggleMessagesListTarget(theme);
       return;
     }
-    if (_usesTabletSplit(context) && _selection == 0) {
+    if (_usesSplitSelection(context) && _selection == 0) {
       _messageChatExitController.prepareExit();
     }
     setState(() => _selection = tabIndex);
@@ -309,7 +309,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       });
       return;
     }
-    if (_usesTabletSplit(context)) {
+    if (_usesSplitSelection(context)) {
       final nextSelection = ChatListSelection(
         chatId: request.chatId,
         title: request.title,
@@ -527,8 +527,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     final requestedSidebarWidth =
         _splitSidebarWidth ?? defaultSplitSidebarWidth(contentWidth);
     final messageSelection = activeTabIndex == 0 ? _selectedMessageChat : null;
-    final selectedChat =
-        desktopChatKindUsesContextPane(messageSelection?.chat?.kind)
+    final selectedChat = desktopChatKindUsesContextPane(messageSelection?.kind)
         ? messageSelection
         : null;
     final infoPaneRequested =
@@ -592,6 +591,8 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                                 _hasSelectedDesktopDetail(activeTabIndex)
                             ? _animatedTabletDetailPane(
                                 activeTabIndex,
+                                showMessageBackButton:
+                                    desktopDetailNeedsBackButton(geometry),
                                 onMessageInfoPressed: canToggleInfoPane
                                     ? () => setState(
                                         () => _closedDesktopInfoChatId =
@@ -892,9 +893,13 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
 
   Widget _tabletDetailPane(
     int activeTabIndex, {
+    bool showMessageBackButton = false,
     VoidCallback? onMessageInfoPressed,
   }) => switch (activeTabIndex) {
-    0 => _messageDetailPane(onInfoPressed: onMessageInfoPressed),
+    0 => _messageDetailPane(
+      showBackButton: showMessageBackButton,
+      onInfoPressed: onMessageInfoPressed,
+    ),
     1 =>
       _selectedChannelDetail ??
           const _SplitEmptyPane(
@@ -920,10 +925,12 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
 
   Widget _animatedTabletDetailPane(
     int activeTabIndex, {
+    bool showMessageBackButton = false,
     VoidCallback? onMessageInfoPressed,
   }) {
     final detail = _tabletDetailPane(
       activeTabIndex,
+      showMessageBackButton: showMessageBackButton,
       onMessageInfoPressed: onMessageInfoPressed,
     );
     final motionKey = switch (activeTabIndex) {
@@ -951,7 +958,10 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     return _ContentReveal(motionKey: motionKey, child: detail);
   }
 
-  Widget _messageDetailPane({VoidCallback? onInfoPressed}) {
+  Widget _messageDetailPane({
+    bool showBackButton = false,
+    VoidCallback? onInfoPressed,
+  }) {
     final selectedCommunity =
         context.watch<ThemeController>().communitiesEnabled
         ? _selectedMessageCommunity
@@ -967,7 +977,10 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           chatsProvider: selectedCommunity.chatsProvider,
           viewableChatsProvider: selectedCommunity.viewableChatsProvider,
           onCollapsedChanged: selectedCommunity.onCollapsedChanged,
-          showBackButton: false,
+          showBackButton: showBackButton,
+          onBack: showBackButton
+              ? () => setState(() => _selectedMessageCommunity = null)
+              : null,
           onChatSelected: (chat) {
             final nextSelection = ChatListSelection.fromChat(chat);
             _prepareMessageChatReplacement(nextSelection);
@@ -999,6 +1012,8 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               headerHeight: headerHeight,
               headerColor: headerColor,
               exitController: _messageChatExitController,
+              showBackButton: showBackButton,
+              onBack: () => setState(() => _selectedMessageChat = null),
               onInfoPressed: onInfoPressed,
             )
           : ChatView(
@@ -1006,12 +1021,14 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               title: selected.title,
               seedMessage: chat?.lastChatMessage,
               initialMessageId: selected.initialMessageId,
-              showBackButton: false,
+              showBackButton: showBackButton,
               headerHeight: headerHeight,
               headerColor: headerColor,
               showHeaderDivider: false,
               requestComposerFocusOnReady: selected.composerFocusRequestId != 0,
               exitController: _messageChatExitController,
+              onChatKindResolved: (kind) =>
+                  _handleSelectedChatKindResolved(selected.chatId, kind),
               onInfoPressed: onInfoPressed,
               onBack: () => setState(() => _selectedMessageChat = null),
             ),
@@ -1035,6 +1052,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       chatId: selected.chatId,
       title: selected.title,
       chat: selected.chat,
+      resolvedKind: selected.kind,
       initialMessageId: messageId,
     );
     _prepareMessageChatReplacement(nextSelection);
@@ -1058,6 +1076,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       chatId: selected.chatId,
       title: selected.title,
       chat: selected.chat,
+      resolvedKind: selected.kind,
       initialMessageId: messageId,
     );
     _prepareMessageChatReplacement(nextSelection);
@@ -1096,12 +1115,24 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     _messageChatExitController.prepareExit();
   }
 
+  void _handleSelectedChatKindResolved(int chatId, ChatKind kind) {
+    final current = _selectedMessageChat;
+    if (current == null || current.chatId != chatId || current.kind == kind) {
+      return;
+    }
+    setState(() => _selectedMessageChat = current.withResolvedKind(kind));
+  }
+
   bool _usesTabletSplit(BuildContext context) {
     return usesAdaptiveSplitLayout(MediaQuery.of(context).size);
   }
 
   bool _usesDesktopShell(BuildContext context) {
     return usesDesktopShellLayout(MediaQuery.sizeOf(context));
+  }
+
+  bool _usesSplitSelection(BuildContext context) {
+    return usesSplitSelectionLayout(MediaQuery.sizeOf(context));
   }
 
   // MARK: - Drawer overlay (the "我" profile drawer)
@@ -1283,6 +1314,8 @@ class _ForumSplitDetailPane extends StatefulWidget {
     required this.headerHeight,
     required this.headerColor,
     required this.exitController,
+    required this.showBackButton,
+    required this.onBack,
     this.onInfoPressed,
   });
 
@@ -1290,6 +1323,8 @@ class _ForumSplitDetailPane extends StatefulWidget {
   final double headerHeight;
   final Color headerColor;
   final ChatViewExitController exitController;
+  final bool showBackButton;
+  final VoidCallback onBack;
   final VoidCallback? onInfoPressed;
 
   @override
@@ -1325,12 +1360,13 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
             chatId: widget.chat.id,
             title: widget.chat.title,
             seedMessage: widget.chat.lastChatMessage,
-            showBackButton: false,
+            showBackButton: widget.showBackButton,
             headerHeight: widget.headerHeight,
             headerColor: widget.headerColor,
             headerBottom: _tabSwitcher(c),
             exitController: widget.exitController,
             onInfoPressed: widget.onInfoPressed,
+            onBack: widget.onBack,
             onOpenTopicMode: (threadId) =>
                 unawaited(_showChannelMode(threadId)),
           )
@@ -1338,10 +1374,11 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
             key: ValueKey('${widget.chat.id}:${_topicThreadId ?? 0}'),
             chat: widget.chat,
             initialThreadId: _topicThreadId,
-            showBackButton: false,
+            showBackButton: widget.showBackButton,
             headerHeight: widget.headerHeight,
             headerColor: widget.headerColor,
             onOpenChatView: () => unawaited(_showChatMode()),
+            onBack: widget.onBack,
           );
     return _ContentReveal(
       motionKey: ValueKey('forum-detail-$_index-${_topicThreadId ?? 0}'),

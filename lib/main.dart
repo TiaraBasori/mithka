@@ -29,7 +29,9 @@ import 'app/app_performance_controller.dart';
 import 'app/app_version.dart';
 import 'app/chat_deep_link_controller.dart';
 import 'app/content_view.dart';
+import 'app/desktop_chat_window.dart';
 import 'app/desktop_video_window.dart';
+import 'app/desktop_window_controls.dart';
 import 'app/global_video_split_host.dart';
 import 'app/telemetry_config.dart';
 import 'auth/account_store.dart';
@@ -79,6 +81,15 @@ Future<void> main(List<String> arguments) async {
       runApp(DesktopVideoWindowApp(arguments: videoArguments));
       return;
     }
+    final chatArguments = DesktopChatWindowArguments.tryParseLaunchArguments(
+      arguments,
+    );
+    if (chatArguments != null) {
+      configureAppImageCache();
+      runApp(DesktopChatWindowApp(arguments: chatArguments));
+      return;
+    }
+    await configurePrimaryDesktopWindowChrome();
   }
   if (!sentryEnabled) {
     WidgetsFlutterBinding.ensureInitialized();
@@ -311,6 +322,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     _theme.loadSelectedEmojiFontIfAvailable();
     _autoDownload.initialize(widget.prefs);
     _auth.start();
+    DesktopChatWindowService.instance.attachMainProxy();
     unawaited(_ai.initialize());
     unawaited(_mithkaPro.initialize());
     unawaited(_telegramLanguage.initialize(widget.prefs));
@@ -327,6 +339,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     _accounts.removeListener(_handleActiveAccountChange);
     _theme.removeListener(_handleThemePreferencesChange);
     _groupRemarks.dispose();
+    DesktopChatWindowService.instance.detachMainProxy();
     _calls.dispose();
     super.dispose();
   }

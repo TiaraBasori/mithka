@@ -655,6 +655,11 @@ const koMessages = <String, String>{
   'chatListLeaveAndDeleteGroupConfirmation':
       "“{value1}”에서 나가고 Telegram 계정의 기록을 모든 기기에서 삭제할까요?",
   'chatListMarkUnread': "읽지 않음으로 표시",
+  'desktopChatOpenSeparate': "별도 채팅 창에서 열기",
+  'desktopChatWindowUnavailable': "별도 채팅 창을 열 수 없습니다",
+  'desktopWindowClose': "창 닫기",
+  'desktopWindowMaximizeRestore': "최대화 또는 복원",
+  'desktopWindowMinimize': "최소화",
   'chatListNoChats': "아직 채팅이 없습니다",
   'chatListScanQrCode': "QR 코드 스캔",
   'chatListUnpin': "고정 해제",

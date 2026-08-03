@@ -27,6 +27,20 @@ void main() {
     expect(desktopChatKindUsesContextPane(null), isFalse);
   });
 
+  test('a deep-link selection can adopt its resolved group kind', () {
+    const unresolved = ChatListSelection(
+      chatId: 42,
+      title: 'Deep-linked group',
+      initialMessageId: 99,
+    );
+
+    expect(unresolved.kind, isNull);
+    final resolved = unresolved.withResolvedKind(ChatKind.group);
+    expect(desktopChatKindUsesContextPane(resolved.kind), isTrue);
+    expect(resolved.chatId, unresolved.chatId);
+    expect(resolved.initialMessageId, unresolved.initialMessageId);
+  });
+
   testWidgets(
     'desktop reserves the context pane for group chats without crushing conversation',
     (tester) async {

@@ -19,6 +19,7 @@ import 'package:provider/provider.dart';
 
 import '../app/adaptive_split_layout.dart';
 import '../app/app_navigator.dart';
+import '../app/desktop_chat_window.dart';
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
 import '../channels/forum_topic_browser_view.dart';
@@ -88,6 +89,7 @@ class ChatListSelection {
     required this.chatId,
     required this.title,
     this.chat,
+    this.resolvedKind,
     this.initialMessageId,
     this.composerFocusRequestId = 0,
   });
@@ -98,16 +100,28 @@ class ChatListSelection {
   }) : chatId = chat.id,
        title = chat.title,
        chat = chat,
+       resolvedKind = chat.kind,
        initialMessageId = null;
 
   final int chatId;
   final String title;
   final ChatSummary? chat;
+  final ChatKind? resolvedKind;
   final int? initialMessageId;
   final int composerFocusRequestId;
 
+  ChatKind? get kind => chat?.kind ?? resolvedKind;
   bool get isForum => chat?.isForum ?? false;
   bool get supportsTopics => chat?.supportsTopics ?? false;
+
+  ChatListSelection withResolvedKind(ChatKind kind) => ChatListSelection(
+    chatId: chatId,
+    title: title,
+    chat: chat,
+    resolvedKind: kind,
+    initialMessageId: initialMessageId,
+    composerFocusRequestId: composerFocusRequestId,
+  );
 }
 
 /// Keeps the active conversation visually anchored in split layouts.
@@ -516,6 +530,7 @@ class ChatListView extends StatefulWidget {
     this.onChatSelected,
     this.onCommunitySelected,
     this.onOpenArchived,
+    this.onOpenChatInSeparateWindow,
     this.desktopSidebar = false,
     this.selectedChatId,
     this.selectedCommunityId,
@@ -525,6 +540,7 @@ class ChatListView extends StatefulWidget {
   final ValueChanged<ChatListSelection>? onChatSelected;
   final ValueChanged<CommunityListSelection>? onCommunitySelected;
   final ValueChanged<ArchivedChatListSelection>? onOpenArchived;
+  final Future<void> Function(ChatSummary)? onOpenChatInSeparateWindow;
   final bool desktopSidebar;
   final int? selectedChatId;
   final int? selectedCommunityId;
@@ -571,6 +587,7 @@ class _ChatListViewState extends State<ChatListView>
   int _lastVisibleRows = 1;
   final ChatListSwipeSession _chatListSwipeSession = ChatListSwipeSession();
   int _nextComposerFocusRequestId = 0;
+  OverlayEntry? _desktopChatMenuEntry;
 
   static const double _refreshPullThreshold = 72;
 
@@ -692,6 +709,7 @@ class _ChatListViewState extends State<ChatListView>
 
   @override
   void dispose() {
+    _dismissDesktopChatMenu();
     _userSub?.cancel();
     widget.controller?.removeListener(_onControllerRequest);
     _folderTransition.dispose();
@@ -1850,6 +1868,8 @@ class _ChatListViewState extends State<ChatListView>
   Widget _swipeRow(ChatSummary chat) {
     final selected = widget.selectedChatId == chat.id;
     final swipeMode = context.watch<ThemeController>().chatListSwipeMode;
+    final desktopContextMenu =
+        !kIsWeb && isDesktopTargetPlatform(defaultTargetPlatform);
     final actions = chat.isPinned
         ? [
             SwipeActionItem(
@@ -1892,6 +1912,9 @@ class _ChatListViewState extends State<ChatListView>
       onOpenChanged: (id) => setState(() => _openSwipeChat = id),
       onTap: () => _openChat(chat),
       onLongPress: () => _showChatPreview(chat),
+      onSecondaryTapDown: desktopContextMenu
+          ? (details) => _showDesktopChatMenu(chat, details.globalPosition)
+          : null,
       horizontalSwipeEnabled: chatListRowSwipeActionsEnabled(
         mode: swipeMode,
         multiTouchActive: _chatListSwipeSession.suppressRowSwipes,
@@ -1906,6 +1929,77 @@ class _ChatListViewState extends State<ChatListView>
         ),
       ),
     );
+  }
+
+  void _dismissDesktopChatMenu() {
+    final entry = _desktopChatMenuEntry;
+    _desktopChatMenuEntry = null;
+    entry?.remove();
+  }
+
+  void _showDesktopChatMenu(ChatSummary chat, Offset globalPosition) {
+    if (kIsWeb || !isDesktopTargetPlatform(defaultTargetPlatform)) return;
+    if (_openSwipeChat != null) setState(() => _openSwipeChat = null);
+    _dismissDesktopChatMenu();
+
+    final overlay = Overlay.of(context);
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    if (overlayBox == null || !overlayBox.hasSize) return;
+    final anchor = overlayBox.globalToLocal(globalPosition);
+    final openInSeparateWindow =
+        widget.onOpenChatInSeparateWindow ??
+        (DesktopChatWindowService.instance.isSupported
+            ? _openChatInSeparateWindow
+            : null);
+
+    late final OverlayEntry entry;
+    void dismiss() {
+      if (_desktopChatMenuEntry != entry) return;
+      _dismissDesktopChatMenu();
+    }
+
+    entry = OverlayEntry(
+      builder: (_) => DesktopChatContextMenu(
+        anchor: anchor,
+        isPinned: chat.isPinned,
+        hasUnread: chat.unreadCount > 0 || chat.isMarkedUnread,
+        isMuted: chat.isMuted,
+        deleteOrLeaveLabel: _deleteOrLeaveTitle(chat),
+        onDismiss: dismiss,
+        onTogglePin: () => _model.togglePin(chat),
+        onToggleRead: () => chat.unreadCount > 0 || chat.isMarkedUnread
+            ? _model.markRead(chat)
+            : _model.markUnread(chat),
+        onOpenSeparateWindow: openInSeparateWindow == null
+            ? null
+            : () => unawaited(openInSeparateWindow(chat)),
+        onToggleMute: () => _model.toggleMute(chat),
+        onDeleteOrLeave: () => unawaited(_confirmDeleteChat(chat)),
+      ),
+    );
+    _desktopChatMenuEntry = entry;
+    overlay.insert(entry);
+  }
+
+  Future<void> _openChatInSeparateWindow(ChatSummary chat) async {
+    final theme = context.read<ThemeController>();
+    final opened = await DesktopChatWindowService.instance.open(
+      DesktopChatWindowArguments(
+        accountSlot: context.read<AccountStore>().activeSlot,
+        chatId: chat.id,
+        title: chat.title,
+        localeTag: Localizations.localeOf(context).toLanguageTag(),
+        dark: Theme.of(context).brightness == Brightness.dark,
+        enterToSend: theme.enterToSend,
+        palette: DesktopChatWindowPalette.fromColors(
+          context.colors,
+          brand: AppTheme.brand,
+        ),
+      ),
+    );
+    if (!opened && mounted) {
+      showToast(context, AppStringKeys.desktopChatWindowUnavailable);
+    }
   }
 
   void _showChatPreview(ChatSummary chat) {
@@ -2539,6 +2633,239 @@ class ChatFilterMenu extends StatelessWidget {
 
 // MARK: - custom swipe row
 
+/// Resolves a pointer-anchored desktop menu without allowing it to escape the
+/// visible overlay. The two-pixel offset keeps the pointer clear of the first
+/// action while preserving the exact click location as the anchor.
+Offset desktopChatContextMenuTopLeft({
+  required Offset anchor,
+  required Size viewport,
+  required Size menuSize,
+  double margin = DesktopChatContextMenu.viewportMargin,
+}) {
+  final requested = anchor + const Offset(2, 2);
+  final maxX = math.max(margin, viewport.width - menuSize.width - margin);
+  final maxY = math.max(margin, viewport.height - menuSize.height - margin);
+  return Offset(
+    requested.dx.clamp(margin, maxX).toDouble(),
+    requested.dy.clamp(margin, maxY).toDouble(),
+  );
+}
+
+/// Compact, project-owned context menu used only by native desktop chat rows.
+class DesktopChatContextMenu extends StatelessWidget {
+  const DesktopChatContextMenu({
+    super.key,
+    required this.anchor,
+    required this.isPinned,
+    required this.hasUnread,
+    required this.isMuted,
+    required this.deleteOrLeaveLabel,
+    required this.onDismiss,
+    required this.onTogglePin,
+    required this.onToggleRead,
+    required this.onToggleMute,
+    required this.onDeleteOrLeave,
+    this.onOpenSeparateWindow,
+  });
+
+  static const double menuWidth = 232;
+  static const double rowHeight = 38;
+  static const double verticalPadding = 4;
+  static const double dividerHeight = 0.5;
+  static const double viewportMargin = 8;
+
+  final Offset anchor;
+  final bool isPinned;
+  final bool hasUnread;
+  final bool isMuted;
+  final String deleteOrLeaveLabel;
+  final VoidCallback onDismiss;
+  final VoidCallback onTogglePin;
+  final VoidCallback onToggleRead;
+  final VoidCallback? onOpenSeparateWindow;
+  final VoidCallback onToggleMute;
+  final VoidCallback onDeleteOrLeave;
+
+  double get _menuHeight =>
+      verticalPadding * 2 +
+      rowHeight * (onOpenSeparateWindow == null ? 4 : 5) +
+      dividerHeight;
+
+  void _select(VoidCallback action) {
+    onDismiss();
+    action();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewport = Size(constraints.maxWidth, constraints.maxHeight);
+        final resolvedWidth = math
+            .min(menuWidth, math.max(0.0, viewport.width - viewportMargin * 2))
+            .toDouble();
+        final menuSize = Size(resolvedWidth, _menuHeight);
+        final topLeft = desktopChatContextMenuTopLeft(
+          anchor: anchor,
+          viewport: viewport,
+          menuSize: menuSize,
+        );
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            GestureDetector(
+              key: const ValueKey('desktop-chat-context-barrier'),
+              behavior: HitTestBehavior.opaque,
+              onTap: onDismiss,
+              onSecondaryTap: onDismiss,
+              child: const ColoredBox(color: Colors.transparent),
+            ),
+            Positioned(
+              left: topLeft.dx,
+              top: topLeft.dy,
+              child: Container(
+                key: const ValueKey('desktop-chat-context-menu'),
+                width: resolvedWidth,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.2),
+                      blurRadius: 18,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: c.card,
+                      border: Border.all(color: c.divider, width: 0.5),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: verticalPadding,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _DesktopChatContextMenuItem(
+                            key: const ValueKey('desktop-chat-context-pin'),
+                            icon: HeroAppIcons.thumbtack,
+                            label: isPinned
+                                ? AppStringKeys.chatListUnpin
+                                : AppStringKeys.chatInfoPin,
+                            onTap: () => _select(onTogglePin),
+                          ),
+                          _DesktopChatContextMenuItem(
+                            key: const ValueKey('desktop-chat-context-read'),
+                            icon: hasUnread
+                                ? HeroAppIcons.circleCheck
+                                : HeroAppIcons.eyeSlash,
+                            label: hasUnread
+                                ? AppStringKeys.channelDirectMessagesMarkRead
+                                : AppStringKeys.chatListMarkUnread,
+                            onTap: () => _select(onToggleRead),
+                          ),
+                          if (onOpenSeparateWindow case final openSeparate?)
+                            _DesktopChatContextMenuItem(
+                              key: const ValueKey(
+                                'desktop-chat-context-separate',
+                              ),
+                              icon: HeroAppIcons.pictureInPicture,
+                              label: AppStringKeys.desktopChatOpenSeparate,
+                              onTap: () => _select(openSeparate),
+                            ),
+                          _DesktopChatContextMenuItem(
+                            key: const ValueKey('desktop-chat-context-mute'),
+                            icon: isMuted
+                                ? HeroAppIcons.bell
+                                : HeroAppIcons.bellSlash,
+                            label: isMuted
+                                ? AppStringKeys.chatUnmute
+                                : AppStringKeys.callMute,
+                            onTap: () => _select(onToggleMute),
+                          ),
+                          SizedBox(
+                            height: dividerHeight,
+                            child: ColoredBox(color: c.divider),
+                          ),
+                          _DesktopChatContextMenuItem(
+                            key: const ValueKey('desktop-chat-context-delete'),
+                            icon: HeroAppIcons.trash,
+                            label: deleteOrLeaveLabel,
+                            color: const Color(0xFFFA5151),
+                            onTap: () => _select(onDeleteOrLeave),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _DesktopChatContextMenuItem extends StatelessWidget {
+  const _DesktopChatContextMenuItem({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.color,
+  });
+
+  final AppIconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedLabel = label.l10n(context);
+    final foreground = color ?? context.colors.textPrimary;
+    return AppInteractiveSurface(
+      semanticLabel: resolvedLabel,
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: SizedBox(
+        height: DesktopChatContextMenu.rowHeight,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          child: Row(
+            children: [
+              SizedBox(
+                width: AppMetric.menuIconSlot,
+                child: AppIcon(icon, size: 18, color: foreground),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Text(
+                  resolvedLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: AppTextSize.callout,
+                    color: foreground,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SwipeActionItem {
   SwipeActionItem({
     required this.title,
@@ -2562,6 +2889,7 @@ class ChatSwipeRow extends StatefulWidget {
     required this.onTap,
     required this.child,
     this.onLongPress,
+    this.onSecondaryTapDown,
     this.requiresLongPressDrag = false,
     this.horizontalSwipeEnabled = true,
   });
@@ -2573,6 +2901,7 @@ class ChatSwipeRow extends StatefulWidget {
   final VoidCallback onTap;
   final Widget child;
   final VoidCallback? onLongPress;
+  final GestureTapDownCallback? onSecondaryTapDown;
   final bool requiresLongPressDrag;
   final bool horizontalSwipeEnabled;
 
@@ -2695,6 +3024,11 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
     widget.onLongPress?.call();
   }
 
+  void _handleSecondaryTapDown(TapDownDetails details) {
+    if (_offset != 0) _close();
+    widget.onSecondaryTapDown?.call(details);
+  }
+
   void _settle(double velocity) {
     if (velocity < -520 || (velocity <= 360 && _offset < -_totalWidth * 0.38)) {
       _animateTo(-_totalWidth);
@@ -2760,9 +3094,9 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
                     : widget.onLongPress == null
                     ? null
                     : _handleContextRequest,
-                onSecondaryTap: widget.onLongPress == null
+                onSecondaryTapDown: widget.onSecondaryTapDown == null
                     ? null
-                    : _handleContextRequest,
+                    : _handleSecondaryTapDown,
                 onLongPressStart: (_) {
                   _stopAnimation();
                   _longPressStartOffset = _offset;

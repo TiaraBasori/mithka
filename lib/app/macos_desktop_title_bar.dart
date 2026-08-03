@@ -13,6 +13,9 @@ class MacosDesktopTitleBar extends StatelessWidget {
     super.key,
     required this.appIdentity,
     this.accountIdentity,
+    this.leadingClearance = trafficLightLeadingClearance,
+    this.trailingControls,
+    this.onDragAreaDoubleTap,
     this.backgroundColor,
   });
 
@@ -24,12 +27,16 @@ class MacosDesktopTitleBar extends StatelessWidget {
 
   final Widget appIdentity;
   final Widget? accountIdentity;
+  final double leadingClearance;
+  final Widget? trailingControls;
+  final VoidCallback? onDragAreaDoubleTap;
   final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final accountIdentity = this.accountIdentity;
+    final trailingControls = this.trailingControls;
 
     return SizedBox(
       key: const ValueKey('macos-desktop-title-bar'),
@@ -44,9 +51,9 @@ class MacosDesktopTitleBar extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const SizedBox(
-              key: ValueKey('macos-traffic-light-clearance'),
-              width: trafficLightLeadingClearance,
+            SizedBox(
+              key: const ValueKey('macos-traffic-light-clearance'),
+              width: leadingClearance,
             ),
             KeyedSubtree(
               key: const ValueKey('macos-app-identity'),
@@ -55,8 +62,12 @@ class MacosDesktopTitleBar extends StatelessWidget {
             const SizedBox(width: identityGap),
             Expanded(
               child: desktopWindowDragArea(
-                child: const SizedBox.expand(
-                  key: ValueKey('macos-title-bar-drag-area'),
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onDoubleTap: onDragAreaDoubleTap,
+                  child: const SizedBox.expand(
+                    key: ValueKey('macos-title-bar-drag-area'),
+                  ),
                 ),
               ),
             ),
@@ -67,6 +78,11 @@ class MacosDesktopTitleBar extends StatelessWidget {
                 child: accountIdentity,
               ),
             ],
+            if (trailingControls != null)
+              KeyedSubtree(
+                key: const ValueKey('desktop-title-bar-window-controls'),
+                child: trailingControls,
+              ),
             const SizedBox(width: trailingPadding),
           ],
         ),

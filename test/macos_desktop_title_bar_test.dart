@@ -51,6 +51,41 @@ void main() {
     expect(border.bottom.width, MacosDesktopTitleBar.dividerWidth);
   });
 
+  testWidgets(
+    'portable desktop chrome uses a compact leading inset and controls',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(extensions: [AppColors.light]),
+          home: const Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 600,
+              child: MacosDesktopTitleBar(
+                leadingClearance: 8,
+                appIdentity: SizedBox(width: 112, child: Text('Account')),
+                trailingControls: SizedBox(width: 120),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        tester
+            .getSize(
+              find.byKey(const ValueKey('macos-traffic-light-clearance')),
+            )
+            .width,
+        8,
+      );
+      expect(
+        find.byKey(const ValueKey('desktop-title-bar-window-controls')),
+        findsOneWidget,
+      );
+    },
+  );
+
   test('native macOS window uses full-size transparent titlebar chrome', () {
     final runner = File(
       'macos/Runner/MainFlutterWindow.swift',
@@ -76,4 +111,33 @@ void main() {
     expect(entryPoint, isNot(contains('package:multi_window_manager/')));
     expect(stub, isNot(contains('multi_window_manager')));
   });
+
+  test(
+    'all native desktop primary windows use owned chrome and account avatar',
+    () {
+      final content = File('lib/app/content_view.dart').readAsStringSync();
+      final main = File('lib/main.dart').readAsStringSync();
+      final controls = File(
+        'lib/app/desktop_window_controls.dart',
+      ).readAsStringSync();
+      final controlsIo = File(
+        'lib/app/desktop_window_controls_io.dart',
+      ).readAsStringSync();
+      final controlsStub = File(
+        'lib/app/desktop_window_controls_stub.dart',
+      ).readAsStringSync();
+
+      expect(content, contains('isDesktopTargetPlatform'));
+      expect(content, contains('activeAccount?.avatarPath'));
+      expect(content, contains('Image.file'));
+      expect(content, contains('DesktopWindowControls'));
+      expect(main, contains('configurePrimaryDesktopWindowChrome'));
+      expect(controls, contains('HeroAppIcons.minus'));
+      expect(controls, contains('HeroAppIcons.square'));
+      expect(controls, contains('HeroAppIcons.xmark'));
+      expect(controlsIo, contains('TitleBarStyle.hidden'));
+      expect(controlsIo, contains('Platform.isWindows || Platform.isLinux'));
+      expect(controlsStub, isNot(contains('multi_window_manager')));
+    },
+  );
 }

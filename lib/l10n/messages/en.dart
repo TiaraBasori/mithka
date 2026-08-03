@@ -700,6 +700,11 @@ const enMessages = <String, String>{
   'chatListLeaveAndDeleteGroupConfirmation':
       "Leave “{value1}” and delete its history from your Telegram account on all devices?",
   'chatListMarkUnread': "Mark as unread",
+  'desktopChatOpenSeparate': "Open in separate chat window",
+  'desktopChatWindowUnavailable': "Unable to open a separate chat window",
+  'desktopWindowClose': "Close window",
+  'desktopWindowMaximizeRestore': "Maximize or restore",
+  'desktopWindowMinimize': "Minimize",
   'chatListNoChats': "No chats yet",
   'chatListScanQrCode': "Scan QR Code",
   'chatListUnpin': "Unpin",

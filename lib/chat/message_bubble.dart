@@ -184,6 +184,7 @@ class _MessageBubbleState extends State<MessageBubble>
   bool _videoStickerReady = false;
   bool _musicPressed = false;
   bool _showTappedTimestamp = false;
+  bool _hoveringTimestamp = false;
   DateTime? _lastTapAt;
   bool _skipNextTap = false;
   double _swipeX = 0;
@@ -273,6 +274,11 @@ class _MessageBubbleState extends State<MessageBubble>
     if (!alwaysShowTime) {
       setState(() => _showTappedTimestamp = !_showTappedTimestamp);
     }
+  }
+
+  void _setTimestampHover(bool hovering) {
+    if (_hoveringTimestamp == hovering) return;
+    setState(() => _hoveringTimestamp = hovering);
   }
 
   ChatMessage get message => widget.message;
@@ -563,6 +569,7 @@ class _MessageBubbleState extends State<MessageBubble>
             : MediaQuery.sizeOf(context).width;
         return Stack(
           alignment: Alignment.centerRight,
+          clipBehavior: Clip.none,
           children: [
             Padding(
               padding: const EdgeInsets.only(right: 16),
@@ -648,6 +655,10 @@ class _MessageBubbleState extends State<MessageBubble>
         : widget.mePhoto;
     final alwaysShowTime =
         widget.forceShowTimestamp || theme.alwaysShowMessageTime;
+    final showDetailTime =
+        alwaysShowTime || _showTappedTimestamp || _hoveringTimestamp;
+    final timeInSenderHeader =
+        widget.isGroup && !outgoing && message.senderName != null;
     final body = GestureDetector(
       key: _bubbleKey,
       behavior: HitTestBehavior.opaque,
@@ -658,23 +669,9 @@ class _MessageBubbleState extends State<MessageBubble>
       onHorizontalDragStart: (_) => _swipeController.stop(),
       onHorizontalDragUpdate: _onDragUpdate,
       onHorizontalDragEnd: _onDragEnd,
-      child: Column(
+      child: KeyedSubtree(
         key: ValueKey('messageTapTarget-${message.id}'),
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: outgoing
-            ? CrossAxisAlignment.end
-            : CrossAxisAlignment.start,
-        children: [
-          _contentBody(outgoing),
-          if (_showTappedTimestamp || alwaysShowTime) ...[
-            const SizedBox(height: 3),
-            Text(
-              DateText.messageDetailLabel(message.date),
-              key: const ValueKey('messageTappedTimestamp'),
-              style: TextStyle(fontSize: 10, color: c.textTertiary),
-            ),
-          ],
-        ],
+        child: _contentBody(outgoing),
       ),
     );
     final contentWidget = ConstrainedBox(
@@ -708,7 +705,7 @@ class _MessageBubbleState extends State<MessageBubble>
         : contentWidget;
     final ownPhotoRepeat = outgoing && message.isPhoto && widget.showRepeat;
 
-    return Padding(
+    final messageRow = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -774,6 +771,7 @@ class _MessageBubbleState extends State<MessageBubble>
                     children: [
                       if (widget.isGroup && message.senderName != null)
                         Padding(
+                          key: ValueKey('messageSenderHeader-${message.id}'),
                           padding: const EdgeInsets.only(left: 4, bottom: 3),
                           child: Row(
                             children: [
@@ -806,6 +804,17 @@ class _MessageBubbleState extends State<MessageBubble>
                                   animate: theme.chatStatusEmojiMode.animate,
                                 ),
                               ],
+                              const SizedBox(width: 5),
+                              SizedBox(
+                                width: 96,
+                                height: 14,
+                                child: showDetailTime
+                                    ? Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: _messageDetailTimestamp(),
+                                      )
+                                    : null,
+                              ),
                             ],
                           ),
                         ),
@@ -822,7 +831,36 @@ class _MessageBubbleState extends State<MessageBubble>
               ],
       ),
     );
+    return MouseRegion(
+      onEnter: (_) => _setTimestampHover(true),
+      onExit: (_) => _setTimestampHover(false),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          messageRow,
+          if (showDetailTime && !timeInSenderHeader)
+            Positioned(
+              left: outgoing ? null : 58,
+              right: outgoing ? 58 : null,
+              bottom: -5,
+              child: IgnorePointer(child: _messageDetailTimestamp()),
+            ),
+        ],
+      ),
+    );
   }
+
+  Widget _messageDetailTimestamp() => Text(
+    DateText.messageDetailLabel(message.date),
+    key: const ValueKey('messageTappedTimestamp'),
+    maxLines: 1,
+    textScaler: TextScaler.noScaling,
+    style: TextStyle(
+      fontSize: 10,
+      height: 1.2,
+      color: context.colors.textTertiary,
+    ),
+  );
 
   Widget _reactionChips(bool outgoing) {
     final c = context.colors;

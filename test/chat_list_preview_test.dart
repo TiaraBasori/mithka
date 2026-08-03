@@ -156,10 +156,7 @@ void main() {
   });
 
   test('quick reply is limited to chats with an unambiguous composer', () {
-    expect(
-      chatListPreviewSupportsQuickReply(_chat()),
-      isTrue,
-    );
+    expect(chatListPreviewSupportsQuickReply(_chat()), isTrue);
     expect(
       chatListPreviewSupportsQuickReply(_chat(kind: ChatKind.group)),
       isTrue,
@@ -288,11 +285,13 @@ void main() {
     expect(find.byKey(AppPressRipple.rippleLayerKey), findsNothing);
   });
 
-  testWidgets('secondary mouse click invokes chat-row preview callback', (
+  testWidgets('secondary click and touch long press use distinct callbacks', (
     tester,
   ) async {
     var taps = 0;
     var previewRequests = 0;
+    var secondaryRequests = 0;
+    Offset? secondaryGlobalPosition;
     await tester.pumpWidget(
       MaterialApp(
         home: SizedBox(
@@ -303,6 +302,10 @@ void main() {
             onOpenChanged: (_) {},
             onTap: () => taps++,
             onLongPress: () => previewRequests++,
+            onSecondaryTapDown: (details) {
+              secondaryRequests++;
+              secondaryGlobalPosition = details.globalPosition;
+            },
             actions: [
               SwipeActionItem(
                 title: AppStringKeys.chatInfoPin,
@@ -323,20 +326,75 @@ void main() {
     final contextGesture = find.descendant(
       of: find.byType(ChatSwipeRow),
       matching: find.byWidgetPredicate(
-        (widget) => widget is GestureDetector && widget.onSecondaryTap != null,
+        (widget) =>
+            widget is GestureDetector && widget.onSecondaryTapDown != null,
       ),
     );
     expect(contextGesture, findsOneWidget);
 
-    await tester.tap(
-      contextGesture,
+    final clickPosition =
+        tester.getTopLeft(find.byKey(const ValueKey('secondary-click-row'))) +
+        const Offset(123, 31);
+    await tester.tapAt(
+      clickPosition,
       buttons: kSecondaryMouseButton,
       kind: PointerDeviceKind.mouse,
     );
     await tester.pump();
 
-    expect(previewRequests, 1);
+    expect(secondaryRequests, 1);
+    expect(secondaryGlobalPosition, clickPosition);
+    expect(previewRequests, 0);
     expect(taps, 0);
+
+    await tester.longPressAt(clickPosition);
+    await tester.pump();
+
+    expect(previewRequests, 1);
+    expect(secondaryRequests, 1);
+  });
+
+  testWidgets('desktop chat menu is compact and clamps to pointer viewport', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.binding.setSurfaceSize(const Size(640, 420));
+    var separateRequests = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: [AppColors.light]),
+        home: DesktopChatContextMenu(
+          anchor: const Offset(632, 412),
+          isPinned: false,
+          hasUnread: true,
+          isMuted: false,
+          deleteOrLeaveLabel: AppStringKeys.chatDelete,
+          onDismiss: () {},
+          onTogglePin: () {},
+          onToggleRead: () {},
+          onOpenSeparateWindow: () => separateRequests++,
+          onToggleMute: () {},
+          onDeleteOrLeave: () {},
+        ),
+      ),
+    );
+
+    final surface = find.byKey(const ValueKey('desktop-chat-context-menu'));
+    expect(tester.getSize(surface).width, DesktopChatContextMenu.menuWidth);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('desktop-chat-context-pin')))
+          .height,
+      DesktopChatContextMenu.rowHeight,
+    );
+    final rect = tester.getRect(surface);
+    expect(rect.right, 640 - DesktopChatContextMenu.viewportMargin);
+    expect(rect.bottom, 420 - DesktopChatContextMenu.viewportMargin);
+
+    await tester.tap(
+      find.byKey(const ValueKey('desktop-chat-context-separate')),
+    );
+    expect(separateRequests, 1);
   });
 
   testWidgets('hold-and-drag rows reserve long press for swipe actions', (

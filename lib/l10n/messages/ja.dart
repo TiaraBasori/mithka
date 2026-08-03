@@ -652,6 +652,11 @@ const jaMessages = <String, String>{
   'chatListLeaveAndDeleteGroupConfirmation':
       "「{value1}」から退出し、Telegramアカウントの履歴をすべての端末から削除しますか？",
   'chatListMarkUnread': "未読にする",
+  'desktopChatOpenSeparate': "別のチャットウインドウで開く",
+  'desktopChatWindowUnavailable': "別のチャットウインドウを開けません",
+  'desktopWindowClose': "ウインドウを閉じる",
+  'desktopWindowMaximizeRestore': "最大化または元に戻す",
+  'desktopWindowMinimize': "最小化",
   'chatListNoChats': "チャットはまだありません",
   'chatListScanQrCode': "QRコードをスキャン",
   'chatListUnpin': "ピン留めを解除",
