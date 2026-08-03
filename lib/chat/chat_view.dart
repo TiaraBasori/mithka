@@ -18,8 +18,8 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../app/adaptive_split_layout.dart';
-import '../app/app_navigator.dart';
 import '../app/desktop_video_window.dart';
+import '../app/primary_chat_launcher.dart';
 import '../app/video_split_controller.dart';
 import '../auth/telegram_country_names.dart';
 import '../call/call_manager.dart';
@@ -3588,11 +3588,10 @@ class _ChatViewState extends State<ChatView> {
           });
           final chatId = chat.int64('id');
           if (!mounted || chatId == null) return;
-          await Navigator.of(context).push(
-            AppChatPageRoute<void>(
-              builder: (_) =>
-                  ChatView(chatId: chatId, title: contact.displayName),
-            ),
+          await openChatFromCurrentWindow(
+            context,
+            chatId: chatId,
+            title: contact.displayName,
           );
         } catch (_) {
           if (mounted) {
@@ -3819,15 +3818,11 @@ class _ChatViewState extends State<ChatView> {
       return;
     }
     if (!mounted) return;
-    await pushAppChatRoute(
+    await openChatFromCurrentWindow(
       context,
-      AppChatPageRoute<void>(
-        builder: (_) => ChatView(
-          chatId: target.chatId,
-          title: target.title,
-          initialMessageId: target.messageId,
-        ),
-      ),
+      chatId: target.chatId,
+      title: target.title,
+      initialMessageId: target.messageId,
     );
   }
 
@@ -4814,10 +4809,8 @@ class _ChatViewState extends State<ChatView> {
         unawaited(_openChatInfo(title: title, useAppPageRoute: true));
         return;
       }
-      Navigator.of(context).push(
-        AppChatPageRoute<void>(
-          builder: (_) => ChatView(chatId: senderChatId, title: title),
-        ),
+      unawaited(
+        openChatFromCurrentWindow(context, chatId: senderChatId, title: title),
       );
       return;
     }
