@@ -11,11 +11,13 @@ name: macOS TestFlight
 #   TELEGRAM_API_HASH
 #   SENTRY_DSN                          (optional)
 #
-# Keep this workflow manually dispatched: every successful run creates a live
-# App Store Connect delivery and consumes a globally increasing macOS build
-# number.
+# Every push to master creates an internal TestFlight build. Manual dispatches
+# can opt out of the permanent internal-only restriction when an external beta
+# is intended.
 
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
     inputs:
       internal_testflight_only:
@@ -100,6 +102,8 @@ jobs:
 
       - name: Resolve release identity
         id: release
+        env:
+          DISPATCH_INTERNAL_ONLY: ${{ inputs.internal_testflight_only }}
         run: |
           raw_version="$(awk '/^version:/ { print $2; exit }' pubspec.yaml)"
           app_version="${raw_version%%+*}"
@@ -107,10 +111,23 @@ jobs:
           # and don't collide when a failed upload is retried within an hour.
           build_number="$(date -u '+%s')"
           short_sha="${GITHUB_SHA::7}"
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            internal_only="${DISPATCH_INTERNAL_ONLY:-true}"
+          else
+            internal_only=true
+          fi
+          case "$internal_only" in
+            true|false) ;;
+            *)
+              echo "Invalid internal TestFlight flag: $internal_only" >&2
+              exit 1
+              ;;
+          esac
           {
             echo "app_version=$app_version"
             echo "build_number=$build_number"
             echo "short_sha=$short_sha"
+            echo "internal_only=$internal_only"
           } >> "$GITHUB_OUTPUT"
 
       - name: Configure Flutter project
@@ -192,7 +209,7 @@ jobs:
           ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          INTERNAL_ONLY: ${{ inputs.internal_testflight_only }}
+          INTERNAL_ONLY: ${{ steps.release.outputs.internal_only }}
         run: |
           export_options="$RUNNER_TEMP/ExportOptions.plist"
           cat > "$export_options" <<EOF
@@ -223,7 +240,7 @@ jobs:
           APP_VERSION: ${{ steps.release.outputs.app_version }}
           BUILD_NUMBER: ${{ steps.release.outputs.build_number }}
           SHORT_SHA: ${{ steps.release.outputs.short_sha }}
-          INTERNAL_ONLY: ${{ inputs.internal_testflight_only }}
+          INTERNAL_ONLY: ${{ steps.release.outputs.internal_only }}
         run: |
           {
             echo '### macOS App Store Connect delivery'

@@ -21,4 +21,33 @@ void main() {
           'directly for Xcode Cloud discovery.',
     );
   });
+
+  test('macOS TestFlight uploads master pushes as internal builds', () {
+    final workflow = File(
+      '.github/workflows/macos-testflight.yml',
+    ).readAsStringSync();
+
+    expect(
+      workflow,
+      contains('on:\n  push:\n    branches: [master]\n  workflow_dispatch:'),
+    );
+    expect(
+      workflow,
+      contains(r'if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then'),
+    );
+    expect(workflow, contains('internal_only=true'));
+    expect(
+      RegExp(
+        r'INTERNAL_ONLY: \$\{\{ steps\.release\.outputs\.internal_only \}\}',
+      ).allMatches(workflow),
+      hasLength(2),
+    );
+    expect(
+      RegExp(
+        r'\$\{\{ inputs\.internal_testflight_only \}\}',
+      ).allMatches(workflow),
+      hasLength(1),
+      reason: 'the dispatch-only input must only seed the normalized output',
+    );
+  });
 }

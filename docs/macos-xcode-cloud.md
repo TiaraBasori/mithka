@@ -1,9 +1,13 @@
 # macOS Xcode Cloud and TestFlight
 
-Mithka supports two independent macOS TestFlight delivery paths:
+Mithka uses GitHub Actions as its active macOS TestFlight delivery path:
 
-- `.github/workflows/macos-testflight.yml` for manually dispatched GitHub Actions uploads.
-- Xcode Cloud for branch-triggered archives and automatic TestFlight distribution.
+- Every push to `master` runs `.github/workflows/macos-testflight.yml` and uploads
+  an internal-only build.
+- Manual dispatches use the same workflow and can opt out of the permanent
+  internal-only restriction when an external beta is intended.
+- Xcode Cloud can be configured as an alternative, but must not upload macOS
+  builds concurrently with the GitHub workflow.
 
 Both paths use the version in `pubspec.yaml`, Flutter 3.44.2, and the pinned patched TDLib source identified in the CI scripts. GitHub Actions uses an epoch-seconds build number, while Xcode Cloud uses its own monotonically increasing integer build number.
 
@@ -19,11 +23,14 @@ The macOS helper:
 4. Generates the release Flutter/Xcode configuration.
 5. Restores the CocoaPods sandbox used by desktop-only plugins.
 
-## One-time Xcode Cloud console setup
+## Optional Xcode Cloud alternative
 
-Create a separate macOS workflow in Xcode or App Store Connect with these settings:
+Before switching to Xcode Cloud, remove or disable the GitHub workflow's
+`push` trigger. Then create a separate macOS workflow in Xcode or App Store
+Connect with these settings:
 
-- Repository branch: `master` (or manual start while validating it).
+- Repository branch: `master` after the GitHub push trigger is disabled (or
+  manual start while validating it).
 - Project or workspace: `macos/Runner.xcworkspace`.
 - Scheme: `Runner`.
 - Platform and destination: macOS, Any Mac.
@@ -31,7 +38,12 @@ Create a separate macOS workflow in Xcode or App Store Connect with these settin
 - Xcode and macOS: a stable image compatible with Flutter 3.44.2; avoid beta images.
 - Post-action: Distribute to TestFlight, selecting only the intended internal group during initial validation.
 
-Before the first distribution, open App Store Connect → Xcode Cloud → Settings → Build Number and set **Next Build Number** to an integer greater than every macOS build already uploaded for Mithka. Xcode Cloud starts at `1` by default, but macOS build numbers must increase across app versions. If the manual GitHub Actions uploader is used later, raise Xcode Cloud's next build number above that uploaded build before the next Xcode Cloud distribution. Treat the GitHub workflow as a manual fallback rather than running both uploaders concurrently.
+Before the first distribution, open App Store Connect → Xcode Cloud → Settings
+→ Build Number and set **Next Build Number** to an integer greater than every
+macOS build already uploaded for Mithka. Xcode Cloud starts at `1` by default,
+but macOS build numbers must increase across app versions. If the GitHub
+uploader is re-enabled later, keep only one automatic uploader active and make
+its next build number greater than every previous macOS upload.
 
 Add these workflow environment variables and mark both as secret:
 
