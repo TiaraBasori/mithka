@@ -14,6 +14,7 @@ import '../chat/group_remark_controller.dart';
 import '../components/app_icons.dart';
 import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
+import '../platform/adaptive_platform.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
@@ -208,11 +209,12 @@ class ChatRowView extends StatelessWidget {
     double timestampFontSize,
   ) {
     final c = context.colors;
+    final showTrailingIndicator = !isDesktopTargetPlatform();
     return SizedBox(
       height: rowHeight,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          vertical: AppSpacing.lg + AppSpacing.xxs,
+          vertical: AppSpacing.md + AppSpacing.xxs,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -225,23 +227,35 @@ class ChatRowView extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            if (chat.isMuted)
-              AppIcon(
-                HeroAppIcons.bellSlash,
-                size: AppIconSize.sm,
-                color: c.textTertiary,
-              )
-            else if (trailingIndicator case final indicator?)
-              indicator
-            else if (chat.isPinned)
-              Transform.rotate(
-                angle: 0.785, // 45°
-                child: AppIcon(
-                  HeroAppIcons.thumbtack,
-                  size: AppIconSize.xs,
-                  color: c.textTertiary,
-                ),
+            SizedBox(
+              height: AppIconSize.sm,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (chat.isPinned)
+                    AppPinIcon(
+                      key: const ValueKey('chat-row-pinned'),
+                      size: AppIconSize.sm,
+                      color: c.textTertiary,
+                    ),
+                  if (chat.isPinned && chat.isMuted)
+                    const SizedBox(width: AppSpacing.xs),
+                  if (chat.isMuted)
+                    AppIcon(
+                      HeroAppIcons.bellSlash,
+                      key: const ValueKey('chat-row-muted'),
+                      size: AppIconSize.sm,
+                      color: c.textTertiary,
+                    ),
+                  if ((chat.isPinned || chat.isMuted) &&
+                      showTrailingIndicator &&
+                      trailingIndicator != null)
+                    const SizedBox(width: AppSpacing.xs),
+                  if (showTrailingIndicator)
+                    if (trailingIndicator case final indicator?) indicator,
+                ],
               ),
+            ),
           ],
         ),
       ),

@@ -19,6 +19,7 @@ import '../components/app_interactive_surface.dart';
 import '../components/drawer_controller.dart' as dc;
 import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
+import '../profile/adaptive_profile_launcher.dart';
 import '../profile/profile_detail_view.dart';
 import '../tdlib/chat_membership.dart';
 import '../tdlib/json_helpers.dart';
@@ -434,11 +435,18 @@ class _ContactsViewState extends State<ContactsView> {
           semanticValue: contact.statusText.isEmpty
               ? null
               : contact.statusText.l10n(context),
-          onTap: () => _openDetail(
-            ProfileDetailView(
+          onTap: () => unawaited(
+            openAdaptiveUserProfile(
+              context,
               userId: contact.id,
               name: contact.name,
-              showBackButton: widget.onOpenDetail == null,
+              openFallback: () => _openDetail(
+                ProfileDetailView(
+                  userId: contact.id,
+                  name: contact.name,
+                  showBackButton: widget.onOpenDetail == null,
+                ),
+              ),
             ),
           ),
           child: SizedBox(

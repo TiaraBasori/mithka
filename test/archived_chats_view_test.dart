@@ -123,4 +123,51 @@ void main() {
     expect(archiveView, findsOneWidget);
     expect(Navigator.of(tester.element(archiveView)).canPop(), isFalse);
   });
+
+  testWidgets('archive pane marks only the active chat row as selected', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final theme = ThemeController(prefs);
+    addTearDown(theme.dispose);
+    final chats = [
+      ChatSummary(
+        id: 9,
+        title: 'Active archived group',
+        lastMessage: 'A message',
+        lastMessageId: 11,
+        date: 1,
+        unreadCount: 0,
+        order: 2,
+        isMuted: false,
+      ),
+      ChatSummary(
+        id: 10,
+        title: 'Other archived group',
+        lastMessage: 'Another message',
+        lastMessageId: 12,
+        date: 1,
+        unreadCount: 0,
+        order: 1,
+        isMuted: false,
+      ),
+    ];
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ThemeController>.value(
+        value: theme,
+        child: MaterialApp(
+          home: ArchivedChatsView(chats: chats, selectedChatId: 9),
+        ),
+      ),
+    );
+
+    final rows = tester
+        .widgetList<ChatRowView>(find.byType(ChatRowView))
+        .toList();
+    expect(rows, hasLength(2));
+    expect(rows.singleWhere((row) => row.chat.id == 9).selected, isTrue);
+    expect(rows.singleWhere((row) => row.chat.id == 10).selected, isFalse);
+  });
 }

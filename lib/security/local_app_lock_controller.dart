@@ -130,6 +130,33 @@ class LocalAppLockController extends ChangeNotifier {
     }
     _initialized = true;
     await refreshBiometricAvailability();
+    unawaited(_applyPrivacyShield(false));
+    notifyListeners();
+  }
+
+  /// Refreshes secure lock configuration changed by another desktop engine.
+  /// Enabling a lock does not immediately cover the already-unlocked primary
+  /// window; its normal lifecycle transition will lock it.
+  Future<void> reloadFromStorage() async {
+    if (!_initialized) {
+      await initialize();
+      return;
+    }
+    try {
+      final value = await _secureRead(_storageKey);
+      _stored = _StoredAppLock.tryParse(value);
+      if (_stored == null) {
+        _locked = false;
+        _authenticatingBiometrics = false;
+      } else if (_stored!.storageVersion < 2) {
+        await _persist(_stored!);
+      }
+    } catch (error) {
+      debugPrint('Local app lock could not reload secure storage: $error');
+      return;
+    }
+    await refreshBiometricAvailability();
+    unawaited(_applyPrivacyShield(false));
     notifyListeners();
   }
 

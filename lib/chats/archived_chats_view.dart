@@ -73,11 +73,13 @@ class ArchivedChatsView extends StatelessWidget {
     this.onClearUnread,
     this.onBack,
     this.onChatSelected,
+    this.selectedChatId,
   });
   final List<ChatSummary> chats;
   final ValueChanged<ChatSummary>? onClearUnread;
   final VoidCallback? onBack;
   final ValueChanged<ChatSummary>? onChatSelected;
+  final int? selectedChatId;
 
   @override
   Widget build(BuildContext context) {
@@ -102,6 +104,7 @@ class ArchivedChatsView extends StatelessWidget {
                   child: ChatRowView(
                     chat: chat,
                     archived: true,
+                    selected: chat.id == selectedChatId,
                     onClearUnread: () => onClearUnread?.call(chat),
                   ),
                 );

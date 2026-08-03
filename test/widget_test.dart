@@ -2813,6 +2813,7 @@ void main() {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(platform: TargetPlatform.iOS),
           home: Scaffold(
             body: Align(
               alignment: Alignment.bottomCenter,
@@ -2857,17 +2858,33 @@ void main() {
         await Future<void>.delayed(const Duration(milliseconds: 100));
       });
       await tester.pumpAndSettle();
-      expect(find.text('Cancel'), findsOneWidget);
-      expect(find.text('Edit in rich text'), findsOneWidget);
-      expect(find.text('Send'), findsOneWidget);
-      expect(find.byType(Image), findsOneWidget);
       expect(
-        find.byKey(const ValueKey('clipboardImagePreview')),
+        find.byKey(const ValueKey('clipboardAttachmentStrip')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('clipboardAttachment-0')),
         findsOneWidget,
       );
 
-      await tester.tap(find.text('Cancel'));
+      await tester.runAsync(() async {
+        Actions.invoke(
+          tester.element(
+            find.descendant(
+              of: textFieldFinder,
+              matching: find.byType(EditableText),
+            ),
+          ),
+          const PasteTextIntent(SelectionChangedCause.keyboard),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      });
       await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('clipboardAttachment-1')),
+        findsOneWidget,
+      );
+
       await tester.runAsync(() async {
         textField.contentInsertionConfiguration!.onContentInserted(
           const KeyboardInsertedContent(
@@ -2879,12 +2896,12 @@ void main() {
       });
       await tester.pumpAndSettle();
       expect(
-        find.byKey(const ValueKey('clipboardImagePreview')),
+        find.byKey(const ValueKey('clipboardAttachment-2')),
         findsOneWidget,
       );
       expect(
         clipboardMethods.where((method) => method == 'readImage'),
-        hasLength(1),
+        hasLength(2),
       );
       expect(clipboardMethods, contains('readImageUri'));
 
@@ -3352,7 +3369,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Show 18+ content?'), findsOneWidget);
-      expect(find.text('Unblock All'), findsOneWidget);
+      expect(find.text('Turn On'), findsOneWidget);
+      expect(find.text('Keep Off'), findsOneWidget);
+      expect(find.text('Only for This Message'), findsOneWidget);
       expect(richTextContaining('Retained original text'), findsNothing);
     });
 

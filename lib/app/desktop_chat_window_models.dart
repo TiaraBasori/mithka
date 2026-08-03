@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 const desktopChatWindowType = 'mithka.chat';
-const _desktopChatWindowProtocolVersion = 1;
+const _desktopChatWindowProtocolVersion = 2;
 
 @immutable
 class DesktopChatWindowKey {
@@ -209,6 +209,9 @@ class DesktopChatWindowPalette {
 class DesktopChatWindowArguments {
   const DesktopChatWindowArguments({
     required this.accountSlot,
+    required this.accountUserId,
+    required this.accountName,
+    this.accountAvatarPath,
     required this.chatId,
     required this.title,
     required this.localeTag,
@@ -218,6 +221,9 @@ class DesktopChatWindowArguments {
   });
 
   final int accountSlot;
+  final int? accountUserId;
+  final String accountName;
+  final String? accountAvatarPath;
   final int chatId;
   final String title;
   final String localeTag;
@@ -232,6 +238,10 @@ class DesktopChatWindowArguments {
     'version': _desktopChatWindowProtocolVersion,
     'type': desktopChatWindowType,
     'accountSlot': accountSlot,
+    'accountUserId': accountUserId,
+    'accountName': normalizeTitle(accountName),
+    if (accountAvatarPath != null)
+      'accountAvatarPath': normalizePath(accountAvatarPath),
     'chatId': chatId,
     'title': normalizeTitle(title),
     'localeTag': localeTag,
@@ -271,6 +281,13 @@ class DesktopChatWindowArguments {
       }
       return DesktopChatWindowArguments(
         accountSlot: accountSlot,
+        accountUserId: decoded['accountUserId'] is int
+            ? decoded['accountUserId']! as int
+            : null,
+        accountName: normalizeTitle(decoded['accountName'] as String?),
+        accountAvatarPath: normalizePath(
+          decoded['accountAvatarPath'] as String?,
+        ),
         chatId: chatId,
         title: normalizeTitle(decoded['title'] as String?),
         localeTag: (decoded['localeTag'] as String?)?.trim() ?? 'en',
@@ -290,105 +307,10 @@ class DesktopChatWindowArguments {
     if (title.isEmpty) return 'Mithka';
     return title.length <= 256 ? title : title.substring(0, 256);
   }
-}
 
-@immutable
-class DesktopChatMessageSnapshot {
-  const DesktopChatMessageSnapshot({
-    required this.id,
-    required this.date,
-    required this.outgoing,
-    required this.senderName,
-    required this.contentType,
-    required this.text,
-    this.mediaPath,
-  });
-
-  final int id;
-  final int date;
-  final bool outgoing;
-  final String senderName;
-  final String contentType;
-  final String text;
-  final String? mediaPath;
-
-  Map<String, Object?> toJson() => {
-    'id': id,
-    'date': date,
-    'outgoing': outgoing,
-    'senderName': senderName,
-    'contentType': contentType,
-    'text': text,
-    if (mediaPath != null) 'mediaPath': mediaPath,
-  };
-
-  static DesktopChatMessageSnapshot? tryParse(Object? source) {
-    if (source is! Map || source['id'] is! int) return null;
-    return DesktopChatMessageSnapshot(
-      id: source['id']! as int,
-      date: source['date'] is int ? source['date']! as int : 0,
-      outgoing: source['outgoing'] == true,
-      senderName: source['senderName'] is String
-          ? source['senderName']! as String
-          : '',
-      contentType: source['contentType'] is String
-          ? source['contentType']! as String
-          : 'messageUnsupported',
-      text: source['text'] is String ? source['text']! as String : '',
-      mediaPath: source['mediaPath'] is String
-          ? source['mediaPath']! as String
-          : null,
-    );
+  static String? normalizePath(String? source) {
+    final path = source?.trim();
+    if (path == null || path.isEmpty || path.length > 4096) return null;
+    return path;
   }
-}
-
-@immutable
-class DesktopChatWindowSnapshot {
-  const DesktopChatWindowSnapshot({
-    required this.title,
-    required this.canSend,
-    required this.messages,
-    this.failed = false,
-  });
-
-  final String title;
-  final bool canSend;
-  final List<DesktopChatMessageSnapshot> messages;
-  final bool failed;
-
-  Map<String, Object?> toJson() => {
-    'title': title,
-    'canSend': canSend,
-    'failed': failed,
-    'messages': messages.map((message) => message.toJson()).toList(),
-  };
-
-  static DesktopChatWindowSnapshot? tryParse(Object? source) {
-    if (source is! Map) return null;
-    final messages = <DesktopChatMessageSnapshot>[];
-    final rawMessages = source['messages'];
-    if (rawMessages is List) {
-      for (final raw in rawMessages) {
-        final message = DesktopChatMessageSnapshot.tryParse(raw);
-        if (message != null) messages.add(message);
-      }
-    }
-    return DesktopChatWindowSnapshot(
-      title: DesktopChatWindowArguments.normalizeTitle(
-        source['title'] as String?,
-      ),
-      canSend: source['canSend'] == true,
-      failed: source['failed'] == true,
-      messages: List.unmodifiable(messages),
-    );
-  }
-}
-
-abstract class DesktopChatWindowChildController extends ChangeNotifier {
-  DesktopChatWindowSnapshot? get snapshot;
-  bool get loading;
-  bool get sending;
-  bool get sendFailed;
-
-  Future<bool> sendText(String text);
 }

@@ -927,6 +927,7 @@ const deMessages = <String, String>{
   'composerHoldToTalk': "Zum Sprechen gedrückt halten",
   'composerImage': "Bild",
   'composerImagePreview': "[Bild]",
+  'composerScreenshot': "Screenshot",
   'composerLoadingEmoji': "emoji werden geladen…",
   'composerLoadingGifs': "GIFs werden geladen…",
   'composerLocation': "Standort",
@@ -1207,6 +1208,7 @@ const deMessages = <String, String>{
   'imageEditProcessing': "Wird verarbeitet…",
   'imageEditResetCrop': "Zuschnitt zurücksetzen",
   'imageEditRotate': "Drehen",
+  'imagePreviewTitle': "Bildvorschau",
   'imageEditTextTool': "Text",
   'imageEditTitle': "Bild bearbeiten",
   'keywordBlockerAddFromMessageTitle': "Schlüsselwort blockieren",
@@ -1474,6 +1476,7 @@ const deMessages = <String, String>{
   'musicPlayerDownload': "Herunterladen",
   'musicPlayerEmptyPlaylist': "Noch keine Musik in der Wiedergabeliste",
   'musicPlayerModeRepeatOne': "Titel wiederholen",
+  'musicPlayerModeReverseSequence': "In umgekehrter Reihenfolge abspielen",
   'musicPlayerModeSequence': "Der Reihe nach abspielen",
   'musicPlayerModeShuffle': "Zufallswiedergabe",
   'musicPlayerNextTrack': "Weiter",
@@ -1875,6 +1878,9 @@ const deMessages = <String, String>{
       "Nachrichten in geheimen Chats sind Ende-zu-Ende-verschlüsselt und können nur auf den Geräten gelesen werden, auf denen sie erstellt wurden.",
   'secretChatStartTitle': "Geheimen Chat starten?",
   'secretChatWaiting': "Warten, bis der geheime Chat bereit ist…",
+  'sensitiveContentChoiceEnable': "Einschalten",
+  'sensitiveContentChoiceKeepOff': "Ausgeschaltet lassen",
+  'sensitiveContentChoiceRevealOnce': "Nur diese Nachricht anzeigen",
   'sensitiveContentUnblockConfirm': "Alles entsperren",
   'sensitiveContentUnblockDone': "18+ Inhalte sind aktiviert",
   'sensitiveContentUnblockFailed':
@@ -1892,6 +1898,24 @@ const deMessages = <String, String>{
   'searchTabVoiceMessages': "Sprachnachrichten",
   'settingsAboutMithka': "Über Mithka",
   'settingsChatBehavior': "Chatverhalten",
+  'desktopHotkeysTitle': "Tastaturkurzbefehle",
+  'desktopHotkeysDescription':
+      "Desktop-Kurzbefehle anpassen. Änderungen gelten sofort im Hauptfenster.",
+  'desktopHotkeyOpenSettings': "Einstellungen öffnen",
+  'desktopHotkeyNewChat': "Neuer Chat",
+  'desktopHotkeyFocusSearch': "Suche fokussieren",
+  'desktopHotkeysResetDefaults': "Standard wiederherstellen",
+  'desktopHotkeysSendSection': "Nachrichten senden",
+  'desktopHotkeysEnterSendDetail':
+      "Eingabe sendet; Strg+Eingabe fügt eine neue Zeile ein.",
+  'desktopHotkeysControlEnterDetail':
+      "Strg+Eingabe sendet; Eingabe fügt eine neue Zeile ein.",
+  'desktopHotkeysRecordPrompt': "Neuen Kurzbefehl drücken",
+  'desktopHotkeysRecordHint':
+      "Strg, Alt oder Befehl mit einer Taste kombinieren. F1–F12 funktionieren allein.",
+  'desktopHotkeysConflict': "Dieser Kurzbefehl ist bereits vergeben.",
+  'desktopHotkeysRequiresModifier':
+      "Eine Zusatztaste verwenden oder F1–F12 auswählen.",
   'settingsContentFilters': "Inhaltsfilter",
   'settingsDataAndStorage': "Daten und Speicher",
   'settingsLogOut': "Abmelden",
@@ -2818,6 +2842,43 @@ const deMessages = <String, String>{
   'storageUsageNoCachedChatMedia': "Keine zwischengespeicherten Chat-Medien.",
   'storageUsageStorageByChat': "Speicherung per Chat",
   'storageUsageStorageUsage': "Speicherverbrauch",
+  'storageDashboardManagedStorage': "Verwalteter Speicher",
+  'storageDashboardManagedDescription':
+      "Telegram-Cache und lokale Datenbanken, die Mithka verwaltet.",
+  'storageDashboardChatsFiles': "Chats und Dateien",
+  'storageDashboardChatsFilesDescription':
+      "Zwischengespeicherte Medien nach Chat.",
+  'storageDashboardCache': "Medien-Cache",
+  'storageDashboardCacheDescription':
+      "Heruntergeladene Dateien können erneut abgerufen werden. Nachrichten und Kontodaten bleiben erhalten.",
+  'storageDashboardOtherData': "Andere verwaltete Daten",
+  'storageDashboardOtherDescription':
+      "Telegram-Datenbank, Sprachpakete und Protokolle bleiben für einen zuverlässigen Betrieb erhalten.",
+  'storageDashboardDatabase': "Datenbank",
+  'storageDashboardLanguagePacks': "Sprachpakete",
+  'storageDashboardLogs': "Protokolle",
+  'storageDashboardTotal': "Verwaltete Gesamtgröße",
+  'storageManagerTitle': "Chats und Dateien verwalten",
+  'storageManagerAllTypes': "Alle Medien",
+  'storageManagerOther': "Andere",
+  'storageManagerSortSize': "Größe",
+  'storageManagerSortName': "Name",
+  'storageManagerClearSelected': "Auswahl leeren",
+  'storageManagerSelectedCount': "{value1} ausgewählt",
+  'storageManagerClearSelectedConfirm':
+      "Zwischengespeicherte Dateien für die ausgewählten Chats löschen?",
+  'storageManagerNothingSelected': "Wähle mindestens einen Chat aus.",
+  'storageClearSafeDescription':
+      "Medien werden bei Bedarf erneut geladen. Nachrichten, Chatverlauf und Kontodaten werden nicht gelöscht.",
+  'storageLoadFailed': "Speicherstatistik konnte nicht geladen werden.",
+  'storageClearFailed':
+      "Zwischengespeicherte Dateien konnten nicht gelöscht werden.",
+  'storageTypePhotos': "Fotos",
+  'storageTypeVideos': "Videos",
+  'storageTypeAudio': "Musik und Audio",
+  'storageTypeDocuments': "Dokumente",
+  'storageTypeStickers': "Sticker und GIFs",
+  'storageTypeOther': "Andere",
   'storyAreaEditorArrangeStoryAreas': "Ordnen Sie Handlungsbereiche an",
   'storyAreaEditorDragToMovePinchToResizeTwistTo':
       "Zum Verschieben ziehen. Zum Ändern der Größe kneifen. Zum Drehen drehen.",

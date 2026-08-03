@@ -1034,6 +1034,7 @@ abstract final class AppStringKeys {
   static const composerHoldToTalk = 'composerHoldToTalk';
   static const composerImage = 'composerImage';
   static const composerImagePreview = 'composerImagePreview';
+  static const composerScreenshot = 'composerScreenshot';
   static const composerMediaSelectionLimit = 'composerMediaSelectionLimit';
   static const composerLoadingEmoji = 'composerLoadingEmoji';
   static const composerLoadingGifs = 'composerLoadingGifs';
@@ -1586,6 +1587,7 @@ abstract final class AppStringKeys {
   static const imageEditProcessing = 'imageEditProcessing';
   static const imageEditResetCrop = 'imageEditResetCrop';
   static const imageEditRotate = 'imageEditRotate';
+  static const imagePreviewTitle = 'imagePreviewTitle';
   static const imageEditTextTool = 'imageEditTextTool';
   static const imageEditTitle = 'imageEditTitle';
   static const keywordBlockerAddFromMessageTitle =
@@ -1869,6 +1871,8 @@ abstract final class AppStringKeys {
   static const musicPlayerDownload = 'musicPlayerDownload';
   static const musicPlayerEmptyPlaylist = 'musicPlayerEmptyPlaylist';
   static const musicPlayerModeRepeatOne = 'musicPlayerModeRepeatOne';
+  static const musicPlayerModeReverseSequence =
+      'musicPlayerModeReverseSequence';
   static const musicPlayerModeSequence = 'musicPlayerModeSequence';
   static const musicPlayerModeShuffle = 'musicPlayerModeShuffle';
   static const musicPlayerNextTrack = 'musicPlayerNextTrack';
@@ -2276,6 +2280,10 @@ abstract final class AppStringKeys {
   static const secretChatStartMessage = 'secretChatStartMessage';
   static const secretChatStartTitle = 'secretChatStartTitle';
   static const secretChatWaiting = 'secretChatWaiting';
+  static const sensitiveContentChoiceEnable = 'sensitiveContentChoiceEnable';
+  static const sensitiveContentChoiceKeepOff = 'sensitiveContentChoiceKeepOff';
+  static const sensitiveContentChoiceRevealOnce =
+      'sensitiveContentChoiceRevealOnce';
   static const sensitiveContentUnblockConfirm =
       'sensitiveContentUnblockConfirm';
   static const sensitiveContentUnblockDone = 'sensitiveContentUnblockDone';
@@ -2300,6 +2308,21 @@ abstract final class AppStringKeys {
   static const settingsScopeMithka = 'settingsScopeMithka';
   static const settingsScopeTelegram = 'settingsScopeTelegram';
   static const settingsSearchHint = 'settingsSearchHint';
+  static const desktopHotkeysTitle = 'desktopHotkeysTitle';
+  static const desktopHotkeysDescription = 'desktopHotkeysDescription';
+  static const desktopHotkeyOpenSettings = 'desktopHotkeyOpenSettings';
+  static const desktopHotkeyNewChat = 'desktopHotkeyNewChat';
+  static const desktopHotkeyFocusSearch = 'desktopHotkeyFocusSearch';
+  static const desktopHotkeysResetDefaults = 'desktopHotkeysResetDefaults';
+  static const desktopHotkeysSendSection = 'desktopHotkeysSendSection';
+  static const desktopHotkeysEnterSendDetail = 'desktopHotkeysEnterSendDetail';
+  static const desktopHotkeysControlEnterDetail =
+      'desktopHotkeysControlEnterDetail';
+  static const desktopHotkeysRecordPrompt = 'desktopHotkeysRecordPrompt';
+  static const desktopHotkeysRecordHint = 'desktopHotkeysRecordHint';
+  static const desktopHotkeysConflict = 'desktopHotkeysConflict';
+  static const desktopHotkeysRequiresModifier =
+      'desktopHotkeysRequiresModifier';
   static const sharedMediaCacheDeleted = 'sharedMediaCacheDeleted';
   static const sharedMediaCacheDeleteFailed = 'sharedMediaCacheDeleteFailed';
   static const sharedMediaChatFiles = 'sharedMediaChatFiles';
@@ -3357,6 +3380,42 @@ abstract final class AppStringKeys {
   static const storageUsageNoCachedChatMedia = 'storageUsageNoCachedChatMedia';
   static const storageUsageStorageByChat = 'storageUsageStorageByChat';
   static const storageUsageStorageUsage = 'storageUsageStorageUsage';
+  static const storageDashboardManagedStorage =
+      'storageDashboardManagedStorage';
+  static const storageDashboardManagedDescription =
+      'storageDashboardManagedDescription';
+  static const storageDashboardChatsFiles = 'storageDashboardChatsFiles';
+  static const storageDashboardChatsFilesDescription =
+      'storageDashboardChatsFilesDescription';
+  static const storageDashboardCache = 'storageDashboardCache';
+  static const storageDashboardCacheDescription =
+      'storageDashboardCacheDescription';
+  static const storageDashboardOtherData = 'storageDashboardOtherData';
+  static const storageDashboardOtherDescription =
+      'storageDashboardOtherDescription';
+  static const storageDashboardDatabase = 'storageDashboardDatabase';
+  static const storageDashboardLanguagePacks = 'storageDashboardLanguagePacks';
+  static const storageDashboardLogs = 'storageDashboardLogs';
+  static const storageDashboardTotal = 'storageDashboardTotal';
+  static const storageManagerTitle = 'storageManagerTitle';
+  static const storageManagerAllTypes = 'storageManagerAllTypes';
+  static const storageManagerOther = 'storageManagerOther';
+  static const storageManagerSortSize = 'storageManagerSortSize';
+  static const storageManagerSortName = 'storageManagerSortName';
+  static const storageManagerClearSelected = 'storageManagerClearSelected';
+  static const storageManagerSelectedCount = 'storageManagerSelectedCount';
+  static const storageManagerClearSelectedConfirm =
+      'storageManagerClearSelectedConfirm';
+  static const storageManagerNothingSelected = 'storageManagerNothingSelected';
+  static const storageClearSafeDescription = 'storageClearSafeDescription';
+  static const storageLoadFailed = 'storageLoadFailed';
+  static const storageClearFailed = 'storageClearFailed';
+  static const storageTypePhotos = 'storageTypePhotos';
+  static const storageTypeVideos = 'storageTypeVideos';
+  static const storageTypeAudio = 'storageTypeAudio';
+  static const storageTypeDocuments = 'storageTypeDocuments';
+  static const storageTypeStickers = 'storageTypeStickers';
+  static const storageTypeOther = 'storageTypeOther';
   static const storyAreaEditorArrangeStoryAreas =
       'storyAreaEditorArrangeStoryAreas';
   static const storyAreaEditorDragToMovePinchToResizeTwistTo =

@@ -926,6 +926,7 @@ const frMessages = <String, String>{
   'composerHoldToTalk': "Maintenir pour parler",
   'composerImage': "Image",
   'composerImagePreview': "[Image]",
+  'composerScreenshot': "Capture d’écran",
   'composerLoadingEmoji': "Chargement des emoji…",
   'composerLoadingGifs': "Chargement des GIF…",
   'composerLocation': "Position",
@@ -1205,6 +1206,7 @@ const frMessages = <String, String>{
   'imageEditProcessing': "Traitement…",
   'imageEditResetCrop': "Réinitialiser le recadrage",
   'imageEditRotate': "Faire pivoter",
+  'imagePreviewTitle': "Aperçu de l’image",
   'imageEditTextTool': "Texte",
   'imageEditTitle': "Modifier l’image",
   'keywordBlockerAddFromMessageTitle': "Bloquer un mot-clé",
@@ -1471,6 +1473,7 @@ const frMessages = <String, String>{
   'musicPlayerDownload': "Télécharger",
   'musicPlayerEmptyPlaylist': "Aucune musique dans la liste de lecture",
   'musicPlayerModeRepeatOne': "Répéter le titre",
+  'musicPlayerModeReverseSequence': "Lecture en ordre inverse",
   'musicPlayerModeSequence': "Lecture dans l’ordre",
   'musicPlayerModeShuffle': "Lecture aléatoire",
   'musicPlayerNextTrack': "Suivant",
@@ -1875,6 +1878,9 @@ const frMessages = <String, String>{
   'secretChatStartTitle': "Démarrer une discussion secrète ?",
   'secretChatWaiting':
       "En attente de la disponibilité de la discussion secrète…",
+  'sensitiveContentChoiceEnable': "Activer",
+  'sensitiveContentChoiceKeepOff': "Garder désactivé",
+  'sensitiveContentChoiceRevealOnce': "Afficher uniquement ce message",
   'sensitiveContentUnblockConfirm': "Tout débloquer",
   'sensitiveContentUnblockDone': "Le contenu 18+ est activé",
   'sensitiveContentUnblockFailed':
@@ -1892,6 +1898,24 @@ const frMessages = <String, String>{
   'searchTabVoiceMessages': "Messages vocaux",
   'settingsAboutMithka': "À propos de Mithka",
   'settingsChatBehavior': "Comportement des discussions",
+  'desktopHotkeysTitle': "Raccourcis clavier",
+  'desktopHotkeysDescription':
+      "Personnalisez les raccourcis de bureau. Les modifications s’appliquent immédiatement à la fenêtre principale.",
+  'desktopHotkeyOpenSettings': "Ouvrir les paramètres",
+  'desktopHotkeyNewChat': "Nouvelle discussion",
+  'desktopHotkeyFocusSearch': "Activer la recherche",
+  'desktopHotkeysResetDefaults': "Rétablir les valeurs par défaut",
+  'desktopHotkeysSendSection': "Envoi des messages",
+  'desktopHotkeysEnterSendDetail':
+      "Entrée envoie le message ; Ctrl+Entrée ajoute une ligne.",
+  'desktopHotkeysControlEnterDetail':
+      "Ctrl+Entrée envoie le message ; Entrée ajoute une ligne.",
+  'desktopHotkeysRecordPrompt': "Appuyez sur un nouveau raccourci",
+  'desktopHotkeysRecordHint':
+      "Associez Ctrl, Alt ou Commande à une touche. F1–F12 peuvent être utilisées seules.",
+  'desktopHotkeysConflict': "Ce raccourci est déjà attribué.",
+  'desktopHotkeysRequiresModifier':
+      "Ajoutez une touche de modification ou choisissez F1–F12.",
   'settingsContentFilters': "Filtres de contenu",
   'settingsDataAndStorage': "Données et stockage",
   'settingsLogOut': "Se déconnecter",
@@ -2825,6 +2849,42 @@ const frMessages = <String, String>{
   'storageUsageNoCachedChatMedia': "Aucun média de discussion en cache.",
   'storageUsageStorageByChat': "Stockage par chat",
   'storageUsageStorageUsage': "Utilisation du stockage",
+  'storageDashboardManagedStorage': "Stockage géré",
+  'storageDashboardManagedDescription':
+      "Cache Telegram et bases de données locales gérés par Mithka.",
+  'storageDashboardChatsFiles': "Discussions et fichiers",
+  'storageDashboardChatsFilesDescription':
+      "Médias en cache regroupés par discussion.",
+  'storageDashboardCache': "Cache multimédia",
+  'storageDashboardCacheDescription':
+      "Les fichiers téléchargés peuvent être récupérés à nouveau. Les messages et données du compte sont conservés.",
+  'storageDashboardOtherData': "Autres données gérées",
+  'storageDashboardOtherDescription':
+      "La base de données Telegram, les langues et les journaux sont conservés pour un fonctionnement fiable.",
+  'storageDashboardDatabase': "Base de données",
+  'storageDashboardLanguagePacks': "Langues",
+  'storageDashboardLogs': "Journaux",
+  'storageDashboardTotal': "Total géré",
+  'storageManagerTitle': "Gérer les discussions et fichiers",
+  'storageManagerAllTypes': "Tous les médias",
+  'storageManagerOther': "Autres",
+  'storageManagerSortSize': "Taille",
+  'storageManagerSortName': "Nom",
+  'storageManagerClearSelected': "Effacer la sélection",
+  'storageManagerSelectedCount': "{value1} sélectionnés",
+  'storageManagerClearSelectedConfirm':
+      "Effacer les fichiers en cache des discussions sélectionnées ?",
+  'storageManagerNothingSelected': "Sélectionnez au moins une discussion.",
+  'storageClearSafeDescription':
+      "Les médias seront retéléchargés si nécessaire. Les messages, l’historique et les données du compte ne seront pas supprimés.",
+  'storageLoadFailed': "Impossible de charger les statistiques de stockage.",
+  'storageClearFailed': "Impossible d’effacer les fichiers en cache.",
+  'storageTypePhotos': "Photos",
+  'storageTypeVideos': "Vidéos",
+  'storageTypeAudio': "Musique et audio",
+  'storageTypeDocuments': "Documents",
+  'storageTypeStickers': "Stickers et GIF",
+  'storageTypeOther': "Autres",
   'storyAreaEditorArrangeStoryAreas': "Organiser les zones d'histoire",
   'storyAreaEditorDragToMovePinchToResizeTwistTo':
       "Faites glisser pour vous déplacer. Pincez pour redimensionner. Tournez pour faire pivoter.",

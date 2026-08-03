@@ -13,6 +13,7 @@ class MacosDesktopTitleBar extends StatelessWidget {
     super.key,
     required this.appIdentity,
     this.accountIdentity,
+    this.trailingActions,
     this.leadingClearance = trafficLightLeadingClearance,
     this.trailingControls,
     this.onDragAreaDoubleTap,
@@ -27,6 +28,7 @@ class MacosDesktopTitleBar extends StatelessWidget {
 
   final Widget appIdentity;
   final Widget? accountIdentity;
+  final Widget? trailingActions;
   final double leadingClearance;
   final Widget? trailingControls;
   final VoidCallback? onDragAreaDoubleTap;
@@ -36,6 +38,7 @@ class MacosDesktopTitleBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final accountIdentity = this.accountIdentity;
+    final trailingActions = this.trailingActions;
     final trailingControls = this.trailingControls;
 
     return SizedBox(
@@ -77,6 +80,14 @@ class MacosDesktopTitleBar extends StatelessWidget {
                 key: const ValueKey('macos-account-identity'),
                 child: accountIdentity,
               ),
+            ],
+            if (trailingActions != null) ...[
+              const SizedBox(width: 4),
+              KeyedSubtree(
+                key: const ValueKey('desktop-title-bar-actions'),
+                child: trailingActions,
+              ),
+              const SizedBox(width: 4),
             ],
             if (trailingControls != null)
               KeyedSubtree(

@@ -131,7 +131,7 @@ void main() {
 
       expect(geometry.showListPane, isTrue);
       expect(geometry.showInfoPane, isFalse);
-      expect(geometry.sidebarWidth, 312);
+      expect(geometry.sidebarWidth, 322);
       expect(geometry.conversationWidth, desktopConversationMinWidth);
       expect(desktopDetailNeedsBackButton(geometry), isFalse);
     },
@@ -182,7 +182,7 @@ void main() {
     expect(full.showListPane, isTrue);
     expect(full.showInfoPane, isTrue);
     expect(full.sidebarWidth, 420);
-    expect(full.conversationWidth, 531);
+    expect(full.conversationWidth, 577);
     expect(narrowed.showListPane, isTrue);
     expect(narrowed.showInfoPane, isFalse);
     expect(narrowed.sidebarWidth, 420);
@@ -190,9 +190,9 @@ void main() {
 
   test('desktop info fit uses the actual sidebar width', () {
     expect(
-      canShowDesktopInfoPane(totalWidth: 1188, sidebarWidth: 420),
+      canShowDesktopInfoPane(totalWidth: 1142, sidebarWidth: 420),
       isFalse,
     );
-    expect(canShowDesktopInfoPane(totalWidth: 1189, sidebarWidth: 420), isTrue);
+    expect(canShowDesktopInfoPane(totalWidth: 1143, sidebarWidth: 420), isTrue);
   });
 }

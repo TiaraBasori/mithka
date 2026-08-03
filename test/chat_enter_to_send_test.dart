@@ -4,7 +4,6 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/chat_input_bar.dart';
 import 'package:mithka/chat/chat_view_model.dart';
-import 'package:mithka/chat/rich_text_composer_view.dart';
 import 'package:mithka/chat/telegram_ai_service.dart';
 import 'package:mithka/components/app_interactive_surface.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -194,6 +193,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
     expect(vm.sentTexts, ['first']);
+    expect(tester.widget<TextField>(field).controller?.text, 'second\n');
   });
 
   testWidgets('disabled physical Ctrl-Enter sends but Enter does not', (
@@ -207,12 +207,13 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     expect(vm.sentTexts, isEmpty);
+    expect(tester.widget<TextField>(field).controller?.text, 'first\n');
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
-    expect(vm.sentTexts, ['first']);
+    expect(vm.sentTexts, ['first\n']);
   });
 
   testWidgets('native desktop uses a compact toolbar above a flat composer', (
@@ -233,14 +234,14 @@ void main() {
 
     expect(toolbar, findsOneWidget);
     expect(input, findsOneWidget);
-    expect(tester.getSize(toolbar).height, 45);
+    expect(tester.getSize(toolbar).height, 41);
     expect(
       tester.getTopLeft(toolbar).dy,
       lessThan(tester.getTopLeft(input).dy),
     );
     expect(
       tester.getSize(find.byKey(const ValueKey('desktopComposerEmojiAction'))),
-      const Size.square(36),
+      const Size.square(32),
     );
     final richTextAction = find.byKey(
       const ValueKey('desktopComposerRichTextAction'),
@@ -282,9 +283,14 @@ void main() {
     expect(decoration, isA<BoxDecoration>());
     expect((decoration! as BoxDecoration).color, isNull);
     final textField = tester.widget<TextField>(field);
-    expect(textField.minLines, 3);
-    expect(textField.maxLines, 6);
+    expect(textField.minLines, isNull);
+    expect(textField.maxLines, isNull);
+    expect(textField.expands, isTrue);
     expect(textField.textInputAction, TextInputAction.newline);
+    expect(
+      textField.style?.fontSize,
+      AppTextSize.messageBody(TargetPlatform.macOS),
+    );
 
     await tester.tap(field);
     await tester.enterText(field, 'hello\nworld');
@@ -308,11 +314,10 @@ void main() {
     );
     expect(find.byKey(const ValueKey('composerAiPrefixButton')), findsNothing);
 
-    await tester.tap(richTextAction);
-    await tester.pumpAndSettle();
-    expect(find.byType(RichTextComposerView), findsOneWidget);
-    Navigator.of(tester.element(find.byType(RichTextComposerView))).pop();
-    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('desktopComposerResizeHandle')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('desktop composer toolbar scrolls instead of overflowing', (
@@ -331,6 +336,13 @@ void main() {
         matching: find.byType(SingleChildScrollView),
       ),
       findsOneWidget,
+    );
+    final toolbar = find.byKey(const ValueKey('desktopComposerToolbar'));
+    final emoji = find.byKey(const ValueKey('desktopComposerEmojiAction'));
+    expect(tester.getSize(toolbar).width, 300);
+    expect(
+      tester.getTopLeft(emoji).dx,
+      closeTo(tester.getTopLeft(toolbar).dx + 10, 0.01),
     );
     expect(tester.takeException(), isNull);
   });
@@ -364,7 +376,7 @@ void main() {
     );
   });
 
-  testWidgets('desktop close action dismisses the active composer panel', (
+  testWidgets('desktop emoji action toggles the anchored popover', (
     tester,
   ) async {
     await _pumpComposer(
@@ -373,11 +385,19 @@ void main() {
       platform: TargetPlatform.macOS,
     );
 
-    await tester.tap(find.byKey(const ValueKey('desktopComposerEmojiAction')));
+    await tester.tapAt(
+      tester.getCenter(
+        find.byKey(const ValueKey('desktopComposerEmojiAction')),
+      ),
+    );
     await tester.pump();
     expect(find.byKey(const ValueKey('emojiPanelTabs')), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('desktopComposerMoreAction')));
+    await tester.tapAt(
+      tester.getCenter(
+        find.byKey(const ValueKey('desktopComposerEmojiAction')),
+      ),
+    );
     await tester.pump();
 
     expect(find.byKey(const ValueKey('emojiPanelTabs')), findsNothing);
@@ -406,6 +426,7 @@ void main() {
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
     expect(vm.sentTexts, ['first']);
+    expect(tester.widget<TextField>(field).controller?.text, 'second\n');
     expect(
       tester
           .widget<Text>(
@@ -437,6 +458,7 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     expect(vm.sentTexts, isEmpty);
+    expect(controller.text, '候補');
 
     controller.value = const TextEditingValue(
       text: '候補',
@@ -463,12 +485,13 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();
     expect(vm.sentTexts, isEmpty);
+    expect(tester.widget<TextField>(field).controller?.text, 'first\n');
 
     await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
     await tester.pump();
-    expect(vm.sentTexts, ['first']);
+    expect(vm.sentTexts, ['first\n']);
   });
 }
 

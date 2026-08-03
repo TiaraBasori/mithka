@@ -19,6 +19,7 @@ import 'package:provider/provider.dart';
 
 import '../app/adaptive_split_layout.dart';
 import '../app/app_navigator.dart';
+import '../app/desktop_chat_list_title_bar_anchors.dart';
 import '../app/desktop_chat_window.dart';
 import '../auth/account_store.dart';
 import '../auth/auth_manager.dart';
@@ -62,10 +63,14 @@ class ChatListController extends ChangeNotifier {
   int _scrollToFirstUnreadRequests = 0;
   int _toggleFirstUnreadRequests = 0;
   int _markAllReadRequests = 0;
+  int _newChatRequests = 0;
+  int _focusSearchRequests = 0;
   bool _toggleRequestMayHaveUnread = false;
   int get scrollToFirstUnreadRequests => _scrollToFirstUnreadRequests;
   int get toggleFirstUnreadRequests => _toggleFirstUnreadRequests;
   int get markAllReadRequests => _markAllReadRequests;
+  int get newChatRequests => _newChatRequests;
+  int get focusSearchRequests => _focusSearchRequests;
   bool get toggleRequestMayHaveUnread => _toggleRequestMayHaveUnread;
 
   void scrollToFirstUnread() {
@@ -81,6 +86,16 @@ class ChatListController extends ChangeNotifier {
 
   void markAllRead() {
     _markAllReadRequests++;
+    notifyListeners();
+  }
+
+  void openNewChat() {
+    _newChatRequests++;
+    notifyListeners();
+  }
+
+  void focusSearch() {
+    _focusSearchRequests++;
     notifyListeners();
   }
 }
@@ -577,6 +592,8 @@ class _ChatListViewState extends State<ChatListView>
   int _lastHandledScrollToFirstUnreadRequest = 0;
   int _lastHandledToggleFirstUnreadRequest = 0;
   int _lastHandledMarkAllReadRequest = 0;
+  int _lastHandledNewChatRequest = 0;
+  int _lastHandledFocusSearchRequest = 0;
   int _pendingScrollAttempts = 0;
   bool _toggleUnreadTargetNext = true;
   bool _archiveRevealed = false;
@@ -589,6 +606,7 @@ class _ChatListViewState extends State<ChatListView>
   final ChatListSwipeSession _chatListSwipeSession = ChatListSwipeSession();
   int _nextComposerFocusRequestId = 0;
   OverlayEntry? _desktopChatMenuEntry;
+  OverlayEntry? _desktopPlusMenuEntry;
 
   static const double _refreshPullThreshold = 72;
 
@@ -711,6 +729,7 @@ class _ChatListViewState extends State<ChatListView>
   @override
   void dispose() {
     _dismissDesktopChatMenu();
+    _dismissDesktopPlusMenu();
     _userSub?.cancel();
     widget.controller?.removeListener(_onControllerRequest);
     _folderTransition.dispose();
@@ -906,6 +925,7 @@ class _ChatListViewState extends State<ChatListView>
   }
 
   void _selectPlusMenuItem(String label) {
+    _dismissDesktopPlusMenu();
     setState(() => _showPlusMenu = false);
     switch (label) {
       case AppStringKeys.chatListScanQrCode:
@@ -919,6 +939,50 @@ class _ChatListViewState extends State<ChatListView>
       case AppStringKeys.communityTitle:
         _openCommunityDirectory();
     }
+  }
+
+  void _openPlusMenu() {
+    _dismissDesktopPlusMenu();
+    if (!widget.desktopSidebar) {
+      setState(() {
+        _showPlusMenu = true;
+        _showFilterMenu = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _showPlusMenu = false;
+      _showFilterMenu = false;
+    });
+    final overlay = Overlay.of(context, rootOverlay: true);
+    late final OverlayEntry entry;
+    entry = OverlayEntry(
+      builder: (_) => _DesktopTitleBarPlusMenuOverlay(
+        link: DesktopChatListTitleBarAnchors.add,
+        onDismiss: () {
+          if (identical(_desktopPlusMenuEntry, entry)) {
+            _desktopPlusMenuEntry = null;
+          }
+          entry.remove();
+        },
+        child: PlusMenu(
+          key: const ValueKey('desktop-title-bar-plus-menu'),
+          onSelect: _selectPlusMenuItem,
+          showCommunities:
+              context.read<ThemeController>().communitiesEnabled &&
+              _model.availableCommunities.isNotEmpty,
+        ),
+      ),
+    );
+    _desktopPlusMenuEntry = entry;
+    overlay.insert(entry);
+  }
+
+  void _dismissDesktopPlusMenu() {
+    final entry = _desktopPlusMenuEntry;
+    _desktopPlusMenuEntry = null;
+    entry?.remove();
   }
 
   void _openCommunityDirectory() {
@@ -996,6 +1060,20 @@ class _ChatListViewState extends State<ChatListView>
     if (markAllRequest > _lastHandledMarkAllReadRequest) {
       _lastHandledMarkAllReadRequest = markAllRequest;
       _model.markAllRead();
+    }
+
+    final newChatRequest = widget.controller?.newChatRequests ?? 0;
+    if (newChatRequest > _lastHandledNewChatRequest) {
+      _lastHandledNewChatRequest = newChatRequest;
+      _openPlusMenu();
+    }
+
+    final focusSearchRequest = widget.controller?.focusSearchRequests ?? 0;
+    if (focusSearchRequest > _lastHandledFocusSearchRequest) {
+      _lastHandledFocusSearchRequest = focusSearchRequest;
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute<void>(builder: (_) => const SearchView()));
     }
 
     final request = widget.controller?.scrollToFirstUnreadRequests ?? 0;
@@ -1120,9 +1198,9 @@ class _ChatListViewState extends State<ChatListView>
       itemIndex: itemIndex,
       rowHeight: context.read<ThemeController>().rowHeight,
       maxScrollExtent: _scrollController.position.maxScrollExtent,
-      leadingExtent: context.read<ThemeController>().showChatListSearch
-          ? _searchPillExtent
-          : 0,
+      leadingExtent: _leadingListControlsExtent(
+        context.read<ThemeController>(),
+      ),
     );
   }
 
@@ -1186,6 +1264,7 @@ class _ChatListViewState extends State<ChatListView>
   }
 
   void _handleGesturePointerDown(PointerDownEvent event) {
+    if (!kIsWeb && isDesktopTargetPlatform(defaultTargetPlatform)) return;
     final wasSuppressingRows = _chatListSwipeSession.suppressRowSwipes;
     final tracked = _chatListSwipeSession.pointerDown(
       pointer: event.pointer,
@@ -1200,6 +1279,7 @@ class _ChatListViewState extends State<ChatListView>
   }
 
   void _handleGesturePointerMove(PointerMoveEvent event) {
+    if (!kIsWeb && isDesktopTargetPlatform(defaultTargetPlatform)) return;
     _chatListSwipeSession.pointerMove(
       pointer: event.pointer,
       position: event.position,
@@ -1207,10 +1287,12 @@ class _ChatListViewState extends State<ChatListView>
   }
 
   void _handleGesturePointerUp(PointerUpEvent event) {
+    if (!kIsWeb && isDesktopTargetPlatform(defaultTargetPlatform)) return;
     _handleGesturePointerEnd(event, canceled: false);
   }
 
   void _handleGesturePointerCancel(PointerCancelEvent event) {
+    if (!kIsWeb && isDesktopTargetPlatform(defaultTargetPlatform)) return;
     _handleGesturePointerEnd(event, canceled: true);
   }
 
@@ -1369,6 +1451,7 @@ class _ChatListViewState extends State<ChatListView>
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => setState(() {
+                  _dismissDesktopPlusMenu();
                   _showFilterMenu = true;
                   _showPlusMenu = false;
                 }),
@@ -1405,10 +1488,7 @@ class _ChatListViewState extends State<ChatListView>
             ],
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() {
-                _showPlusMenu = true;
-                _showFilterMenu = false;
-              }),
+              onTap: _openPlusMenu,
               child: SizedBox(
                 width: AppMetric.hitTarget,
                 height: AppMetric.hitTarget,
@@ -1537,6 +1617,7 @@ class _ChatListViewState extends State<ChatListView>
     );
     if (!widget.desktopSidebar) {
       return Container(
+        key: const ValueKey('chat-list-inline-search'),
         color: c.listHeaderTint,
         padding: const EdgeInsets.fromLTRB(
           AppSpacing.lg,
@@ -1551,6 +1632,7 @@ class _ChatListViewState extends State<ChatListView>
     final showFolder =
         theme.chatFolderDisplayMode == ChatFolderDisplayMode.menu &&
         _model.filters.isNotEmpty;
+    if (!showFolder) return const SizedBox.shrink();
     return Container(
       key: const ValueKey('chat-list-desktop-toolbar'),
       color: c.listHeaderTint,
@@ -1561,28 +1643,16 @@ class _ChatListViewState extends State<ChatListView>
         AppSpacing.sm,
       ),
       child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Expanded(child: search),
-          if (showFolder) ...[
-            const SizedBox(width: AppSpacing.md),
-            _desktopToolbarAction(
-              key: const ValueKey('chat-list-desktop-folder'),
-              icon: HeroAppIcons.folder,
-              label: AppStringKeys.appearanceChatFolders.l10n(context),
-              onTap: () => setState(() {
-                _showFilterMenu = true;
-                _showPlusMenu = false;
-              }),
-            ),
-          ],
-          const SizedBox(width: AppSpacing.md),
           _desktopToolbarAction(
-            key: const ValueKey('chat-list-desktop-add'),
-            icon: HeroAppIcons.plus,
-            label: AppStringKeys.chatInfoCreate.l10n(context),
+            key: const ValueKey('chat-list-desktop-folder'),
+            icon: HeroAppIcons.folder,
+            label: AppStringKeys.appearanceChatFolders.l10n(context),
             onTap: () => setState(() {
-              _showPlusMenu = true;
-              _showFilterMenu = false;
+              _dismissDesktopPlusMenu();
+              _showFilterMenu = true;
+              _showPlusMenu = false;
             }),
           ),
         ],
@@ -1620,7 +1690,8 @@ class _ChatListViewState extends State<ChatListView>
   Widget _chatList() {
     final c = context.colors;
     final theme = context.watch<ThemeController>();
-    final showSearch = theme.showChatListSearch;
+    final leadingControlsExtent = _leadingListControlsExtent(theme);
+    final showLeadingControls = leadingControlsExtent > 0;
     final archiveMode = effectiveChatListArchiveDisplayMode(
       theme.archivedChatsDisplayMode,
     );
@@ -1629,7 +1700,7 @@ class _ChatListViewState extends State<ChatListView>
       child: LayoutBuilder(
         builder: (context, geo) {
           final rowH = theme.rowHeight + 0.5;
-          final searchHeight = showSearch ? _searchPillExtent : 0.0;
+          final searchHeight = leadingControlsExtent;
           final visibleRows = math.max(1, (geo.maxHeight / rowH).ceil());
           _lastVisibleRows = visibleRows;
           final entries = _model.chatListEntries(
@@ -1663,16 +1734,16 @@ class _ChatListViewState extends State<ChatListView>
               padding: EdgeInsets.zero,
               itemCount:
                   visibleRows +
-                  (showSearch ? 1 : 0) +
+                  (showLeadingControls ? 1 : 0) +
                   (hasPullDownArchiveSlot ? 1 : 0),
               itemBuilder: (context, index) {
-                if (showSearch && index == 0) {
+                if (showLeadingControls && index == 0) {
                   return _archivePullSearchPill(hasPullDownArchiveSlot);
                 }
                 if (hasPullDownArchiveSlot &&
                     index ==
                         chatListPullDownArchiveItemIndex(
-                          showSearch: showSearch,
+                          showSearch: showLeadingControls,
                         )) {
                   return _pullDownArchiveSlot(
                     rowHeight: rowH,
@@ -1690,7 +1761,8 @@ class _ChatListViewState extends State<ChatListView>
               ),
               padding: EdgeInsets.zero,
               children: [
-                if (showSearch) _archivePullSearchPill(hasPullDownArchiveSlot),
+                if (showLeadingControls)
+                  _archivePullSearchPill(hasPullDownArchiveSlot),
                 if (hasPullDownArchiveSlot)
                   _pullDownArchiveSlot(
                     rowHeight: rowH,
@@ -1715,16 +1787,16 @@ class _ChatListViewState extends State<ChatListView>
               ),
               padding: EdgeInsets.zero,
               itemCount:
-                  (showSearch ? 1 : 0) +
+                  (showLeadingControls ? 1 : 0) +
                   entries.length +
                   (hasPullDownArchiveSlot ? 1 : 0) +
                   (showInlineArchive ? 1 : 0) +
                   (hasFiltered ? 1 : 0),
               itemBuilder: (context, index) {
-                if (showSearch && index == 0) {
+                if (showLeadingControls && index == 0) {
                   return _archivePullSearchPill(hasPullDownArchiveSlot);
                 }
-                final contentIndex = showSearch ? index - 1 : index;
+                final contentIndex = showLeadingControls ? index - 1 : index;
                 if (hasPullDownArchiveSlot && contentIndex == 0) {
                   return _pullDownArchiveSlot(
                     rowHeight: rowH,
@@ -1767,6 +1839,16 @@ class _ChatListViewState extends State<ChatListView>
         },
       ),
     );
+  }
+
+  double _leadingListControlsExtent(ThemeController theme) {
+    if (!widget.desktopSidebar) {
+      return theme.showChatListSearch ? _searchPillExtent : 0;
+    }
+    final showFolder =
+        theme.chatFolderDisplayMode == ChatFolderDisplayMode.menu &&
+        _model.filters.isNotEmpty;
+    return showFolder ? _searchPillExtent : 0;
   }
 
   Widget _archivePullSearchPill(bool pinDuringArchivePull) {
@@ -1934,14 +2016,17 @@ class _ChatListViewState extends State<ChatListView>
       openRowId: _openSwipeChat,
       onOpenChanged: (id) => setState(() => _openSwipeChat = id),
       onTap: () => _openChat(chat),
-      onLongPress: () => _showChatPreview(chat),
+      onLongPress: desktopContextMenu ? null : () => _showChatPreview(chat),
       onSecondaryTapDown: desktopContextMenu
           ? (details) => _showDesktopChatMenu(chat, details.globalPosition)
           : null,
-      horizontalSwipeEnabled: chatListRowSwipeActionsEnabled(
-        mode: swipeMode,
-        multiTouchActive: _chatListSwipeSession.suppressRowSwipes,
-      ),
+      horizontalSwipeEnabled:
+          !desktopContextMenu &&
+          chatListRowSwipeActionsEnabled(
+            mode: swipeMode,
+            multiTouchActive: _chatListSwipeSession.suppressRowSwipes,
+          ),
+      pressRippleEnabled: !desktopContextMenu,
       actions: actions,
       child: ChatListSelectionHighlight(
         selected: selected,
@@ -2006,9 +2091,16 @@ class _ChatListViewState extends State<ChatListView>
 
   Future<void> _openChatInSeparateWindow(ChatSummary chat) async {
     final theme = context.read<ThemeController>();
+    final accounts = context.read<AccountStore>();
+    final activeAccount = accounts.summaries
+        .where((account) => account.slot == accounts.activeSlot)
+        .firstOrNull;
     final opened = await DesktopChatWindowService.instance.open(
       DesktopChatWindowArguments(
-        accountSlot: context.read<AccountStore>().activeSlot,
+        accountSlot: accounts.activeSlot,
+        accountUserId: activeAccount?.userId,
+        accountName: activeAccount?.name ?? 'Mithka',
+        accountAvatarPath: activeAccount?.avatarPath,
         chatId: chat.id,
         title: chat.title,
         localeTag: Localizations.localeOf(context).toLanguageTag(),
@@ -2028,10 +2120,19 @@ class _ChatListViewState extends State<ChatListView>
   void _showChatPreview(ChatSummary chat) {
     if (_openSwipeChat != null) setState(() => _openSwipeChat = null);
     final hasUnread = chat.unreadCount > 0 || chat.isMarkedUnread;
+    final accounts = context.read<AccountStore>();
+    final activeAccount = accounts.summaries
+        .where((account) => account.slot == accounts.activeSlot)
+        .firstOrNull;
+    final avatarPath = activeAccount?.avatarPath?.trim();
     unawaited(
       showChatListPreview(
         context,
         chat: chat,
+        meName: activeAccount?.name,
+        mePhoto: avatarPath == null || avatarPath.isEmpty
+            ? null
+            : TdFileRef(id: 0, localPath: avatarPath),
         actions: [
           if (chatListPreviewSupportsQuickReply(chat))
             ChatListPreviewAction(
@@ -2243,6 +2344,60 @@ class _ChatListViewState extends State<ChatListView>
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DesktopTitleBarPlusMenuOverlay extends StatelessWidget {
+  const _DesktopTitleBarPlusMenuOverlay({
+    required this.link,
+    required this.onDismiss,
+    required this.child,
+  });
+
+  final LayerLink link;
+  final VoidCallback onDismiss;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onDismiss,
+          child: ColoredBox(color: Colors.black.withValues(alpha: 0.12)),
+        ),
+        CompositedTransformFollower(
+          link: link,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.bottomRight,
+          followerAnchor: Alignment.topRight,
+          offset: const Offset(0, 6),
+          child: TweenAnimationBuilder<double>(
+            duration: AppMotion.duration(context, AppMotion.responsive),
+            curve: AppMotion.emphasized,
+            tween: Tween(begin: 0, end: 1),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: child,
+            ),
+            builder: (context, progress, child) => Opacity(
+              opacity: progress,
+              child: Transform.translate(
+                offset: Offset(0, -6 * (1 - progress)),
+                child: Transform.scale(
+                  alignment: Alignment.topRight,
+                  scale: 0.96 + 0.04 * progress,
+                  child: child,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2875,6 +3030,7 @@ class _DesktopChatContextMenuItem extends StatelessWidget {
                   resolvedLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.left,
                   style: TextStyle(
                     fontSize: AppTextSize.callout,
                     color: foreground,
@@ -2915,6 +3071,7 @@ class ChatSwipeRow extends StatefulWidget {
     this.onSecondaryTapDown,
     this.requiresLongPressDrag = false,
     this.horizontalSwipeEnabled = true,
+    this.pressRippleEnabled = true,
   });
 
   final int rowId;
@@ -2927,6 +3084,7 @@ class ChatSwipeRow extends StatefulWidget {
   final GestureTapDownCallback? onSecondaryTapDown;
   final bool requiresLongPressDrag;
   final bool horizontalSwipeEnabled;
+  final bool pressRippleEnabled;
 
   @override
   State<ChatSwipeRow> createState() => _ChatSwipeRowState();
@@ -3066,6 +3224,50 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
   Widget build(BuildContext context) {
     final horizontalDragEnabled =
         widget.horizontalSwipeEnabled && !widget.requiresLongPressDrag;
+    final rowGesture = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _offset != 0 ? _close() : widget.onTap(),
+      onLongPress: widget.requiresLongPressDrag
+          ? null
+          : widget.onLongPress == null
+          ? null
+          : _handleContextRequest,
+      onSecondaryTapDown: widget.onSecondaryTapDown == null
+          ? null
+          : _handleSecondaryTapDown,
+      onLongPressStart: (_) {
+        _stopAnimation();
+        _longPressStartOffset = _offset;
+      },
+      onLongPressMoveUpdate: widget.requiresLongPressDrag
+          ? (details) {
+              setState(() {
+                _offset = _rubberBandOffset(
+                  _longPressStartOffset + details.localOffsetFromOrigin.dx,
+                );
+              });
+            }
+          : null,
+      onLongPressEnd: (details) {
+        if (widget.requiresLongPressDrag) {
+          _settle(details.velocity.pixelsPerSecond.dx);
+        }
+      },
+      onHorizontalDragStart: !horizontalDragEnabled
+          ? null
+          : (_) => _stopAnimation(),
+      onHorizontalDragUpdate: !horizontalDragEnabled
+          ? null
+          : (details) {
+              setState(
+                () => _offset = _rubberBandOffset(_offset + details.delta.dx),
+              );
+            },
+      onHorizontalDragEnd: !horizontalDragEnabled
+          ? null
+          : (details) => _settle(details.primaryVelocity ?? 0),
+      child: widget.child,
+    );
     return ClipRect(
       child: Stack(
         children: [
@@ -3108,55 +3310,9 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
           // The row, sliding left to uncover the blocks.
           Transform.translate(
             offset: Offset(_offset, 0),
-            child: AppPressRipple(
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _offset != 0 ? _close() : widget.onTap(),
-                onLongPress: widget.requiresLongPressDrag
-                    ? null
-                    : widget.onLongPress == null
-                    ? null
-                    : _handleContextRequest,
-                onSecondaryTapDown: widget.onSecondaryTapDown == null
-                    ? null
-                    : _handleSecondaryTapDown,
-                onLongPressStart: (_) {
-                  _stopAnimation();
-                  _longPressStartOffset = _offset;
-                },
-                onLongPressMoveUpdate: widget.requiresLongPressDrag
-                    ? (details) {
-                        setState(() {
-                          _offset = _rubberBandOffset(
-                            _longPressStartOffset +
-                                details.localOffsetFromOrigin.dx,
-                          );
-                        });
-                      }
-                    : null,
-                onLongPressEnd: (details) {
-                  if (widget.requiresLongPressDrag) {
-                    _settle(details.velocity.pixelsPerSecond.dx);
-                  }
-                },
-                onHorizontalDragStart: !horizontalDragEnabled
-                    ? null
-                    : (_) => _stopAnimation(),
-                onHorizontalDragUpdate: !horizontalDragEnabled
-                    ? null
-                    : (details) {
-                        setState(
-                          () => _offset = _rubberBandOffset(
-                            _offset + details.delta.dx,
-                          ),
-                        );
-                      },
-                onHorizontalDragEnd: !horizontalDragEnabled
-                    ? null
-                    : (details) => _settle(details.primaryVelocity ?? 0),
-                child: widget.child,
-              ),
-            ),
+            child: widget.pressRippleEnabled
+                ? AppPressRipple(child: rowGesture)
+                : rowGesture,
           ),
         ],
       ),

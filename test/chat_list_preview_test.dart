@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/chat/message_bubble.dart';
 import 'package:mithka/chats/chat_list_preview.dart';
 import 'package:mithka/chats/chat_list_view.dart';
 import 'package:mithka/chats/chat_list_view_model.dart';
@@ -237,6 +238,39 @@ void main() {
     }
   });
 
+  testWidgets('preview passes the active account identity to MessageBubble', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final theme = ThemeController(await SharedPreferences.getInstance());
+    addTearDown(theme.dispose);
+    final chat = _chat();
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ThemeController>.value(
+        value: theme,
+        child: MaterialApp(
+          theme: ThemeData(
+            brightness: Brightness.light,
+            extensions: [AppColors.light],
+          ),
+          home: ChatListPreviewSurface(
+            chat: chat,
+            actions: const [],
+            meName: 'Mithka User',
+            mePhoto: TdFileRef(id: 7, localPath: '/tmp/me.jpg'),
+            loadMessages: () async => [chat.lastChatMessage!],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final bubble = tester.widget<MessageBubble>(find.byType(MessageBubble));
+    expect(bubble.meName, 'Mithka User');
+    expect(bubble.mePhoto?.localPath, '/tmp/me.jpg');
+  });
+
   testWidgets('ordinary chat-row long press invokes preview callback', (
     tester,
   ) async {
@@ -283,6 +317,51 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(AppPressRipple.rippleLayerKey), findsNothing);
+  });
+
+  testWidgets('desktop chat row omits touch ripple and swipe motion', (
+    tester,
+  ) async {
+    const rowKey = ValueKey('desktop-pointer-row');
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          height: 64,
+          child: ChatSwipeRow(
+            rowId: 9,
+            openRowId: null,
+            onOpenChanged: (_) {},
+            onTap: () => taps++,
+            horizontalSwipeEnabled: false,
+            pressRippleEnabled: false,
+            actions: [
+              SwipeActionItem(
+                title: AppStringKeys.chatInfoPin,
+                color: Colors.blue,
+                onTap: () {},
+              ),
+            ],
+            child: const SizedBox(key: rowKey, width: 390, height: 64),
+          ),
+        ),
+      ),
+    );
+
+    final initialX = tester.getTopLeft(find.byKey(rowKey)).dx;
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(rowKey)),
+      kind: PointerDeviceKind.mouse,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(AppPressRipple.rippleLayerKey), findsNothing);
+    await gesture.moveBy(const Offset(-120, 0));
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(tester.getTopLeft(find.byKey(rowKey)).dx, initialX);
+    await tester.tapAt(tester.getCenter(find.byKey(rowKey)));
+    expect(taps, 1);
   });
 
   testWidgets('secondary click and touch long press use distinct callbacks', (
@@ -390,6 +469,15 @@ void main() {
     final rect = tester.getRect(surface);
     expect(rect.right, 640 - DesktopChatContextMenu.viewportMargin);
     expect(rect.bottom, 420 - DesktopChatContextMenu.viewportMargin);
+    final pinLabel = find.descendant(
+      of: find.byKey(const ValueKey('desktop-chat-context-pin')),
+      matching: find.byType(Text),
+    );
+    expect(tester.widget<Text>(pinLabel).textAlign, TextAlign.left);
+    expect(
+      tester.getTopLeft(pinLabel).dx,
+      lessThan(tester.getCenter(surface).dx),
+    );
 
     await tester.tap(
       find.byKey(const ValueKey('desktop-chat-context-separate')),

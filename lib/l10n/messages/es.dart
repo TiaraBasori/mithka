@@ -918,6 +918,7 @@ const esMessages = <String, String>{
   'composerHoldToTalk': "Mantén pulsado para hablar",
   'composerImage': "Imagen",
   'composerImagePreview': "[Imagen]",
+  'composerScreenshot': "Captura de pantalla",
   'composerLoadingEmoji': "Cargando emoji…",
   'composerLoadingGifs': "Cargando GIF…",
   'composerLocation': "Ubicación",
@@ -1197,6 +1198,7 @@ const esMessages = <String, String>{
   'imageEditProcessing': "Procesando…",
   'imageEditResetCrop': "Restablecer recorte",
   'imageEditRotate': "Girar",
+  'imagePreviewTitle': "Vista previa de imagen",
   'imageEditTextTool': "Texto",
   'imageEditTitle': "Editar imagen",
   'keywordBlockerAddFromMessageTitle': "Bloquear palabra clave",
@@ -1463,6 +1465,7 @@ const esMessages = <String, String>{
   'musicPlayerDownload': "Descargar",
   'musicPlayerEmptyPlaylist': "Aún no hay música en la lista",
   'musicPlayerModeRepeatOne': "Repetir una",
+  'musicPlayerModeReverseSequence': "Reproducir en orden inverso",
   'musicPlayerModeSequence': "Reproducir en orden",
   'musicPlayerModeShuffle': "Aleatorio",
   'musicPlayerNextTrack': "Siguiente",
@@ -1861,6 +1864,9 @@ const esMessages = <String, String>{
       "Los mensajes de los chats secretos están cifrados de extremo a extremo y solo se pueden leer en los dispositivos donde se crearon.",
   'secretChatStartTitle': "¿Iniciar un chat secreto?",
   'secretChatWaiting': "Esperando a que el chat secreto esté listo…",
+  'sensitiveContentChoiceEnable': "Activar",
+  'sensitiveContentChoiceKeepOff': "Mantener desactivado",
+  'sensitiveContentChoiceRevealOnce': "Mostrar solo este mensaje",
   'sensitiveContentUnblockConfirm': "Desbloquear todo",
   'sensitiveContentUnblockDone': "El contenido 18+ está activado",
   'sensitiveContentUnblockFailed':
@@ -1878,6 +1884,24 @@ const esMessages = <String, String>{
   'searchTabVoiceMessages': "Mensajes de voz",
   'settingsAboutMithka': "Acerca de Mithka",
   'settingsChatBehavior': "Comportamiento del chat",
+  'desktopHotkeysTitle': "Atajos de teclado",
+  'desktopHotkeysDescription':
+      "Personaliza los atajos de escritorio. Los cambios se aplican de inmediato a la ventana principal.",
+  'desktopHotkeyOpenSettings': "Abrir ajustes",
+  'desktopHotkeyNewChat': "Nuevo chat",
+  'desktopHotkeyFocusSearch': "Enfocar búsqueda",
+  'desktopHotkeysResetDefaults': "Restaurar valores predeterminados",
+  'desktopHotkeysSendSection': "Envío de mensajes",
+  'desktopHotkeysEnterSendDetail':
+      "Enter envía el mensaje; Ctrl+Enter añade una línea.",
+  'desktopHotkeysControlEnterDetail':
+      "Ctrl+Enter envía el mensaje; Enter añade una línea.",
+  'desktopHotkeysRecordPrompt': "Pulsa un nuevo atajo",
+  'desktopHotkeysRecordHint':
+      "Combina Ctrl, Alt o Comando con una tecla. F1–F12 pueden usarse solas.",
+  'desktopHotkeysConflict': "Este atajo ya está asignado.",
+  'desktopHotkeysRequiresModifier':
+      "Añade una tecla modificadora o elige F1–F12.",
   'settingsContentFilters': "Filtros de contenido",
   'settingsDataAndStorage': "Datos y almacenamiento",
   'settingsLogOut': "Cerrar sesión",
@@ -2803,6 +2827,43 @@ const esMessages = <String, String>{
   'storageUsageNoCachedChatMedia': "Sin medios de chat en caché.",
   'storageUsageStorageByChat': "Almacenamiento por chat",
   'storageUsageStorageUsage': "Uso de almacenamiento",
+  'storageDashboardManagedStorage': "Almacenamiento administrado",
+  'storageDashboardManagedDescription':
+      "Caché de Telegram y bases de datos locales gestionados por Mithka.",
+  'storageDashboardChatsFiles': "Chats y archivos",
+  'storageDashboardChatsFilesDescription':
+      "Multimedia en caché agrupado por chat.",
+  'storageDashboardCache': "Caché multimedia",
+  'storageDashboardCacheDescription':
+      "Los archivos descargados se pueden recuperar de nuevo. Se conservan los mensajes y datos de la cuenta.",
+  'storageDashboardOtherData': "Otros datos administrados",
+  'storageDashboardOtherDescription':
+      "La base de datos de Telegram, los idiomas y los registros se conservan para un funcionamiento fiable.",
+  'storageDashboardDatabase': "Base de datos",
+  'storageDashboardLanguagePacks': "Idiomas",
+  'storageDashboardLogs': "Registros",
+  'storageDashboardTotal': "Total administrado",
+  'storageManagerTitle': "Gestionar chats y archivos",
+  'storageManagerAllTypes': "Todo el contenido",
+  'storageManagerOther': "Otros",
+  'storageManagerSortSize': "Tamaño",
+  'storageManagerSortName': "Nombre",
+  'storageManagerClearSelected': "Borrar selección",
+  'storageManagerSelectedCount': "{value1} seleccionados",
+  'storageManagerClearSelectedConfirm':
+      "¿Borrar los archivos en caché de los chats seleccionados?",
+  'storageManagerNothingSelected': "Selecciona al menos un chat.",
+  'storageClearSafeDescription':
+      "El contenido se descargará de nuevo cuando sea necesario. No se borrarán mensajes, historial ni datos de la cuenta.",
+  'storageLoadFailed':
+      "No se pudieron cargar las estadísticas de almacenamiento.",
+  'storageClearFailed': "No se pudieron borrar los archivos en caché.",
+  'storageTypePhotos': "Fotos",
+  'storageTypeVideos': "Vídeos",
+  'storageTypeAudio': "Música y audio",
+  'storageTypeDocuments': "Documentos",
+  'storageTypeStickers': "Stickers y GIF",
+  'storageTypeOther': "Otros",
   'storyAreaEditorArrangeStoryAreas': "Organizar áreas de historia",
   'storyAreaEditorDragToMovePinchToResizeTwistTo':
       "Arrastra para moverte. Pellizca para cambiar el tamaño. Gire para girar.",

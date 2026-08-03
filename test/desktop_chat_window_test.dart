@@ -1,12 +1,12 @@
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/app/desktop_chat_window.dart';
+import 'package:mithka/app/desktop_chat_window_io.dart';
+import 'package:mithka/app/desktop_utility_window.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/tdlib/td_models.dart';
 import 'package:mithka/theme/app_theme.dart';
 
 void main() {
@@ -17,6 +17,9 @@ void main() {
     bool enterToSend = false,
   }) => DesktopChatWindowArguments(
     accountSlot: accountSlot,
+    accountUserId: 88,
+    accountName: 'Desktop account',
+    accountAvatarPath: '/tmp/avatar.png',
     chatId: chatId,
     title: title,
     localeTag: 'zh-Hans',
@@ -28,12 +31,32 @@ void main() {
     ),
   );
 
+  DesktopUtilityWindowArguments utility({
+    required DesktopUtilityWindowKind kind,
+    int accountSlot = 2,
+    int? accountUserId = 88,
+    int? chatId,
+    int? userId,
+  }) => DesktopUtilityWindowArguments(
+    kind: kind,
+    accountSlot: accountSlot,
+    accountUserId: accountUserId,
+    chatId: chatId,
+    userId: userId,
+    title: 'Utility',
+    localeTag: 'zh-Hans',
+    dark: true,
+  );
+
   test('chat window arguments round-trip without session material', () {
     final original = arguments(title: 'Group\nname');
     final encoded = original.encode();
     final parsed = DesktopChatWindowArguments.tryParse(encoded);
 
     expect(parsed?.accountSlot, 2);
+    expect(parsed?.accountUserId, 88);
+    expect(parsed?.accountName, 'Desktop account');
+    expect(parsed?.accountAvatarPath, '/tmp/avatar.png');
     expect(parsed?.chatId, -10042);
     expect(parsed?.title, 'Group name');
     expect(parsed?.localeTag, 'zh-Hans');
@@ -107,51 +130,214 @@ void main() {
       ),
       isFalse,
     );
+  });
 
-    registry.clear();
+  test('child requests cannot supply a client id or lifecycle operation', () {
     expect(
-      desktopChatWindowRequestIsRegistered(
-        registry: registry,
-        windowId: 10,
-        requestedKey: registered,
+      desktopChatSanitizeRequest({
+        '@type': 'getChat',
+        'chat_id': 42,
+        '@client_id': 999,
+        '@extra': 'secret-correlation',
+      }),
+      {'@type': 'getChat', 'chat_id': 42},
+    );
+    for (final type in ['close', 'destroy', 'logOut', 'setTdlibParameters']) {
+      expect(desktopChatSanitizeRequest({'@type': type}), isNull);
+    }
+    expect(desktopChatSanitizeRequest({'chat_id': 42}), isNull);
+  });
+
+  test('registered chat child can request only chat-scoped utilities', () {
+    final chat = arguments();
+
+    expect(
+      desktopChatUtilityRequestIsAllowed(
+        requestingChat: chat,
+        utility: utility(
+          kind: DesktopUtilityWindowKind.chatInfo,
+          chatId: chat.chatId,
+        ),
+      ),
+      isTrue,
+    );
+    expect(
+      desktopChatUtilityRequestIsAllowed(
+        requestingChat: chat,
+        utility: utility(
+          kind: DesktopUtilityWindowKind.userProfile,
+          userId: 7766,
+        ),
+      ),
+      isTrue,
+    );
+    for (final kind in [
+      DesktopUtilityWindowKind.audioPicker,
+      DesktopUtilityWindowKind.locationPicker,
+      DesktopUtilityWindowKind.contactPicker,
+      DesktopUtilityWindowKind.pollComposer,
+      DesktopUtilityWindowKind.checklistComposer,
+      DesktopUtilityWindowKind.scheduledMessages,
+      DesktopUtilityWindowKind.richTextComposer,
+      DesktopUtilityWindowKind.aiEditor,
+    ]) {
+      expect(
+        desktopChatUtilityRequestIsAllowed(
+          requestingChat: chat,
+          utility: utility(kind: kind, chatId: chat.chatId),
+        ),
+        isTrue,
+      );
+      expect(
+        desktopChatUtilityRequestIsAllowed(
+          requestingChat: chat,
+          utility: utility(kind: kind, chatId: chat.chatId + 1),
+        ),
+        isFalse,
+      );
+    }
+    expect(
+      desktopChatUtilityRequestIsAllowed(
+        requestingChat: chat,
+        utility: utility(
+          kind: DesktopUtilityWindowKind.chatInfo,
+          chatId: chat.chatId + 1,
+        ),
+      ),
+      isFalse,
+    );
+    expect(
+      desktopChatUtilityRequestIsAllowed(
+        requestingChat: chat,
+        utility: utility(
+          kind: DesktopUtilityWindowKind.userProfile,
+          accountSlot: 3,
+          userId: 7766,
+        ),
+      ),
+      isFalse,
+    );
+    expect(
+      desktopChatUtilityRequestIsAllowed(
+        requestingChat: chat,
+        utility: utility(kind: DesktopUtilityWindowKind.settings),
       ),
       isFalse,
     );
   });
 
-  test('child bootstrap is an IPC view and never owns Telegram lifecycle', () {
+  test('desktop IPC recursively normalizes TDLib maps and lists', () {
+    final raw = <Object?, Object?>{
+      '@type': 'messages',
+      'messages': <Object?>[
+        <Object?, Object?>{
+          '@type': 'message',
+          'content': <Object?, Object?>{
+            '@type': 'messageText',
+            'text': <Object?, Object?>{
+              '@type': 'formattedText',
+              'text': 'hello',
+            },
+          },
+        },
+      ],
+    };
+
+    final normalized = desktopChatNormalizeIpcMap(raw)!;
+    final messages = normalized['messages']! as List<dynamic>;
+    final message = messages.single as Map<String, dynamic>;
+    final content = message['content']! as Map<String, dynamic>;
+    final text = content['text']! as Map<String, dynamic>;
+
+    expect(text['text'], 'hello');
+  });
+
+  test('detached child renders the production chat surface through IPC', () {
     final child = File('lib/app/desktop_chat_window.dart').readAsStringSync();
     final main = File('lib/main.dart').readAsStringSync();
     final io = File('lib/app/desktop_chat_window_io.dart').readAsStringSync();
 
-    expect(child, isNot(contains('TdClient')));
+    expect(child, contains('ChatView('));
+    expect(child, isNot(contains('DesktopChatMessageSnapshot')));
+    expect(child, isNot(contains('desktop-chat-window-transcript')));
+    expect(child, isNot(contains('TextField(')));
     expect(child, isNot(contains('AuthManager')));
-    expect(child, isNot(contains('ChatViewModel')));
-    expect(child, isNot(contains("import '../tdlib/")));
     expect(
       main,
       contains('DesktopChatWindowArguments.tryParseLaunchArguments'),
     );
-    expect(main, contains('runApp(DesktopChatWindowApp'));
-    expect(io, contains('invokeMethodToWindow(0, _snapshotMethod'));
+    expect(main, contains('configureChildProxy'));
+    expect(io, contains('invokeMethodToWindow(0, _queryMethod'));
     expect(io, contains('TdClient.shared.queryTo'));
+    expect(io, contains('TdClient.shared.subscribeAll()'));
     expect(io, isNot(contains('TdClient.shared.start')));
-    expect(io, contains('registered == null'));
-    expect(io, isNot(contains('if (registered == null) _registerWindow')));
+    expect(io, contains('_registeredRequest'));
+    expect(io, contains('mithka.chat.utility.open'));
+    expect(io, contains('desktopChatUtilityRequestIsAllowed'));
+    expect(child, contains('requestUtilityWindow'));
+    expect(child, contains('onOpenUserProfile: _openUserProfile'));
   });
 
-  test('desktop child uses platform-appropriate custom title bar controls', () {
+  test('primary presentation changes reload chat and utility child themes', () {
+    final child = File('lib/app/desktop_chat_window.dart').readAsStringSync();
+    final chatIo = File(
+      'lib/app/desktop_chat_window_io.dart',
+    ).readAsStringSync();
+    final utilityIo = File(
+      'lib/app/desktop_utility_window_io.dart',
+    ).readAsStringSync();
+    final main = File('lib/main.dart').readAsStringSync();
+
+    expect(child, contains('widget.prefs.reload()'));
+    expect(child, contains('ThemeController('));
+    expect(child, contains('attachChildPresentationReload'));
+    expect(chatIo, contains('mithka.chat.presentation.changed'));
+    expect(chatIo, contains('DesktopUtilityWindowService.instance'));
+    expect(utilityIo, contains('mithka.utility.presentation.changed'));
+    expect(
+      main,
+      contains('DesktopChatWindowService.instance.notifyPresentationChanged'),
+    );
+  });
+
+  test('desktop child uses native chrome and has no in-app back control', () {
     final child = File('lib/app/desktop_chat_window.dart').readAsStringSync();
     final io = File('lib/app/desktop_chat_window_io.dart').readAsStringSync();
-    final titleBar = File(
-      'lib/app/macos_desktop_title_bar.dart',
-    ).readAsStringSync();
 
-    expect(io, contains('TitleBarStyle.hidden'));
-    expect(io, contains('windowButtonVisibility: Platform.isMacOS'));
-    expect(child, contains('MacosDesktopTitleBar'));
-    expect(child, contains('DesktopWindowControls'));
-    expect(titleBar, contains('trafficLightLeadingClearance = 78'));
+    expect(io, contains('TitleBarStyle.normal'));
+    expect(io, contains('windowButtonVisibility: true'));
+    expect(child, isNot(contains('DesktopPrimaryWindowFrame(')));
+    expect(child, contains('showBackButton: false'));
+  });
+
+  test('wide standalone group and channel chats expose a context pane', () {
+    expect(
+      desktopStandaloneChatUsesContextPane(width: 1100, kind: ChatKind.group),
+      isTrue,
+    );
+    expect(
+      desktopStandaloneChatUsesContextPane(width: 1100, kind: ChatKind.channel),
+      isTrue,
+    );
+    expect(
+      desktopStandaloneChatUsesContextPane(
+        width: 1100,
+        kind: ChatKind.privateChat,
+      ),
+      isFalse,
+    );
+    expect(
+      desktopStandaloneChatUsesContextPane(width: 720, kind: ChatKind.group),
+      isFalse,
+    );
+    expect(
+      desktopStandaloneChatUsesContextPane(
+        width: 1100,
+        kind: ChatKind.group,
+        dismissed: true,
+      ),
+      isFalse,
+    );
   });
 
   test('separate-window label is localized in all supported locales', () {
@@ -175,143 +361,4 @@ void main() {
       );
     }
   });
-
-  testWidgets('child renders transcript and follows Ctrl-Enter preference', (
-    tester,
-  ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.windows;
-    try {
-      final controller = _FakeDesktopChatController(
-        const DesktopChatWindowSnapshot(
-          title: 'Desktop group',
-          canSend: true,
-          messages: [
-            DesktopChatMessageSnapshot(
-              id: 1,
-              date: 1,
-              outgoing: false,
-              senderName: 'Alice',
-              contentType: 'messageText',
-              text: 'Incoming',
-            ),
-            DesktopChatMessageSnapshot(
-              id: 2,
-              date: 2,
-              outgoing: true,
-              senderName: '',
-              contentType: 'messageText',
-              text: 'Outgoing',
-            ),
-          ],
-        ),
-      );
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-          ],
-          supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(extensions: [AppColors.dark]),
-          home: DesktopChatWindowPage(
-            arguments: arguments(),
-            controller: controller,
-          ),
-        ),
-      );
-
-      expect(
-        find.byKey(const ValueKey('desktop-chat-window-header')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('desktop-chat-window-transcript')),
-        findsOneWidget,
-      );
-      expect(find.text('Incoming'), findsOneWidget);
-      expect(find.text('Outgoing'), findsOneWidget);
-      expect(find.text('Alice'), findsOneWidget);
-      expect(find.text('Ctrl+Enter'), findsOneWidget);
-
-      final composer = find.byKey(
-        const ValueKey('desktop-chat-window-composer'),
-      );
-      await tester.tap(composer);
-      await tester.enterText(composer, 'hello');
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-      await tester.pump();
-
-      expect(controller.sentTexts, ['hello']);
-      expect(tester.widget<TextField>(composer).controller?.text, isEmpty);
-
-      final enterController = _FakeDesktopChatController(controller.snapshot);
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pumpWidget(
-        MaterialApp(
-          localizationsDelegates: const [
-            AppLocalizations.delegate,
-            GlobalMaterialLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-          ],
-          supportedLocales: AppLocalizations.supportedLocales,
-          theme: ThemeData(extensions: [AppColors.dark]),
-          home: DesktopChatWindowPage(
-            arguments: arguments(enterToSend: true),
-            controller: enterController,
-          ),
-        ),
-      );
-      expect(find.text('Enter'), findsOneWidget);
-      final enterComposer = find.byKey(
-        const ValueKey('desktop-chat-window-composer'),
-      );
-      await tester.tap(enterComposer);
-      final enterField = tester.widget<TextField>(enterComposer);
-      enterField.controller!.value = const TextEditingValue(
-        text: 'に',
-        selection: TextSelection.collapsed(offset: 1),
-        composing: TextRange(start: 0, end: 1),
-      );
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pump();
-      expect(enterController.sentTexts, isEmpty);
-
-      await tester.enterText(enterComposer, 'second');
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-      await tester.pump();
-      expect(enterController.sentTexts, ['second']);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
-}
-
-class _FakeDesktopChatController extends DesktopChatWindowChildController {
-  _FakeDesktopChatController(this._snapshot);
-
-  final DesktopChatWindowSnapshot _snapshot;
-  final List<String> sentTexts = [];
-
-  @override
-  bool get loading => false;
-
-  @override
-  bool get sendFailed => false;
-
-  @override
-  bool get sending => false;
-
-  @override
-  DesktopChatWindowSnapshot get snapshot => _snapshot;
-
-  @override
-  Future<bool> sendText(String text) async {
-    sentTexts.add(text);
-    return true;
-  }
 }

@@ -1,22 +1,55 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-import '../components/app_icons.dart';
+import '../call/call_manager.dart';
+import '../call/call_overlay_host.dart';
+import '../chat/chat_info_view.dart';
+import '../chat/chat_members_view.dart';
+import '../chat/chat_view.dart';
+import '../chat/desktop_chat_context_pane.dart';
+import '../chat/group_remark_controller.dart';
+import '../chat/music_player_controller.dart';
+import '../components/keyboard_dismiss_on_tap.dart';
+import '../l10n/app_locale_controller.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/telegram_language_controller.dart';
+import '../settings/ai_settings_controller.dart';
+import '../settings/blocked_user_service.dart';
+import '../settings/country_message_filter.dart';
+import '../settings/keyword_blocker.dart';
+import '../settings/sensitive_content_controller.dart';
+import '../settings/translation_controller.dart';
+import '../tdlib/td_client.dart';
+import '../tdlib/td_models.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
-import 'desktop_chat_media.dart';
+import '../theme/theme_controller.dart';
+import 'adaptive_split_layout.dart';
+import 'app_navigator.dart';
 import 'desktop_chat_window_models.dart';
 import 'desktop_chat_window_stub.dart'
     if (dart.library.io) 'desktop_chat_window_io.dart'
     as implementation;
-import 'desktop_window_controls.dart';
-import 'macos_desktop_title_bar.dart';
+import 'desktop_utility_window_models.dart';
+import 'global_video_split_host.dart';
 
 export 'desktop_chat_window_models.dart';
+
+const double _standaloneChatContextMinimumWidth = 800;
+
+@visibleForTesting
+bool desktopStandaloneChatUsesContextPane({
+  required double width,
+  required ChatKind? kind,
+  bool dismissed = false,
+}) =>
+    !dismissed &&
+    width >= _standaloneChatContextMinimumWidth &&
+    (kind == ChatKind.group || kind == ChatKind.channel);
 
 class DesktopChatWindowService {
   DesktopChatWindowService._();
@@ -29,529 +62,460 @@ class DesktopChatWindowService {
 
   void detachMainProxy() => implementation.detachDesktopChatMainProxy();
 
+  Future<void> notifyPresentationChanged() =>
+      implementation.notifyDesktopChatPresentationChanged();
+
   Future<bool> open(DesktopChatWindowArguments arguments) =>
       implementation.openDesktopChatWindow(arguments);
 
-  DesktopChatWindowChildController createChildController(
-    DesktopChatWindowArguments arguments,
-  ) => implementation.createDesktopChatWindowChildController(arguments);
+  Future<bool> requestUtilityWindow({
+    required DesktopChatWindowArguments requestingChat,
+    required DesktopUtilityWindowArguments utility,
+  }) => implementation.requestDesktopUtilityWindowFromChat(
+    requestingChat: requestingChat,
+    utility: utility,
+  );
+
+  Future<void> configureChildProxy(DesktopChatWindowArguments arguments) =>
+      implementation.configureDesktopChatChildProxy(arguments);
+
+  void attachChildPresentationReload(Future<void> Function() callback) =>
+      implementation.attachDesktopChatChildPresentationReload(callback);
+
+  void detachChildPresentationReload() =>
+      implementation.detachDesktopChatChildPresentationReload();
 
   Future<void> closeCurrentWindow() =>
       implementation.closeCurrentDesktopChatWindow();
 }
 
-/// Lightweight secondary-window application.
+/// Secondary-window shell for the production conversation surface.
 ///
-/// It intentionally owns no Telegram client or authentication lifecycle. All
-/// snapshots and sends travel through the main isolate's bounded IPC proxy.
-class DesktopChatWindowApp extends StatelessWidget {
-  const DesktopChatWindowApp({super.key, required this.arguments});
+/// The child owns only presentation controllers. TDLib remains in the primary
+/// engine and is reached through the transport configured before this widget
+/// is mounted.
+class DesktopChatWindowApp extends StatefulWidget {
+  const DesktopChatWindowApp({
+    super.key,
+    required this.arguments,
+    required this.prefs,
+  });
 
   final DesktopChatWindowArguments arguments;
+  final SharedPreferences prefs;
 
-  ThemeData _theme(Brightness brightness) {
-    final colors = arguments.palette.toAppColors();
-    return ThemeData(
+  @override
+  State<DesktopChatWindowApp> createState() => _DesktopChatWindowAppState();
+}
+
+class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
+  late ThemeController _theme = ThemeController(
+    widget.prefs,
+    initialAccountSlot: widget.arguments.accountSlot,
+  );
+  late TranslationController _translation = TranslationController(widget.prefs);
+  late AppLocaleController _locale = AppLocaleController(widget.prefs);
+  late final AiSettingsController _ai = AiSettingsController(widget.prefs);
+  late final GroupRemarkController _groupRemarks = GroupRemarkController(
+    widget.prefs,
+    initialAccountUserId: widget.arguments.accountUserId,
+  );
+  late final CallManager _calls = CallManager()..start();
+  late final TelegramLanguageController _telegramLanguage =
+      TelegramLanguageController.shared;
+  bool _presentationReloading = false;
+  bool _presentationReloadQueued = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _theme.setActiveAccountSlot(
+      widget.arguments.accountSlot,
+      userId: widget.arguments.accountUserId,
+    );
+    DesktopChatWindowService.instance.attachChildPresentationReload(
+      _reloadPresentationPreferences,
+    );
+    KeywordBlocker.shared.initialize(widget.prefs);
+    CountryMessageFilter.shared.initialize(widget.prefs);
+    MusicPlayerController.shared.initialize(widget.prefs);
+    unawaited(_ai.initialize());
+    unawaited(SensitiveContentController.shared.initialize());
+    unawaited(BlockedUserService.shared.loadBlockedUsers());
+    unawaited(_initializeTelegramLanguage());
+  }
+
+  Future<void> _initializeTelegramLanguage() async {
+    await _telegramLanguage.initialize(widget.prefs);
+    await _telegramLanguage.syncAppLocale(
+      AppLocalizations.localeFromTag(widget.arguments.localeTag),
+    );
+  }
+
+  Future<void> _reloadPresentationPreferences() async {
+    if (_presentationReloading) {
+      _presentationReloadQueued = true;
+      return;
+    }
+    _presentationReloading = true;
+    try {
+      do {
+        _presentationReloadQueued = false;
+        try {
+          await widget.prefs.reload();
+        } on Object {
+          // Keep the registered chat child alive if platform preferences are
+          // temporarily unavailable; its current presentation remains valid.
+          return;
+        }
+        if (!mounted) return;
+
+        final previousTheme = _theme;
+        final previousTranslation = _translation;
+        final previousLocale = _locale;
+        final nextTheme =
+            ThemeController(
+              widget.prefs,
+              initialAccountSlot: widget.arguments.accountSlot,
+            )..setActiveAccountSlot(
+              widget.arguments.accountSlot,
+              userId: widget.arguments.accountUserId,
+            );
+        final nextTranslation = TranslationController(widget.prefs);
+        final nextLocale = AppLocaleController(widget.prefs);
+        unawaited(_telegramLanguage.reloadPreferences(widget.prefs));
+
+        setState(() {
+          _theme = nextTheme;
+          _translation = nextTranslation;
+          _locale = nextLocale;
+        });
+        unawaited(nextTheme.loadSelectedEmojiFontIfAvailable());
+        unawaited(
+          _telegramLanguage.syncAppLocale(
+            nextLocale.locale ??
+                AppLocalizations.localeFromTag(widget.arguments.localeTag),
+          ),
+        );
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          previousLocale.dispose();
+          previousTranslation.dispose();
+          previousTheme.dispose();
+        });
+      } while (_presentationReloadQueued && mounted);
+    } finally {
+      _presentationReloading = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    DesktopChatWindowService.instance.detachChildPresentationReload();
+    unawaited(TdClient.shared.closeProxy());
+    _calls.dispose();
+    _groupRemarks.dispose();
+    _ai.dispose();
+    _locale.dispose();
+    _translation.dispose();
+    _theme.dispose();
+    super.dispose();
+  }
+
+  ThemeData _themeData(Brightness brightness) {
+    final colors = _theme.uiColorsFor(brightness);
+    final families = _theme.effectiveFontFamilyChain();
+    final base = ThemeData(
       brightness: brightness,
       useMaterial3: true,
-      scaffoldBackgroundColor: colors.chatBackground,
+      fontFamily: families.isEmpty ? null : families.first,
+      fontFamilyFallback: families.length > 1
+          ? families.skip(1).toList()
+          : null,
+      scaffoldBackgroundColor: colors.background,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: arguments.palette.brandColor,
+        seedColor: _theme.usesCloudThemeForUi(brightness)
+            ? colors.linkBlue
+            : _theme.brandColor,
         brightness: brightness,
+      ),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: AppPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: AppPageTransitionsBuilder(),
+          TargetPlatform.iOS: AppPageTransitionsBuilder(),
+          TargetPlatform.linux: AppPageTransitionsBuilder(),
+          TargetPlatform.macOS: AppPageTransitionsBuilder(),
+          TargetPlatform.windows: AppPageTransitionsBuilder(),
+        },
       ),
       extensions: [colors],
       splashFactory: NoSplash.splashFactory,
       highlightColor: Colors.transparent,
     );
+    return base.copyWith(
+      textTheme: _theme.applyAppTextTheme(base.textTheme),
+      primaryTextTheme: _theme.applyAppTextTheme(base.primaryTextTheme),
+    );
   }
 
   @override
-  Widget build(BuildContext context) {
-    AppTheme.applyBrand(arguments.palette.brandColor);
-    final locale = AppLocalizations.localeFromTag(arguments.localeTag);
-    return MaterialApp(
-      title: arguments.title,
-      debugShowCheckedModeBanner: false,
-      locale: locale,
-      supportedLocales: AppLocalizations.supportedLocales,
-      localizationsDelegates: const [
-        AppLocalizations.delegate,
-        GlobalMaterialLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ],
-      theme: _theme(Brightness.light),
-      darkTheme: _theme(Brightness.dark),
-      themeMode: arguments.dark ? ThemeMode.dark : ThemeMode.light,
-      home: implementation.buildDesktopChatWindowHost(
-        initialArguments: arguments,
-        builder: (context, currentArguments) => DesktopChatWindowPage(
-          key: ValueKey(currentArguments.encode()),
-          arguments: currentArguments,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => MultiProvider(
+    providers: [
+      ChangeNotifierProvider.value(value: _theme),
+      ChangeNotifierProvider.value(value: _translation),
+      ChangeNotifierProvider.value(value: _locale),
+      ChangeNotifierProvider.value(value: _ai),
+      ChangeNotifierProvider.value(value: _groupRemarks),
+      ChangeNotifierProvider.value(value: _calls),
+      ChangeNotifierProvider.value(value: _telegramLanguage),
+    ],
+    child: AnimatedBuilder(
+      animation: Listenable.merge([_theme, _locale, _telegramLanguage]),
+      builder: (context, _) {
+        final locale = _telegramLanguage.mithkaLocale;
+        return MaterialApp(
+          navigatorKey: appNavigatorKey,
+          title: widget.arguments.title,
+          debugShowCheckedModeBanner: false,
+          locale: locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+          ],
+          scrollBehavior: const AppScrollBehavior(),
+          theme: _themeData(Brightness.light),
+          darkTheme: _themeData(Brightness.dark),
+          themeMode: _theme.themeMode,
+          builder: (context, child) {
+            final media = MediaQuery.of(context);
+            final currentTheme = Theme.of(context);
+            AppTheme.applyBrand(
+              _theme.usesCloudThemeForUi(currentTheme.brightness)
+                  ? context.colors.linkBlue
+                  : _theme.brandColor,
+            );
+            final themedChild = Theme(
+              data: currentTheme.copyWith(
+                textTheme: _theme.applyAppTextTheme(
+                  currentTheme.textTheme,
+                  boldText: media.boldText,
+                ),
+                primaryTextTheme: _theme.applyAppTextTheme(
+                  currentTheme.primaryTextTheme,
+                  boldText: media.boldText,
+                ),
+              ),
+              child: child ?? const SizedBox.shrink(),
+            );
+            final appSurface = Stack(
+              children: [
+                Positioned.fill(
+                  child: GlobalVideoSplitHost(child: themedChild),
+                ),
+                Overlay(
+                  initialEntries: [
+                    OverlayEntry(
+                      builder: (_) => const GlobalMusicPlayerOverlay(),
+                    ),
+                  ],
+                ),
+                const Positioned.fill(child: GlobalCallOverlayHost()),
+              ],
+            );
+            return _DesktopChatScaledView(
+              fontScale: _theme.fontScale,
+              interfaceScale: _theme.renderedInterfaceScale,
+              child: appSurface,
+            );
+          },
+          home: implementation.buildDesktopChatWindowHost(
+            initialArguments: widget.arguments,
+            builder: (context, arguments) => _DesktopStandaloneChatSurface(
+              key: ValueKey(
+                'desktop-production-chat-${arguments.accountSlot}-${arguments.chatId}',
+              ),
+              arguments: arguments,
+            ),
+          ),
+        );
+      },
+    ),
+  );
 }
 
-class DesktopChatWindowPage extends StatefulWidget {
-  const DesktopChatWindowPage({
-    super.key,
-    required this.arguments,
-    this.controller,
-  });
+class _DesktopStandaloneChatSurface extends StatefulWidget {
+  const _DesktopStandaloneChatSurface({super.key, required this.arguments});
 
   final DesktopChatWindowArguments arguments;
-  final DesktopChatWindowChildController? controller;
 
   @override
-  State<DesktopChatWindowPage> createState() => _DesktopChatWindowPageState();
+  State<_DesktopStandaloneChatSurface> createState() =>
+      _DesktopStandaloneChatSurfaceState();
 }
 
-class _DesktopChatWindowPageState extends State<DesktopChatWindowPage> {
-  late final DesktopChatWindowChildController _controller =
-      (widget.controller ??
-            DesktopChatWindowService.instance.createChildController(
-              widget.arguments,
-            ))
-        ..addListener(_handleControllerUpdate);
-  final TextEditingController _composer = TextEditingController();
-  final FocusNode _composerFocus = FocusNode();
-  final ScrollController _messages = ScrollController();
-  int _lastMessageId = 0;
-
-  bool get _hasActiveTextComposition {
-    final composing = _composer.value.composing;
-    return composing.isValid && !composing.isCollapsed;
-  }
+class _DesktopStandaloneChatSurfaceState
+    extends State<_DesktopStandaloneChatSurface> {
+  ChatKind? _kind;
+  bool _contextDismissed = false;
 
   @override
-  void initState() {
-    super.initState();
-    _lastMessageId = _controller.snapshot?.messages.lastOrNull?.id ?? 0;
+  void didUpdateWidget(_DesktopStandaloneChatSurface oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.arguments.chatId == widget.arguments.chatId) return;
+    _kind = null;
+    _contextDismissed = false;
   }
 
-  void _handleControllerUpdate() {
-    if (!mounted) return;
-    final latest = _controller.snapshot?.messages.lastOrNull?.id ?? 0;
-    final shouldScroll = latest != 0 && latest != _lastMessageId;
-    _lastMessageId = latest;
-    setState(() {});
-    if (shouldScroll) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToLatest());
-    }
+  void _handleKindResolved(ChatKind kind) {
+    if (_kind == kind) return;
+    setState(() {
+      _kind = kind;
+      _contextDismissed = false;
+    });
   }
 
-  void _scrollToLatest() {
-    if (!_messages.hasClients) return;
+  bool _canShowContextPane(BuildContext context) =>
+      desktopStandaloneChatUsesContextPane(
+        width: MediaQuery.sizeOf(context).width,
+        kind: _kind,
+        dismissed: _contextDismissed,
+      );
+
+  Future<void> _openFullInfo() async {
+    await DesktopChatWindowService.instance.requestUtilityWindow(
+      requestingChat: widget.arguments,
+      utility: DesktopUtilityWindowArguments(
+        kind: DesktopUtilityWindowKind.chatInfo,
+        accountSlot: widget.arguments.accountSlot,
+        accountUserId: widget.arguments.accountUserId,
+        chatId: widget.arguments.chatId,
+        title: widget.arguments.title,
+        localeTag: Localizations.localeOf(context).toLanguageTag(),
+        dark: Theme.of(context).brightness == Brightness.dark,
+      ),
+    );
+  }
+
+  Future<void> _openMembers() => Navigator.of(context).push<void>(
+    AppPageRoute<void>(
+      pageBuilder: (_, _, _) => ChatMembersView(
+        chatId: widget.arguments.chatId,
+        title: widget.arguments.title,
+      ),
+    ),
+  );
+
+  void _openMember(ChatMember member) {
+    _openUserProfile(member.id, member.name);
+  }
+
+  void _openUserProfile(int userId, String name) {
     unawaited(
-      _messages.animateTo(
-        _messages.position.maxScrollExtent,
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOutCubic,
+      DesktopChatWindowService.instance.requestUtilityWindow(
+        requestingChat: widget.arguments,
+        utility: DesktopUtilityWindowArguments(
+          kind: DesktopUtilityWindowKind.userProfile,
+          accountSlot: widget.arguments.accountSlot,
+          accountUserId: widget.arguments.accountUserId,
+          userId: userId,
+          title: name,
+          localeTag: Localizations.localeOf(context).toLanguageTag(),
+          dark: Theme.of(context).brightness == Brightness.dark,
+        ),
       ),
     );
   }
 
-  Future<void> _send() async {
-    final text = _composer.text.trim();
-    if (text.isEmpty || _controller.sending) return;
-    final sent = await _controller.sendText(text);
-    if (!mounted || !sent) return;
-    _composer.clear();
-    _composerFocus.requestFocus();
-  }
-
-  @override
-  void dispose() {
-    _controller
-      ..removeListener(_handleControllerUpdate)
-      ..dispose();
-    _composer.dispose();
-    _composerFocus.dispose();
-    _messages.dispose();
-    super.dispose();
+  void _handleInfoPressed() {
+    final canUsePane =
+        MediaQuery.sizeOf(context).width >=
+            _standaloneChatContextMinimumWidth &&
+        (_kind == ChatKind.group || _kind == ChatKind.channel);
+    if (!canUsePane) {
+      unawaited(_openFullInfo());
+      return;
+    }
+    setState(() => _contextDismissed = !_contextDismissed);
   }
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final snapshot = _controller.snapshot;
-    final title = snapshot?.title ?? widget.arguments.title;
-    final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
-    final isNativeDesktop =
-        !kIsWeb &&
-        switch (defaultTargetPlatform) {
-          TargetPlatform.macOS ||
-          TargetPlatform.windows ||
-          TargetPlatform.linux => true,
-          _ => false,
-        };
-    return Scaffold(
-      backgroundColor: colors.chatBackground,
-      body: Column(
-        children: [
-          if (isNativeDesktop)
-            MacosDesktopTitleBar(
-              leadingClearance: isMacOS ? 78 : 8,
-              trailingControls: usesFlutterDesktopWindowControls
-                  ? const DesktopWindowControls()
-                  : null,
-              onDragAreaDoubleTap: usesFlutterDesktopWindowControls
-                  ? () => unawaited(togglePrimaryDesktopWindowMaximized())
-                  : null,
-              appIdentity: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  AppIcon(
-                    HeroAppIcons.message,
-                    size: 18,
-                    color: colors.textPrimary,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    'Mithka',
-                    style: AppTextStyle.callout(
-                      colors.textPrimary,
-                      weight: AppTextWeight.semibold,
-                    ),
-                  ),
-                ],
-              ),
-              accountIdentity: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 260),
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyle.caption(colors.textSecondary),
-                ),
-              ),
-              backgroundColor: colors.navBar,
+    final showContextPane = _canShowContextPane(context);
+    final contextPane = showContextPane
+        ? KeyedSubtree(
+            key: const ValueKey('desktop-standalone-context-pane'),
+            child: DesktopChatContextPane(
+              chatId: widget.arguments.chatId,
+              title: widget.arguments.title,
+              onOpenMembers: () => unawaited(_openMembers()),
+              onOpenMember: _openMember,
             ),
-          _DesktopChatHeader(title: title),
-          Expanded(child: _transcript(snapshot)),
-          _composerBar(snapshot),
-        ],
-      ),
+          )
+        : null;
+    final chat = ChatView(
+      key: ValueKey('desktop-standalone-chat-${widget.arguments.chatId}'),
+      chatId: widget.arguments.chatId,
+      title: widget.arguments.title,
+      showBackButton: false,
+      requestComposerFocusOnReady: true,
+      onChatKindResolved: _handleKindResolved,
+      trailingPane: contextPane,
+      trailingPaneWidth: desktopInfoPaneWidth,
+      onInfoPressed: _kind == ChatKind.group || _kind == ChatKind.channel
+          ? _handleInfoPressed
+          : null,
+      onOpenFullInfo: () => unawaited(_openFullInfo()),
+      onOpenUserProfile: _openUserProfile,
     );
-  }
-
-  Widget _transcript(DesktopChatWindowSnapshot? snapshot) {
-    final colors = context.colors;
-    if (_controller.loading && snapshot == null) {
-      return Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: widget.arguments.palette.brandColor,
-          ),
-        ),
-      );
-    }
-    if (snapshot == null || snapshot.failed) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.section),
-          child: Text(
-            AppStringKeys.desktopChatWindowUnavailable.l10n(context),
-            textAlign: TextAlign.center,
-            style: AppTextStyle.callout(colors.textSecondary),
-          ),
-        ),
-      );
-    }
-    return ListView.builder(
-      key: const ValueKey('desktop-chat-window-transcript'),
-      controller: _messages,
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.section,
-        vertical: AppSpacing.xxl,
-      ),
-      itemCount: snapshot.messages.length,
-      itemBuilder: (context, index) => _DesktopChatMessageBubble(
-        message: snapshot.messages[index],
-        brandColor: widget.arguments.palette.brandColor,
-      ),
-    );
-  }
-
-  Widget _composerBar(DesktopChatWindowSnapshot? snapshot) {
-    final colors = context.colors;
-    final canSend = snapshot?.canSend == true && !snapshot!.failed;
-    final shortcut = widget.arguments.enterToSend ? 'Enter' : 'Ctrl+Enter';
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: colors.inputBarBackground,
-        border: Border(top: BorderSide(color: colors.divider, width: 0.5)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, AppSpacing.md, 18, 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Shortcuts(
-                  shortcuts: widget.arguments.enterToSend
-                      ? const {
-                          SingleActivator(LogicalKeyboardKey.enter):
-                              _DesktopChatSendIntent(),
-                          SingleActivator(LogicalKeyboardKey.numpadEnter):
-                              _DesktopChatSendIntent(),
-                        }
-                      : const {
-                          SingleActivator(
-                            LogicalKeyboardKey.enter,
-                            control: true,
-                          ): _DesktopChatSendIntent(),
-                          SingleActivator(
-                            LogicalKeyboardKey.numpadEnter,
-                            control: true,
-                          ): _DesktopChatSendIntent(),
-                        },
-                  child: Actions(
-                    actions: {
-                      _DesktopChatSendIntent: _DesktopChatSendAction(
-                        canInvoke: () => canSend && !_hasActiveTextComposition,
-                        onInvoke: () => unawaited(_send()),
-                      ),
-                    },
-                    child: TextField(
-                      key: const ValueKey('desktop-chat-window-composer'),
-                      controller: _composer,
-                      focusNode: _composerFocus,
-                      enabled: canSend,
-                      minLines: 2,
-                      maxLines: 6,
-                      keyboardType: TextInputType.multiline,
-                      textInputAction: TextInputAction.newline,
-                      style: AppTextStyle.body(colors.textPrimary),
-                      decoration: InputDecoration(
-                        isDense: true,
-                        filled: true,
-                        fillColor: colors.background,
-                        hintText: AppStringKeys.composerSend.l10n(context),
-                        hintStyle: AppTextStyle.body(colors.textTertiary),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.lg,
-                          vertical: AppSpacing.md,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.control,
-                          ),
-                          borderSide: BorderSide(color: colors.divider),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.control,
-                          ),
-                          borderSide: BorderSide(color: colors.divider),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(
-                            AppRadius.control,
-                          ),
-                          borderSide: BorderSide(
-                            color: widget.arguments.palette.brandColor,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Semantics(
-                button: true,
-                enabled: canSend && !_controller.sending,
-                label:
-                    '${AppStringKeys.composerSend.l10n(context)} ($shortcut)',
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: canSend && !_controller.sending
-                      ? () => unawaited(_send())
-                      : null,
-                  child: Container(
-                    key: const ValueKey('desktop-chat-window-send'),
-                    height: 36,
-                    constraints: const BoxConstraints(minWidth: 112),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.lg,
-                    ),
-                    decoration: BoxDecoration(
-                      color: canSend && !_controller.sending
-                          ? widget.arguments.palette.brandColor
-                          : widget.arguments.palette.brandColor.withValues(
-                              alpha: 0.42,
-                            ),
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        AppIcon(
-                          HeroAppIcons.solidPaperPlane,
-                          size: 15,
-                          color: colors.onAccent,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          shortcut,
-                          style: AppTextStyle.tiny(
-                            colors.onAccent.withValues(alpha: 0.8),
-                            weight: AppTextWeight.medium,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return chat;
   }
 }
 
-class _DesktopChatHeader extends StatelessWidget {
-  const _DesktopChatHeader({required this.title});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    return Container(
-      key: const ValueKey('desktop-chat-window-header'),
-      height: 52,
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-      alignment: Alignment.centerLeft,
-      decoration: BoxDecoration(
-        color: colors.background,
-        border: Border(bottom: BorderSide(color: colors.divider, width: 0.5)),
-      ),
-      child: Text(
-        title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: AppTextStyle.title(
-          colors.textPrimary,
-          weight: AppTextWeight.semibold,
-        ),
-      ),
-    );
-  }
-}
-
-class _DesktopChatMessageBubble extends StatelessWidget {
-  const _DesktopChatMessageBubble({
-    required this.message,
-    required this.brandColor,
+class _DesktopChatScaledView extends StatelessWidget {
+  const _DesktopChatScaledView({
+    required this.fontScale,
+    required this.interfaceScale,
+    required this.child,
   });
 
-  final DesktopChatMessageSnapshot message;
-  final Color brandColor;
+  final double fontScale;
+  final double interfaceScale;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-    final outgoing = message.outgoing;
-    final bubbleColor = outgoing ? brandColor : colors.bubbleIncoming;
-    final textColor = outgoing ? colors.onAccent : colors.bubbleIncomingText;
-    final mediaPath = message.mediaPath;
-    return Align(
-      alignment: outgoing ? Alignment.centerRight : Alignment.centerLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 560),
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: bubbleColor,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.lg,
-                AppSpacing.md,
-                AppSpacing.lg,
-                AppSpacing.sm,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!outgoing && message.senderName.trim().isNotEmpty) ...[
-                    Text(
-                      message.senderName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyle.caption(
-                        colors.linkBlue,
-                        weight: AppTextWeight.semibold,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xs),
-                  ],
-                  if (mediaPath != null && mediaPath.isNotEmpty) ...[
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: 420,
-                        maxHeight: 320,
-                      ),
-                      child: desktopChatLocalMedia(
-                        path: mediaPath,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                    ),
-                    if (message.text.trim().isNotEmpty)
-                      const SizedBox(height: AppSpacing.sm),
-                  ],
-                  if (message.text.trim().isNotEmpty)
-                    SelectableText(
-                      message.text,
-                      style: AppTextStyle.callout(textColor),
-                    )
-                  else
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        AppIcon(
-                          _contentIcon(message.contentType),
-                          size: 16,
-                          color: textColor.withValues(alpha: 0.78),
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text(
-                          AppStringKeys.chatSearchMessageResultLabel.l10n(
-                            context,
-                          ),
-                          style: AppTextStyle.callout(
-                            textColor.withValues(alpha: 0.78),
-                          ),
-                        ),
-                      ],
-                    ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      _timeLabel(message.date),
-                      style: AppTextStyle.tiny(
-                        textColor.withValues(alpha: 0.64),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+    final media = MediaQuery.of(context);
+    final scale = interfaceScale;
+    final virtualSize = Size(
+      media.size.width / scale,
+      media.size.height / scale,
+    );
+    final scaledMedia = media.copyWith(
+      size: virtualSize,
+      padding: _unscale(media.padding, scale),
+      viewPadding: _unscale(media.viewPadding, scale),
+      viewInsets: _unscale(media.viewInsets, scale),
+      systemGestureInsets: _unscale(media.systemGestureInsets, scale),
+      textScaler: TextScaler.linear(fontScale),
+    );
+    return AppKeyboardDismissOnTap(
+      child: ClipRect(
+        child: OverflowBox(
+          alignment: Alignment.topLeft,
+          minWidth: virtualSize.width,
+          maxWidth: virtualSize.width,
+          minHeight: virtualSize.height,
+          maxHeight: virtualSize.height,
+          child: Transform.scale(
+            scale: scale,
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: virtualSize.width,
+              height: virtualSize.height,
+              child: MediaQuery(data: scaledMedia, child: child),
             ),
           ),
         ),
@@ -559,44 +523,10 @@ class _DesktopChatMessageBubble extends StatelessWidget {
     );
   }
 
-  static AppIconData _contentIcon(String type) => switch (type) {
-    'messagePhoto' => HeroAppIcons.image,
-    'messageVideo' ||
-    'messageVideoNote' ||
-    'messageAnimation' => HeroAppIcons.video,
-    'messageAudio' || 'messageVoiceNote' => HeroAppIcons.music,
-    'messageDocument' => HeroAppIcons.file,
-    'messageLocation' || 'messageVenue' => HeroAppIcons.locationPin,
-    _ => HeroAppIcons.message,
-  };
-
-  static String _timeLabel(int unixSeconds) {
-    if (unixSeconds <= 0) return '';
-    final date = DateTime.fromMillisecondsSinceEpoch(
-      unixSeconds * 1000,
-    ).toLocal();
-    final hour = date.hour.toString().padLeft(2, '0');
-    final minute = date.minute.toString().padLeft(2, '0');
-    return '$hour:$minute';
-  }
-}
-
-class _DesktopChatSendIntent extends Intent {
-  const _DesktopChatSendIntent();
-}
-
-class _DesktopChatSendAction extends Action<_DesktopChatSendIntent> {
-  _DesktopChatSendAction({required this.canInvoke, required this.onInvoke});
-
-  final bool Function() canInvoke;
-  final VoidCallback onInvoke;
-
-  @override
-  bool isEnabled(_DesktopChatSendIntent intent) => canInvoke();
-
-  @override
-  Object? invoke(_DesktopChatSendIntent intent) {
-    onInvoke();
-    return null;
-  }
+  EdgeInsets _unscale(EdgeInsets insets, double scale) => EdgeInsets.fromLTRB(
+    insets.left / scale,
+    insets.top / scale,
+    insets.right / scale,
+    insets.bottom / scale,
+  );
 }

@@ -7,10 +7,10 @@ import 'package:mithka/app/chat_deep_link_controller.dart';
 import 'package:mithka/app/main_tab_view.dart';
 import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
-import 'package:mithka/chat/desktop_chat_context_pane.dart';
 import 'package:mithka/chats/chat_list_view.dart';
 import 'package:mithka/components/drawer_controller.dart' as dc;
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:mithka/l10n/telegram_language_controller.dart';
 import 'package:mithka/settings/translation_controller.dart';
 import 'package:mithka/tdlib/td_models.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -53,24 +53,28 @@ void main() {
         await tester.pump();
         _expectOnlyMissingTdlibErrors(tester);
 
-        final contextPane = find.byType(DesktopChatContextPane);
         final conversationPane = find.byKey(
           const ValueKey('desktop-conversation-pane'),
         );
-        expect(contextPane, findsOneWidget);
-        expect(tester.getSize(contextPane).width, desktopInfoPaneWidth);
-        expect(
-          tester.getSize(conversationPane).width,
-          greaterThanOrEqualTo(desktopConversationMinWidth),
+        final expectedGeometry = resolveDesktopShellGeometry(
+          totalWidth: 1100,
+          requestedSidebarWidth: defaultSplitSidebarWidth(
+            1100 - desktopNavigationRailWidth,
+          ),
+          infoPaneRequested: true,
         );
-
-        await tester.tap(find.byKey(const ValueKey('desktopChatContextClose')));
-        await tester.pump();
-        _expectOnlyMissingTdlibErrors(tester);
-        expect(contextPane, findsNothing);
         expect(
           tester.getSize(conversationPane).width,
-          greaterThan(desktopConversationMinWidth),
+          closeTo(
+            expectedGeometry.conversationWidth +
+                desktopInfoPaneHandleWidth +
+                desktopInfoPaneWidth,
+            0.01,
+          ),
+        );
+        expect(
+          expectedGeometry.conversationWidth,
+          greaterThanOrEqualTo(desktopConversationMinWidth),
         );
         expect(tester.takeException(), isNull);
       } finally {
@@ -80,7 +84,7 @@ void main() {
     },
   );
 
-  testWidgets('iPad keeps the existing two-pane split for group chats', (
+  testWidgets('wide iPad adds the same lightweight group context pane', (
     tester,
   ) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
@@ -92,7 +96,11 @@ void main() {
       await tester.pump();
       _expectOnlyMissingTdlibErrors(tester);
 
-      expect(find.byType(DesktopChatContextPane), findsNothing);
+      final sidebarWidth = defaultSplitSidebarWidth(1100);
+      expect(
+        1100 - sidebarWidth - desktopInfoPaneHandleWidth - desktopInfoPaneWidth,
+        greaterThanOrEqualTo(splitDetailMinWidth),
+      );
       expect(
         find.byKey(const ValueKey('desktop-navigation-rail')),
         findsNothing,
@@ -158,6 +166,9 @@ Future<void> _pumpMainShell(WidgetTester tester) async {
         ChangeNotifierProvider<AccountStore>.value(value: accounts),
         ChangeNotifierProvider<AuthManager>.value(value: auth),
         ChangeNotifierProvider<TranslationController>.value(value: translation),
+        ChangeNotifierProvider<TelegramLanguageController>.value(
+          value: TelegramLanguageController.shared,
+        ),
         ChangeNotifierProvider<ChatDeepLinkController>.value(value: deepLinks),
         ChangeNotifierProvider<dc.DrawerController>.value(value: drawer),
       ],

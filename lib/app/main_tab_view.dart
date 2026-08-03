@@ -20,7 +20,6 @@ import '../channels/topic_channels_view.dart';
 import '../channels/topic_chat_view.dart';
 import '../chat/chat_info_view.dart';
 import '../chat/chat_members_view.dart';
-import '../chat/chat_search_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/desktop_chat_context_pane.dart';
 import '../chat/music_player_controller.dart';
@@ -31,11 +30,15 @@ import '../components/app_icons.dart';
 import '../components/drawer_controller.dart' as dc;
 import '../components/ui_components.dart';
 import '../contacts/contacts_view.dart';
+import '../l10n/app_locale_controller.dart';
 import '../l10n/app_localizations.dart';
+import '../l10n/telegram_language_controller.dart';
 import '../moments/moments_view.dart';
-import '../profile/profile_detail_view.dart';
 import '../profile/profile_view.dart';
+import '../settings/desktop_hotkey_controller.dart';
 import '../settings/topic_group_display_mode.dart';
+import '../tdlib/json_helpers.dart';
+import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -45,7 +48,10 @@ import '../update/update_checker.dart';
 import 'adaptive_split_layout.dart';
 import 'app_navigator.dart';
 import 'chat_deep_link_controller.dart';
+import 'desktop_chat_window.dart';
 import 'desktop_navigation_rail.dart';
+import 'desktop_utility_window.dart';
+import 'detail_content_reveal.dart';
 import 'unread_badge_model.dart';
 
 @visibleForTesting
@@ -97,12 +103,22 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   double? _splitSidebarWidth;
   bool _splitResizeHandleHovered = false;
   bool? _wasUsingSplitSelection;
+  DesktopHotkeyRegistration? _newChatHotkeyRegistration;
+  DesktopHotkeyRegistration? _focusSearchHotkeyRegistration;
 
   @override
   void initState() {
     super.initState();
     if (isDesktopTargetPlatform()) {
       unawaited(_restoreDesktopSidebarWidth());
+      _newChatHotkeyRegistration = DesktopHotkeyRegistry.instance.register(
+        DesktopHotkeyAction.newChat,
+        () => _runChatListHotkey(_chatListController.openNewChat),
+      );
+      _focusSearchHotkeyRegistration = DesktopHotkeyRegistry.instance.register(
+        DesktopHotkeyAction.focusSearch,
+        () => _runChatListHotkey(_chatListController.focusSearch),
+      );
     }
     // Android-only: check GitHub Releases for a newer same-ABI build (once).
     if (checkForUpdates) {
@@ -166,12 +182,24 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
 
   @override
   void dispose() {
+    _newChatHotkeyRegistration?.dispose();
+    _focusSearchHotkeyRegistration?.dispose();
     _observedAccounts?.removeListener(_handleAccountStoreChanged);
     _chatDeepLinks?.removeListener(_handlePendingChatDeepLink);
     _chatListController.dispose();
     _unread.dispose();
     _tabBar.dispose();
     super.dispose();
+  }
+
+  void _runChatListHotkey(VoidCallback action) {
+    if (!mounted) return;
+    final size = MediaQuery.sizeOf(context);
+    if (usesDesktopShellLayout(size) && !canShowDesktopListPane(size.width)) {
+      _clearTabletDetail(0);
+    }
+    if (_selection != 0) setState(() => _selection = 0);
+    action();
   }
 
   void _handleAccountStoreChanged() {
@@ -339,6 +367,62 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         ),
       );
     });
+  }
+
+  void _openDesktopUtility(
+    DesktopUtilityWindowKind kind,
+    String title, {
+    int? chatId,
+    int? userId,
+    String? initialSettingsCategoryId,
+  }) {
+    final accounts = context.read<AccountStore>();
+    unawaited(
+      DesktopUtilityWindowService.instance.open(
+        DesktopUtilityWindowArguments(
+          kind: kind,
+          accountSlot: accounts.activeSlot,
+          accountUserId: accounts.activeUserId,
+          chatId: chatId,
+          userId: userId,
+          initialSettingsCategoryId: initialSettingsCategoryId,
+          title: title,
+          localeTag: Localizations.localeOf(context).toLanguageTag(),
+          dark: Theme.of(context).brightness == Brightness.dark,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openDesktopSavedMessages() async {
+    final accounts = context.read<AccountStore>();
+    var userId = accounts.activeUserId;
+    try {
+      if (userId == null || userId <= 0) {
+        final me = await TdClient.shared.query({'@type': 'getMe'});
+        userId = me.int64('id');
+      }
+      if (userId == null || userId <= 0) return;
+      final chat = await TdClient.shared.query({
+        '@type': 'createPrivateChat',
+        'user_id': userId,
+        'force': false,
+      });
+      final chatId = chat.int64('id') ?? userId;
+      if (!mounted) return;
+      _openDesktopUtility(
+        DesktopUtilityWindowKind.savedMessages,
+        AppStrings.t(AppStringKeys.savedMessages),
+        chatId: chatId,
+      );
+    } catch (_) {
+      if (!mounted || userId == null || userId <= 0) return;
+      _openDesktopUtility(
+        DesktopUtilityWindowKind.savedMessages,
+        AppStrings.t(AppStringKeys.savedMessages),
+        chatId: userId,
+      );
+    }
   }
 
   void _clearTabletDetail(int tabIndex) {
@@ -522,6 +606,8 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     int activeTabIndex,
   ) {
     final theme = context.watch<ThemeController>();
+    final telegramLanguage = context.watch<TelegramLanguageController>();
+    final accounts = context.watch<AccountStore>();
     final size = MediaQuery.sizeOf(context);
     final contentWidth = size.width - desktopNavigationRailWidth;
     final requestedSidebarWidth =
@@ -544,11 +630,98 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           totalWidth: size.width,
           sidebarWidth: geometry.sidebarWidth,
         );
+    final contextPane = geometry.showInfoPane && selectedChat != null
+        ? KeyedSubtree(
+            key: ValueKey('desktop-chat-context-pane-${selectedChat.chatId}'),
+            child: DesktopChatContextPane(
+              chatId: selectedChat.chatId,
+              title: selectedChat.title,
+              onOpenMembers: () =>
+                  unawaited(_openDesktopChatMembers(selectedChat)),
+              onOpenMember: _openDesktopChatMember,
+            ),
+          )
+        : null;
+    final contextPaneExtent = contextPane == null
+        ? 0.0
+        : desktopInfoPaneHandleWidth + desktopInfoPaneWidth;
     final destinations = [
       for (final tab in tabs)
         DesktopNavigationDestination(
           label: tab.label.l10n(context),
           icon: tab.icon,
+        ),
+    ];
+    final fileLabel = telegramText(AppStringKeys.topicPostContentFile);
+    final videoLabel = telegramText(AppStringKeys.sharedMediaVideos);
+    final railActions = [
+      DesktopNavigationAction(
+        id: 'calls',
+        label: AppStrings.t(AppStringKeys.callsTitle),
+        icon: HeroAppIcons.phone,
+        onTap: () => _openDesktopUtility(
+          DesktopUtilityWindowKind.calls,
+          AppStrings.t(AppStringKeys.callsTitle),
+        ),
+      ),
+      DesktopNavigationAction(
+        id: 'videos',
+        label: videoLabel,
+        icon: HeroAppIcons.video,
+        onTap: () =>
+            _openDesktopUtility(DesktopUtilityWindowKind.videos, videoLabel),
+      ),
+    ];
+    final applicationMenuQuickActions = [
+      DesktopNavigationAction(
+        id: 'saved-messages',
+        label: AppStrings.t(AppStringKeys.savedMessages),
+        icon: HeroAppIcons.thumbtack,
+        onTap: () => unawaited(_openDesktopSavedMessages()),
+      ),
+      DesktopNavigationAction(
+        id: 'files',
+        label: fileLabel,
+        icon: HeroAppIcons.folder,
+        onTap: () =>
+            _openDesktopUtility(DesktopUtilityWindowKind.files, fileLabel),
+      ),
+      DesktopNavigationAction(
+        id: 'appearance',
+        label: AppStrings.t(AppStringKeys.appearanceTitle),
+        icon: HeroAppIcons.palette,
+        onTap: () => _openDesktopUtility(
+          DesktopUtilityWindowKind.settings,
+          AppStrings.t(AppStringKeys.profileSettings),
+          initialSettingsCategoryId: 'appearance',
+        ),
+      ),
+    ];
+    final applicationMenuActions = [
+      DesktopNavigationAction(
+        id: 'settings',
+        label: AppStrings.t(AppStringKeys.profileSettings),
+        icon: HeroAppIcons.gear,
+        onTap: () => _openDesktopUtility(
+          DesktopUtilityWindowKind.settings,
+          AppStrings.t(AppStringKeys.profileSettings),
+        ),
+      ),
+    ];
+    final selectedLocaleKey = AppLocalizations.localeKeyFor(
+      telegramLanguage.mithkaLocale,
+    );
+    final languageOptions = [
+      for (final option in AppLocaleController.options)
+        DesktopLanguageMenuOption(
+          id: option.tag,
+          label: option.label.l10n(context),
+          selected:
+              AppLocalizations.localeKeyFor(option.locale) == selectedLocaleKey,
+          onTap: () => unawaited(() async {
+            await telegramLanguage.selectSupportedLocale(option.locale);
+            await DesktopChatWindowService.instance.notifyPresentationChanged();
+          }()),
         ),
     ];
     return AnimatedBuilder(
@@ -568,6 +741,45 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                         onSelect: _select,
                         unread: _unread.countFor(theme.unreadBadgeMode),
                         onClearUnread: _chatListController.markAllRead,
+                        accounts: accounts.summaries,
+                        activeAccountSlot: accounts.activeSlot,
+                        onSelectAccount: (slot) => accounts.switchTo(
+                          slot,
+                          context.read<AuthManager>(),
+                        ),
+                        onAddAccount: () =>
+                            accounts.addAccount(context.read<AuthManager>()),
+                        switchAccountLabel: AppStrings.t(
+                          AppStringKeys.loginSwitchAccount,
+                        ),
+                        addAccountLabel: AppStrings.t(
+                          AppStringKeys.profileAddAccount,
+                        ),
+                        themeToggleLabel: AppStrings.t(
+                          Theme.of(context).brightness == Brightness.dark
+                              ? AppStringKeys.themeModeLight
+                              : AppStringKeys.themeModeDark,
+                        ),
+                        darkMode:
+                            Theme.of(context).brightness == Brightness.dark,
+                        onToggleThemeMode: () {
+                          theme.mode =
+                              Theme.of(context).brightness == Brightness.dark
+                              ? AppearanceMode.light
+                              : AppearanceMode.dark;
+                        },
+                        showAccountPhone: !theme.hideSidebarPhone,
+                        actions: railActions,
+                        applicationMenuLabel: AppStrings.t(
+                          AppStringKeys.chatMenu,
+                        ),
+                        languageMenuLabel: AppStrings.t(
+                          AppStringKeys.languageTelegramLanguage,
+                        ),
+                        languageOptions: languageOptions,
+                        applicationMenuQuickActions:
+                            applicationMenuQuickActions,
+                        applicationMenuActions: applicationMenuActions,
                       ),
                     ),
                     if (geometry.showListPane)
@@ -585,7 +797,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                       ),
                     SizedBox(
                       key: const ValueKey('desktop-conversation-pane'),
-                      width: geometry.conversationWidth,
+                      width: geometry.conversationWidth + contextPaneExtent,
                       child: _musicAwareContent(
                         geometry.showListPane ||
                                 _hasSelectedDesktopDetail(activeTabIndex)
@@ -593,6 +805,15 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                                 activeTabIndex,
                                 showMessageBackButton:
                                     desktopDetailNeedsBackButton(geometry),
+                                onMessageOpenFullInfo: messageSelection == null
+                                    ? null
+                                    : () => unawaited(
+                                        _openDesktopFullChatInfo(
+                                          messageSelection,
+                                        ),
+                                      ),
+                                onMessageOpenUserProfile:
+                                    _openDesktopUserProfile,
                                 onMessageInfoPressed: canToggleInfoPane
                                     ? () => setState(
                                         () => _closedDesktopInfoChatId =
@@ -601,6 +822,8 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                                             : null,
                                       )
                                     : null,
+                                messageTrailingPane: contextPane,
+                                messageTrailingPaneWidth: desktopInfoPaneWidth,
                               )
                             : _LazyTabStack(
                                 selection: selection,
@@ -612,35 +835,6 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                               ),
                       ),
                     ),
-                    if (geometry.showInfoPane && selectedChat != null) ...[
-                      VerticalDivider(
-                        width: desktopInfoPaneHandleWidth,
-                        thickness: desktopInfoPaneHandleWidth,
-                        color: context.colors.divider,
-                      ),
-                      SizedBox(
-                        key: ValueKey(
-                          'desktop-chat-context-pane-'
-                          '${selectedChat.chatId}',
-                        ),
-                        width: desktopInfoPaneWidth,
-                        child: DesktopChatContextPane(
-                          chatId: selectedChat.chatId,
-                          title: selectedChat.title,
-                          onSearch: () =>
-                              unawaited(_openDesktopChatSearch(selectedChat)),
-                          onClose: () => setState(
-                            () =>
-                                _closedDesktopInfoChatId = selectedChat.chatId,
-                          ),
-                          onOpenFullInfo: () =>
-                              unawaited(_openDesktopFullChatInfo(selectedChat)),
-                          onOpenMembers: () =>
-                              unawaited(_openDesktopChatMembers(selectedChat)),
-                          onOpenMember: _openDesktopChatMember,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
                 if (geometry.showListPane)
@@ -685,6 +879,32 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           _splitSidebarWidth ?? defaultSplitSidebarWidth(size.width),
       totalWidth: size.width,
     );
+    final messageSelection = activeTabIndex == 0 ? _selectedMessageChat : null;
+    final selectedChat = desktopChatKindUsesContextPane(messageSelection?.kind)
+        ? messageSelection
+        : null;
+    final selectedChatId = selectedChat?.chatId;
+    final canToggleInfoPane =
+        selectedChat != null &&
+        size.width >=
+            sidebarWidth +
+                splitDetailMinWidth +
+                desktopInfoPaneHandleWidth +
+                desktopInfoPaneWidth;
+    final showInfoPane =
+        canToggleInfoPane && _closedDesktopInfoChatId != selectedChatId;
+    final contextPane = showInfoPane
+        ? KeyedSubtree(
+            key: ValueKey('tablet-chat-context-pane-${selectedChat.chatId}'),
+            child: DesktopChatContextPane(
+              chatId: selectedChat.chatId,
+              title: selectedChat.title,
+              onOpenMembers: () =>
+                  unawaited(_openDesktopChatMembers(selectedChat)),
+              onOpenMember: _openDesktopChatMember,
+            ),
+          )
+        : null;
     return AnimatedBuilder(
       animation: _tabBar,
       builder: (context, _) => Column(
@@ -720,7 +940,18 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                     ),
                     Expanded(
                       child: _musicAwareContent(
-                        _animatedTabletDetailPane(activeTabIndex),
+                        _animatedTabletDetailPane(
+                          activeTabIndex,
+                          onMessageInfoPressed: canToggleInfoPane
+                              ? () => setState(
+                                  () => _closedDesktopInfoChatId = showInfoPane
+                                      ? selectedChatId
+                                      : null,
+                                )
+                              : null,
+                          messageTrailingPane: contextPane,
+                          messageTrailingPaneWidth: desktopInfoPaneWidth,
+                        ),
                       ),
                     ),
                   ],
@@ -875,6 +1106,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
             animation: archivedSelection.updates,
             builder: (context, _) => ArchivedChatsView(
               chats: archivedSelection.chatsProvider(),
+              selectedChatId: _selectedMessageChat?.chatId,
               onClearUnread: archivedSelection.onClearUnread,
               onBack: () => setState(() => _selectedArchivedChats = null),
               onChatSelected: (chat) {
@@ -895,10 +1127,18 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     int activeTabIndex, {
     bool showMessageBackButton = false,
     VoidCallback? onMessageInfoPressed,
+    VoidCallback? onMessageOpenFullInfo,
+    void Function(int userId, String name)? onMessageOpenUserProfile,
+    Widget? messageTrailingPane,
+    double messageTrailingPaneWidth = 0,
   }) => switch (activeTabIndex) {
     0 => _messageDetailPane(
       showBackButton: showMessageBackButton,
       onInfoPressed: onMessageInfoPressed,
+      onOpenFullInfo: onMessageOpenFullInfo,
+      onOpenUserProfile: onMessageOpenUserProfile,
+      trailingPane: messageTrailingPane,
+      trailingPaneWidth: messageTrailingPaneWidth,
     ),
     1 =>
       _selectedChannelDetail ??
@@ -927,11 +1167,19 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     int activeTabIndex, {
     bool showMessageBackButton = false,
     VoidCallback? onMessageInfoPressed,
+    VoidCallback? onMessageOpenFullInfo,
+    void Function(int userId, String name)? onMessageOpenUserProfile,
+    Widget? messageTrailingPane,
+    double messageTrailingPaneWidth = 0,
   }) {
     final detail = _tabletDetailPane(
       activeTabIndex,
       showMessageBackButton: showMessageBackButton,
       onMessageInfoPressed: onMessageInfoPressed,
+      onMessageOpenFullInfo: onMessageOpenFullInfo,
+      onMessageOpenUserProfile: onMessageOpenUserProfile,
+      messageTrailingPane: messageTrailingPane,
+      messageTrailingPaneWidth: messageTrailingPaneWidth,
     );
     final motionKey = switch (activeTabIndex) {
       0 when _selectedMessageCommunity != null => ValueKey(
@@ -955,12 +1203,16 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       _ when _selectedMomentDetail != null => ObjectKey(_selectedMomentDetail!),
       _ => const ValueKey('tablet-moments-root'),
     };
-    return _ContentReveal(motionKey: motionKey, child: detail);
+    return DetailContentReveal(motionKey: motionKey, child: detail);
   }
 
   Widget _messageDetailPane({
     bool showBackButton = false,
     VoidCallback? onInfoPressed,
+    VoidCallback? onOpenFullInfo,
+    void Function(int userId, String name)? onOpenUserProfile,
+    Widget? trailingPane,
+    double trailingPaneWidth = 0,
   }) {
     final selectedCommunity =
         context.watch<ThemeController>().communitiesEnabled
@@ -1015,6 +1267,10 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               showBackButton: showBackButton,
               onBack: () => setState(() => _selectedMessageChat = null),
               onInfoPressed: onInfoPressed,
+              onOpenFullInfo: onOpenFullInfo,
+              onOpenUserProfile: onOpenUserProfile,
+              trailingPane: trailingPane,
+              trailingPaneWidth: trailingPaneWidth,
             )
           : ChatView(
               chatId: selected.chatId,
@@ -1025,62 +1281,26 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               headerHeight: headerHeight,
               headerColor: headerColor,
               showHeaderDivider: false,
+              trailingPane: trailingPane,
+              trailingPaneWidth: trailingPaneWidth,
               requestComposerFocusOnReady: selected.composerFocusRequestId != 0,
               exitController: _messageChatExitController,
               onChatKindResolved: (kind) =>
                   _handleSelectedChatKindResolved(selected.chatId, kind),
               onInfoPressed: onInfoPressed,
+              onOpenFullInfo: onOpenFullInfo,
+              onOpenUserProfile: onOpenUserProfile,
               onBack: () => setState(() => _selectedMessageChat = null),
             ),
     );
   }
 
-  Future<void> _openDesktopChatSearch(ChatListSelection selected) async {
-    final messageId = await Navigator.of(context, rootNavigator: true)
-        .push<int>(
-          AppPageRoute<int>(
-            pageBuilder: (_, _, _) =>
-                ChatSearchView(chatId: selected.chatId, title: selected.title),
-          ),
-        );
-    if (!mounted ||
-        messageId == null ||
-        _selectedMessageChat?.chatId != selected.chatId) {
-      return;
-    }
-    final nextSelection = ChatListSelection(
-      chatId: selected.chatId,
-      title: selected.title,
-      chat: selected.chat,
-      resolvedKind: selected.kind,
-      initialMessageId: messageId,
-    );
-    _prepareMessageChatReplacement(nextSelection);
-    setState(() => _selectedMessageChat = nextSelection);
-  }
-
   Future<void> _openDesktopFullChatInfo(ChatListSelection selected) async {
-    final messageId = await Navigator.of(context, rootNavigator: true)
-        .push<int>(
-          AppPageRoute<int>(
-            pageBuilder: (_, _, _) =>
-                ChatInfoView(chatId: selected.chatId, title: selected.title),
-          ),
-        );
-    if (!mounted ||
-        messageId == null ||
-        _selectedMessageChat?.chatId != selected.chatId) {
-      return;
-    }
-    final nextSelection = ChatListSelection(
+    _openDesktopUtility(
+      DesktopUtilityWindowKind.chatInfo,
+      selected.title,
       chatId: selected.chatId,
-      title: selected.title,
-      chat: selected.chat,
-      resolvedKind: selected.kind,
-      initialMessageId: messageId,
     );
-    _prepareMessageChatReplacement(nextSelection);
-    setState(() => _selectedMessageChat = nextSelection);
   }
 
   Future<void> _openDesktopChatMembers(ChatListSelection selected) async {
@@ -1093,11 +1313,14 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   }
 
   void _openDesktopChatMember(ChatMember member) {
-    Navigator.of(context, rootNavigator: true).push<void>(
-      AppPageRoute<void>(
-        pageBuilder: (_, _, _) =>
-            ProfileDetailView(userId: member.id, name: member.name),
-      ),
+    _openDesktopUserProfile(member.id, member.name);
+  }
+
+  void _openDesktopUserProfile(int userId, String name) {
+    _openDesktopUtility(
+      DesktopUtilityWindowKind.userProfile,
+      name,
+      userId: userId,
     );
   }
 
@@ -1243,71 +1466,6 @@ class _ProfileDrawerOverlayState extends State<_ProfileDrawerOverlay>
   }
 }
 
-/// Immediately swaps heavy content, then animates only the arriving tree.
-/// This avoids keeping two live chat/media controllers mounted during a
-/// cross-fade while still making detail-pane changes spatially legible.
-class _ContentReveal extends StatefulWidget {
-  const _ContentReveal({required this.motionKey, required this.child});
-
-  final Key motionKey;
-  final Widget child;
-
-  @override
-  State<_ContentReveal> createState() => _ContentRevealState();
-}
-
-class _ContentRevealState extends State<_ContentReveal>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: AppMotion.deliberate,
-    value: 1,
-  );
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _controller.duration = AppMotion.duration(context, AppMotion.deliberate);
-    if (AppMotion.isReduced(context)) _controller.value = 1;
-  }
-
-  @override
-  void didUpdateWidget(covariant _ContentReveal oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.motionKey == widget.motionKey) return;
-    _controller.duration = AppMotion.duration(context, AppMotion.deliberate);
-    if (_controller.duration == Duration.zero) {
-      _controller.value = 1;
-    } else {
-      _controller.forward(from: 0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      child: KeyedSubtree(key: widget.motionKey, child: widget.child),
-      builder: (context, child) {
-        final progress = AppMotion.standard.transform(_controller.value);
-        return Opacity(
-          opacity: 0.88 + 0.12 * progress,
-          child: Transform.translate(
-            offset: Offset(14 * (1 - progress), 0),
-            child: child,
-          ),
-        );
-      },
-    );
-  }
-}
-
 class _ForumSplitDetailPane extends StatefulWidget {
   const _ForumSplitDetailPane({
     required this.chat,
@@ -1317,6 +1475,10 @@ class _ForumSplitDetailPane extends StatefulWidget {
     required this.showBackButton,
     required this.onBack,
     this.onInfoPressed,
+    this.onOpenFullInfo,
+    this.onOpenUserProfile,
+    this.trailingPane,
+    this.trailingPaneWidth = 0,
   });
 
   final ChatSummary chat;
@@ -1326,6 +1488,10 @@ class _ForumSplitDetailPane extends StatefulWidget {
   final bool showBackButton;
   final VoidCallback onBack;
   final VoidCallback? onInfoPressed;
+  final VoidCallback? onOpenFullInfo;
+  final void Function(int userId, String name)? onOpenUserProfile;
+  final Widget? trailingPane;
+  final double trailingPaneWidth;
 
   @override
   State<_ForumSplitDetailPane> createState() => _ForumSplitDetailPaneState();
@@ -1364,8 +1530,12 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
             headerHeight: widget.headerHeight,
             headerColor: widget.headerColor,
             headerBottom: _tabSwitcher(c),
+            trailingPane: widget.trailingPane,
+            trailingPaneWidth: widget.trailingPaneWidth,
             exitController: widget.exitController,
             onInfoPressed: widget.onInfoPressed,
+            onOpenFullInfo: widget.onOpenFullInfo,
+            onOpenUserProfile: widget.onOpenUserProfile,
             onBack: widget.onBack,
             onOpenTopicMode: (threadId) =>
                 unawaited(_showChannelMode(threadId)),
@@ -1380,7 +1550,7 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
             onOpenChatView: () => unawaited(_showChatMode()),
             onBack: widget.onBack,
           );
-    return _ContentReveal(
+    return DetailContentReveal(
       motionKey: ValueKey('forum-detail-$_index-${_topicThreadId ?? 0}'),
       child: content,
     );
@@ -1636,23 +1806,28 @@ class _LazyTabStackState extends State<_LazyTabStack>
     if (widget.items.isEmpty) return const SizedBox.expand();
     final selectedPosition = _selectedPosition(widget);
     final selectedTabIndex = widget.items[selectedPosition].index;
-    return ClipRect(
-      child: AnimatedBuilder(
-        animation: _transition,
-        builder: (context, _) {
-          final progress = AppMotion.standard.transform(_transition.value);
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              for (final tab in widget.items)
-                _animatedTab(
-                  tab: tab,
-                  selectedTabIndex: selectedTabIndex,
-                  progress: progress,
-                ),
-            ],
-          );
-        },
+    final desktopInPlace = AppMotion.usesInPlaceDesktopNavigation(context);
+    return ColoredBox(
+      color: context.colors.background,
+      child: ClipRect(
+        child: AnimatedBuilder(
+          animation: _transition,
+          builder: (context, _) {
+            final progress = AppMotion.standard.transform(_transition.value);
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                for (final tab in widget.items)
+                  _animatedTab(
+                    tab: tab,
+                    selectedTabIndex: selectedTabIndex,
+                    progress: progress,
+                    desktopInPlace: desktopInPlace,
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -1661,15 +1836,22 @@ class _LazyTabStackState extends State<_LazyTabStack>
     required _MainTabItem tab,
     required int selectedTabIndex,
     required double progress,
+    required bool desktopInPlace,
   }) {
     final selected = tab.index == selectedTabIndex;
     final departing = tab.index == _departingTabIndex;
     final visible = selected || departing;
     final opacity = selected ? 0.86 + 0.14 * progress : 1 - progress;
-    final offset = selected
+    final offset = desktopInPlace
+        ? 0.0
+        : selected
         ? _direction * 20 * (1 - progress)
         : -_direction * 10 * progress;
-    final scale = selected ? 0.995 + 0.005 * progress : 1 - 0.005 * progress;
+    final scale = desktopInPlace
+        ? 1.0
+        : selected
+        ? 0.995 + 0.005 * progress
+        : 1 - 0.005 * progress;
 
     return Offstage(
       offstage: !visible,
@@ -1682,8 +1864,10 @@ class _LazyTabStackState extends State<_LazyTabStack>
             child: Opacity(
               opacity: opacity.clamp(0.0, 1.0),
               child: Transform.translate(
+                key: ValueKey('main-tab-translation-${tab.index}'),
                 offset: Offset(offset, 0),
                 child: Transform.scale(
+                  key: ValueKey('main-tab-scale-${tab.index}'),
                   scale: scale,
                   child: KeyedSubtree(
                     key: ValueKey('main-tab-${tab.index}'),

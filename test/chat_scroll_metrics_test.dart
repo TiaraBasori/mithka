@@ -34,7 +34,7 @@ void main() {
       'void _saveSessionScrollSnapshot({bool captureAnchor = true})',
     );
     final saveEnd = source.indexOf('bool get _sessionReopenPending', saveStart);
-    final cacheStart = source.indexOf('void _cacheCurrentTranscript()');
+    final cacheStart = source.indexOf('void _cacheCurrentTranscript(');
     final cacheEnd = source.indexOf('void _handleBack()', cacheStart);
 
     expect(saveStart, greaterThanOrEqualTo(0));
@@ -74,14 +74,14 @@ void main() {
     expect(
       source,
       contains(
-        'if (_usesTabletSplit(context) && _selection == 0) {\n'
+        'if (_usesSplitSelection(context) && _selection == 0) {\n'
         '      _messageChatExitController.prepareExit();',
       ),
     );
     expect(
       source,
       contains(
-        'if (_wasUsingTabletSplit == true && !usesTabletSplit) {\n'
+        'if (_wasUsingSplitSelection == true && !usesSplitSelection) {\n'
         '      _messageChatExitController.prepareExit();',
       ),
     );

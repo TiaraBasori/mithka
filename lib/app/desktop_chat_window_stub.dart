@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'desktop_chat_window_models.dart';
+import 'desktop_utility_window_models.dart';
 
 bool get supportsDesktopChatWindows => false;
 
@@ -8,15 +9,28 @@ void attachDesktopChatMainProxy() {}
 
 void detachDesktopChatMainProxy() {}
 
+Future<void> notifyDesktopChatPresentationChanged() async {}
+
+void attachDesktopChatChildPresentationReload(
+  Future<void> Function() callback,
+) {}
+
+void detachDesktopChatChildPresentationReload() {}
+
 Future<bool> openDesktopChatWindow(
   DesktopChatWindowArguments arguments,
 ) async => false;
 
-Future<void> closeCurrentDesktopChatWindow() async {}
+Future<bool> requestDesktopUtilityWindowFromChat({
+  required DesktopChatWindowArguments requestingChat,
+  required DesktopUtilityWindowArguments utility,
+}) async => false;
 
-DesktopChatWindowChildController createDesktopChatWindowChildController(
+Future<void> configureDesktopChatChildProxy(
   DesktopChatWindowArguments arguments,
-) => _UnsupportedDesktopChatWindowChildController();
+) async {}
+
+Future<void> closeCurrentDesktopChatWindow() async {}
 
 Widget buildDesktopChatWindowHost({
   required DesktopChatWindowArguments initialArguments,
@@ -26,21 +40,3 @@ Widget buildDesktopChatWindowHost({
   )
   builder,
 }) => Builder(builder: (context) => builder(context, initialArguments));
-
-class _UnsupportedDesktopChatWindowChildController
-    extends DesktopChatWindowChildController {
-  @override
-  bool get loading => false;
-
-  @override
-  bool get sendFailed => true;
-
-  @override
-  bool get sending => false;
-
-  @override
-  DesktopChatWindowSnapshot? get snapshot => null;
-
-  @override
-  Future<bool> sendText(String text) async => false;
-}

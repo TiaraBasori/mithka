@@ -12,9 +12,12 @@ const double splitSidebarDefaultMinWidth = 320;
 const double splitSidebarDefaultMaxWidth = 420;
 const double splitDetailMinWidth = 440;
 const double splitResizeHandleWidth = 8;
-const double desktopNavigationRailWidth = 68;
+const double desktopNavigationRailWidth = 58;
 const double desktopConversationMinWidth = 440;
-const double desktopInfoPaneWidth = 260;
+
+/// Mouse-oriented group context pane. The width leaves enough room for member
+/// names while avoiding a visually empty trailing gutter beside the chat.
+const double desktopInfoPaneWidth = 224;
 const double desktopInfoPaneHandleWidth = 1;
 
 @immutable
