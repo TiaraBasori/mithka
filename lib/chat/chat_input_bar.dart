@@ -2421,7 +2421,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       onVerticalDragUpdate: _resizeDesktopComposer,
       onVerticalDragEnd: _persistDesktopComposerHeight,
       child: Semantics(
-        label: 'Resize message input',
+        label: AppStrings.t(AppStringKeys.chatInputResizeMessageInput),
         child: SizedBox(
           height: 9,
           width: double.infinity,
