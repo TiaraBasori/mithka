@@ -1162,6 +1162,8 @@ const esMessages = <String, String>{
       "Cambió el nombre de usuario público",
   'groupManagementLogChangedSlowMode': "Cambió el modo lento",
   'groupManagementLogCreatedTopic': "Creó un tema",
+  'groupManagementLogClosedTopic': "Cerró el tema",
+  'groupManagementLogReopenedTopic': "Reabrió el tema",
   'groupManagementLogDeletedInviteLink': "Eliminó un enlace de invitación",
   'groupManagementLogDeletedMessage': "Eliminó un mensaje",
   'groupManagementLogDeletedTopic': "Eliminó un tema",

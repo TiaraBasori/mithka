@@ -3659,6 +3659,8 @@ abstract final class TDParse {
     'messageVideoChatStarted',
     'messageVideoChatEnded',
     'messageForumTopicCreated',
+    'messageForumTopicEdited',
+    'messageForumTopicIsClosedToggled',
     'messageChatBoost',
     'messageChatAddedToCommunity',
     'messageChatRemovedFromCommunity',
@@ -3725,6 +3727,12 @@ abstract final class TDParse {
         return telegramText(AppStringKeys.tdMessageGroupVideoChatEnded);
       case 'messageForumTopicCreated':
         return AppStrings.t(AppStringKeys.groupManagementLogCreatedTopic);
+      case 'messageForumTopicEdited':
+        return AppStrings.t(AppStringKeys.groupManagementLogEditedTopic);
+      case 'messageForumTopicIsClosedToggled':
+        return content?.boolean('is_closed') == true
+            ? AppStrings.t(AppStringKeys.groupManagementLogClosedTopic)
+            : AppStrings.t(AppStringKeys.groupManagementLogReopenedTopic);
       case 'messageChatBoost':
         return telegramText(AppStringKeys.tdMessageBoostedGroup);
       case 'messageChatAddedToCommunity':

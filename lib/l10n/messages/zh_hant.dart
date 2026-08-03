@@ -1050,6 +1050,8 @@ const zhHantMessages = <String, String>{
   'groupManagementLogChangedPublicUsername': "修改了公開使用者名稱",
   'groupManagementLogChangedSlowMode': "修改了慢速模式",
   'groupManagementLogCreatedTopic': "建立了話題",
+  'groupManagementLogClosedTopic': "關閉了話題",
+  'groupManagementLogReopenedTopic': "重新開啟了話題",
   'groupManagementLogDeletedInviteLink': "刪除了邀請連結",
   'groupManagementLogDeletedMessage': "刪除了訊息",
   'groupManagementLogDeletedTopic': "刪除了話題",

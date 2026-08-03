@@ -336,9 +336,10 @@ class _TopicChatViewState extends State<TopicChatView> {
         final info = topic.obj('info') ?? topic;
         final last = topic.obj('last_message');
         final message = last == null ? null : TDParse.message(last);
-        if (message?.isService == true) continue;
         final id = _topicId(topic, info) ?? message?.id;
         if (id == null || id == 0) continue;
+        final isServiceLast = message?.isService == true;
+        final fallbackDate = last?.integer('date');
         next.add(
           _ForumTopic(
             id: id,
@@ -346,7 +347,13 @@ class _TopicChatViewState extends State<TopicChatView> {
                 info.str('name') ??
                 topic.str('name') ??
                 AppStringKeys.topicChatTopicTitle,
-            lastMessage: message ?? _fallbackTopicMessage(id, info, topic),
+            lastMessage: message ??
+                _fallbackTopicMessage(
+                  id,
+                  info,
+                  topic,
+                  fallbackDate: fallbackDate,
+                ),
             isPinned: topic.boolean('is_pinned') ?? false,
             isMuted:
                 (topic.obj('notification_settings')?.integer('mute_for') ?? 0) >
@@ -354,7 +361,7 @@ class _TopicChatViewState extends State<TopicChatView> {
             unreadCount: _topicUnreadCount(topic, info),
             iconCustomEmojiId: _topicCustomEmojiId(topic, info),
             iconColor: _topicIconColor(topic, info),
-            lastMessageIsSynthetic: message == null,
+            lastMessageIsSynthetic: message == null || isServiceLast,
           ),
         );
       }
@@ -401,7 +408,9 @@ class _TopicChatViewState extends State<TopicChatView> {
               .map(TDParse.message)
               .whereType<ChatMessage>()
               .where((message) => !message.isService)
-              .where((message) => message.replyToMessageId == null)
+              .where((message) =>
+                  message.replyToMessageId == null ||
+                  message.replyToMessageId == topic.id)
               .toList()
             ..sort((a, b) => b.date.compareTo(a.date));
       _topicMessages[topic.id] = messages.isEmpty
@@ -466,8 +475,9 @@ class _TopicChatViewState extends State<TopicChatView> {
   ChatMessage _fallbackTopicMessage(
     int id,
     Map<String, dynamic> info,
-    Map<String, dynamic> topic,
-  ) {
+    Map<String, dynamic> topic, {
+    int? fallbackDate,
+  }) {
     final created =
         info.integer('creation_date') ?? topic.integer('creation_date') ?? 0;
     return ChatMessage(
@@ -476,7 +486,7 @@ class _TopicChatViewState extends State<TopicChatView> {
           info.str('name') ??
           topic.str('name') ??
           AppStrings.t(AppStringKeys.topicChatTopicTitle),
-      date: created,
+      date: fallbackDate ?? created,
       isOutgoing: false,
       chatId: widget.chat.id,
     );

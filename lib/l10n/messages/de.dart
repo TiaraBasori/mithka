@@ -1175,6 +1175,8 @@ const deMessages = <String, String>{
       "Öffentlichen Benutzernamen geändert",
   'groupManagementLogChangedSlowMode': "Langsamen Modus geändert",
   'groupManagementLogCreatedTopic': "Thema erstellt",
+  'groupManagementLogClosedTopic': "Thema geschlossen",
+  'groupManagementLogReopenedTopic': "Thema wieder geöffnet",
   'groupManagementLogDeletedInviteLink': "Einladungslink gelöscht",
   'groupManagementLogDeletedMessage': "Nachricht gelöscht",
   'groupManagementLogDeletedTopic': "Thema gelöscht",

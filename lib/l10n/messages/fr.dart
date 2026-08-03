@@ -1173,6 +1173,8 @@ const frMessages = <String, String>{
       "A modifié le nom d’utilisateur public",
   'groupManagementLogChangedSlowMode': "A modifié le mode lent",
   'groupManagementLogCreatedTopic': "A créé un sujet",
+  'groupManagementLogClosedTopic': "A fermé le sujet",
+  'groupManagementLogReopenedTopic': "A rouvert le sujet",
   'groupManagementLogDeletedInviteLink': "A supprimé un lien d’invitation",
   'groupManagementLogDeletedMessage': "A supprimé un message",
   'groupManagementLogDeletedTopic': "A supprimé un sujet",

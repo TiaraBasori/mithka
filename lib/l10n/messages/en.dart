@@ -1196,6 +1196,8 @@ const enMessages = <String, String>{
   'groupManagementLogChangedPublicUsername': "Changed public username",
   'groupManagementLogChangedSlowMode': "Changed slow mode",
   'groupManagementLogCreatedTopic': "Created topic",
+  'groupManagementLogClosedTopic': "Closed topic",
+  'groupManagementLogReopenedTopic': "Reopened topic",
   'groupManagementLogDeletedInviteLink': "Deleted invite link",
   'groupManagementLogDeletedMessage': "Deleted message",
   'groupManagementLogDeletedTopic': "Deleted topic",

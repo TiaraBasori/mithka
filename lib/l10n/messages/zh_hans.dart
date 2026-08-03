@@ -1048,6 +1048,8 @@ const zhHansMessages = <String, String>{
   'groupManagementLogChangedPublicUsername': "修改了公开用户名",
   'groupManagementLogChangedSlowMode': "修改了慢速模式",
   'groupManagementLogCreatedTopic': "创建了话题",
+  'groupManagementLogClosedTopic': "关闭了话题",
+  'groupManagementLogReopenedTopic': "重新打开了话题",
   'groupManagementLogDeletedInviteLink': "删除了邀请链接",
   'groupManagementLogDeletedMessage': "删除了消息",
   'groupManagementLogDeletedTopic': "删除了话题",

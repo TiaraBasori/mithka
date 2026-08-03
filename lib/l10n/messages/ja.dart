@@ -1072,6 +1072,8 @@ const jaMessages = <String, String>{
   'groupManagementLogChangedPublicUsername': "公開ユーザー名を変更しました",
   'groupManagementLogChangedSlowMode': "スローモードを変更しました",
   'groupManagementLogCreatedTopic': "トピックを作成しました",
+  'groupManagementLogClosedTopic': "トピックを閉じました",
+  'groupManagementLogReopenedTopic': "トピックを再開しました",
   'groupManagementLogDeletedInviteLink': "招待リンクを削除しました",
   'groupManagementLogDeletedMessage': "メッセージを削除しました",
   'groupManagementLogDeletedTopic': "トピックを削除しました",

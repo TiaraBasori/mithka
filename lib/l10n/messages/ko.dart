@@ -1074,6 +1074,8 @@ const koMessages = <String, String>{
   'groupManagementLogChangedPublicUsername': "공개 사용자 이름을 변경했습니다",
   'groupManagementLogChangedSlowMode': "슬로우 모드를 변경했습니다",
   'groupManagementLogCreatedTopic': "주제를 만들었습니다",
+  'groupManagementLogClosedTopic': "주제를 닫았습니다",
+  'groupManagementLogReopenedTopic': "주제를 다시 열었습니다",
   'groupManagementLogDeletedInviteLink': "초대 링크를 삭제했습니다",
   'groupManagementLogDeletedMessage': "메시지를 삭제했습니다",
   'groupManagementLogDeletedTopic': "주제를 삭제했습니다",
