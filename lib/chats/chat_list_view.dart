@@ -636,8 +636,7 @@ class _ChatListViewState extends State<ChatListView>
     _loadMe();
     // Keep the header's name/status/photo live — TDLib emits updateUser for us
     // when the status or profile changes.
-    _userSub = TdClient.shared.subscribe().listen((u) {
-      if (u.type != 'updateUser') return;
+    _userSub = TdClient.shared.updatesOf('updateUser').listen((u) {
       if (u.obj('user')?.int64('id') == _meId) _loadMe();
     });
   }
