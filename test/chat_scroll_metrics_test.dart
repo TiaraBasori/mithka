@@ -51,6 +51,43 @@ void main() {
     );
   });
 
+  test('desktop split replacements prepare chat geometry before setState', () {
+    final source = File('lib/app/main_tab_view.dart').readAsStringSync();
+    final selectionStart = source.indexOf('onChatSelected: (chat) {');
+    final selectionEnd = source.indexOf('onCommunitySelected:', selectionStart);
+    final selection = source.substring(selectionStart, selectionEnd);
+    expect(
+      selection.indexOf('_prepareMessageChatReplacement(chat);'),
+      lessThan(selection.indexOf('setState(() {')),
+    );
+
+    final replacementStart = source.indexOf(
+      'void _prepareMessageChatReplacement(',
+    );
+    final replacementEnd = source.indexOf(
+      'bool _usesTabletSplit(',
+      replacementStart,
+    );
+    final replacement = source.substring(replacementStart, replacementEnd);
+    expect(replacement, contains('_messageChatExitController.prepareExit();'));
+    expect(source, contains('exitController: _messageChatExitController,'));
+    expect(
+      source,
+      contains(
+        'if (_usesTabletSplit(context) && _selection == 0) {\n'
+        '      _messageChatExitController.prepareExit();',
+      ),
+    );
+    expect(
+      source,
+      contains(
+        'if (_wasUsingTabletSplit == true && !usesTabletSplit) {\n'
+        '      _messageChatExitController.prepareExit();',
+      ),
+    );
+    expect(source, contains('void _handleAccountStoreChanged() {'));
+  });
+
   test(
     'cold unread and evicted session anchors never create stale targets',
     () {

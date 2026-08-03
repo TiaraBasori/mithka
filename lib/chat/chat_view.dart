@@ -739,6 +739,23 @@ class _PlainEditButton extends StatelessWidget {
   }
 }
 
+/// Lets an adaptive parent save a chat's measured viewport before replacing
+/// its detail pane. Waiting for [State.dispose] is too late on desktop because
+/// the render tree has already detached, so message geometry is unavailable.
+class ChatViewExitController {
+  VoidCallback? _prepareExit;
+
+  /// Registers the currently visible chat and returns a matching detacher.
+  VoidCallback register(VoidCallback prepareExit) {
+    _prepareExit = prepareExit;
+    return () {
+      if (identical(_prepareExit, prepareExit)) _prepareExit = null;
+    };
+  }
+
+  void prepareExit() => _prepareExit?.call();
+}
+
 class ChatView extends StatefulWidget {
   const ChatView({
     super.key,
@@ -755,6 +772,7 @@ class ChatView extends StatefulWidget {
     this.requestComposerFocusOnReady = false,
     this.onOpenTopicMode,
     this.onBack,
+    this.exitController,
   });
   final int chatId;
   final String title;
@@ -769,6 +787,7 @@ class ChatView extends StatefulWidget {
   final bool requestComposerFocusOnReady;
   final ValueChanged<int?>? onOpenTopicMode;
   final VoidCallback? onBack;
+  final ChatViewExitController? exitController;
 
   @override
   State<ChatView> createState() => _ChatViewState();
@@ -934,6 +953,7 @@ class _ChatViewState extends State<ChatView> {
   final Set<int> _autoTranslationFailedMessageIds = <int>{};
   final Set<int> _autoTranslatedMessageIds = <int>{};
   bool _sendFailureDialogVisible = false;
+  VoidCallback? _detachExitController;
 
   /// Gap (seconds) between messages that triggers a fresh time separator.
   static const _separatorGap = 300;
@@ -972,6 +992,7 @@ class _ChatViewState extends State<ChatView> {
   @override
   void initState() {
     super.initState();
+    _detachExitController = widget.exitController?.register(_prepareExitState);
     _wallpaperController.addListener(_onWallpaperChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -1130,6 +1151,14 @@ class _ChatViewState extends State<ChatView> {
       _scheduleChatLanguageDetection();
       _scheduleAutomaticTranslations();
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant ChatView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(oldWidget.exitController, widget.exitController)) return;
+    _detachExitController?.call();
+    _detachExitController = widget.exitController?.register(_prepareExitState);
   }
 
   @override
@@ -2061,10 +2090,16 @@ class _ChatViewState extends State<ChatView> {
 
     _sessionReopenResolutionInFlight = false;
     _sessionReopenDispositionResolved = true;
+    final prioritizeUnread = shouldPrioritizeUnreadOnChatReopen(
+      currentUnreadCount: _vm.unreadCount,
+      currentLastReadInboxId: _vm.lastReadInboxId,
+      savedAnchorMessageId: snapshot.anchorMessageId,
+      hasConfirmedNewUnread: confirmedUnreadMessageId != null,
+    );
     final disposition = resolveChatReopenDisposition(
       hasExplicitTarget: widget.initialMessageId != null,
       hasSavedPosition: true,
-      hasConfirmedNewUnread: confirmedUnreadMessageId != null,
+      prioritizeUnread: prioritizeUnread,
     );
     if (disposition != ChatReopenDisposition.firstUnread) return;
 
@@ -3186,6 +3221,7 @@ class _ChatViewState extends State<ChatView> {
   @override
   void dispose() {
     _prepareExitState();
+    _detachExitController?.call();
     NotificationController.shared.unregisterVisibleChat(this);
     _wallpaperController.removeListener(_onWallpaperChanged);
     _bannerTimer?.cancel();

@@ -71,14 +71,19 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   late final dc.TabBarVisibility _tabBar = dc.TabBarVisibility();
   late final UnreadBadgeModel _unread = UnreadBadgeModel()..start();
   late final ChatListController _chatListController = ChatListController();
+  late final ChatViewExitController _messageChatExitController =
+      ChatViewExitController();
   ChatListSelection? _selectedMessageChat;
   CommunityListSelection? _selectedMessageCommunity;
   Widget? _selectedChannelDetail;
   Widget? _selectedContactDetail;
   Widget? _selectedMomentDetail;
   ChatDeepLinkController? _chatDeepLinks;
+  AccountStore? _observedAccounts;
+  int? _observedAccountSlot;
   double? _splitSidebarWidth;
   bool _splitResizeHandleHovered = false;
+  bool? _wasUsingTabletSplit;
 
   @override
   void initState() {
@@ -124,6 +129,18 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final usesTabletSplit = _usesTabletSplit(context);
+    if (_wasUsingTabletSplit == true && !usesTabletSplit) {
+      _messageChatExitController.prepareExit();
+    }
+    _wasUsingTabletSplit = usesTabletSplit;
+    final accounts = context.read<AccountStore>();
+    if (!identical(_observedAccounts, accounts)) {
+      _observedAccounts?.removeListener(_handleAccountStoreChanged);
+      _observedAccounts = accounts;
+      _observedAccountSlot = accounts.activeSlot;
+      accounts.addListener(_handleAccountStoreChanged);
+    }
     final controller = context.read<ChatDeepLinkController>();
     if (identical(_chatDeepLinks, controller)) return;
     _chatDeepLinks?.removeListener(_handlePendingChatDeepLink);
@@ -135,11 +152,19 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
 
   @override
   void dispose() {
+    _observedAccounts?.removeListener(_handleAccountStoreChanged);
     _chatDeepLinks?.removeListener(_handlePendingChatDeepLink);
     _chatListController.dispose();
     _unread.dispose();
     _tabBar.dispose();
     super.dispose();
+  }
+
+  void _handleAccountStoreChanged() {
+    final accounts = _observedAccounts;
+    if (accounts == null || accounts.activeSlot == _observedAccountSlot) return;
+    _messageChatExitController.prepareExit();
+    _observedAccountSlot = accounts.activeSlot;
   }
 
   late final List<GlobalKey<NavigatorState>> _navKeys = List.generate(
@@ -173,6 +198,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       switch (_selection) {
         case 0:
           if (_selectedMessageChat != null) {
+            _messageChatExitController.prepareExit();
             setState(() => _selectedMessageChat = null);
             return false;
           }
@@ -218,6 +244,9 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       if (shouldToggleMessages) _toggleMessagesListTarget(theme);
       return;
     }
+    if (_usesTabletSplit(context) && _selection == 0) {
+      _messageChatExitController.prepareExit();
+    }
     setState(() => _selection = tabIndex);
     if (shouldToggleMessages) _toggleMessagesListTarget(theme);
   }
@@ -256,14 +285,16 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       return;
     }
     if (_usesTabletSplit(context)) {
+      final nextSelection = ChatListSelection(
+        chatId: request.chatId,
+        title: request.title,
+        initialMessageId: request.messageId,
+      );
+      _prepareMessageChatReplacement(nextSelection);
       setState(() {
         _selection = 0;
         _selectedMessageCommunity = null;
-        _selectedMessageChat = ChatListSelection(
-          chatId: request.chatId,
-          title: request.title,
-          initialMessageId: request.messageId,
-        );
+        _selectedMessageChat = nextSelection;
       });
       return;
     }
@@ -289,6 +320,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     switch (tabIndex) {
       case 0:
         if (_selectedMessageChat != null || _selectedMessageCommunity != null) {
+          _messageChatExitController.prepareExit();
           setState(() {
             _selectedMessageChat = null;
             _selectedMessageCommunity = null;
@@ -596,6 +628,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
             ? _selectedMessageCommunity?.community.id
             : null,
         onChatSelected: (chat) {
+          _prepareMessageChatReplacement(chat);
           setState(() {
             _selectedMessageCommunity = null;
             _selectedMessageChat = chat;
@@ -603,6 +636,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         },
         onCommunitySelected: (community) {
           if (!communitiesEnabled) return;
+          _messageChatExitController.prepareExit();
           setState(() {
             _selectedMessageChat = null;
             _selectedMessageCommunity = community;
@@ -697,9 +731,11 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           onCollapsedChanged: selectedCommunity.onCollapsedChanged,
           showBackButton: false,
           onChatSelected: (chat) {
+            final nextSelection = ChatListSelection.fromChat(chat);
+            _prepareMessageChatReplacement(nextSelection);
             setState(() {
               _selectedMessageCommunity = null;
-              _selectedMessageChat = ChatListSelection.fromChat(chat);
+              _selectedMessageChat = nextSelection;
             });
           },
         ),
@@ -724,6 +760,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               chat: chat,
               headerHeight: headerHeight,
               headerColor: headerColor,
+              exitController: _messageChatExitController,
             )
           : ChatView(
               chatId: selected.chatId,
@@ -735,9 +772,24 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
               headerColor: headerColor,
               showHeaderDivider: false,
               requestComposerFocusOnReady: selected.composerFocusRequestId != 0,
+              exitController: _messageChatExitController,
               onBack: () => setState(() => _selectedMessageChat = null),
             ),
     );
+  }
+
+  void _prepareMessageChatReplacement(ChatListSelection? nextSelection) {
+    final current = _selectedMessageChat;
+    if (current == null ||
+        (nextSelection != null &&
+            current.chatId == nextSelection.chatId &&
+            current.supportsTopics == nextSelection.supportsTopics &&
+            current.initialMessageId == nextSelection.initialMessageId &&
+            current.composerFocusRequestId ==
+                nextSelection.composerFocusRequestId)) {
+      return;
+    }
+    _messageChatExitController.prepareExit();
   }
 
   bool _usesTabletSplit(BuildContext context) {
@@ -922,11 +974,13 @@ class _ForumSplitDetailPane extends StatefulWidget {
     required this.chat,
     required this.headerHeight,
     required this.headerColor,
+    required this.exitController,
   });
 
   final ChatSummary chat;
   final double headerHeight;
   final Color headerColor;
+  final ChatViewExitController exitController;
 
   @override
   State<_ForumSplitDetailPane> createState() => _ForumSplitDetailPaneState();
@@ -945,6 +999,7 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
   Future<void> _showChannelMode([int? threadId]) async {
     await TopicGroupDisplayPreference.set(TopicGroupDisplayMode.channel);
     if (!mounted) return;
+    widget.exitController.prepareExit();
     setState(() {
       _index = 1;
       _topicThreadId = threadId;
@@ -964,6 +1019,7 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
             headerHeight: widget.headerHeight,
             headerColor: widget.headerColor,
             headerBottom: _tabSwitcher(c),
+            exitController: widget.exitController,
             onOpenTopicMode: (threadId) =>
                 unawaited(_showChannelMode(threadId)),
           )
