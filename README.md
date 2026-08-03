@@ -112,7 +112,7 @@ debug signature is used. Neither the keystore nor `key.properties` is committed.
 
 `master` does not publish GitHub or Google Play release packages. Every push to
 `master` does archive the macOS app and upload an internal-only TestFlight
-build. At 00:00 and 12:00 UTC each day, GitHub Actions merges new `master`
+build. At 00:00 UTC each day, GitHub Actions merges new `master`
 commits into `nightly` and increments the app's patch version once; `nightly`
 publishes dated Android, Windows, macOS, and Linux GitHub prereleases and
 submits the signed AAB to Google Play Open testing. Xcode Cloud keeps the same
