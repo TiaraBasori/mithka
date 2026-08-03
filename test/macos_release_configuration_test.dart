@@ -28,9 +28,13 @@ void main() {
       isFalse,
     );
 
-    final dispatcher = File('ci_scripts/ci_post_clone.sh').readAsStringSync();
-    expect(dispatcher, contains(r'exec "$SCRIPT_DIR/macos_post_clone.sh"'));
-    expect(dispatcher, contains('MITHKA_CI_PLATFORM'));
+    final workspaceHook = File(
+      'macos/ci_scripts/ci_post_clone.sh',
+    ).readAsStringSync();
+    expect(
+      workspaceHook,
+      contains(r'exec "$SCRIPT_DIR/../../ci_scripts/macos_post_clone.sh"'),
+    );
   });
 
   test('Xcode Cloud downloads and verifies pinned universal macOS TDLib', () {

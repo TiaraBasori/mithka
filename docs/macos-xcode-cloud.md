@@ -12,7 +12,10 @@ artifact.
 
 ## Repository-side setup
 
-Xcode Cloud automatically runs `ci_scripts/ci_post_clone.sh`. The dispatcher preserves the existing iOS setup and selects `ci_scripts/macos_post_clone.sh` when the macOS workflow sets `MITHKA_CI_PLATFORM` to `macos`.
+Xcode Cloud resolves custom scripts relative to each workspace root. The macOS
+workflow runs `macos/ci_scripts/ci_post_clone.sh`, which delegates to the shared
+`ci_scripts/macos_post_clone.sh` implementation. The existing iOS workflow
+continues to use `ios/ci_scripts/ci_post_clone.sh`.
 
 The macOS helper:
 
@@ -59,10 +62,11 @@ Add these workflow environment variables and mark both as secret:
 - `TELEGRAM_API_ID`
 - `TELEGRAM_API_HASH`
 
-Also add `MITHKA_CI_PLATFORM` with the non-secret value `macos`. `SENTRY_DSN`
-is optional and should be secret when configured. Xcode Cloud manages the
-signing certificate and provisioning profile; no App Store Connect private key
-is stored in GitHub for this workflow.
+`MITHKA_CI_PLATFORM=macos` may be set as a fail-closed workflow guard but is not
+required for dispatch, because the macOS workspace owns its post-clone hook.
+`SENTRY_DSN` is optional and should be secret when configured. Xcode Cloud
+manages the signing certificate and provisioning profile; no App Store Connect
+private key is stored in GitHub for this workflow.
 
 The prebuilt TDLib download makes a cold Xcode Cloud archive independent of the
 GitHub Actions cache and avoids the long universal source compilation step.
