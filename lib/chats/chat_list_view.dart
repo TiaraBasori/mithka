@@ -39,6 +39,7 @@ import '../contacts/add_people_view.dart';
 import '../contacts/create_group_view.dart';
 import '../l10n/telegram_language_controller.dart';
 import '../profile/emoji_status_picker.dart';
+import '../security/local_app_lock_controller.dart';
 import '../settings/edit_field_view.dart';
 import '../settings/topic_group_display_mode.dart';
 import '../tdlib/json_helpers.dart';
@@ -1253,6 +1254,7 @@ class _ChatListViewState extends State<ChatListView>
   Widget _header() {
     final c = context.colors;
     final theme = context.watch<ThemeController>();
+    final appLock = context.watch<LocalAppLockController?>();
     final useFilterMenu =
         theme.chatFolderDisplayMode == ChatFolderDisplayMode.menu;
     final activeFilter = _model.selectedFilter;
@@ -1380,6 +1382,27 @@ class _ChatListViewState extends State<ChatListView>
                   ),
                 ),
               ),
+            if (appLock?.enabled == true) ...[
+              const SizedBox(width: AppSpacing.xs),
+              Semantics(
+                button: true,
+                label: AppStringKeys.appLockLockNow.l10n(context),
+                child: GestureDetector(
+                  key: const ValueKey('chat-list-app-lock'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: appLock!.lock,
+                  child: SizedBox(
+                    width: AppMetric.hitTarget,
+                    height: AppMetric.hitTarget,
+                    child: AppIcon(
+                      HeroAppIcons.lock,
+                      size: AppIconSize.toolbar,
+                      color: c.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => setState(() {

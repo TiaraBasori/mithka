@@ -360,12 +360,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.hidden ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
-      _appLock.lock();
-    }
+    _appLock.handleLifecycleState(state);
     if (state == AppLifecycleState.resumed) {
       TdClient.shared.restartReceiveIsolate();
       unawaited(_mithkaPro.refresh());

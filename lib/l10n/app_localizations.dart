@@ -532,6 +532,13 @@ abstract final class AppStringKeys {
   static const appLockCreateGesture = 'appLockCreateGesture';
   static const appLockCreatePin = 'appLockCreatePin';
   static const appLockDescription = 'appLockDescription';
+  static const appLockAutoLock = 'appLockAutoLock';
+  static const appLockAutoLockDescription = 'appLockAutoLockDescription';
+  static const appLockAutoLockDisabled = 'appLockAutoLockDisabled';
+  static const appLockAutoLockOneMinute = 'appLockAutoLockOneMinute';
+  static const appLockAutoLockFiveMinutes = 'appLockAutoLockFiveMinutes';
+  static const appLockAutoLockOneHour = 'appLockAutoLockOneHour';
+  static const appLockAutoLockFiveHours = 'appLockAutoLockFiveHours';
   static const appLockDrawGesture = 'appLockDrawGesture';
   static const appLockEnabled = 'appLockEnabled';
   static const appLockEnterPin = 'appLockEnterPin';
@@ -554,6 +561,8 @@ abstract final class AppStringKeys {
   static const appLockTitle = 'appLockTitle';
   static const appLockTryBiometric = 'appLockTryBiometric';
   static const appLockBiometricUnlock = 'appLockBiometricUnlock';
+  static const appLockDisable = 'appLockDisable';
+  static const appLockLockNow = 'appLockLockNow';
   static const appLockUnlockMethod = 'appLockUnlockMethod';
   static const appLockUnlockTitle = 'appLockUnlockTitle';
   static const appLockUseBiometric = 'appLockUseBiometric';

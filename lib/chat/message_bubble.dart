@@ -793,6 +793,7 @@ class _MessageBubbleState extends State<MessageBubble>
                                   roleTitle: showSenderRole && showMemberTags
                                       ? senderTitle
                                       : null,
+                                  roleAfterName: isDesktopTargetPlatform(),
                                 ),
                               ),
                               if (showStatus) ...[
