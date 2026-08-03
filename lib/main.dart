@@ -29,6 +29,7 @@ import 'app/app_performance_controller.dart';
 import 'app/app_version.dart';
 import 'app/chat_deep_link_controller.dart';
 import 'app/content_view.dart';
+import 'app/deep_link_service.dart';
 import 'app/desktop_chat_window.dart';
 import 'app/desktop_hotkey_host.dart';
 import 'app/desktop_image_preview_window.dart';
@@ -383,6 +384,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     _theme.loadSelectedEmojiFontIfAvailable();
     _autoDownload.initialize(widget.prefs);
     _auth.start();
+    DeepLinkService.shared.start();
     DesktopMiniAppWindowService.instance.attachMainProxy();
     DesktopChatWindowService.instance.attachMainProxy(
       accountUserIdForSlot: _accountUserIdForSlot,
