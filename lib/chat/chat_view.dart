@@ -62,6 +62,7 @@ import 'auto_translate_policy.dart';
 import 'blocked_message_runs.dart';
 import 'channel_direct_messages_service.dart';
 import 'channel_direct_messages_view.dart';
+import 'chat_appearance_message_preview.dart';
 import 'chat_auto_scroll_policy.dart';
 import 'chat_first_contact_card.dart';
 import 'chat_first_contact_info.dart';
@@ -7224,7 +7225,14 @@ class _ChatViewState extends State<ChatView> {
         if (_needsSeparator(messageIndex, messages: messages))
           TimeSeparator(unix: message.date),
         if (message.isService)
-          SystemBanner(text: message.text)
+          message.appearancePreview == null
+              ? SystemBanner(text: message.text)
+              : ChatAppearanceMessagePreview(
+                  preview: message.appearancePreview!,
+                  label: message.text,
+                  controller: _wallpaperController,
+                  fallback: SystemBanner(text: message.text),
+                )
         else if (entry.isBlockedRun)
           _blockedMessagePlaceholder(context, entry)
         else if (entry.isImageGroup)

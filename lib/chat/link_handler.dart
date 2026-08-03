@@ -53,8 +53,10 @@ import '../theme/telegram_cloud_theme.dart';
 import '../theme/telegram_cloud_theme_view.dart';
 import '../theme/theme_controller.dart';
 import 'channel_direct_messages_view.dart';
+import 'chat_appearance_message_preview.dart';
 import 'chat_picker_view.dart';
 import 'chat_view.dart';
+import 'chat_wallpaper.dart';
 import 'internal_chat_link_router.dart';
 import 'sticker_set_detail_view.dart';
 import 'telegram_ai_service.dart';
@@ -751,22 +753,29 @@ Future<void> _applyBackgroundLink(
   });
   final backgroundId = background.int64('id');
   if (backgroundId == null || !context.mounted) return;
+  final wallpaperController = ChatWallpaperController.shared;
+  final wallpaper = wallpaperController.previewWallpaperFromBackground(
+    background,
+  );
+  if (wallpaper == null) return;
+  final dark = Theme.of(context).brightness == Brightness.dark;
   final accepted = await showAppConfirmDialog(
     context,
     title: AppStrings.t(AppStringKeys.appearanceTitle),
     message: name,
+    content: AnimatedBuilder(
+      animation: wallpaperController,
+      builder: (context, _) => ChatAppearancePreviewCard(
+        key: const ValueKey('background-link-appearance-preview'),
+        wallpaper: wallpaperController.resolvedWallpaper(wallpaper),
+        label: AppStrings.t(AppStringKeys.chatWallpaperTitle),
+        brightness: dark ? Brightness.dark : Brightness.light,
+      ),
+    ),
     confirmText: AppStrings.t(AppStringKeys.chatWallpaperApply),
   );
   if (!accepted || !context.mounted) return;
-  await TdClient.shared.query({
-    '@type': 'setDefaultBackground',
-    'background': {
-      '@type': 'inputBackgroundRemote',
-      'background_id': backgroundId,
-    },
-    'type': background.obj('type'),
-    'for_dark_theme': Theme.of(context).brightness == Brightness.dark,
-  });
+  await wallpaperController.applyDefaultWallpaper(wallpaper, dark: dark);
 }
 
 Future<void> _applyLanguagePackLink(
