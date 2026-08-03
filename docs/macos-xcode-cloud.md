@@ -1,7 +1,7 @@
 # macOS Xcode Cloud and TestFlight
 
 Xcode Cloud is Mithka's only macOS TestFlight delivery path. A validated
-`master` commit is fast-forwarded to `release-ios`; the macOS Xcode Cloud
+revision is pushed to `release-macos`; the macOS Xcode Cloud
 workflow archives that exact revision and distributes it to the external
 TestFlight group. There is no GitHub Actions TestFlight uploader, avoiding
 duplicate build numbers and permanently internal-only builds.
@@ -26,6 +26,10 @@ The macOS helper:
    and portable dependencies.
 4. Generates the release Flutter/Xcode configuration.
 5. Restores the CocoaPods sandbox used by desktop-only plugins.
+6. Repairs missing resource directories declared by generated plugin packages
+   and resolves the committed workspace `Package.resolved` into Xcode Cloud's
+   shared Derived Data path, as required by the archive's locked dependency
+   mode.
 
 The published artifact is:
 
@@ -38,7 +42,7 @@ The published artifact is:
 
 Use these settings:
 
-- Repository branch: `release-ios`.
+- Repository branch: `release-macos`.
 - Project or workspace: `macos/Runner.xcworkspace`.
 - Scheme: `Runner`.
 - Platform and destination: macOS, Any Mac.
