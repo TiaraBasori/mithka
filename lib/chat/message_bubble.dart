@@ -3740,7 +3740,7 @@ class _MessageBubbleState extends State<MessageBubble>
     final language = (pre.language ?? '').trim();
     final codeBackground = _codeBackgroundColor;
     return GestureDetector(
-      key: const ValueKey('message-code-block'),
+      key: ValueKey('message-code-block-${message.id}-$start-$end'),
       behavior: HitTestBehavior.opaque,
       onTap: () => _copyMonospaceText(text.substring(start, end)),
       child: Container(
