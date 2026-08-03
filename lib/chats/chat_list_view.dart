@@ -1066,7 +1066,6 @@ class _ChatListViewState extends State<ChatListView>
       if (ctx == null) return;
       Scrollable.ensureVisible(
         ctx,
-        alignment: 0.5,
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutCubic,
       );
