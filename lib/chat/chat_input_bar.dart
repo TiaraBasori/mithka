@@ -3369,7 +3369,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               children: [
                 if (menu?.isWebApp ?? false) ...[
                   _botMenuRow(
-                    icon: HeroAppIcons.tableCells,
+                    icon: HeroAppIcons.bot,
                     title: menu!.actionTitle,
                     subtitle: '',
                     onTap: () {
@@ -4291,11 +4291,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       margin: const EdgeInsets.only(right: 8),
                       decoration: BoxDecoration(
                         color: c.searchFill,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(AppRadius.control),
                       ),
                       alignment: Alignment.center,
                       child: AppIcon(
-                        HeroAppIcons.tableCells,
+                        HeroAppIcons.bot,
                         size: 20,
                         color: c.textSecondary,
                       ),
@@ -5318,6 +5318,21 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     active: false,
                     onTap: _openScheduledMessages,
                   ),
+                  // In a bot chat the menu was only reachable from the round
+                  // button under the composer; it belongs with the other
+                  // composer actions too.
+                  if (vm.peerIsBot ||
+                      (vm.botMenu?.isWebApp ?? false) ||
+                      vm.botCommands.isNotEmpty)
+                    _desktopIcon(
+                      key: const ValueKey('desktopComposerBotMenuAction'),
+                      icon: HeroAppIcons.bot,
+                      semanticLabel: AppStrings.t(
+                        AppStringKeys.chatInputBarOpenBotMenu,
+                      ),
+                      active: false,
+                      onTap: _showBotMenu,
+                    ),
                 ],
               ),
             ),

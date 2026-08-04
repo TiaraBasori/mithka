@@ -512,8 +512,13 @@ class DesktopInlineSearchPanel extends StatelessWidget {
             hit: hit,
             highlight: highlight,
             onOpen: () {
+              // dismiss() unmounts this row, and opening a chat awaits the
+              // desktop handoff before using its context — an unmounted one
+              // makes it bail, so the tap did nothing. The root navigator
+              // outlives the panel and carries the same MediaQuery.
+              final host = Navigator.of(context, rootNavigator: true).context;
               controller.dismiss();
-              unawaited(_openSearchHit(context, hit));
+              unawaited(_openSearchHit(host, hit));
             },
           ),
         );
@@ -548,12 +553,14 @@ class DesktopInlineSearchPanel extends StatelessWidget {
           _DesktopInlineMiniAppAction(
             app: app,
             onOpen: () {
+              // Same as the chat rows: this one is unmounted by dismiss().
+              final host = Navigator.of(context, rootNavigator: true).context;
               controller.dismiss();
               final override = onOpenMiniApp;
               if (override != null) {
                 unawaited(Future<void>.sync(() => override(app)));
               } else {
-                unawaited(_openDesktopInlineMiniApp(context, app));
+                unawaited(_openDesktopInlineMiniApp(host, app));
               }
             },
           ),
