@@ -952,15 +952,36 @@ class _ChatListViewState extends State<ChatListView>
       return;
     }
 
+    // Without the title bar mounted there is nothing to hang the menu off;
+    // fall back to the in-pane menu rather than dropping the tap.
+    final globalAnchor = DesktopChatListTitleBarAnchors.addButtonRect();
+    if (globalAnchor == null) {
+      setState(() {
+        _showPlusMenu = true;
+        _showFilterMenu = false;
+      });
+      return;
+    }
+
     setState(() {
       _showPlusMenu = false;
       _showFilterMenu = false;
     });
     final overlay = Overlay.of(context, rootOverlay: true);
+    // addButtonRect reports global coordinates but Positioned lays out in the
+    // overlay's own space, and the two only coincide when the overlay starts
+    // at the window origin.
+    final overlayBox = overlay.context.findRenderObject();
+    final anchor = overlayBox is RenderBox
+        ? Rect.fromPoints(
+            overlayBox.globalToLocal(globalAnchor.topLeft),
+            overlayBox.globalToLocal(globalAnchor.bottomRight),
+          )
+        : globalAnchor;
     late final OverlayEntry entry;
     entry = OverlayEntry(
       builder: (_) => _DesktopTitleBarPlusMenuOverlay(
-        link: DesktopChatListTitleBarAnchors.add,
+        anchor: anchor,
         onDismiss: () {
           if (identical(_desktopPlusMenuEntry, entry)) {
             _desktopPlusMenuEntry = null;
@@ -2372,31 +2393,42 @@ class _ChatListViewState extends State<ChatListView>
 
 class _DesktopTitleBarPlusMenuOverlay extends StatelessWidget {
   const _DesktopTitleBarPlusMenuOverlay({
-    required this.link,
+    required this.anchor,
     required this.onDismiss,
     required this.child,
   });
 
-  final LayerLink link;
+  /// Gap between the button and the menu below it.
+  static const _gap = 6.0;
+
+  final Rect anchor;
   final VoidCallback onDismiss;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
+    final screen = MediaQuery.sizeOf(context);
+    // Right-aligned to the button, and only pulled back if that would run the
+    // menu off an edge — a button already at the window edge should still get
+    // an exactly aligned menu.
+    final maxLeft = (screen.width - AppMetric.menuWidth).clamp(
+      0.0,
+      double.infinity,
+    );
+    final left = (anchor.right - AppMetric.menuWidth).clamp(0.0, maxLeft);
+
     return Stack(
-      fit: StackFit.expand,
       children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onDismiss,
-          child: ColoredBox(color: Colors.black.withValues(alpha: 0.12)),
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onDismiss,
+            child: const ColoredBox(color: Color(0x14000000)),
+          ),
         ),
-        CompositedTransformFollower(
-          link: link,
-          showWhenUnlinked: false,
-          targetAnchor: Alignment.bottomRight,
-          followerAnchor: Alignment.topRight,
-          offset: const Offset(0, 6),
+        Positioned(
+          left: left,
+          top: anchor.bottom + _gap,
           child: TweenAnimationBuilder<double>(
             duration: AppMotion.duration(context, AppMotion.responsive),
             curve: AppMotion.emphasized,
@@ -2692,6 +2724,10 @@ class PlusMenu extends StatelessWidget {
         decoration: BoxDecoration(
           color: c.card,
           borderRadius: BorderRadius.circular(12),
+          // The card and the empty content area behind it are the same colour
+          // in the light theme, so without an edge the menu did not read as a
+          // surface at all.
+          border: Border.all(color: c.divider, width: 0.75),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),

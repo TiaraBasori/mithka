@@ -389,12 +389,15 @@ class _DesktopChatTitleBarActions extends StatelessWidget {
               const SizedBox(width: gap),
               CompositedTransformTarget(
                 link: DesktopChatListTitleBarAnchors.add,
-                child: _action(
-                  overlayContext,
-                  key: const ValueKey('desktop-title-bar-add'),
-                  icon: HeroAppIcons.plus,
-                  label: AppStringKeys.chatInfoCreate.l10n(overlayContext),
-                  action: DesktopHotkeyAction.newChat,
+                child: KeyedSubtree(
+                  key: DesktopChatListTitleBarAnchors.addButton,
+                  child: _action(
+                    overlayContext,
+                    key: const ValueKey('desktop-title-bar-add'),
+                    icon: HeroAppIcons.plus,
+                    label: AppStringKeys.chatInfoCreate.l10n(overlayContext),
+                    action: DesktopHotkeyAction.newChat,
+                  ),
                 ),
               ),
             ],
