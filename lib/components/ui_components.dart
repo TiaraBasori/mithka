@@ -710,10 +710,11 @@ class AppSwitch extends StatelessWidget {
     final padding = pointerDense ? 2.0 : 2.0;
     final handleSize = pointerDense ? 18.0 : 26.0;
     final trackColor = value ? c.linkBlue : c.textTertiary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final handleColor = isDark
-        ? const Color(0xFF171717)
-        : const Color(0xFFFFFFFF);
+    // The active handle sits on the accent, so it follows the theme's own
+    // on-accent token rather than the page brightness — a light accent needs a
+    // dark handle whatever the rest of the theme is doing. Off, the handle
+    // sits on the neutral track and stays white.
+    final handleColor = value ? c.onAccent : const Color(0xFFFFFFFF);
     return AppInteractiveSurface(
       semanticLabel:
           semanticLabel ??

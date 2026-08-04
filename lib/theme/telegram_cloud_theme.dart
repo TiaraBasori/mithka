@@ -815,7 +815,7 @@ class TelegramCloudTheme {
       ),
       divider: divider,
       linkBlue: accent,
-      onAccent: readableForeground(accent),
+      onAccent: foregroundOnAccent(accent),
     );
   }
 
