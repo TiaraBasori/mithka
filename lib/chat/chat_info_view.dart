@@ -31,10 +31,12 @@ import '../settings/edit_field_view.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import '../tdlib/td_user_index.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 import 'add_members_view.dart';
+import 'chat_members_cache.dart';
 import 'chat_members_view.dart';
 import 'chat_search_view.dart';
 import 'chat_theme_view.dart';
@@ -1999,6 +2001,10 @@ class ChatInfoViewModel extends ChangeNotifier {
   bool isArchived = false;
   int autoDeleteTime = 0;
   List<ChatMember> members = [];
+  // Suppresses progressive streaming during a refresh: the strip is already
+  // showing a full cached list, so filling it one member at a time would
+  // shrink it back to one and regrow.
+  bool _paintedFromCache = false;
   bool canInvite = false;
   bool canRemove = false;
   bool canManageGroup = false;
@@ -2075,7 +2081,22 @@ class ChatInfoViewModel extends ChangeNotifier {
   void load() {
     if (_loaded) return;
     _loaded = true;
+    _seedMembersFromCache();
     _loadAsync();
+  }
+
+  /// Paints a previously resolved member strip before the network pass starts,
+  /// so switching back to a chat does not replay the whole resolve. The strip
+  /// stays live: [_loadMembers] still refreshes and overwrites it.
+  void _seedMembersFromCache() {
+    final cached = ChatMembersCache.shared.read(
+      accountSlot: TdClient.shared.activeSlot,
+      chatId: chatId,
+    );
+    if (cached == null) return;
+    members = cached.members;
+    memberCount = cached.memberCount;
+    _paintedFromCache = true;
   }
 
   Future<void> _loadAsync() async {
@@ -2294,10 +2315,13 @@ class ChatInfoViewModel extends ChangeNotifier {
       final uid = memberId?.int64('user_id');
       if (uid == null) continue;
       try {
-        final user = await TdClient.shared.query({
-          '@type': 'getUser',
-          'user_id': uid,
-        });
+        // TDLib guarantees updateUser lands before the id is handed to us, so
+        // the index usually already holds this user and the round-trip is
+        // pure latency — the resolve is sequential, so it costs the strip a
+        // full RTT per member.
+        final user =
+            TdUserIndex.shared.userFor(TdClient.shared.activeSlot, uid) ??
+            await TdClient.shared.query({'@type': 'getUser', 'user_id': uid});
         final status = entry.obj('status');
         final roleTitle = _memberTitle(entry, status);
         var role = switch (status?.type) {
@@ -2316,10 +2340,28 @@ class ChatInfoViewModel extends ChangeNotifier {
           ),
         );
         // Stream after each resolve so the grid fills progressively and a slow
-        // or failing lookup can't keep the whole list empty.
+        // or failing lookup can't keep the whole list empty. Skipped once a
+        // cached strip is on screen — there is nothing to fill in, and the
+        // partial lists would only flicker.
+        if (!_paintedFromCache) {
+          members = List.of(result);
+          notifyListeners();
+        }
+      } catch (_) {}
+    }
+    if (result.isNotEmpty) {
+      if (_paintedFromCache) {
+        // Swap in one step. An empty result here means the refresh failed
+        // rather than that the group emptied, so the cached strip stands.
         members = List.of(result);
         notifyListeners();
-      } catch (_) {}
+      }
+      ChatMembersCache.shared.store(
+        accountSlot: TdClient.shared.activeSlot,
+        chatId: chatId,
+        members: result,
+        memberCount: memberCount,
+      );
     }
   }
 
