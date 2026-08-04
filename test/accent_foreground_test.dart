@@ -87,10 +87,69 @@ void main() {
     });
   });
 
+  _dialogBadgeAndBubbleKeys();
+
   group('readableForeground', () {
     test('still maximises raw contrast for non-accent surfaces', () {
       expect(readableForeground(const Color(0xFFFFFFFF)), isNot(white));
       expect(readableForeground(const Color(0xFF000000)), white);
+    });
+  });
+}
+
+// Telegram keys the rest of the chrome binds to. Same rule as onAccent: the
+// value is stored under a key each client actually ships, never derived.
+void _dialogBadgeAndBubbleKeys() {
+  group('dialog, badge and bubble keys', () {
+    test('dialog button and text read their Android keys', () {
+      final colors = themeWith(const {
+        'list.plainBg': 0xFFFFFFFF,
+        'dialogButton': 0xFF298ACF,
+        'dialogTextBlack': 0xFF1A1D21,
+      }).uiColors;
+      expect(colors.dialogButton, const Color(0xFF298ACF));
+      expect(colors.dialogText, const Color(0xFF1A1D21));
+    });
+
+    test('unread counter reads its own fill and label', () {
+      final colors = themeWith(const {
+        'list.plainBg': 0xFFFFFFFF,
+        'chats_unreadCounter': 0xFF229AF0,
+        'chats_unreadCounterText': 0xFF102030,
+      }).uiColors;
+      expect(colors.badgeBackground, const Color(0xFF229AF0));
+      expect(colors.badgeText, const Color(0xFF102030));
+    });
+
+    test('a badge with no label key falls back to the on-accent token', () {
+      final colors = themeWith(const {
+        'list.plainBg': 0xFFFFFFFF,
+        'chats_unreadCounter': 0xFF229AF0,
+        'chats_actionIcon': 0xFF171717,
+      }).uiColors;
+      expect(colors.badgeText, const Color(0xFF171717));
+    });
+
+    test('selected bubble fills come from their own keys', () {
+      final theme = themeWith(const {
+        'list.plainBg': 0xFFFFFFFF,
+        'chat_inBubble': 0xFFFFFFFF,
+        'chat_inBubbleSelected': 0xFFECF7FD,
+        'chat_outBubble': 0xFFEFFFDE,
+        'chat_outBubbleSelected': 0xFFD9F7C5,
+      });
+      expect(theme.incomingColor, const Color(0xFFFFFFFF));
+      expect(theme.incomingSelectedColor, const Color(0xFFECF7FD));
+      expect(theme.outgoingSelectedColor, const Color(0xFFD9F7C5));
+    });
+
+    test('a theme naming no selected key reports none', () {
+      final theme = themeWith(const {
+        'list.plainBg': 0xFFFFFFFF,
+        'chat_inBubble': 0xFFFFFFFF,
+      });
+      expect(theme.incomingSelectedColor, isNull);
+      expect(theme.outgoingSelectedColor, isNull);
     });
   });
 }

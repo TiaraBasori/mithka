@@ -149,6 +149,13 @@ class DesktopChatWindowPalette {
       divider: Color(divider),
       linkBlue: Color(linkBlue),
       onAccent: Color(onAccent),
+      // This palette is a reduced projection sent across the window boundary,
+      // so these follow the transported tokens rather than widening the wire
+      // format for a surface a detached chat window barely shows.
+      dialogButton: Color(linkBlue),
+      dialogText: Color(textPrimary),
+      badgeBackground: Color(brand),
+      badgeText: Color(onAccent),
     );
   }
 

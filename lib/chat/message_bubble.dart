@@ -104,10 +104,17 @@ class MessageBubble extends StatefulWidget {
     this.incomingBubbleTextColor,
     this.messageColors,
     this.hasCustomChatTheme = false,
+    this.selected = false,
     this.sensitiveContentController,
   });
 
   final ChatMessage message;
+
+  /// Selected messages take their own bubble fill. Telegram keys this
+  /// separately (chat_inBubbleSelected / chat_outBubbleSelected) rather than
+  /// tinting the base fill, so a theme can define the state outright.
+  final bool selected;
+
   final List<ChatMessage> groupedMedia;
   final String peerTitle;
   final TdFileRef? peerPhoto;
@@ -341,11 +348,22 @@ class _MessageBubbleState extends State<MessageBubble>
 
   Color get _outgoingBubbleColor {
     if (!_showsMessageBubbleSurface) return context.colors.card;
-    return _bubbleBackgroundStyle.backgroundColor ??
+    final base =
+        _bubbleBackgroundStyle.backgroundColor ??
         widget.outgoingBubbleColor ??
         _activeCloudTheme?.outgoingColor ??
         AppTheme.bubbleOutgoing;
+    if (!widget.selected) return base;
+    return _activeCloudTheme?.outgoingSelectedColor ?? _selectionWash(base);
   }
+
+  /// Fallback for a theme that names no selected key. Telegram's own defaults
+  /// are a wash over the base fill, and the base here can be a gradient or a
+  /// user-picked colour, so there is nothing fixed to store instead.
+  Color _selectionWash(Color base) => Color.alphaBlend(
+    context.colors.linkBlue.withValues(alpha: 0.22),
+    base,
+  );
 
   Color get _outgoingTextColor {
     if (!_showsMessageBubbleSurface) return context.colors.textPrimary;
@@ -361,10 +379,17 @@ class _MessageBubbleState extends State<MessageBubble>
   }
 
   Color get _incomingThemeBubbleColor {
-    if (!_showsMessageBubbleSurface) return context.colors.card;
-    return widget.incomingBubbleColor ??
+    if (!_showsMessageBubbleSurface) {
+      return widget.selected
+          ? _selectionWash(context.colors.card)
+          : context.colors.card;
+    }
+    final base =
+        widget.incomingBubbleColor ??
         _activeCloudTheme?.incomingColor ??
         context.colors.bubbleIncoming;
+    if (!widget.selected) return base;
+    return _activeCloudTheme?.incomingSelectedColor ?? _selectionWash(base);
   }
 
   Color get _incomingBubbleColor {

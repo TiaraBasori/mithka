@@ -3313,6 +3313,7 @@ class _ChatViewState extends State<ChatView> {
     }
     return MessageBubble(
       message: message,
+      selected: _selectedMessageIds.contains(message.id),
       groupedMedia: groupedMedia,
       peerTitle: _vm.peerTitle,
       peerPhoto: _vm.peerPhoto,

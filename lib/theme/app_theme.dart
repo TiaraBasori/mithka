@@ -352,6 +352,10 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.divider,
     required this.linkBlue,
     required this.onAccent,
+    required this.dialogButton,
+    required this.dialogText,
+    required this.badgeBackground,
+    required this.badgeText,
   });
 
   final Color background; // list row background
@@ -373,6 +377,18 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color linkBlue;
   final Color onAccent;
 
+  /// Dialog action label. Telegram's dialog buttons are flat text, so this is
+  /// a text colour (key_dialogButton), not a fill.
+  final Color dialogButton;
+
+  /// Primary text inside a dialog (key_dialogTextBlack). Separate from
+  /// [textPrimary] because a theme may tint the dialog surface on its own.
+  final Color dialogText;
+
+  /// Unread counter pill (key_chats_unreadCounter / ...unreadCounterText).
+  final Color badgeBackground;
+  final Color badgeText;
+
   static final AppColors light = AppColors(
     background: _hex(0xFFFFFF),
     pinnedRow: _hex(0xF3F4F7),
@@ -392,6 +408,10 @@ class AppColors extends ThemeExtension<AppColors> {
     divider: _hex(0xECECEC),
     linkBlue: _hex(0x4B8DEE),
     onAccent: _hex(0xFFFFFF),
+    dialogButton: _hex(0x4B8DEE),
+    dialogText: _hex(0x1A1D21),
+    badgeBackground: _hex(0x4B8DEE),
+    badgeText: _hex(0xFFFFFF),
   );
 
   static final AppColors dark = AppColors(
@@ -413,6 +433,10 @@ class AppColors extends ThemeExtension<AppColors> {
     divider: _hex(0x303234),
     linkBlue: _hex(0x5EA0FF),
     onAccent: _hex(0xFFFFFF),
+    dialogButton: _hex(0x5EA0FF),
+    dialogText: _hex(0xEDEDED),
+    badgeBackground: _hex(0x5EA0FF),
+    badgeText: _hex(0xFFFFFF),
   );
 
   @override
@@ -435,6 +459,10 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? divider,
     Color? linkBlue,
     Color? onAccent,
+    Color? dialogButton,
+    Color? dialogText,
+    Color? badgeBackground,
+    Color? badgeText,
   }) {
     return AppColors(
       background: background ?? this.background,
@@ -455,6 +483,10 @@ class AppColors extends ThemeExtension<AppColors> {
       divider: divider ?? this.divider,
       linkBlue: linkBlue ?? this.linkBlue,
       onAccent: onAccent ?? this.onAccent,
+      dialogButton: dialogButton ?? this.dialogButton,
+      dialogText: dialogText ?? this.dialogText,
+      badgeBackground: badgeBackground ?? this.badgeBackground,
+      badgeText: badgeText ?? this.badgeText,
     );
   }
 
@@ -492,6 +524,14 @@ class AppColors extends ThemeExtension<AppColors> {
       divider: Color.lerp(divider, other.divider, t)!,
       linkBlue: Color.lerp(linkBlue, other.linkBlue, t)!,
       onAccent: Color.lerp(onAccent, other.onAccent, t)!,
+      dialogButton: Color.lerp(dialogButton, other.dialogButton, t)!,
+      dialogText: Color.lerp(dialogText, other.dialogText, t)!,
+      badgeBackground: Color.lerp(
+        badgeBackground,
+        other.badgeBackground,
+        t,
+      )!,
+      badgeText: Color.lerp(badgeText, other.badgeText, t)!,
     );
   }
 }

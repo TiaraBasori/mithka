@@ -43,7 +43,7 @@ class AppDialogSurface extends StatelessWidget {
                   ],
                 ),
                 child: DefaultTextStyle(
-                  style: AppTextStyle.body(c.textPrimary),
+                  style: AppTextStyle.body(c.dialogText),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,7 +53,7 @@ class AppDialogSurface extends StatelessWidget {
                         child: Text(
                           title,
                           textAlign: TextAlign.center,
-                          style: AppTextStyle.title(c.textPrimary),
+                          style: AppTextStyle.title(c.dialogText),
                         ),
                       ),
                       Flexible(
@@ -99,7 +99,7 @@ class AppDialogAction extends StatelessWidget {
     final color = destructive
         ? AppTheme.tagRed
         : primary
-        ? c.linkBlue
+        ? c.dialogButton
         : c.textSecondary;
     return Expanded(
       child: Semantics(
@@ -199,7 +199,7 @@ Future<String?> showAppTextEntryDialog(
                   onChanged: validationMessage == null
                       ? null
                       : (_) => setDialogState(() => validationMessage = null),
-                  style: AppTextStyle.body(dialogContext.colors.textPrimary),
+                  style: AppTextStyle.body(dialogContext.colors.dialogText),
                   decoration: InputDecoration(
                     labelText: label.isEmpty ? null : label,
                     hintText: hint,

@@ -154,6 +154,10 @@ enum TelegramThemeSemanticColor {
   divider,
   accent,
   onAccent,
+  dialogButton,
+  dialogText,
+  badgeBackground,
+  badgeText,
   chatBackground,
   searchFill,
   inputBarBackground,
@@ -357,6 +361,16 @@ class TelegramCloudTheme {
     'textBubble_incoming',
     'historyTextInFg',
   ]);
+
+  /// Bubble fill while the message is selected. Telegram ships this as its own
+  /// key rather than tinting the base fill — the defaults are a wash over it
+  /// (#ecf7fd over white incoming, #d9f7c5 over #efffde outgoing), so a theme
+  /// is free to make the selected state anything it likes.
+  Color? get incomingSelectedColor =>
+      _paletteColor(const ['chat_inBubbleSelected', 'msgInBgSelected']);
+
+  Color? get outgoingSelectedColor =>
+      _paletteColor(const ['chat_outBubbleSelected', 'msgOutBgSelected']);
 
   TelegramMessageColors get messageColors {
     final ui = uiColors;
@@ -582,6 +596,32 @@ class TelegramCloudTheme {
           'list.itemCheckColors.foreground',
           'underSelectedColor',
           'activeButtonFg',
+        ],
+        // Dialog buttons are flat text in every client, so this is the label
+        // colour rather than a fill.
+        TelegramThemeSemanticColor.dialogButton => const [
+          'dialogButton',
+          'actionSheet.controlAccent',
+          'accentColor',
+          'windowActiveTextFg',
+        ],
+        TelegramThemeSemanticColor.dialogText => const [
+          'dialogTextBlack',
+          'actionSheet.primaryText',
+          'textColor',
+          'windowFg',
+        ],
+        TelegramThemeSemanticColor.badgeBackground => const [
+          'chats_unreadCounter',
+          'chatList.unreadBadgeActive',
+          'badgeBackgroundColor',
+          'dialogsUnreadBg',
+        ],
+        TelegramThemeSemanticColor.badgeText => const [
+          'chats_unreadCounterText',
+          'chatList.unreadBadgeActiveText',
+          'badgeTextColor',
+          'dialogsUnreadFg',
         ],
         TelegramThemeSemanticColor.chatBackground => const [
           'chat_wallpaper',
@@ -830,6 +870,16 @@ class TelegramCloudTheme {
       divider: divider,
       linkBlue: accent,
       onAccent: value(TelegramThemeSemanticColor.onAccent, base.onAccent),
+      dialogButton: value(TelegramThemeSemanticColor.dialogButton, accent),
+      dialogText: value(TelegramThemeSemanticColor.dialogText, primary),
+      badgeBackground: value(
+        TelegramThemeSemanticColor.badgeBackground,
+        accent,
+      ),
+      badgeText: value(
+        TelegramThemeSemanticColor.badgeText,
+        value(TelegramThemeSemanticColor.onAccent, base.onAccent),
+      ),
     );
   }
 

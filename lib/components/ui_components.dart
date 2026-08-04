@@ -264,7 +264,10 @@ class _UnreadBadgeBody extends StatelessWidget {
       child: Text(
         label,
         style: AppTextStyle.caption(
-          Colors.white,
+          // Telegram stores the counter's label colour alongside its fill
+          // (chats_unreadCounterText), so a theme can darken it for a pale
+          // badge instead of being stuck with white.
+          context.colors.badgeText,
           weight: AppTextWeight.semibold,
         ),
       ),
