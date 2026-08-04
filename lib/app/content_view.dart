@@ -349,7 +349,10 @@ class _DesktopChatTitleBarActions extends StatelessWidget {
   });
 
   static const double actionSize = 28;
-  static const double iconSize = 16;
+
+  /// Matches the search field's own glyph, which sits directly beside it — at
+  /// 16 the plus read as a size larger than everything around it.
+  static const double iconSize = 14;
   static const double gap = 4;
 
   final DesktopInlineSearchController searchController;
