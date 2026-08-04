@@ -3458,7 +3458,6 @@ class EmojiFontPickerView extends StatefulWidget {
 class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
   static const _fallbackPreviewAsset = 'assets/emoji_preview/noto.svg';
   static const _previewAssets = {
-    'system': 'assets/emoji_preview/noto.svg',
     'noto': 'assets/emoji_preview/noto.svg',
     'noto-mono': 'assets/emoji_preview/noto-mono.svg',
     'blobmoji': 'assets/emoji_preview/blobmoji.svg',
@@ -3559,7 +3558,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
       context,
       title: EmojiFontChoice.system.label,
       subtitle: AppStrings.t(AppStringKeys.appearanceSystemEmojiFont),
-      previewAsset: _previewAssetForKey(EmojiFontChoice.system.key),
+      preview: const _SystemEmojiPreview(),
       selected: theme.emojiFontChoice.isSystem,
       loading: false,
       failed: false,
@@ -3585,7 +3584,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
         entry.license,
         if (entry.emojiVersion.isNotEmpty) 'Emoji ${entry.emojiVersion}',
       ].where((part) => part.isNotEmpty).join(' · '),
-      previewAsset: _previewAssetForKey(entry.key),
+      preview: _EmojiPreviewImage(asset: _previewAssetForKey(entry.key)),
       selected: theme.emojiFontChoice.key == entry.key,
       loading: _loadingKey == entry.key,
       failed: _failedKey == entry.key,
@@ -3610,7 +3609,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
     BuildContext context, {
     required String title,
     required String subtitle,
-    required String previewAsset,
+    required Widget preview,
     required bool selected,
     required bool loading,
     required bool failed,
@@ -3633,7 +3632,7 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
                     context,
                   ),
                   image: true,
-                  child: _EmojiPreviewImage(asset: previewAsset),
+                  child: ExcludeSemantics(child: preview),
                 ),
               ),
               const SizedBox(width: AppSpacing.lg),
@@ -3691,6 +3690,36 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
 
   String _previewAssetForKey(String key) =>
       _previewAssets[key] ?? _fallbackPreviewAsset;
+}
+
+/// Draws the preview glyph with the platform emoji font itself, so the row
+/// shows what the system default actually looks like instead of a bundled
+/// picture of somebody else's emoji set.
+class _SystemEmojiPreview extends StatelessWidget {
+  const _SystemEmojiPreview();
+
+  static const _faceWithTearsOfJoy = '\u{1F602}';
+
+  @override
+  Widget build(BuildContext context) {
+    final families = EmojiFontChoice.platformEmojiFontFallback();
+    return SizedBox(
+      width: 26,
+      height: 26,
+      child: Center(
+        child: Text(
+          _faceWithTearsOfJoy,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 22,
+            height: 1,
+            fontFamily: families.firstOrNull,
+            fontFamilyFallback: families.skip(1).toList(),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _EmojiPreviewImage extends StatelessWidget {

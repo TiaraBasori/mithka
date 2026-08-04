@@ -957,9 +957,15 @@ class ThemeController extends ChangeNotifier {
     );
     _customMonospaceFontFamily =
         _prefs.getString(_customMonospaceFontFamilyKey)?.trim() ?? '';
+    final storedEmojiFontKey = _prefs.getString(_emojiFontChoiceKey);
     final emojiFontKey = _normalizeEmojiFontKey(
-      _prefs.getString(_emojiFontChoiceKey),
+      storedEmojiFontKey,
+      migrated: _emojiFontKeysAreMigrated,
     );
+    if (emojiFontKey != storedEmojiFontKey?.trim()) {
+      unawaited(_prefs.setString(_emojiFontChoiceKey, emojiFontKey));
+    }
+    unawaited(_prefs.setInt(_emojiFontSchemaKey, _emojiFontSchemaVersion));
     _emojiFontChoice = EmojiFontChoice(
       key: emojiFontKey,
       label: emojiFontKey == EmojiFontChoice.system.key
@@ -1131,6 +1137,7 @@ class ThemeController extends ChangeNotifier {
   static const _emojiFontChoiceKey = 'emojiFontChoice';
   static const _emojiFontLabelKey = 'emojiFontLabel';
   static const _emojiFontLicenseKey = 'emojiFontLicense';
+  static const _emojiFontSchemaKey = 'emojiFontChoiceSchema';
   static const _fontFallbackChainKey = 'fontFallbackChain';
   static const _fontKey = 'fontScale';
   static const _interfaceScaleKey = 'interfaceScale';
@@ -2075,21 +2082,31 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  static String _normalizeEmojiFontKey(String? value) {
-    return switch (value?.trim()) {
-      null || '' || 'system' => EmojiFontChoice.system.key,
-      'notoColor' => 'noto',
-      'noto' => 'noto-mono',
-      'blobmoji' => 'blobmoji',
-      'fluent' => 'fluent',
-      'fluentMono' => 'fluent-mono',
-      'fluentFlat' => 'fluent-flat',
-      'twemoji' => 'twemoji',
-      'openMoji' => 'openmoji',
-      'emojiTwo' => 'emojitwo',
-      'tossFace' => 'tossface',
-      final key => key,
-    };
+  /// Bumped when stored emoji font keys need another one-shot migration.
+  static const _emojiFontSchemaVersion = 1;
+
+  /// Names of the pre-catalog `EmojiFontChoice` enum mapped onto catalog keys.
+  /// `noto` meant the monochrome font back then and means the color one in the
+  /// catalog, so this may only ever be applied to a pre-catalog preference —
+  /// see [_emojiFontKeysAreMigrated].
+  static const _legacyEmojiFontKeys = {
+    'notoColor': 'noto',
+    'noto': 'noto-mono',
+  };
+
+  /// Whether the stored emoji font key already uses catalog keys. Only the
+  /// catalog writes a label alongside the key, so its presence identifies a
+  /// preference that must be left alone even before the schema was stamped.
+  bool get _emojiFontKeysAreMigrated =>
+      (_prefs.getInt(_emojiFontSchemaKey) ?? 0) >= _emojiFontSchemaVersion ||
+      _prefs.getString(_emojiFontLabelKey) != null;
+
+  static String _normalizeEmojiFontKey(String? value, {bool migrated = true}) {
+    final key = value?.trim() ?? '';
+    if (key.isEmpty || key == EmojiFontChoice.system.key) {
+      return EmojiFontChoice.system.key;
+    }
+    return migrated ? key : _legacyEmojiFontKeys[key] ?? key;
   }
 
   void setFontFallbackChain(List<String> value) {

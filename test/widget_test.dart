@@ -5521,6 +5521,50 @@ void main() {
       expect(entry.emojiVersion, '15.0');
       expect(entry.extension, 'ttf');
     });
+
+    test(
+      'keeps the color Noto selection instead of remapping it to mono',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'emojiFontChoice': 'noto',
+          'emojiFontLabel': 'Google Noto Color Emoji',
+          'emojiFontLicense': 'Apache-2.0 / OFL-1.1',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final theme = ThemeController(prefs);
+        addTearDown(theme.dispose);
+
+        expect(theme.emojiFontChoice.key, 'noto');
+        expect(theme.emojiFontChoice.label, 'Google Noto Color Emoji');
+
+        final restored = ThemeController(prefs);
+        addTearDown(restored.dispose);
+        expect(restored.emojiFontChoice.key, 'noto');
+      },
+    );
+
+    test('migrates pre-catalog keys exactly once', () async {
+      SharedPreferences.setMockInitialValues({'emojiFontChoice': 'noto'});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+
+      expect(theme.emojiFontChoice.key, 'noto-mono');
+      expect(prefs.getString('emojiFontChoice'), 'noto-mono');
+
+      final restored = ThemeController(prefs);
+      addTearDown(restored.dispose);
+      expect(restored.emojiFontChoice.key, 'noto-mono');
+    });
+
+    test('migrates the legacy color Noto key onto the catalog key', () async {
+      SharedPreferences.setMockInitialValues({'emojiFontChoice': 'notoColor'});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+
+      expect(theme.emojiFontChoice.key, 'noto');
+    });
   });
 
   group('TranslationController', () {
