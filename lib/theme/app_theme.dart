@@ -497,22 +497,11 @@ class AppColors extends ThemeExtension<AppColors> {
 }
 
 /// Returns whichever neutral text color has the stronger WCAG contrast.
-/// Foreground for text and glyphs sitting on an accent fill.
 ///
-/// [readableForeground] maximises the raw contrast ratio, which flips to near
-/// black on any saturated mid-tone — a green accent came out black-on-green
-/// where every app using that green draws white. Accents are chosen to be
-/// carried by white; only a genuinely light one needs dark on top, so this
-/// decides on the accent's own lightness rather than the ratio.
-///
-/// The threshold sits between the two nearest real accents — a saturated green
-/// at 0.39 keeps white, a pastel pink at 0.55 takes dark.
-Color foregroundOnAccent(Color accent) {
-  const dark = Color(0xFF171717);
-  const light = Color(0xFFFFFFFF);
-  return accent.computeLuminance() > 0.45 ? dark : light;
-}
-
+/// Do not reach for this to decide what sits on an accent fill — use the
+/// stored [AppColors.onAccent] token. Maximising the raw ratio flips to near
+/// black on any saturated mid-tone, which is how a green accent once came out
+/// black-on-green where every other client draws white.
 Color readableForeground(Color background) {
   const dark = Color(0xFF171717);
   const light = Color(0xFFFFFFFF);

@@ -153,6 +153,7 @@ enum TelegramThemeSemanticColor {
   tertiaryText,
   divider,
   accent,
+  onAccent,
   chatBackground,
   searchFill,
   inputBarBackground,
@@ -569,6 +570,19 @@ class TelegramCloudTheme {
           'link',
           'windowActiveTextFg',
         ],
+        // What Telegram draws *on top of* an accent fill — the glyph on the
+        // floating action button, the label on the blue "Add" button, the tick
+        // inside a filled checkbox. Every client stores this as its own key and
+        // none of them derive it from the accent, so neither do we.
+        TelegramThemeSemanticColor.onAccent => const [
+          'chats_actionIcon',
+          'featuredStickers_buttonText',
+          'checkboxCheck',
+          'list.itemCheckColors.foregroundColor',
+          'list.itemCheckColors.foreground',
+          'underSelectedColor',
+          'activeButtonFg',
+        ],
         TelegramThemeSemanticColor.chatBackground => const [
           'chat_wallpaper',
           'chat_background',
@@ -815,7 +829,7 @@ class TelegramCloudTheme {
       ),
       divider: divider,
       linkBlue: accent,
-      onAccent: foregroundOnAccent(accent),
+      onAccent: value(TelegramThemeSemanticColor.onAccent, base.onAccent),
     );
   }
 
