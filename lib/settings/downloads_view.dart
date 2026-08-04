@@ -179,14 +179,14 @@ class _DownloadsViewState extends State<DownloadsView> {
     }
     final text = message?.text.trim() ?? '';
     if (text.isNotEmpty) return text;
-    return switch (raw.obj('content')?.type) {
-      'messageVideo' => 'Video',
-      'messagePhoto' => 'Photo',
-      'messageVoiceNote' => 'Voice message',
-      'messageVideoNote' => 'Video message',
-      'messageAnimation' => 'GIF',
-      _ => 'Telegram media',
-    };
+    return AppStrings.t(switch (raw.obj('content')?.type) {
+      'messageVideo' => AppStringKeys.downloadsMediaVideo,
+      'messagePhoto' => AppStringKeys.downloadsMediaPhoto,
+      'messageVoiceNote' => AppStringKeys.downloadsMediaVoiceMessage,
+      'messageVideoNote' => AppStringKeys.downloadsMediaVideoMessage,
+      'messageAnimation' => AppStringKeys.downloadsMediaAnimation,
+      _ => AppStringKeys.downloadsMediaTelegramMedia,
+    });
   }
 
   void _handleUpdate(Map<String, dynamic> update) {
@@ -333,9 +333,11 @@ class _DownloadsViewState extends State<DownloadsView> {
                 leading: AppIcon(
                   hasRunning ? HeroAppIcons.pause : HeroAppIcons.play,
                 ),
-                title: hasRunning
-                    ? 'Pause all downloads'
-                    : 'Resume all downloads',
+                title: AppStrings.t(
+                  hasRunning
+                      ? AppStringKeys.downloadsPauseAllDownloads
+                      : AppStringKeys.downloadsResumeAllDownloads,
+                ),
                 onTap: () async {
                   Navigator.of(sheetContext).pop();
                   await _service.toggleAllDownloads(paused: hasRunning);
@@ -470,12 +472,12 @@ class _DownloadsViewState extends State<DownloadsView> {
       child: Row(
         children: [
           for (final entry in const {
-            _DownloadFilter.all: 'All',
-            _DownloadFilter.active: 'Active',
-            _DownloadFilter.completed: 'Completed',
+            _DownloadFilter.all: AppStringKeys.downloadsFilterAll,
+            _DownloadFilter.active: AppStringKeys.downloadsFilterActive,
+            _DownloadFilter.completed: AppStringKeys.downloadsFilterCompleted,
           }.entries) ...[
             SettingsFilterChip(
-              label: entry.value,
+              label: AppStrings.t(entry.value),
               selected: _filter == entry.key,
               onTap: () {
                 setState(() => _filter = entry.key);
@@ -541,7 +543,13 @@ class _DownloadsViewState extends State<DownloadsView> {
                       item.completed
                           ? _bytes(item.size)
                           : item.isPaused
-                          ? 'Paused · ${_bytes(item.downloaded)} / ${_bytes(item.size)}'
+                          ? AppStrings.t(
+                              AppStringKeys.downloadsPausedProgress,
+                              {
+                                'value1': _bytes(item.downloaded),
+                                'value2': _bytes(item.size),
+                              },
+                            )
                           : '${_bytes(item.downloaded)} / ${_bytes(item.size)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
