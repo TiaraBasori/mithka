@@ -823,6 +823,92 @@ class AppCheckbox extends StatelessWidget {
   }
 }
 
+/// Pill-shaped filter chip for a settings list's segmented header.
+///
+/// Data & Storage and Downloads each grew their own: different radii (8/18 vs
+/// 16), different selected fills (a neutral wash vs an accent tint), one
+/// density-aware and one not, one reachable by keyboard and screen reader and
+/// one a bare GestureDetector. This is the union of the better halves, so a
+/// new filter strip does not start a third dialect.
+class SettingsFilterChip extends StatelessWidget {
+  const SettingsFilterChip({
+    super.key,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+    this.trailingLabel,
+    this.expand = false,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final AppIconData? icon;
+
+  /// Quiet secondary value after the label — a size, a count.
+  final String? trailingLabel;
+
+  /// Fills the available width, for a strip that divides a row evenly rather
+  /// than sitting inline.
+  final bool expand;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final dense = isDesktopTargetPlatform();
+    final radius = BorderRadius.circular(dense ? 8 : 18);
+    // Selected reads as the accent, not a grey wash, and takes it from the
+    // palette so an imported theme moves it.
+    final foreground = selected ? c.linkBlue : c.textSecondary;
+    final label$ = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: foreground,
+        fontSize: dense ? AppTextSize.footnote : AppTextSize.callout,
+        fontWeight: selected ? AppTextWeight.semibold : AppTextWeight.medium,
+      ),
+    );
+    return AppInteractiveSurface(
+      onTap: onTap,
+      selected: selected,
+      semanticLabel: label,
+      borderRadius: radius,
+      child: Container(
+        constraints: BoxConstraints(minHeight: dense ? 36 : 42),
+        padding: EdgeInsets.symmetric(horizontal: dense ? 10 : 13),
+        decoration: BoxDecoration(
+          color: selected ? c.linkBlue.withValues(alpha: 0.13) : c.card,
+          borderRadius: radius,
+        ),
+        child: Row(
+          mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              AppIcon(icon!, size: dense ? 15 : 18, color: foreground),
+              const SizedBox(width: AppSpacing.sm),
+            ],
+            if (expand) Flexible(child: label$) else label$,
+            if (trailingLabel != null && !expand) ...[
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                trailingLabel!,
+                style: TextStyle(
+                  color: c.textTertiary,
+                  fontSize: AppTextSize.tiny + 1,
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class SettingsSwitchRow extends StatelessWidget {
   const SettingsSwitchRow({
     super.key,

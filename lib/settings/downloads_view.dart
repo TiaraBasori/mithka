@@ -465,7 +465,6 @@ class _DownloadsViewState extends State<DownloadsView> {
   }
 
   Widget _filters() {
-    final c = context.colors;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
@@ -475,33 +474,13 @@ class _DownloadsViewState extends State<DownloadsView> {
             _DownloadFilter.active: 'Active',
             _DownloadFilter.completed: 'Completed',
           }.entries) ...[
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
+            SettingsFilterChip(
+              label: entry.value,
+              selected: _filter == entry.key,
               onTap: () {
                 setState(() => _filter = entry.key);
                 unawaited(_load(reset: true));
               },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 13,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: _filter == entry.key
-                      ? AppTheme.brand.withValues(alpha: 0.13)
-                      : c.card,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Text(
-                  entry.value,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: _filter == entry.key
-                        ? AppTheme.brand
-                        : c.textSecondary,
-                  ),
-                ),
-              ),
             ),
             const SizedBox(width: 7),
           ],

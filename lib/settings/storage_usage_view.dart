@@ -1315,64 +1315,18 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
   );
 
   Widget _filterChip(StorageMediaFilter filter, {required bool desktopDense}) {
-    final c = context.colors;
     final selected = filter == _filter;
-    return AppInteractiveSurface(
+    return SettingsFilterChip(
       key: ValueKey('storage-filter-${filter.name}'),
+      label: AppStrings.t(filter.titleKey),
+      icon: filter.icon,
+      trailingLabel: formatStorageBytes(widget.snapshot.sizeFor(filter)),
       selected: selected,
-      semanticLabel: AppStrings.t(filter.titleKey),
+      expand: desktopDense,
       onTap: () => setState(() {
         _filter = filter;
         _selected.clear();
       }),
-      borderRadius: BorderRadius.circular(desktopDense ? 8 : 18),
-      child: Container(
-        constraints: BoxConstraints(minHeight: desktopDense ? 36 : 42),
-        padding: EdgeInsets.symmetric(horizontal: desktopDense ? 10 : 13),
-        decoration: BoxDecoration(
-          color: selected ? c.textPrimary.withValues(alpha: 0.10) : c.card,
-          borderRadius: BorderRadius.circular(desktopDense ? 8 : 18),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AppIcon(
-              filter.icon,
-              size: desktopDense ? 15 : 18,
-              color: selected ? AppTheme.brand : c.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            if (desktopDense)
-              Expanded(
-                child: Text(
-                  AppStrings.t(filter.titleKey),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: selected ? c.textPrimary : c.textSecondary,
-                    fontSize: 13,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  ),
-                ),
-              )
-            else ...[
-              Text(
-                AppStrings.t(filter.titleKey),
-                style: TextStyle(
-                  color: selected ? c.textPrimary : c.textSecondary,
-                  fontSize: 14,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                formatStorageBytes(widget.snapshot.sizeFor(filter)),
-                style: TextStyle(color: c.textTertiary, fontSize: 11),
-              ),
-            ],
-          ],
-        ),
-      ),
     );
   }
 
