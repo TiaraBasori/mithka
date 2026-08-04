@@ -40,6 +40,8 @@ import 'app_icon_controller.dart';
 import 'appearance_preview_repository.dart';
 import 'message_bubble_settings_view.dart';
 import 'quick_reaction_settings_view.dart';
+import '../chat/message_bubble_chat_preview.dart';
+import '../chat/chat_wallpaper.dart';
 
 class AppearanceView extends StatelessWidget {
   const AppearanceView({super.key});
@@ -71,20 +73,6 @@ class AppearanceView extends StatelessWidget {
                   // first card, and a "Theme" heading over a "Theme" row only
                   // says it twice.
                   _card(context, [
-                    KeyedSubtree(
-                      key: const ValueKey('appearance-theme-settings-row'),
-                      child: _navigationRow(
-                        context,
-                        AppStrings.t(AppStringKeys.appearanceTheme),
-                        AppStrings.t(theme.mode.label),
-                        () => Navigator.of(context).push(
-                          AppPageRoute<void>(
-                            pageBuilder: (_, _, _) => const ThemeSettingsView(),
-                          ),
-                        ),
-                        icon: HeroAppIcons.palette.data,
-                      ),
-                    ),
                     _navigationRow(
                       context,
                       AppStrings.t(AppStringKeys.appIconTitle),
@@ -224,6 +212,34 @@ class ThemeSettingsView extends StatelessWidget {
                   appearance._label(
                     context,
                     AppStrings.t(AppStringKeys.appearanceTheme),
+                  ),
+                  // Theme and background are judged together, so they preview
+                  // together — the same call Telegram makes, where the chat
+                  // preview sits between the theme picker and the background
+                  // row rather than each hiding behind its own screen.
+                  AnimatedBuilder(
+                    animation: ChatWallpaperController.shared,
+                    builder: (context, _) {
+                      final dark =
+                          Theme.of(context).brightness == Brightness.dark;
+                      final bubbles = context.watch<ThemeController>();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                        child: MessageBubbleChatPreview(
+                          incomingBackground: bubbles
+                              .effectiveMessageBubbleBackgroundSpecFor(
+                                outgoing: false,
+                              ),
+                          outgoingBackground: bubbles
+                              .effectiveMessageBubbleBackgroundSpecFor(
+                                outgoing: true,
+                              ),
+                          // Singleton, not a provided value.
+                          wallpaper: ChatWallpaperController.shared
+                              .globalThemeWallpaperFor(dark: dark),
+                        ),
+                      );
+                    },
                   ),
                   appearance._card(context, [
                     appearance._navigationRow(

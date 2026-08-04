@@ -58,7 +58,9 @@ void main() {
   ) async {
     final controller = await _pumpAppearance(tester, themingEnabled: false);
 
-    expect(find.text('Theme'), findsOneWidget);
+    // Theme is its own settings entry now, not a row in this hub — it owns
+    // the combined theme-and-background preview.
+    expect(find.text('Theme'), findsNothing);
     // The old catch-all "Interface" heading is gone: rows now sit under the
     // thing they change — Text, Chat, and Chat List.
     expect(find.text('Interface'), findsNothing);
@@ -84,7 +86,13 @@ void main() {
     expect(find.text('Use chat theme for UI'), findsNothing);
     expect(find.text('Use themes per account'), findsNothing);
 
-    await tester.tap(find.text('Theme'));
+    // Theme is reached from the settings list now rather than from this hub,
+    // so push it directly instead of tapping a row that no longer exists.
+    tester
+        .state<NavigatorState>(find.byType(Navigator))
+        .push(
+          MaterialPageRoute<void>(builder: (_) => const ThemeSettingsView()),
+        );
     await tester.pumpAndSettle();
 
     expect(find.byType(ThemeSettingsView), findsOneWidget);
@@ -130,7 +138,7 @@ void main() {
               extensions: [AppColors.dark],
             ),
             themeMode: ThemeMode.dark,
-            home: const AppearanceView(),
+            home: const ThemeSettingsView(),
           ),
         ),
       );
@@ -139,9 +147,6 @@ void main() {
       // The test platform remains light. The wallpaper slot must nevertheless
       // follow the manually selected app theme, matching Telegram iOS.
       expect(tester.platformDispatcher.platformBrightness, Brightness.light);
-      await tester.tap(find.text('Theme'));
-      await tester.pumpAndSettle();
-
       final wallpaperRow = find.text('Wallpaper');
       await tester.ensureVisible(wallpaperRow);
       await tester.tap(wallpaperRow);
@@ -164,7 +169,6 @@ void main() {
     await _pumpAppearance(tester, themingEnabled: true);
 
     for (final entry in const {
-      'appearance-theme-settings-row': HeroAppIcons.palette,
       'appearance-scaling-settings-row': HeroAppIcons.expand,
       'appearance-font-settings-row': HeroAppIcons.font,
       'avatars-sidebar-settings-row': HeroAppIcons.users,
