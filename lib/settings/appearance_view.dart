@@ -2,6 +2,7 @@
 //  appearance_view.dart
 //
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -20,8 +21,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../app/unread_badge_model.dart';
+import '../chat/chat_wallpaper.dart';
 import '../chat/chat_wallpaper_view.dart';
+import '../chat/image_media_album_bubble.dart';
 import '../chat/message_bubble.dart';
+import '../chat/message_bubble_chat_preview.dart';
 import '../components/app_icons.dart';
 import '../components/desktop_content_constraint.dart';
 import '../components/photo_avatar.dart';
@@ -40,8 +44,6 @@ import 'app_icon_controller.dart';
 import 'appearance_preview_repository.dart';
 import 'message_bubble_settings_view.dart';
 import 'quick_reaction_settings_view.dart';
-import '../chat/message_bubble_chat_preview.dart';
-import '../chat/chat_wallpaper.dart';
 
 class AppearanceView extends StatelessWidget {
   const AppearanceView({super.key});
@@ -223,6 +225,20 @@ class ThemeSettingsView extends StatelessWidget {
                       final dark =
                           Theme.of(context).brightness == Brightness.dark;
                       final bubbles = context.watch<ThemeController>();
+                      final wallpaperController =
+                          ChatWallpaperController.shared;
+                      final selectedWallpaper = selectGlobalChatWallpaper(
+                        defaultWallpaper: wallpaperController.defaultWallpaper(
+                          dark: dark,
+                        ),
+                        cloudThemeWallpaper: bubbles
+                            .cloudThemeFor(
+                              dark ? Brightness.dark : Brightness.light,
+                            )
+                            ?.wallpaper,
+                        globalThemeWallpaper: wallpaperController
+                            .globalThemeWallpaperFor(dark: dark),
+                      );
                       return Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                         child: MessageBubbleChatPreview(
@@ -234,9 +250,11 @@ class ThemeSettingsView extends StatelessWidget {
                               .effectiveMessageBubbleBackgroundSpecFor(
                                 outgoing: true,
                               ),
-                          // Singleton, not a provided value.
-                          wallpaper: ChatWallpaperController.shared
-                              .globalThemeWallpaperFor(dark: dark),
+                          wallpaper: selectedWallpaper == null
+                              ? null
+                              : wallpaperController.resolvedWallpaper(
+                                  selectedWallpaper,
+                                ),
                         ),
                       );
                     },
@@ -1172,9 +1190,55 @@ class _LiveAvatarRow extends StatelessWidget {
 class _ChatViewSettingsPreview extends StatelessWidget {
   const _ChatViewSettingsPreview();
 
+  static final List<ChatMessage> _albumMessages = [
+    ChatMessage(
+      id: -9101,
+      isOutgoing: false,
+      text: '',
+      date: 1785862260,
+      senderId: 42,
+      senderName: 'Mira Chen',
+      senderRole: MemberRole.member,
+      senderTitle: 'Album Curator',
+      senderAccentColorId: 3,
+      contentType: 'messagePhoto',
+      mediaAlbumId: 91,
+      imageWidth: 1600,
+      imageHeight: 1200,
+      image: TdFileRef(
+        id: -9101,
+        miniThumb: base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAADAAAAAkCAYAAADPRbkKAAABoElEQVR42tXPDWsMABzH8f/LQ0Ye8pCHPOQhjzNmbYZ7vt3D7mH3uNt2u+127nbNJIkkkkjakkQSSSStSSKJ9PV/G7938PkYiwH+XQ3ydyHIn26I3/MhfnXC/GyH+dGK8H0uwrdmlK+zUVYbMVamY3ypx/k8FefTxAgfayN8GE/wvprgXTnJ21KSN8UUrwspXuXTvMyleZEd5XlmlGfpDMupDEvJLE8TWZ7EczyO5XgUzfMwkudBaIz7wTHuBQrcvVzgzsUit4eL3LpQ4uZQmRuDZa4PVLh2vsJif5WFc1VMGd/tG8eU8Z0zHlDGt3trmDK+ddoDyvjmyQlMGT9zwgPK+MbxSUwZXz/mAWX85NEpTBlfO+IBZXz1cB1TxlcOeUAZXzo4jSnjCwc8oIzP729gyvjcPg8o4zN7ZzBlfHqPB5Txyd2zmDI+scsDyvj4ziamjI/u8IAyPrx9DlPGB7d5QBkf2NrClPGXtnhAGT+8+QqmjB/a5AFl/ODGNqaMH9jgAWV8f08HU8afXe8BZXzfunlMGd+71gPK+FNruvwHhyS2QTVTO4sAAAAASUVORK5CYII=',
+        ),
+      ),
+    ),
+    ChatMessage(
+      id: -9102,
+      isOutgoing: false,
+      text: 'Two moments from the group album.',
+      date: 1785862260,
+      senderId: 42,
+      senderName: 'Mira Chen',
+      senderRole: MemberRole.member,
+      senderTitle: 'Album Curator',
+      senderAccentColorId: 3,
+      contentType: 'messagePhoto',
+      mediaAlbumId: 91,
+      imageWidth: 1200,
+      imageHeight: 1600,
+      image: TdFileRef(
+        id: -9102,
+        miniThumb: base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAADAAAAAkCAYAAADPRbkKAAABh0lEQVR42tXP5y7DYQCF8f/V0Gq1WrP26l0QI0aMIEaMIEaMGEGMUKu0qCpapaUown0d572M8+H5/nss/18W/t8sGn8+0fj9iYavDzRk2cc76t9ZJoP6twzq0iz1htoX9vyK2qdX1CTSqImzhzSq71OojqVQdfeCqlsWeUblDbtOojKcREWIXT6hPMjOEyg/S8B3GofvmAXiKDt6RNnhI0oPHlC6z/buUbLLdmIo2Y6heItt3qFog61HUbQWReHqLSxlfOEKB5Tx3uUIB4Tx3iUOKOO9i2ZAGO9ZuOGAMN4zzwFlvGfumgPC+IJZMyCML5i5gqWMd0+bAWG8e4oDynj3ZJgDwnjXhBkQxrvGQ7CU8a4xMyCMzx+95IAwPn+EA8p45/AFB4TxziEOKOOdg2ZAGO8YCHJAGO/o54Ay3tF3zgFhfF6vGRDG5/WcwVLG27vNgDDe3sUBZby985QDwnhbhxkQxtvaT2Ap421tZkAYn9t6zAFhfG4LB5TxOc0BDgjjc5oC+Acf2nhjj5N6ogAAAABJRU5ErkJggg==',
+        ),
+      ),
+    ),
+  ];
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final theme = context.watch<ThemeController>();
     return Container(
       key: const ValueKey('chat-view-preview'),
       decoration: BoxDecoration(
@@ -1183,49 +1247,58 @@ class _ChatViewSettingsPreview extends StatelessWidget {
         border: Border.all(color: c.divider),
       ),
       clipBehavior: Clip.antiAlias,
-      child: _AppearanceSnapshotBuilder(
-        builder: (context, data) {
-          if (data.messages.isEmpty || data.transcriptChat == null) {
-            return const _LivePreviewUnavailable();
-          }
-          return RepaintBoundary(
-            child: ExcludeSemantics(
-              child: IgnorePointer(
-                child: TickerMode(
-                  enabled: false,
-                  child: SizedBox(
-                    height: 280,
-                    child: ListView(
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(
-                        vertical: AppSpacing.md,
-                      ),
-                      children: [
-                        for (final entry in data.messages)
-                          MessageBubble(
-                            key: ValueKey(
-                              'chat-view-preview-message-${entry.message.id}',
-                            ),
-                            message: entry.message,
-                            peerTitle: data.peerTitle,
-                            peerPhoto: data.peerPhoto,
-                            isGroup: data.isGroup,
-                            meName: data.meName,
-                            mePhoto: data.mePhoto,
-                            meId: data.meId,
-                            isRead: entry.isRead,
-                          ),
-                      ],
-                    ),
-                  ),
+      child: RepaintBoundary(
+        child: ExcludeSemantics(
+          child: IgnorePointer(
+            child: TickerMode(
+              enabled: false,
+              child: SizedBox(
+                height: 280,
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  child: theme.groupImageMessages
+                      ? ImageMediaAlbumBubble(
+                          key: const ValueKey('chat-view-preview-album'),
+                          messages: _albumMessages,
+                          peerTitle: 'Design Circle',
+                          isGroup: true,
+                          meName: 'You',
+                          imageBuilder: _previewAlbumImage,
+                        )
+                      : Column(
+                          children: [
+                            for (final message in _albumMessages)
+                              MessageBubble(
+                                key: ValueKey(
+                                  'chat-view-preview-message-${message.id}',
+                                ),
+                                message: message,
+                                peerTitle: 'Design Circle',
+                                isGroup: true,
+                                meName: 'You',
+                              ),
+                          ],
+                        ),
                 ),
               ),
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
+
+  static Widget _previewAlbumImage(
+    BuildContext context,
+    ChatMessage message,
+    double width,
+    double height,
+  ) => Image.memory(
+    message.image!.miniThumb!,
+    fit: BoxFit.cover,
+    gaplessPlayback: true,
+  );
 }
 
 class _ChatListSettingsPreview extends StatelessWidget {

@@ -3410,7 +3410,10 @@ class _MessageBubbleState extends State<MessageBubble>
       padding: const EdgeInsets.fromLTRB(12, 8, 6, 9),
       decoration: BoxDecoration(
         color: _replyQuoteBackground(outgoing),
-        borderRadius: BorderRadius.circular(AppRadius.control),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(AppRadius.control),
+          bottomRight: Radius.circular(AppRadius.control),
+        ),
         border: _messageColors == null
             ? null
             : Border(left: BorderSide(color: line, width: 3)),

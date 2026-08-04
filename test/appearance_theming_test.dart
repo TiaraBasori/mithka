@@ -277,15 +277,33 @@ void main() {
       );
       await returnToAppearance();
 
+      controller.showMemberTags = true;
+      controller.showPlainMemberRoleTags = true;
       await openChild('chat-view-settings-row', 'chat-view-preview');
       expect(
         find.byKey(const ValueKey('appearance-live-preview-unavailable')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('chat-view-preview-album')),
         findsOneWidget,
       );
-      expect(find.text('Bob Harris'), findsNothing);
-      expect(find.text('Jessica'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('messageImageAlbumTile--9101')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('messageImageAlbumTile--9102')),
+        findsOneWidget,
+      );
+      expect(find.text('Mira Chen'), findsOneWidget);
+      expect(find.text('Album Curator'), findsOneWidget);
       controller.alwaysShowMessageTime = true;
       await tester.pump();
+      expect(
+        find.byKey(const ValueKey('messageTappedTimestamp')),
+        findsOneWidget,
+      );
       await returnToAppearance();
 
       await openChild('chat-list-settings-row', 'chat-list-preview');
