@@ -511,7 +511,7 @@ Future<bool> _openSettingsLink(
     'settingsSectionDataAndStorage' => const GeneralSettingsView(),
     'settingsSectionDevices' => const ActiveSessionsView(),
     'settingsSectionEditProfile' => const EditProfileView(),
-    'settingsSectionLanguage' => const TelegramLanguageSettingsView(),
+    'settingsSectionLanguage' => const AppLanguageSettingsView(),
     'settingsSectionNotifications' => const NotificationSettingsView(),
     'settingsSectionPrivacyAndSecurity' => const PrivacySecurityView(),
     'settingsSectionQrCode' => const QRCodeView(),

@@ -146,6 +146,9 @@ flutter:
     enable-swift-package-manager: true
   uses-material-design: false
   assets:
+    # Locale catalogues, generated from translations/ by
+    # translations/tools/gen_assets.py.
+    - assets/l10n/
     - assets/penguin.png
     - assets/app_icon.png
     - assets/app_icons/

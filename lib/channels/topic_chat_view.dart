@@ -28,7 +28,6 @@ import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../notifications/notification_settings_payload.dart';
 import '../settings/topic_group_display_mode.dart';
 import '../tdlib/json_helpers.dart';
@@ -1237,7 +1236,7 @@ class _TopicChatViewState extends State<TopicChatView> {
       child: Row(
         children: [
           Text(
-            telegramText(AppStringKeys.topicChatPinnedPrefix),
+            AppStrings.t(AppStringKeys.topicChatPinnedPrefix),
             style: TextStyle(fontSize: 15, color: c.textSecondary),
           ),
           Expanded(

@@ -13,7 +13,6 @@ import 'package:mithka/l10n/app_localizations.dart';
 
 import '../components/app_icons.dart';
 import '../components/photo_avatar.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -307,7 +306,7 @@ class _ChatSearchViewState extends State<ChatSearchView> {
   List<InlineSpan> _snippetSpans(ChatMessage message) {
     final c = context.colors;
     final text = message.text.isEmpty
-        ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
+        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
         : message.text.replaceAll('\n', ' ');
     final query = _query.trim();
     if (query.isEmpty) return [TextSpan(text: text)];

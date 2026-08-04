@@ -478,9 +478,10 @@ class _StickerSetDetailViewState extends State<StickerSetDetailView> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  AppStrings.t(AppStringKeys.stickerSetDetailStickerCount, {
-                    'value1': _stickers.length,
-                  }),
+                  AppStrings.plural(
+                    AppStringKeys.stickerSetDetailStickerCount,
+                    _stickers.length,
+                  ),
                   style: TextStyle(fontSize: 13, color: c.textSecondary),
                 ),
               ],

@@ -222,7 +222,7 @@ class _TermsAcceptButtonState extends State<_TermsAcceptButton> {
                     // Markdown emphasis markers in several language packs.
                     // This app-owned action uses our plain localized label so
                     // those markers are never rendered literally.
-                    AppStrings.tLocal(AppStringKeys.loginTermsAccept),
+                    AppStrings.t(AppStringKeys.loginTermsAccept),
                     style: const TextStyle(
                       color: Color(0xFFFFFFFF),
                       fontSize: 16,

@@ -179,13 +179,16 @@ class _PollResultsViewState extends State<PollResultsView> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        AppStrings.t(
-                          _statistics == null
-                              ? AppStringKeys.messagePollVotes
-                              : AppStringKeys
+                        _statistics == null
+                            ? AppStrings.plural(
+                                AppStringKeys.messagePollVotes,
+                                _poll.totalVoterCount,
+                              )
+                            : AppStrings.t(
+                                AppStringKeys
                                     .pollResultsVotesWithDetailedStatistics,
-                          {'value1': _poll.totalVoterCount},
-                        ),
+                                {'value1': _poll.totalVoterCount},
+                              ),
                         style: TextStyle(
                           color: colors.textSecondary,
                           fontSize: 13,

@@ -196,9 +196,10 @@ class MessagePollContent extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        AppStrings.t(AppStringKeys.messagePollVotes, {
-                          'value1': poll.totalVoterCount,
-                        }),
+                        AppStrings.plural(
+                          AppStringKeys.messagePollVotes,
+                          poll.totalVoterCount,
+                        ),
                         style: TextStyle(fontSize: 12, color: secondary),
                       ),
                     ),

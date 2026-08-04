@@ -24,7 +24,6 @@ import '../components/icon_grid.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../moments/story_management_view.dart';
 import '../notifications/notification_settings_payload.dart';
 import '../profile/qr_code_view.dart';
@@ -683,7 +682,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
             child: Row(
               children: [
                 Text(
-                  telegramText(AppStringKeys.chatInfoGroupMembers),
+                  AppStrings.t(AppStringKeys.chatInfoGroupMembers),
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w500,
@@ -843,7 +842,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
           if (!_vm.isGroup) ...[
             const InsetDivider(leadingInset: 14),
             _infoRow(
-              telegramText(AppStringKeys.topicPostContentFile),
+              AppStrings.t(AppStringKeys.topicPostContentFile),
               () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => SharedMediaView(
@@ -948,7 +947,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                   _groupAppItem(
                     icon: HeroAppIcons.solidFolder.data,
                     color: const Color(0xFFFFB300),
-                    label: telegramText(AppStringKeys.topicPostContentFile),
+                    label: AppStrings.t(AppStringKeys.topicPostContentFile),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => SharedMediaView(
@@ -995,7 +994,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
                   _groupAppItem(
                     icon: HeroAppIcons.solidStar.data,
                     color: const Color(0xFF18C26E),
-                    label: telegramText(AppStringKeys.chatInfoPinnedHighlights),
+                    label: AppStrings.t(AppStringKeys.chatInfoPinnedHighlights),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) => PinnedMessagesView(

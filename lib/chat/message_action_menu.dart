@@ -14,7 +14,6 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../components/app_icons.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../platform/adaptive_platform.dart';
 import '../settings/translation_controller.dart';
 import '../tdlib/td_models.dart';
@@ -468,7 +467,7 @@ class _DesktopActionList extends StatelessWidget {
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            telegramText(action.label),
+                            AppStrings.t(action.label),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
@@ -537,7 +536,7 @@ class _ActionRow extends StatelessWidget {
                     ),
                   const SizedBox(height: 5),
                   Text(
-                    telegramText(action.label),
+                    AppStrings.t(action.label),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

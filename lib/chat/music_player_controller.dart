@@ -1110,9 +1110,10 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        AppStrings.t(AppStringKeys.musicPlayerTrackCount, {
-                          'value1': queue.length,
-                        }),
+                        AppStrings.plural(
+                          AppStringKeys.musicPlayerTrackCount,
+                          queue.length,
+                        ),
                         style: TextStyle(fontSize: 12, color: c.textTertiary),
                       ),
                       const SizedBox(height: 12),
@@ -1497,9 +1498,9 @@ class _MusicPlaylistsSheet extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 3),
                                     Text(
-                                      AppStrings.t(
+                                      AppStrings.plural(
                                         AppStringKeys.musicPlayerTrackCount,
-                                        {'value1': playlist.tracks.length},
+                                        playlist.tracks.length,
                                       ),
                                       style: TextStyle(
                                         fontSize: 12,
@@ -1794,9 +1795,9 @@ class _PlaylistTracksSheet extends StatelessWidget {
                               ),
                             ),
                             Text(
-                              AppStrings.t(
+                              AppStrings.plural(
                                 AppStringKeys.musicPlayerTrackCount,
-                                {'value1': playlist.tracks.length},
+                                playlist.tracks.length,
                               ),
                               style: TextStyle(
                                 fontSize: 12,
@@ -1903,9 +1904,10 @@ class _PlayedChatTracksSheet extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          AppStrings.t(AppStringKeys.musicPlayerTrackCount, {
-                            'value1': tracks.length,
-                          }),
+                          AppStrings.plural(
+                            AppStringKeys.musicPlayerTrackCount,
+                            tracks.length,
+                          ),
                           style: TextStyle(fontSize: 12, color: c.textTertiary),
                         ),
                       ],

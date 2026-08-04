@@ -16,7 +16,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/l10n/preview_texts.dart';
-import 'package:mithka/l10n/telegram_language_controller.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
@@ -752,7 +751,7 @@ class ChatListAppearanceSettingsView extends StatelessWidget {
         ),
         appearance._navigationRow(
           context,
-          telegramText(AppStringKeys.appearanceArchivedChats),
+          AppStrings.t(AppStringKeys.appearanceArchivedChats),
           AppStrings.t(theme.archivedChatsDisplayMode.label),
           () => Navigator.of(context).push(
             MaterialPageRoute(
@@ -1692,7 +1691,7 @@ class ArchivedChatsSettingsView extends StatelessWidget {
       body: Column(
         children: [
           NavHeader(
-            title: telegramText(AppStringKeys.appearanceArchivedChats),
+            title: AppStrings.t(AppStringKeys.appearanceArchivedChats),
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(

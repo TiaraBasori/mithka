@@ -20,7 +20,6 @@ import '../components/app_interactive_surface.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -1737,24 +1736,24 @@ class _SearchHit {
   static String _messageTitle(ChatMessage message) {
     if (message.music != null) return message.music!.title;
     if (message.voice != null) {
-      return telegramText(AppStringKeys.sharedMediaVoiceMessages);
+      return AppStrings.t(AppStringKeys.sharedMediaVoiceMessages);
     }
     if (message.video != null) {
       final text = message.text.trim();
       return text.isEmpty ||
-              text == telegramText(AppStringKeys.chatVideoPlaceholder)
-          ? telegramText(AppStringKeys.chatVideoPlaceholder)
+              text == AppStrings.t(AppStringKeys.chatVideoPlaceholder)
+          ? AppStrings.t(AppStringKeys.chatVideoPlaceholder)
           : text;
     }
     if (message.image != null) {
       final text = message.text.trim();
       return text.isEmpty ||
-              text == telegramText(AppStringKeys.composerImagePreview)
-          ? telegramText(AppStringKeys.composerImagePreview)
+              text == AppStrings.t(AppStringKeys.composerImagePreview)
+          ? AppStrings.t(AppStringKeys.composerImagePreview)
           : text;
     }
     return message.text.trim().isEmpty
-        ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
+        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
         : message.text.trim();
   }
 
@@ -1775,8 +1774,8 @@ class _SearchHit {
         document == null &&
         music == null &&
         message.voice == null &&
-        text != telegramText(AppStringKeys.composerImagePreview) &&
-        text != telegramText(AppStringKeys.chatVideoPlaceholder)) {
+        text != AppStrings.t(AppStringKeys.composerImagePreview) &&
+        text != AppStrings.t(AppStringKeys.chatVideoPlaceholder)) {
       pieces.add(text.replaceAll('\n', ' '));
     }
     return pieces.join(' · ');

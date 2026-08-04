@@ -47,9 +47,10 @@ class CommunityChatListRow extends StatelessWidget {
       id: -entry.community.id.abs(),
       title: entry.community.name,
       lastMessage: latest.lastMessage.trim().isEmpty
-          ? AppStrings.t(AppStringKeys.communityChatCount, {
-              'value1': entry.chats.length,
-            })
+          ? AppStrings.plural(
+              AppStringKeys.communityChatCount,
+              entry.chats.length,
+            )
           : latest.lastMessage,
       lastMessageId: latest.lastMessageId,
       date: latest.date,
@@ -344,12 +345,13 @@ class _CommunityViewState extends State<CommunityView> {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  AppStrings.t(AppStringKeys.communityChatCount, {
-                    'value1': {
+                  AppStrings.plural(
+                    AppStringKeys.communityChatCount,
+                    {
                       ..._currentChats.map((chat) => chat.id),
                       ..._currentViewableChats.map((chat) => chat.id),
                     }.length,
-                  }),
+                  ),
                   textAlign: TextAlign.left,
                   style: TextStyle(
                     fontSize: AppTextSize.callout,

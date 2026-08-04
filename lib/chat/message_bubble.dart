@@ -24,7 +24,6 @@ import '../components/document_file_icon.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../platform/adaptive_platform.dart';
 import '../profile/profile_detail_view.dart';
 import '../settings/sensitive_content_controller.dart';
@@ -1453,7 +1452,7 @@ class _MessageBubbleState extends State<MessageBubble>
     final count = message.commentCount;
     final label = count == 0
         ? AppStrings.t(AppStringKeys.messageLeaveAComment)
-        : AppStrings.t(AppStringKeys.momentsCommentCount, {'value1': count});
+        : AppStrings.plural(AppStringKeys.momentsCommentCount, count);
     final fg = outgoing ? _outgoingTextColor : _incomingTextColor;
     final sub = outgoing
         ? _outgoingTextColor.withValues(alpha: 0.72)
@@ -3352,7 +3351,7 @@ class _MessageBubbleState extends State<MessageBubble>
         const SizedBox(width: 4),
         Flexible(
           child: Text(
-            telegramText(AppStringKeys.messageBubbleForwardedFrom, {
+            AppStrings.t(AppStringKeys.messageBubbleForwardedFrom, {
               'value1': message.forwardOrigin,
             }),
             maxLines: 1,

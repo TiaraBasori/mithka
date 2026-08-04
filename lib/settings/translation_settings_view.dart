@@ -13,7 +13,6 @@ import 'package:provider/provider.dart';
 import '../components/app_icons.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import 'ai_settings_controller.dart';
@@ -210,7 +209,7 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
       body: Column(
         children: [
           NavHeader(
-            title: telegramText(AppStringKeys.messageActionTranslate),
+            title: AppStrings.t(AppStringKeys.messageActionTranslate),
             onBack: () => Navigator.of(context).pop(),
           ),
           Expanded(

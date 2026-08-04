@@ -16,7 +16,6 @@ import '../chat/music_player_controller.dart';
 import '../components/keyboard_dismiss_on_tap.dart';
 import '../l10n/app_locale_controller.dart';
 import '../l10n/app_localizations.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../settings/ai_settings_controller.dart';
 import '../settings/blocked_user_service.dart';
 import '../settings/country_message_filter.dart';
@@ -134,8 +133,6 @@ class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
     initialAccountUserId: widget.arguments.accountUserId,
   );
   late final CallManager _calls = CallManager()..start();
-  late final TelegramLanguageController _telegramLanguage =
-      TelegramLanguageController.shared;
   bool _presentationReloading = false;
   bool _presentationReloadQueued = false;
 
@@ -155,14 +152,6 @@ class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
     unawaited(_ai.initialize());
     unawaited(SensitiveContentController.shared.initialize());
     unawaited(BlockedUserService.shared.loadBlockedUsers());
-    unawaited(_initializeTelegramLanguage());
-  }
-
-  Future<void> _initializeTelegramLanguage() async {
-    await _telegramLanguage.initialize(widget.prefs);
-    await _telegramLanguage.syncAppLocale(
-      AppLocalizations.localeFromTag(widget.arguments.localeTag),
-    );
   }
 
   Future<void> _reloadPresentationPreferences() async {
@@ -196,7 +185,6 @@ class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
             );
         final nextTranslation = TranslationController(widget.prefs);
         final nextLocale = AppLocaleController(widget.prefs);
-        unawaited(_telegramLanguage.reloadPreferences(widget.prefs));
 
         setState(() {
           _theme = nextTheme;
@@ -204,12 +192,6 @@ class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
           _locale = nextLocale;
         });
         unawaited(nextTheme.loadSelectedEmojiFontIfAvailable());
-        unawaited(
-          _telegramLanguage.syncAppLocale(
-            nextLocale.locale ??
-                AppLocalizations.localeFromTag(widget.arguments.localeTag),
-          ),
-        );
         WidgetsBinding.instance.addPostFrameCallback((_) {
           previousLocale.dispose();
           previousTranslation.dispose();
@@ -280,12 +262,13 @@ class _DesktopChatWindowAppState extends State<DesktopChatWindowApp> {
       ChangeNotifierProvider.value(value: _ai),
       ChangeNotifierProvider.value(value: _groupRemarks),
       ChangeNotifierProvider.value(value: _calls),
-      ChangeNotifierProvider.value(value: _telegramLanguage),
     ],
     child: AnimatedBuilder(
-      animation: Listenable.merge([_theme, _locale, _telegramLanguage]),
+      animation: Listenable.merge([_theme, _locale]),
       builder: (context, _) {
-        final locale = _telegramLanguage.mithkaLocale;
+        final locale =
+            _locale.locale ??
+            AppLocalizations.localeFromTag(widget.arguments.localeTag);
         return MaterialApp(
           navigatorKey: appNavigatorKey,
           title: widget.arguments.title,

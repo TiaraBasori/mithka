@@ -588,10 +588,10 @@ class _SettingsViewState extends State<SettingsView> {
         owner: _SettingsOwner.telegram,
         group: 4,
         order: 10,
-        titleKey: AppStringKeys.languageTelegramLanguage,
+        titleKey: AppStringKeys.languageMithkaLanguage,
         icon: HeroAppIcons.globe,
         color: const Color(0xFF34A2DF),
-        destination: () => const TelegramLanguageSettingsView(),
+        destination: () => const AppLanguageSettingsView(),
         searchTerms: const [
           'language pack',
           'telegram text',

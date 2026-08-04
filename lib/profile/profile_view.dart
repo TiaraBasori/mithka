@@ -28,7 +28,6 @@ import '../components/drawer_controller.dart' as dc;
 import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
 import '../components/vip_badge.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../settings/edit_profile_view.dart';
 import '../settings/settings_view.dart';
 import '../tdlib/json_helpers.dart';
@@ -472,13 +471,13 @@ class _ProfileViewState extends State<ProfileView> {
           _row(
             HeroAppIcons.folder,
             const Color(0xFF3C8CF0),
-            telegramText(AppStringKeys.topicPostContentFile),
+            AppStrings.t(AppStringKeys.topicPostContentFile),
             () {
               _root.push(
                 MaterialPageRoute(
                   builder: (_) => SharedMediaView(
                     chatId: 0,
-                    title: telegramText(AppStringKeys.topicPostContentFile),
+                    title: AppStrings.t(AppStringKeys.topicPostContentFile),
                     initialTab: 1,
                     displayTitle: AppStringKeys.topicPostContentFile,
                   ),
@@ -489,13 +488,13 @@ class _ProfileViewState extends State<ProfileView> {
           _row(
             HeroAppIcons.video,
             const Color(0xFF7B61FF),
-            telegramText(AppStringKeys.sharedMediaVideos),
+            AppStrings.t(AppStringKeys.sharedMediaVideos),
             () {
               _root.push(
                 MaterialPageRoute(
                   builder: (_) => SharedMediaView(
                     chatId: 0,
-                    title: telegramText(AppStringKeys.sharedMediaVideos),
+                    title: AppStrings.t(AppStringKeys.sharedMediaVideos),
                     initialTab: 4,
                     displayTitle: AppStringKeys.sharedMediaVideos,
                     lockedTab: true,

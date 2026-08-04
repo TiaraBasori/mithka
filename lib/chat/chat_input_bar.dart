@@ -33,7 +33,6 @@ import '../components/icon_grid.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../media/app_asset_picker.dart';
 import '../platform/desktop_clipboard_images.dart';
 import '../platform/desktop_screenshot.dart';
@@ -2222,7 +2221,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       unawaited(
         _openDesktopComposerPicker(
           DesktopUtilityWindowKind.scheduledMessages,
-          telegramText(AppStringKeys.messageSendOptionsScheduledMessages),
+          AppStrings.t(AppStringKeys.messageSendOptionsScheduledMessages),
         ),
       );
       return;
@@ -3096,10 +3095,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
       });
     }
     if (m.voice != null) {
-      return telegramText(AppStringKeys.composerVoicePreview);
+      return AppStrings.t(AppStringKeys.composerVoicePreview);
     }
     if (m.location != null) {
-      return telegramText(AppStringKeys.composerLocationPreview);
+      return AppStrings.t(AppStringKeys.composerLocationPreview);
     }
     if (m.isDice) {
       return m.diceEmoji ?? m.text;
@@ -3108,11 +3107,11 @@ class _ChatInputBarState extends State<ChatInputBar> {
       return m.text;
     }
     if (m.animatedSticker != null) {
-      return telegramText(AppStringKeys.composerAnimatedEmojiPreview);
+      return AppStrings.t(AppStringKeys.composerAnimatedEmojiPreview);
     }
     if (m.image != null) {
       return m.text.isEmpty
-          ? telegramText(AppStringKeys.composerImagePreview)
+          ? AppStrings.t(AppStringKeys.composerImagePreview)
           : m.text;
     }
     return m.text;
@@ -4128,7 +4127,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      telegramText(AppStringKeys.businessToolsQuickReplies),
+                      AppStrings.t(AppStringKeys.businessToolsQuickReplies),
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -5255,7 +5254,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   _desktopIcon(
                     key: const ValueKey('desktopComposerFileAction'),
                     icon: HeroAppIcons.solidFolder,
-                    semanticLabel: telegramText(
+                    semanticLabel: AppStrings.t(
                       AppStringKeys.topicPostContentFile,
                     ),
                     active: false,
@@ -5264,7 +5263,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   _desktopIcon(
                     key: const ValueKey('desktopComposerAudioAction'),
                     icon: HeroAppIcons.music,
-                    semanticLabel: telegramText(AppStringKeys.composerAudio),
+                    semanticLabel: AppStrings.t(AppStringKeys.composerAudio),
                     active: false,
                     onTap: _pickAudio,
                   ),
@@ -5313,7 +5312,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                   _desktopIcon(
                     key: const ValueKey('desktopComposerScheduledAction'),
                     icon: HeroAppIcons.clock,
-                    semanticLabel: telegramText(
+                    semanticLabel: AppStrings.t(
                       AppStringKeys.messageSendOptionsScheduledMessages,
                     ),
                     active: false,
@@ -6212,7 +6211,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       await widget.vm.sendAttachments(attachments);
       widget.onMessageSent();
     } catch (_) {
-      _pickFailed(telegramText(AppStringKeys.topicPostContentFile));
+      _pickFailed(AppStrings.t(AppStringKeys.topicPostContentFile));
     }
   }
 
@@ -6338,7 +6337,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       await widget.vm.sendAttachments(attachments);
       widget.onMessageSent();
     } catch (_) {
-      _pickFailed(telegramText(AppStringKeys.composerAudio));
+      _pickFailed(AppStrings.t(AppStringKeys.composerAudio));
     }
   }
 
@@ -6347,7 +6346,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     if (_usesNativeDesktopComposer(context)) {
       await _openDesktopComposerPicker(
         DesktopUtilityWindowKind.audioPicker,
-        telegramText(AppStringKeys.composerAudio),
+        AppStrings.t(AppStringKeys.composerAudio),
       );
       return;
     }
@@ -6437,7 +6436,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       ),
       (
         HeroAppIcons.solidFolder.data,
-        telegramText(AppStringKeys.topicPostContentFile),
+        AppStrings.t(AppStringKeys.topicPostContentFile),
         _pickFile,
       ),
       if (!vm.isDirectMessagesGroup)
@@ -6448,7 +6447,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         ),
       (
         HeroAppIcons.music.data,
-        telegramText(AppStringKeys.composerAudio),
+        AppStrings.t(AppStringKeys.composerAudio),
         _pickAudio,
       ),
       (
@@ -6470,7 +6469,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         ),
       (
         HeroAppIcons.clock.data,
-        telegramText(AppStringKeys.messageSendOptionsScheduledMessages),
+        AppStrings.t(AppStringKeys.messageSendOptionsScheduledMessages),
         _openScheduledMessages,
       ),
     ];
@@ -6850,7 +6849,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     key: const ValueKey('voicePanelVoiceMessage'),
                     selected: true,
                     icon: HeroAppIcons.microphone,
-                    label: telegramText(
+                    label: AppStrings.t(
                       AppStringKeys.voiceNotePreviewVoiceMessage,
                     ),
                     onTap: () {},
@@ -6862,7 +6861,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                     key: const ValueKey('voicePanelVideoMessage'),
                     selected: false,
                     icon: HeroAppIcons.solidFileVideo,
-                    label: telegramText(
+                    label: AppStrings.t(
                       AppStringKeys.videoNotePreviewVideoMessage,
                     ),
                     onTap: _recording

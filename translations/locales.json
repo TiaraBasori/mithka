@@ -1,0 +1,62 @@
+{
+  "source": "en-US",
+  "_pluralCategories": "CLDR categories that apply to integer counts, which is all Mithka formats. Categories CLDR only reaches through compact or decimal forms (Spanish and French 'many') are deliberately omitted.",
+  "locales": [
+    {
+      "tag": "en-US",
+      "appKey": "en",
+      "name": "English",
+      "nativeName": "English",
+      "pluralCategories": ["one", "other"]
+    },
+    {
+      "tag": "zh-Hans-CN",
+      "appKey": "zhHans",
+      "name": "Chinese (Simplified)",
+      "nativeName": "简体中文",
+      "pluralCategories": ["other"]
+    },
+    {
+      "tag": "zh-Hant-TW",
+      "appKey": "zhHant",
+      "name": "Chinese (Traditional)",
+      "nativeName": "繁體中文",
+      "pluralCategories": ["other"]
+    },
+    {
+      "tag": "ja-JP",
+      "appKey": "ja",
+      "name": "Japanese",
+      "nativeName": "日本語",
+      "pluralCategories": ["other"]
+    },
+    {
+      "tag": "ko-KR",
+      "appKey": "ko",
+      "name": "Korean",
+      "nativeName": "한국어",
+      "pluralCategories": ["other"]
+    },
+    {
+      "tag": "fr-FR",
+      "appKey": "fr",
+      "name": "French",
+      "nativeName": "Français",
+      "pluralCategories": ["one", "other"]
+    },
+    {
+      "tag": "es-ES",
+      "appKey": "es",
+      "name": "Spanish",
+      "nativeName": "Español",
+      "pluralCategories": ["one", "other"]
+    },
+    {
+      "tag": "de-DE",
+      "appKey": "de",
+      "name": "German",
+      "nativeName": "Deutsch",
+      "pluralCategories": ["one", "other"]
+    }
+  ]
+}

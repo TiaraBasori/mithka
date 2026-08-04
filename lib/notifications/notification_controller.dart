@@ -18,7 +18,6 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../app/chat_deep_link_controller.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../settings/country_chat_blocker.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/chat_membership.dart';
@@ -797,7 +796,7 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
   String _notificationText(Map<String, dynamic> content) {
     final text = TDParse.messageText(content).replaceAll('\n', ' ').trim();
     return text.isEmpty
-        ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
+        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
         : text;
   }
 

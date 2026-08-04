@@ -35,7 +35,6 @@ import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../media/app_asset_picker.dart';
 import '../platform/adaptive_platform.dart';
 import '../profile/adaptive_profile_launcher.dart';
@@ -347,7 +346,7 @@ class _MomentsViewState extends State<MomentsView> {
     _openDetail(
       SharedMediaView(
         chatId: 0,
-        title: telegramText(AppStringKeys.sharedMediaVideos),
+        title: AppStrings.t(AppStringKeys.sharedMediaVideos),
         initialTab: 4,
         displayTitle: AppStringKeys.sharedMediaVideos,
         lockedTab: true,
@@ -407,7 +406,7 @@ class _MomentsViewState extends State<MomentsView> {
                       _menuRow(
                         icon: HeroAppIcons.video.data,
                         iconColor: const Color(0xFF7B61FF),
-                        title: telegramText(AppStringKeys.sharedMediaVideos),
+                        title: AppStrings.t(AppStringKeys.sharedMediaVideos),
                         onTap: _openVideos,
                       ),
                     ],
@@ -500,7 +499,7 @@ class _MomentsViewState extends State<MomentsView> {
                     key: const ValueKey('desktop-moments-videos'),
                     icon: HeroAppIcons.video,
                     iconColor: const Color(0xFF7B61FF),
-                    title: telegramText(
+                    title: AppStrings.t(
                       AppStringKeys.sharedMediaVideos,
                     ).l10n(context),
                     onTap: _openVideos,
@@ -1311,13 +1310,13 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       });
     }
     if (message.voice != null) {
-      return telegramText(AppStringKeys.composerVoicePreview);
+      return AppStrings.t(AppStringKeys.composerVoicePreview);
     }
     if (message.location != null) {
-      return telegramText(AppStringKeys.composerLocationPreview);
+      return AppStrings.t(AppStringKeys.composerLocationPreview);
     }
     if (message.animatedSticker != null) {
-      return telegramText(AppStringKeys.composerAnimatedEmojiPreview);
+      return AppStrings.t(AppStringKeys.composerAnimatedEmojiPreview);
     }
     if (message.video != null) {
       return message.text;
@@ -1327,7 +1326,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     }
     final text = message.text.trim();
     return text.isEmpty
-        ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
+        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
         : text;
   }
 
@@ -3980,9 +3979,10 @@ class _InlineComments extends StatelessWidget {
     final comments = post.comments ?? const <ChannelPostComment>[];
     if (comments.isEmpty) {
       return Text(
-        AppStrings.t(AppStringKeys.momentsCommentCount, {
-          'value1': post.message.commentCount,
-        }),
+        AppStrings.plural(
+          AppStringKeys.momentsCommentCount,
+          post.message.commentCount,
+        ),
         style: TextStyle(fontSize: 13, color: c.linkBlue),
       );
     }

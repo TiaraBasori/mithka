@@ -32,7 +32,6 @@ import '../components/ui_components.dart';
 import '../contacts/contacts_view.dart';
 import '../l10n/app_locale_controller.dart';
 import '../l10n/app_localizations.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../moments/moments_view.dart';
 import '../profile/profile_view.dart';
 import '../settings/desktop_hotkey_controller.dart';
@@ -623,7 +622,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     int activeTabIndex,
   ) {
     final theme = context.watch<ThemeController>();
-    final telegramLanguage = context.watch<TelegramLanguageController>();
+    final appLocale = context.watch<AppLocaleController>();
     final accounts = context.watch<AccountStore>();
     final size = MediaQuery.sizeOf(context);
     final contentWidth = size.width - desktopNavigationRailWidth;
@@ -669,8 +668,8 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           icon: tab.icon,
         ),
     ];
-    final fileLabel = telegramText(AppStringKeys.topicPostContentFile);
-    final videoLabel = telegramText(AppStringKeys.sharedMediaVideos);
+    final fileLabel = AppStrings.t(AppStringKeys.topicPostContentFile);
+    final videoLabel = AppStrings.t(AppStringKeys.sharedMediaVideos);
     final railActions = [
       DesktopNavigationAction(
         id: 'calls',
@@ -722,7 +721,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       ),
     ];
     final selectedLocaleKey = AppLocalizations.localeKeyFor(
-      telegramLanguage.mithkaLocale,
+      appLocale.locale ?? Localizations.localeOf(context),
     );
     final languageOptions = [
       for (final option in AppLocaleController.options)
@@ -732,7 +731,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           selected:
               AppLocalizations.localeKeyFor(option.locale) == selectedLocaleKey,
           onTap: () => unawaited(() async {
-            await telegramLanguage.selectSupportedLocale(option.locale);
+            appLocale.locale = option.locale;
             await DesktopChatWindowService.instance.notifyPresentationChanged();
           }()),
         ),
@@ -787,7 +786,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                           AppStringKeys.chatMenu,
                         ),
                         languageMenuLabel: AppStrings.t(
-                          AppStringKeys.languageTelegramLanguage,
+                          AppStringKeys.languageMithkaLanguage,
                         ),
                         languageOptions: languageOptions,
                         applicationMenuQuickActions:

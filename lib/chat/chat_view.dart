@@ -32,7 +32,6 @@ import '../components/full_page_back_swipe.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
-import '../l10n/telegram_language_controller.dart';
 import '../media/app_asset_picker.dart';
 import '../moments/story_viewer_view.dart';
 import '../notifications/notification_controller.dart';
@@ -4035,7 +4034,7 @@ class _ChatViewState extends State<ChatView> {
           if (!mounted) return;
           showToastOverlay(
             Overlay.of(context),
-            telegramText(AppStringKeys.chatTodoSetSuccess),
+            AppStrings.t(AppStringKeys.chatTodoSetSuccess),
           );
         } catch (e) {
           if (!mounted) return;
@@ -4050,7 +4049,7 @@ class _ChatViewState extends State<ChatView> {
           if (!mounted) return;
           showToastOverlay(
             Overlay.of(context),
-            telegramText(AppStringKeys.chatTodoUnsetSuccess),
+            AppStrings.t(AppStringKeys.chatTodoUnsetSuccess),
           );
         } catch (e) {
           if (!mounted) return;
@@ -4814,11 +4813,11 @@ class _ChatViewState extends State<ChatView> {
   }
 
   String _mediaLabel(ChatMessage message) => switch (message.contentType) {
-    'messagePhoto' => telegramText(AppStringKeys.composerImagePreview),
-    'messageVideo' => telegramText(AppStringKeys.chatVideoPlaceholder),
-    'messageAnimation' => telegramText(AppStringKeys.tdMessageGif),
-    'messageAudio' => telegramText(AppStringKeys.tdMessageMusic),
-    _ => telegramText(AppStringKeys.topicPostContentFile),
+    'messagePhoto' => AppStrings.t(AppStringKeys.composerImagePreview),
+    'messageVideo' => AppStrings.t(AppStringKeys.chatVideoPlaceholder),
+    'messageAnimation' => AppStrings.t(AppStringKeys.tdMessageGif),
+    'messageAudio' => AppStrings.t(AppStringKeys.tdMessageMusic),
+    _ => AppStrings.t(AppStringKeys.topicPostContentFile),
   };
 
   void _openSenderProfile(ChatMessage m) {
@@ -6098,7 +6097,7 @@ class _ChatViewState extends State<ChatView> {
             borderRadius: BorderRadius.circular(23),
           ),
           child: Text(
-            telegramText(label),
+            AppStrings.t(label),
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -6175,9 +6174,10 @@ class _ChatViewState extends State<ChatView> {
               if (_vm.memberCount > 0) ...[
                 const SizedBox(height: 6),
                 Text(
-                  AppStrings.t(AppStringKeys.chatMemberCount, {
-                    'value1': _vm.memberCount,
-                  }),
+                  AppStrings.plural(
+                    AppStringKeys.chatMemberCount,
+                    _vm.memberCount,
+                  ),
                   style: TextStyle(fontSize: 14, color: c.textSecondary),
                 ),
               ],
@@ -6195,7 +6195,7 @@ class _ChatViewState extends State<ChatView> {
                     borderRadius: BorderRadius.circular(23),
                   ),
                   child: Text(
-                    telegramText(label),
+                    AppStrings.t(label),
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -6658,7 +6658,7 @@ class _ChatViewState extends State<ChatView> {
   Widget _pinnedBar(ChatMessage pinned) {
     final c = context.colors;
     final text = pinned.text.trim().isEmpty
-        ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
+        ? AppStrings.t(AppStringKeys.chatSearchMessageResultLabel)
         : pinned.text.replaceAll('\n', ' ');
     final canPrevious = _vm.hasPreviousPinnedMessage;
     final canNext = _vm.hasNextPinnedMessage;
@@ -7827,7 +7827,7 @@ class _ChatViewState extends State<ChatView> {
     final count = message.commentCount;
     final label = count == 0
         ? AppStrings.t(AppStringKeys.messageLeaveAComment)
-        : AppStrings.t(AppStringKeys.momentsCommentCount, {'value1': count});
+        : AppStrings.plural(AppStringKeys.momentsCommentCount, count);
     final foreground = outgoing ? outgoingTextColor : c.textPrimary;
     final accent = outgoing
         ? outgoingTextColor.withValues(alpha: 0.72)

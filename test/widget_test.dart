@@ -48,6 +48,8 @@ import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/l10n_fixtures.dart';
+
 Future<MusicPlayerController> _pumpMusicPlayerBar(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -5647,14 +5649,7 @@ void main() {
       final keys = RegExp(
         r"static const [A-Za-z0-9_]+ = '([^']+)';",
       ).allMatches(source).map((match) => match.group(1)!).toSet();
-      final zhValues = <String, String>{};
-      final zhBlock = File('lib/l10n/messages/zh_hans.dart').readAsStringSync();
-      for (final match in RegExp(
-        r''' '([^']+)':\s*"((?:\\.|[^"])*)" '''.trim(),
-        dotAll: true,
-      ).allMatches(zhBlock)) {
-        zhValues[match.group(1)!] = match.group(2)!;
-      }
+      final zhValues = L10nFixtures.load().messages('zhHans');
       final intentionalHan = RegExp(r'^(appLocale|country|markdown|theme)');
       final han = RegExp(r'[\u3400-\u9fff]');
       final failures = <String>[];
