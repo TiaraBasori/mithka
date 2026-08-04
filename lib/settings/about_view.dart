@@ -19,6 +19,7 @@ import '../components/desktop_content_constraint.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../theme/app_theme.dart';
+import '../update/update_checker.dart';
 import 'developer_mode_controller.dart';
 import 'feedback_report_view.dart';
 
@@ -38,6 +39,37 @@ class _AboutViewState extends State<AboutView> {
   late final Future<AppVersion> _versionFuture = AppVersion.load();
   int _versionTapCount = 0;
   DateTime? _lastVersionTapAt;
+  bool _checking = false;
+  UpdateCheckOutcome? _updateOutcome;
+
+  /// Trailing text on the update row: the last outcome, or nothing yet.
+  String _updateStatusLabel() {
+    if (_checking) return AppStrings.t(AppStringKeys.aboutCheckingForUpdates);
+    return switch (_updateOutcome) {
+      null => '',
+      UpdateCheckOutcome.upToDate => AppStrings.t(AppStringKeys.aboutUpToDate),
+      UpdateCheckOutcome.unavailable => AppStrings.t(
+        AppStringKeys.aboutUpdateCheckFailed,
+      ),
+      // checkNow already offered the download; the row just records it.
+      UpdateCheckOutcome.updateAvailable => AppStrings.t(
+        AppStringKeys.aboutDownloadUpdate,
+      ),
+    };
+  }
+
+  Future<void> _checkForUpdates() async {
+    setState(() {
+      _checking = true;
+      _updateOutcome = null;
+    });
+    final outcome = await UpdateChecker.checkNow(context);
+    if (!mounted) return;
+    setState(() {
+      _checking = false;
+      _updateOutcome = outcome;
+    });
+  }
 
   Future<void> _handleVersionTap() async {
     final now = DateTime.now();
@@ -140,6 +172,22 @@ class _AboutViewState extends State<AboutView> {
                     clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
+                        if (UpdateChecker.supportsManualCheck) ...[
+                          _AboutLinkRow(
+                            icon: HeroAppIcons.download.data,
+                            title: AppStrings.t(
+                              AppStringKeys.aboutCheckForUpdates,
+                            ),
+                            value: _updateStatusLabel(),
+                            onTap: _checking
+                                ? null
+                                : () => unawaited(_checkForUpdates()),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(left: 48),
+                            child: Divider(height: 1, color: c.divider),
+                          ),
+                        ],
                         if (sentryEnabled) ...[
                           _AboutLinkRow(
                             icon: HeroAppIcons.comments.data,
@@ -215,7 +263,7 @@ class _AboutLinkRow extends StatelessWidget {
   final IconData icon;
   final String title;
   final String value;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

@@ -3929,6 +3929,12 @@ abstract final class AppStringKeys {
   static const presenceLastSeenRecently = 'presenceLastSeenRecently';
   static const presenceLastSeenWithinWeek = 'presenceLastSeenWithinWeek';
   static const presenceLastSeenWithinMonth = 'presenceLastSeenWithinMonth';
+  static const aboutCheckForUpdates = 'aboutCheckForUpdates';
+  static const aboutCheckingForUpdates = 'aboutCheckingForUpdates';
+  static const aboutUpToDate = 'aboutUpToDate';
+  static const aboutUpdateAvailable = 'aboutUpdateAvailable';
+  static const aboutUpdateCheckFailed = 'aboutUpdateCheckFailed';
+  static const aboutDownloadUpdate = 'aboutDownloadUpdate';
 }
 
 abstract final class AppStrings {

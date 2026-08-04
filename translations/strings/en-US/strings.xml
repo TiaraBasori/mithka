@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Generated from the Mithka app tables. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- Mithka's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
 <resources>
+    <string name="aboutCheckForUpdates">Check for Updates</string>
+    <string name="aboutCheckingForUpdates">Checking…</string>
+    <string name="aboutDownloadUpdate">Download</string>
     <string name="aboutReportProblem">Report a Problem</string>
     <string name="aboutReportProblemDetail">Includes privacy-safe diagnostics</string>
     <string name="aboutTelegramChannel">Telegram Channel</string>
     <string name="aboutTitle">About</string>
+    <string name="aboutUpToDate">Mithka is up to date</string>
+    <string name="aboutUpdateAvailable">Version {value1} is available</string>
+    <string name="aboutUpdateCheckFailed">Couldn’t check for updates</string>
     <string name="aboutVersion">Version {value1}</string>
     <string name="aboutWebsite">Website</string>
     <string name="accentColorPickerSave">Save</string>

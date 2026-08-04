@@ -1,10 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Mithka's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
 <resources>
+    <string name="aboutCheckForUpdates">檢查更新</string>
+    <string name="aboutCheckingForUpdates">檢查中…</string>
+    <string name="aboutDownloadUpdate">下載</string>
     <string name="aboutReportProblem">回報問題</string>
     <string name="aboutReportProblemDetail">附帶不含聊天內容的診斷資訊</string>
     <string name="aboutTelegramChannel">Telegram 頻道</string>
     <string name="aboutTitle">關於</string>
+    <string name="aboutUpToDate">已是最新版本</string>
+    <string name="aboutUpdateAvailable">{value1} 版本可用</string>
+    <string name="aboutUpdateCheckFailed">無法檢查更新</string>
     <string name="aboutVersion">版本 {value1}</string>
     <string name="aboutWebsite">官方網站</string>
     <string name="accentColorPickerSave">儲存</string>
