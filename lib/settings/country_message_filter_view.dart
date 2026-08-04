@@ -6,6 +6,7 @@ import 'package:mithka/l10n/app_localizations.dart';
 import '../auth/country_picker.dart';
 import '../auth/telegram_country_names.dart';
 import '../components/app_icons.dart';
+import '../components/country_flag.dart';
 import '../components/ui_components.dart';
 import '../theme/app_theme.dart';
 import 'country_message_filter.dart';
@@ -146,10 +147,7 @@ class _CountryMessageFilterViewState extends State<CountryMessageFilterView> {
                       ),
                       child: Row(
                         children: [
-                          Text(
-                            country.flag,
-                            style: const TextStyle(fontSize: 22),
-                          ),
+                          CountryFlag(iso: country.iso, size: 22),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Text(

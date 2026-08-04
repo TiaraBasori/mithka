@@ -149,6 +149,8 @@ flutter:
     # Locale catalogues, generated from translations/ by
     # translations/tools/gen_assets.py.
     - assets/l10n/
+    # Country flag sprite, built by tool/build_flag_sprite.py.
+    - assets/flags/
     - assets/penguin.png
     - assets/app_icon.png
     - assets/app_icons/

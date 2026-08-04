@@ -19,6 +19,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
+import '../components/country_flag.dart';
 import '../components/desktop_content_constraint.dart';
 import '../components/ui_components.dart';
 import '../settings/account_backup_view.dart';
@@ -519,10 +520,7 @@ class _LoginViewState extends State<LoginView> {
                   height: 42,
                   child: Center(
                     child: _detectedCountry != null
-                        ? Text(
-                            _detectedCountry!.flag,
-                            style: const TextStyle(fontSize: 30),
-                          )
+                        ? CountryFlag(iso: _detectedCountry!.iso, size: 30)
                         : AppIcon(
                             HeroAppIcons.globe,
                             size: 26,

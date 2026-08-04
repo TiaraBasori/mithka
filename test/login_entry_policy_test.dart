@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/l10n_fixtures.dart';
+
 final fixtures = L10nFixtures.load();
 
 void main() {

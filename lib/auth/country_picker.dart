@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import '../components/app_icons.dart';
+import '../components/country_flag.dart';
 import '../theme/app_theme.dart';
 import 'telegram_country_names.dart';
 
@@ -427,10 +428,7 @@ class _CountryPickerViewState extends State<CountryPickerView> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
                         children: [
-                          Text(
-                            country.flag,
-                            style: const TextStyle(fontSize: 26),
-                          ),
+                          CountryFlag(iso: country.iso),
                           const SizedBox(width: 12),
                           Text(
                             _displayName(country),

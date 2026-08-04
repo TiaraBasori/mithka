@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import 'support/l10n_fixtures.dart';
+
 final fixtures = L10nFixtures.load();
 
 void main() {
