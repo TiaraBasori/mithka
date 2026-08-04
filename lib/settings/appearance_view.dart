@@ -20,7 +20,6 @@ import 'package:mithka/l10n/preview_texts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
-import '../app/unread_badge_model.dart';
 import '../chat/chat_wallpaper.dart';
 import '../chat/chat_wallpaper_view.dart';
 import '../chat/emoji_store.dart';
@@ -31,7 +30,6 @@ import '../chat/message_bubble_chat_preview.dart';
 import '../chat/quick_reaction_choice.dart';
 import '../components/app_icons.dart';
 import '../components/desktop_content_constraint.dart';
-import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../platform/adaptive_platform.dart';
@@ -44,7 +42,6 @@ import '../theme/message_bubble_background.dart';
 import '../theme/system_font_catalog.dart';
 import '../theme/theme_controller.dart';
 import 'app_icon_controller.dart';
-import 'appearance_preview_repository.dart';
 import 'message_bubble_settings_view.dart';
 import 'quick_reaction_settings_view.dart';
 
@@ -636,48 +633,6 @@ class DisplaySettingsView extends StatelessWidget {
   }
 }
 
-class AvatarsAndSidebarSettingsView extends StatelessWidget {
-  const AvatarsAndSidebarSettingsView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.watch<ThemeController>();
-    return _DisplaySectionPage(
-      title: AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
-      preview: _SurfacePreviewCard(
-        title: AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
-        child: _AvatarsAndSidebarPreview(theme: theme),
-      ),
-      controls: const AppearanceView()._card(context, [
-        const AppearanceView()._toggleRow(
-          context,
-          HeroAppIcons.users.data,
-          AppStrings.t(AppStringKeys.appearanceRoundGroupAvatars),
-          theme.circularGroupAvatars,
-          (value) => theme.circularGroupAvatars = value,
-        ),
-        const AppearanceView()._toggleRow(
-          context,
-          HeroAppIcons.play.data,
-          AppStrings.t(AppStringKeys.appearanceAnimateAvatars),
-          theme.animateAvatars,
-          (value) => theme.animateAvatars = value,
-        ),
-        KeyedSubtree(
-          key: const ValueKey('avatars-sidebar-hide-phone-row'),
-          child: const AppearanceView()._toggleRow(
-            context,
-            HeroAppIcons.eyeSlash.data,
-            AppStrings.t(AppStringKeys.appearanceHidePhoneInSidebar),
-            theme.hideSidebarPhone,
-            (value) => theme.hideSidebarPhone = value,
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
 class ChatViewAppearanceSettingsView extends StatelessWidget {
   const ChatViewAppearanceSettingsView({super.key});
 
@@ -779,102 +734,132 @@ class ChatListAppearanceSettingsView extends StatelessWidget {
     const appearance = AppearanceView();
     return _DisplaySectionPage(
       title: AppStrings.t(AppStringKeys.appearanceChatList),
-      preview: _SurfacePreviewCard(
-        title: AppStrings.t(AppStringKeys.appearanceChatList),
-        child: _ChatListSettingsPreview(theme: theme),
-      ),
-      controls: appearance._card(context, [
-        appearance._navigationRow(
-          context,
-          AppStrings.t(AppStringKeys.appearanceChatFolders),
-          AppStrings.t(theme.chatFolderDisplayMode.label),
-          () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ChatFolderSettingsView()),
-          ),
-          icon: HeroAppIcons.folder.data,
-        ),
-        KeyedSubtree(
-          key: const ValueKey('chat-list-swipe-settings-row'),
-          child: appearance._navigationRow(
+      controls: Column(
+        key: const ValueKey('chat-list-merged-controls'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          appearance._card(context, [
+            appearance._navigationRow(
+              context,
+              AppStrings.t(AppStringKeys.appearanceChatFolders),
+              AppStrings.t(theme.chatFolderDisplayMode.label),
+              () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ChatFolderSettingsView(),
+                ),
+              ),
+              icon: HeroAppIcons.folder.data,
+            ),
+            KeyedSubtree(
+              key: const ValueKey('chat-list-swipe-settings-row'),
+              child: appearance._navigationRow(
+                context,
+                AppStrings.t(AppStringKeys.gesturesChatListSwipe),
+                AppStrings.t(theme.chatListSwipeMode.label),
+                () => Navigator.of(context).push(
+                  AppPageRoute<void>(
+                    pageBuilder: (_, _, _) =>
+                        const ChatListGestureSettingsView(),
+                  ),
+                ),
+                icon: HeroAppIcons.arrowsRightLeft.data,
+              ),
+            ),
+            appearance._navigationRow(
+              context,
+              AppStrings.t(AppStringKeys.appearanceArchivedChats),
+              AppStrings.t(theme.archivedChatsDisplayMode.label),
+              () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const ArchivedChatsSettingsView(),
+                ),
+              ),
+              icon: HeroAppIcons.inbox.data,
+            ),
+            appearance._toggleRow(
+              context,
+              HeroAppIcons.magnifyingGlass.data,
+              AppStrings.t(AppStringKeys.appearanceShowChatListSearch),
+              theme.showChatListSearch,
+              (value) => theme.showChatListSearch = value,
+            ),
+            appearance._navigationRow(
+              context,
+              AppStrings.t(AppStringKeys.appearanceShowNameColors),
+              _nameColorSummary(
+                theme.chatListNameColorAudience,
+                theme.chatListStatusEmojiMode,
+              ),
+              () => Navigator.of(context).push(
+                AppPageRoute<void>(
+                  pageBuilder: (_, _, _) => const NameColorSettingsView(
+                    surface: NameColorSettingsSurface.chatList,
+                  ),
+                ),
+              ),
+              icon: HeroAppIcons.wandMagicSparkles.data,
+            ),
+          ]),
+          const SizedBox(height: AppSpacing.xl),
+          appearance._label(
             context,
-            AppStrings.t(AppStringKeys.gesturesChatListSwipe),
-            AppStrings.t(theme.chatListSwipeMode.label),
-            () => Navigator.of(context).push(
-              AppPageRoute<void>(
-                pageBuilder: (_, _, _) => const ChatListGestureSettingsView(),
+            AppStrings.t(AppStringKeys.appearanceUnreadBadge),
+          ),
+          KeyedSubtree(
+            key: const ValueKey('unread-badge-controls'),
+            child: appearance._card(context, [
+              appearance._toggleRow(
+                context,
+                HeroAppIcons.message.data,
+                AppStrings.t(AppStringKeys.appearanceShowUnreadChatCount),
+                theme.unreadBadgeShowsChatCount,
+                (value) => theme.unreadBadgeShowsChatCount = value,
               ),
-            ),
-            icon: HeroAppIcons.arrowsRightLeft.data,
-          ),
-        ),
-        appearance._navigationRow(
-          context,
-          AppStrings.t(AppStringKeys.appearanceArchivedChats),
-          AppStrings.t(theme.archivedChatsDisplayMode.label),
-          () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ArchivedChatsSettingsView(),
-            ),
-          ),
-          icon: HeroAppIcons.inbox.data,
-        ),
-        appearance._toggleRow(
-          context,
-          HeroAppIcons.magnifyingGlass.data,
-          AppStrings.t(AppStringKeys.appearanceShowChatListSearch),
-          theme.showChatListSearch,
-          (value) => theme.showChatListSearch = value,
-        ),
-        appearance._navigationRow(
-          context,
-          AppStrings.t(AppStringKeys.appearanceShowNameColors),
-          _nameColorSummary(
-            theme.chatListNameColorAudience,
-            theme.chatListStatusEmojiMode,
-          ),
-          () => Navigator.of(context).push(
-            AppPageRoute<void>(
-              pageBuilder: (_, _, _) => const NameColorSettingsView(
-                surface: NameColorSettingsSurface.chatList,
+              appearance._toggleRow(
+                context,
+                HeroAppIcons.solidBell.data,
+                AppStrings.t(AppStringKeys.appearanceCapUnreadCountAt99),
+                theme.capUnreadBadgeAt99,
+                (value) => theme.capUnreadBadgeAt99 = value,
               ),
-            ),
+            ]),
           ),
-          icon: HeroAppIcons.wandMagicSparkles.data,
-        ),
-      ]),
-    );
-  }
-}
-
-class UnreadBadgeSettingsView extends StatelessWidget {
-  const UnreadBadgeSettingsView({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = context.watch<ThemeController>();
-    const appearance = AppearanceView();
-    return _DisplaySectionPage(
-      title: AppStrings.t(AppStringKeys.appearanceUnreadBadge),
-      preview: _SurfacePreviewCard(
-        title: AppStrings.t(AppStringKeys.appearanceUnreadBadge),
-        child: _UnreadBadgeSettingsPreview(theme: theme),
+          const SizedBox(height: AppSpacing.xl),
+          appearance._label(
+            context,
+            AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
+          ),
+          KeyedSubtree(
+            key: const ValueKey('avatars-sidebar-controls'),
+            child: appearance._card(context, [
+              appearance._toggleRow(
+                context,
+                HeroAppIcons.users.data,
+                AppStrings.t(AppStringKeys.appearanceRoundGroupAvatars),
+                theme.circularGroupAvatars,
+                (value) => theme.circularGroupAvatars = value,
+              ),
+              appearance._toggleRow(
+                context,
+                HeroAppIcons.play.data,
+                AppStrings.t(AppStringKeys.appearanceAnimateAvatars),
+                theme.animateAvatars,
+                (value) => theme.animateAvatars = value,
+              ),
+              KeyedSubtree(
+                key: const ValueKey('avatars-sidebar-hide-phone-row'),
+                child: appearance._toggleRow(
+                  context,
+                  HeroAppIcons.eyeSlash.data,
+                  AppStrings.t(AppStringKeys.appearanceHidePhoneInSidebar),
+                  theme.hideSidebarPhone,
+                  (value) => theme.hideSidebarPhone = value,
+                ),
+              ),
+            ]),
+          ),
+        ],
       ),
-      controls: appearance._card(context, [
-        appearance._toggleRow(
-          context,
-          HeroAppIcons.message.data,
-          AppStrings.t(AppStringKeys.appearanceShowUnreadChatCount),
-          theme.unreadBadgeShowsChatCount,
-          (value) => theme.unreadBadgeShowsChatCount = value,
-        ),
-        appearance._toggleRow(
-          context,
-          HeroAppIcons.solidBell.data,
-          AppStrings.t(AppStringKeys.appearanceCapUnreadCountAt99),
-          theme.capUnreadBadgeAt99,
-          (value) => theme.capUnreadBadgeAt99 = value,
-        ),
-      ]),
     );
   }
 }
@@ -882,12 +867,12 @@ class UnreadBadgeSettingsView extends StatelessWidget {
 class _DisplaySectionPage extends StatelessWidget {
   const _DisplaySectionPage({
     required this.title,
-    required this.preview,
     required this.controls,
+    this.preview,
   });
 
   final String title;
-  final Widget preview;
+  final Widget? preview;
   final Widget controls;
 
   @override
@@ -907,8 +892,10 @@ class _DisplaySectionPage extends StatelessWidget {
                 AppSpacing.section,
               ),
               children: [
-                preview,
-                const SizedBox(height: AppSpacing.xl),
+                if (preview != null) ...[
+                  preview!,
+                  const SizedBox(height: AppSpacing.xl),
+                ],
                 controls,
               ],
             ),
@@ -953,238 +940,6 @@ String _messageBubbleBackgroundLabel(ThemeController theme) {
       AppStringKeys.messageBubbleNoirDetective,
     MessageBubbleBackground.custom => AppStringKeys.messageBubbleCustom,
   });
-}
-
-class _SurfacePreviewCard extends StatelessWidget {
-  const _SurfacePreviewCard({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return SettingsPanel(
-      padding: const EdgeInsets.all(AppSpacing.xxl),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: AppTextSize.footnote,
-              fontWeight: FontWeight.w600,
-              color: c.textSecondary,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _AppearanceSnapshotBuilder extends StatefulWidget {
-  const _AppearanceSnapshotBuilder({required this.builder});
-
-  final Widget Function(BuildContext context, AppearancePreviewSnapshot data)
-  builder;
-
-  @override
-  State<_AppearanceSnapshotBuilder> createState() =>
-      _AppearanceSnapshotBuilderState();
-}
-
-class _AppearanceSnapshotBuilderState
-    extends State<_AppearanceSnapshotBuilder> {
-  late final Future<AppearancePreviewSnapshot?> _snapshot =
-      AppearancePreviewRepository.shared.load();
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<AppearancePreviewSnapshot?>(
-      future: _snapshot,
-      builder: (context, state) {
-        if (state.connectionState != ConnectionState.done) {
-          return const SizedBox(
-            key: ValueKey('appearance-live-preview-loading'),
-            height: 72,
-            child: Center(
-              child: SizedBox(
-                width: 22,
-                height: 22,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            ),
-          );
-        }
-        final data = state.data;
-        return data == null
-            ? const _LivePreviewUnavailable()
-            : widget.builder(context, data);
-      },
-    );
-  }
-}
-
-class _LivePreviewUnavailable extends StatelessWidget {
-  const _LivePreviewUnavailable();
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Padding(
-      key: const ValueKey('appearance-live-preview-unavailable'),
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxl),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AppIcon(
-            HeroAppIcons.eyeSlash,
-            size: AppIconSize.sm,
-            color: c.textTertiary,
-          ),
-          const SizedBox(width: AppSpacing.sm),
-          Flexible(
-            child: Text(
-              AppStrings.t(AppStringKeys.appearanceLivePreviewUnavailable),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: AppTextSize.footnote,
-                color: c.textTertiary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AvatarsAndSidebarPreview extends StatelessWidget {
-  const _AvatarsAndSidebarPreview({required this.theme});
-
-  final ThemeController theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Container(
-      key: const ValueKey('avatars-sidebar-preview'),
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: c.groupedBackground,
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: c.divider),
-      ),
-      child: _AppearanceSnapshotBuilder(
-        builder: (context, data) {
-          final group = data.groupChat;
-          if (data.meName.trim().isEmpty && group == null) {
-            return const _LivePreviewUnavailable();
-          }
-          return Column(
-            children: [
-              if (data.meName.trim().isNotEmpty)
-                _LiveAvatarRow(
-                  key: const ValueKey('avatars-sidebar-preview-account'),
-                  avatarKey: const ValueKey('avatars-sidebar-preview-avatar'),
-                  title: data.meName,
-                  subtitle: theme.hideSidebarPhone ? '' : data.mePhone,
-                  photo: data.mePhoto,
-                  allowAnimation: theme.animateAvatars,
-                  phoneKey: const ValueKey('avatars-sidebar-preview-phone'),
-                ),
-              if (data.meName.trim().isNotEmpty && group != null)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: InsetDivider(leadingInset: 64),
-                ),
-              if (group != null)
-                _LiveAvatarRow(
-                  key: const ValueKey('avatars-sidebar-preview-group'),
-                  avatarKey: const ValueKey(
-                    'avatars-sidebar-preview-group-avatar',
-                  ),
-                  title: group.title,
-                  photo: group.photo,
-                  square: !theme.circularGroupAvatars,
-                  allowAnimation: theme.animateAvatars,
-                ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _LiveAvatarRow extends StatelessWidget {
-  const _LiveAvatarRow({
-    super.key,
-    required this.title,
-    required this.photo,
-    required this.allowAnimation,
-    required this.avatarKey,
-    this.subtitle = '',
-    this.square = false,
-    this.phoneKey,
-  });
-
-  final String title;
-  final String subtitle;
-  final TdFileRef? photo;
-  final Key avatarKey;
-  final bool square;
-  final bool allowAnimation;
-  final Key? phoneKey;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Row(
-      children: [
-        PhotoAvatar(
-          key: avatarKey,
-          title: title,
-          photo: photo,
-          size: 52,
-          square: square,
-          allowAnimation: allowAnimation,
-        ),
-        const SizedBox(width: AppSpacing.xl),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: AppTextSize.bodyLarge,
-                  fontWeight: FontWeight.w600,
-                  color: c.textPrimary,
-                ),
-              ),
-              if (subtitle.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  subtitle,
-                  key: phoneKey,
-                  style: TextStyle(
-                    fontSize: AppTextSize.footnote,
-                    color: c.textSecondary,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _ChatViewSettingsPreview extends StatefulWidget {
@@ -1422,36 +1177,8 @@ class _ChatViewQuickReactionOverlay extends StatelessWidget {
   }
 }
 
-class _ChatListSettingsPreview extends StatelessWidget {
-  const _ChatListSettingsPreview({required this.theme});
-
-  final ThemeController theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Container(
-      key: const ValueKey('chat-list-preview'),
-      decoration: BoxDecoration(
-        color: c.background,
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: c.divider),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: ExcludeSemantics(
-        child: IgnorePointer(
-          child: _RepresentativeChatListRow(
-            key: const ValueKey('chat-list-representative-row'),
-            theme: theme,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _RepresentativeChatListRow extends StatelessWidget {
-  const _RepresentativeChatListRow({super.key, required this.theme});
+  const _RepresentativeChatListRow({required this.theme});
 
   final ThemeController theme;
 
@@ -1586,87 +1313,6 @@ class _RepresentativeMessageBubble extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _UnreadBadgeSettingsPreview extends StatelessWidget {
-  const _UnreadBadgeSettingsPreview({required this.theme});
-
-  final ThemeController theme;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    final unread = context.watch<UnreadBadgeModel?>();
-    final count = unread?.countFor(theme.unreadBadgeMode);
-    return Container(
-      key: const ValueKey('unread-badge-preview'),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.section,
-        vertical: AppSpacing.xxl,
-      ),
-      decoration: BoxDecoration(
-        color: c.navBar,
-        borderRadius: BorderRadius.circular(AppRadius.control),
-        border: Border.all(color: c.divider),
-      ),
-      child: count == null
-          ? const _LivePreviewUnavailable()
-          : IgnorePointer(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _PreviewNavigationItem(
-                    icon: HeroAppIcons.solidMessage,
-                    label: AppStrings.t(theme.unreadBadgeMode.label),
-                    badge: UnreadBadge(count: count),
-                  ),
-                  _PreviewNavigationItem(
-                    icon: HeroAppIcons.users,
-                    label: AppStrings.t(AppStringKeys.tabContacts),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-}
-
-class _PreviewNavigationItem extends StatelessWidget {
-  const _PreviewNavigationItem({
-    required this.icon,
-    required this.label,
-    this.badge,
-  });
-
-  final AppIconData icon;
-  final String label;
-  final Widget? badge;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            AppIcon(icon, size: AppIconSize.xl, color: c.textPrimary),
-            if (badge != null)
-              PositionedDirectional(end: -18, top: -10, child: badge!),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: AppTextSize.caption,
-            color: c.textSecondary,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -2000,34 +1646,6 @@ extension _DisplayAppearanceHelpers on AppearanceView {
           ),
         ),
         icon: HeroAppIcons.listCheck.data,
-      ),
-    ),
-    KeyedSubtree(
-      key: const ValueKey('unread-badge-settings-row'),
-      child: _navigationRow(
-        context,
-        AppStrings.t(AppStringKeys.appearanceUnreadBadge),
-        null,
-        () => Navigator.of(context).push(
-          AppPageRoute<void>(
-            pageBuilder: (_, _, _) => const UnreadBadgeSettingsView(),
-          ),
-        ),
-        icon: HeroAppIcons.solidBell.data,
-      ),
-    ),
-    KeyedSubtree(
-      key: const ValueKey('avatars-sidebar-settings-row'),
-      child: _navigationRow(
-        context,
-        AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
-        null,
-        () => Navigator.of(context).push(
-          AppPageRoute<void>(
-            pageBuilder: (_, _, _) => const AvatarsAndSidebarSettingsView(),
-          ),
-        ),
-        icon: HeroAppIcons.users.data,
       ),
     ),
   ];
