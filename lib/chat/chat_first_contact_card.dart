@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../auth/country_picker.dart';
 import '../auth/telegram_country_names.dart';
 import '../components/app_icons.dart';
+import '../components/country_flag.dart';
 import '../components/photo_avatar.dart';
 import '../l10n/app_localizations.dart';
 import '../tdlib/td_models.dart';
@@ -37,18 +38,20 @@ class ChatFirstContactCard extends StatelessWidget {
       TelegramCountryNames.shared.cached,
     );
     final countryValue = [
-      if (country != null) country.flag,
       if ((countryName ?? '').isNotEmpty) countryName!,
       if (country == null && info.countryCode.isNotEmpty) info.countryCode,
     ].join(' ');
     final registration = _registrationLabel();
     final details = <Widget>[
-      if (countryValue.isNotEmpty)
+      if (countryValue.isNotEmpty || country != null)
         _detailTile(
           context,
           icon: HeroAppIcons.globe,
           label: AppStringKeys.chatFirstContactPhoneCountry.l10n(context),
           value: countryValue,
+          valueLeading: country == null
+              ? null
+              : CountryFlag(iso: country.iso, size: 15),
         ),
       if (registration.isNotEmpty)
         _detailTile(
@@ -228,6 +231,7 @@ class ChatFirstContactCard extends StatelessWidget {
     required AppIconData icon,
     required String label,
     required String value,
+    Widget? valueLeading,
   }) {
     final c = context.colors;
     return DecoratedBox(
@@ -261,15 +265,25 @@ class ChatFirstContactCard extends StatelessWidget {
                     style: TextStyle(color: c.textTertiary, fontSize: 10.5),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: c.textPrimary,
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Row(
+                    children: [
+                      if (valueLeading != null) ...[
+                        valueLeading,
+                        const SizedBox(width: 5),
+                      ],
+                      Flexible(
+                        child: Text(
+                          value,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: c.textPrimary,
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
