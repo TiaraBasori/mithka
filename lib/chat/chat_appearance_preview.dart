@@ -3,8 +3,8 @@ import 'package:flutter/widgets.dart';
 import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
 import '../tdlib/td_models.dart';
-import '../theme/theme_controller.dart';
 import '../theme/app_theme.dart';
+import '../theme/theme_controller.dart';
 
 /// A compact, realistic conversation sample used by appearance pickers.
 ///

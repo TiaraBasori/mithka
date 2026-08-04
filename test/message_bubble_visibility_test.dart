@@ -157,10 +157,7 @@ void main() {
     );
     // The image is dropped; the selection itself is kept for re-enabling.
     expect(surface.background, MessageBubbleBackgroundSpec.standard);
-    expect(
-      find.text('Decorative message', findRichText: true),
-      findsOneWidget,
-    );
+    expect(find.text('Decorative message', findRichText: true), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

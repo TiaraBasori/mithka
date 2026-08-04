@@ -2,8 +2,8 @@ import 'package:flutter/widgets.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import '../chat/stretchable_message_bubble_background.dart';
-import '../theme/message_bubble_background.dart';
 import '../theme/app_theme.dart';
+import '../theme/message_bubble_background.dart';
 
 const _canvasColor = Color(0xFF17181C);
 

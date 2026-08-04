@@ -9,8 +9,8 @@ import 'package:mithka/l10n/app_localizations.dart';
 import '../components/app_icons.dart';
 import '../components/photo_avatar.dart';
 import '../theme/app_motion.dart';
-import 'group_call_controller.dart';
 import '../theme/app_theme.dart';
+import 'group_call_controller.dart';
 
 class GroupCallScreen extends StatefulWidget {
   const GroupCallScreen({super.key, required this.controller});

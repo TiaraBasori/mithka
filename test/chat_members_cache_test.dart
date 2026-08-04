@@ -101,12 +101,7 @@ void main() {
     test('a mutated source list does not rewrite the stored strip', () {
       final cache = ChatMembersCache();
       final source = members(2);
-      cache.store(
-        accountSlot: 0,
-        chatId: 42,
-        members: source,
-        memberCount: 2,
-      );
+      cache.store(accountSlot: 0, chatId: 42, members: source, memberCount: 2);
       source.add(member(3));
       expect(cache.read(accountSlot: 0, chatId: 42)!.members, hasLength(2));
     });

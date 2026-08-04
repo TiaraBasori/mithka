@@ -17,10 +17,10 @@ import '../components/app_icons.dart';
 import '../platform/adaptive_platform.dart';
 import '../settings/translation_controller.dart';
 import '../tdlib/td_models.dart';
+import '../theme/app_theme.dart';
 import 'custom_emoji.dart';
 import 'emoji_store.dart';
 import 'quick_reaction_choice.dart';
-import '../theme/app_theme.dart';
 
 enum MessageAction {
   copy(HeroAppIcons.file, AppStringKeys.messageActionCopy),

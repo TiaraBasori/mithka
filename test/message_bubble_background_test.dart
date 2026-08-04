@@ -377,47 +377,53 @@ void main() {
     );
   });
 
-  test('the preference picks the bubble style, never removes the bubble', () async {
-    SharedPreferences.setMockInitialValues({});
-    final preferences = await SharedPreferences.getInstance();
-    final theme = ThemeController(preferences)..messageBubblesEnabled = false;
-    addTearDown(theme.dispose);
+  test(
+    'the preference picks the bubble style, never removes the bubble',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      final theme = ThemeController(preferences)..messageBubblesEnabled = false;
+      addTearDown(theme.dispose);
 
-    bool surface({bool outgoing = false, bool hasCustomChatTheme = false}) =>
-        theme.shouldRenderMessageBubbleSurface(
-          outgoing: outgoing,
-          brightness: Brightness.light,
-          hasCustomChatTheme: hasCustomChatTheme,
-        );
+      bool surface({bool outgoing = false, bool hasCustomChatTheme = false}) =>
+          theme.shouldRenderMessageBubbleSurface(
+            outgoing: outgoing,
+            brightness: Brightness.light,
+            hasCustomChatTheme: hasCustomChatTheme,
+          );
 
-    // Messages always sit on a bubble, whatever theme is installed.
-    theme.installCloudTheme(
-      builtInTelegramCloudThemes.first,
-      brightness: Brightness.light,
-    );
-    expect(surface(outgoing: true), isTrue);
-    expect(surface(), isTrue);
-    theme.clearCloudTheme(Brightness.light);
-    expect(surface(hasCustomChatTheme: true), isTrue);
-    theme.themingEnabled = false;
-    expect(surface(hasCustomChatTheme: true), isTrue);
+      // Messages always sit on a bubble, whatever theme is installed.
+      theme.installCloudTheme(
+        builtInTelegramCloudThemes.first,
+        brightness: Brightness.light,
+      );
+      expect(surface(outgoing: true), isTrue);
+      expect(surface(), isTrue);
+      theme.clearCloudTheme(Brightness.light);
+      expect(surface(hasCustomChatTheme: true), isTrue);
+      theme.themingEnabled = false;
+      expect(surface(hasCustomChatTheme: true), isTrue);
 
-    // What the preference actually controls is the decorative image: off
-    // falls back to the theme's own bubble, and the selection survives.
-    theme.themingEnabled = true;
-    theme.messageBubbleBackground = MessageBubbleBackground.emberArcade;
-    expect(
-      theme.effectiveMessageBubbleBackgroundSpecFor(outgoing: true),
-      MessageBubbleBackgroundSpec.standard,
-    );
-    expect(theme.messageBubbleBackground, MessageBubbleBackground.emberArcade);
+      // What the preference actually controls is the decorative image: off
+      // falls back to the theme's own bubble, and the selection survives.
+      theme.themingEnabled = true;
+      theme.messageBubbleBackground = MessageBubbleBackground.emberArcade;
+      expect(
+        theme.effectiveMessageBubbleBackgroundSpecFor(outgoing: true),
+        MessageBubbleBackgroundSpec.standard,
+      );
+      expect(
+        theme.messageBubbleBackground,
+        MessageBubbleBackground.emberArcade,
+      );
 
-    theme.messageBubblesEnabled = true;
-    expect(
-      theme.effectiveMessageBubbleBackgroundSpecFor(outgoing: true).selection,
-      MessageBubbleBackground.emberArcade,
-    );
-  });
+      theme.messageBubblesEnabled = true;
+      expect(
+        theme.effectiveMessageBubbleBackgroundSpecFor(outgoing: true).selection,
+        MessageBubbleBackground.emberArcade,
+      );
+    },
+  );
 
   testWidgets('center-sliced background renders at short and multiline sizes', (
     tester,
@@ -644,7 +650,10 @@ void main() {
       // The choice is remembered and comes back with the switch.
       theme.messageBubblesEnabled = true;
       await tester.pump();
-      expect(theme.messageBubbleBackground, MessageBubbleBackground.emberArcade);
+      expect(
+        theme.messageBubbleBackground,
+        MessageBubbleBackground.emberArcade,
+      );
       expect(find.text('@msgbubble repository'), findsOneWidget);
     },
   );

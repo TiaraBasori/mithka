@@ -20,8 +20,8 @@ import 'package:mithka/l10n/app_localizations.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/photo_avatar.dart'; // PhotoAvatar + TDImage
-import 'call_manager.dart';
 import '../theme/app_theme.dart';
+import 'call_manager.dart';
 
 class CallScreen extends StatefulWidget {
   const CallScreen({super.key, required this.manager});
