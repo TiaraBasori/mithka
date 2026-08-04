@@ -86,6 +86,10 @@ void main() {
       find.byKey(const ValueKey('avatars-sidebar-settings-row')),
       findsNothing,
     );
+    expect(
+      find.byKey(const ValueKey('avatars-sidebar-controls')),
+      findsOneWidget,
+    );
     expect(find.text('Enable Theming'), findsNothing);
     expect(find.text('Wallpaper'), findsNothing);
     expect(find.text('Use chat theme for UI'), findsNothing);
@@ -227,7 +231,7 @@ void main() {
   });
 
   testWidgets(
-    'Appearance opens Chat View and one merged Chat List settings page',
+    'Appearance separates sidebar controls from the merged Chat List page',
     (tester) async {
       final controller = await _pumpAppearance(tester, themingEnabled: true);
 
@@ -247,6 +251,10 @@ void main() {
       expect(
         find.byKey(const ValueKey('avatars-sidebar-settings-row')),
         findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('avatars-sidebar-controls')),
+        findsOneWidget,
       );
 
       Future<void> returnToAppearance() async {
@@ -321,7 +329,7 @@ void main() {
       );
       expect(
         find.byKey(const ValueKey('avatars-sidebar-controls')),
-        findsOneWidget,
+        findsNothing,
       );
       for (final previewKey in const [
         'chat-list-preview',
@@ -332,14 +340,7 @@ void main() {
         expect(find.byKey(ValueKey(previewKey)), findsNothing);
       }
 
-      final hidePhoneSwitch = find.descendant(
-        of: find.byKey(const ValueKey('avatars-sidebar-hide-phone-row')),
-        matching: find.byType(AppSwitch),
-      );
-      await tester.ensureVisible(hidePhoneSwitch);
-      await tester.tap(hidePhoneSwitch);
-      await tester.pump();
-      expect(controller.hideSidebarPhone, isTrue);
+      expect(find.text('Hide Phone Number in Sidebar'), findsNothing);
 
       controller.capUnreadBadgeAt99 = false;
       controller.showChatListSearch = false;
@@ -374,6 +375,23 @@ void main() {
       expect(find.text('Switch folders'), findsOneWidget);
       expect(tester.takeException(), isNull);
       await returnToAppearance();
+
+      expect(
+        find.byKey(const ValueKey('avatars-sidebar-controls')),
+        findsOneWidget,
+      );
+      expect(find.text('Hide Phone Number in Sidebar'), findsNothing);
+
+      final roundAvatarSwitch = find
+          .descendant(
+            of: find.byKey(const ValueKey('avatars-sidebar-controls')),
+            matching: find.byType(AppSwitch),
+          )
+          .first;
+      final initiallyCircular = controller.circularGroupAvatars;
+      await tester.tap(roundAvatarSwitch);
+      await tester.pump();
+      expect(controller.circularGroupAvatars, isNot(initiallyCircular));
     },
   );
 
@@ -395,6 +413,10 @@ void main() {
       find.byKey(const ValueKey('avatars-sidebar-settings-row')),
       findsNothing,
     );
+    expect(
+      find.byKey(const ValueKey('avatars-sidebar-controls')),
+      findsOneWidget,
+    );
     final chatListRow = find.byKey(const ValueKey('chat-list-settings-row'));
     await tester.ensureVisible(chatListRow);
     await tester.pumpAndSettle();
@@ -408,11 +430,19 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('chat-list-preview')), findsNothing);
-    final hidePhoneRow = find.byKey(
-      const ValueKey('avatars-sidebar-hide-phone-row'),
+    expect(
+      find.byKey(const ValueKey('avatars-sidebar-controls')),
+      findsNothing,
     );
-    await tester.ensureVisible(hidePhoneRow);
+    expect(find.text('Hide Phone Number in Sidebar'), findsNothing);
+
+    tester.state<NavigatorState>(find.byType(Navigator).first).pop();
     await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('avatars-sidebar-controls')),
+      findsOneWidget,
+    );
+    expect(find.text('Hide Phone Number in Sidebar'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

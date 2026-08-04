@@ -21,6 +21,7 @@ import '../components/ui_components.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../theme/app_theme.dart';
+import '../theme/theme_controller.dart';
 import 'account_security_views.dart';
 import 'auto_delete_view.dart';
 import 'passkeys_view.dart';
@@ -239,6 +240,7 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
   Widget build(BuildContext context) {
     final c = context.colors;
     final sensitiveContent = context.watch<SensitiveContentController>();
+    final theme = context.watch<ThemeController>();
     return Scaffold(
       backgroundColor: c.groupedBackground,
       body: Column(
@@ -253,7 +255,7 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                 padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
                 children: [
                   _group(AppStrings.t(AppStringKeys.privacySectionTitle), [
-                    for (final entry in _privacyRules)
+                    for (final entry in _privacyRules) ...[
                       _Row(
                         entry.icon,
                         AppStrings.t(entry.title),
@@ -269,6 +271,17 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                           );
                         },
                       ),
+                      if (entry.setting == 'userPrivacySettingShowPhoneNumber')
+                        _SwitchRow(
+                          HeroAppIcons.eyeSlash,
+                          AppStrings.t(
+                            AppStringKeys.appearanceHidePhoneInSidebar,
+                          ),
+                          theme.hideSidebarPhone,
+                          (value) => theme.hideSidebarPhone = value,
+                          key: const ValueKey('privacy-sidebar-phone-row'),
+                        ),
+                    ],
                   ]),
                   const SizedBox(height: 14),
                   _group(
@@ -380,6 +393,7 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
             children: [
               for (final row in rows) ...[
                 GestureDetector(
+                  key: row.key,
                   behavior: HitTestBehavior.opaque,
                   onTap: row.onTap,
                   child: SizedBox(
@@ -469,10 +483,11 @@ class _PrivacyRuleEntry {
 }
 
 abstract class _SettingsEntry {
-  _SettingsEntry(this.icon, this.title);
+  _SettingsEntry(this.icon, this.title, {this.key});
 
   final AppIconData icon;
   final String title;
+  final Key? key;
 
   VoidCallback? get onTap;
 }
@@ -487,7 +502,7 @@ class _Row extends _SettingsEntry {
 }
 
 class _SwitchRow extends _SettingsEntry {
-  _SwitchRow(super.icon, super.title, this.value, this.onChanged);
+  _SwitchRow(super.icon, super.title, this.value, this.onChanged, {super.key});
 
   final bool value;
   final ValueChanged<bool> onChanged;

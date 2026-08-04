@@ -158,6 +158,12 @@ class AppearanceView extends StatelessWidget {
                     AppStrings.t(AppStringKeys.appearanceSectionChatList),
                   ),
                   _card(context, _chatListNavigationRows(context)),
+                  const SizedBox(height: AppSpacing.xl),
+                  _label(
+                    context,
+                    AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
+                  ),
+                  _avatarsAndSidebarControls(context),
                 ],
               ),
             ),
@@ -624,6 +630,12 @@ class DisplaySettingsView extends StatelessWidget {
                   context,
                   appearance._chatListNavigationRows(context),
                 ),
+                const SizedBox(height: AppSpacing.xl),
+                appearance._label(
+                  context,
+                  AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
+                ),
+                appearance._avatarsAndSidebarControls(context),
               ],
             ),
           ),
@@ -821,40 +833,6 @@ class ChatListAppearanceSettingsView extends StatelessWidget {
                 AppStrings.t(AppStringKeys.appearanceCapUnreadCountAt99),
                 theme.capUnreadBadgeAt99,
                 (value) => theme.capUnreadBadgeAt99 = value,
-              ),
-            ]),
-          ),
-          const SizedBox(height: AppSpacing.xl),
-          appearance._label(
-            context,
-            AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
-          ),
-          KeyedSubtree(
-            key: const ValueKey('avatars-sidebar-controls'),
-            child: appearance._card(context, [
-              appearance._toggleRow(
-                context,
-                HeroAppIcons.users.data,
-                AppStrings.t(AppStringKeys.appearanceRoundGroupAvatars),
-                theme.circularGroupAvatars,
-                (value) => theme.circularGroupAvatars = value,
-              ),
-              appearance._toggleRow(
-                context,
-                HeroAppIcons.play.data,
-                AppStrings.t(AppStringKeys.appearanceAnimateAvatars),
-                theme.animateAvatars,
-                (value) => theme.animateAvatars = value,
-              ),
-              KeyedSubtree(
-                key: const ValueKey('avatars-sidebar-hide-phone-row'),
-                child: appearance._toggleRow(
-                  context,
-                  HeroAppIcons.eyeSlash.data,
-                  AppStrings.t(AppStringKeys.appearanceHidePhoneInSidebar),
-                  theme.hideSidebarPhone,
-                  (value) => theme.hideSidebarPhone = value,
-                ),
               ),
             ]),
           ),
@@ -1631,8 +1609,6 @@ extension _DisplayAppearanceHelpers on AppearanceView {
     ),
   );
 
-  /// The list and the chrome around it. Avatars and the sidebar belong here
-  /// rather than under a heading called "Interface" that said nothing.
   List<Widget> _chatListNavigationRows(BuildContext context) => [
     KeyedSubtree(
       key: const ValueKey('chat-list-settings-row'),
@@ -1649,6 +1625,29 @@ extension _DisplayAppearanceHelpers on AppearanceView {
       ),
     ),
   ];
+
+  Widget _avatarsAndSidebarControls(BuildContext context) {
+    final theme = context.watch<ThemeController>();
+    return KeyedSubtree(
+      key: const ValueKey('avatars-sidebar-controls'),
+      child: _card(context, [
+        _toggleRow(
+          context,
+          HeroAppIcons.users.data,
+          AppStrings.t(AppStringKeys.appearanceRoundGroupAvatars),
+          theme.circularGroupAvatars,
+          (value) => theme.circularGroupAvatars = value,
+        ),
+        _toggleRow(
+          context,
+          HeroAppIcons.play.data,
+          AppStrings.t(AppStringKeys.appearanceAnimateAvatars),
+          theme.animateAvatars,
+          (value) => theme.animateAvatars = value,
+        ),
+      ]),
+    );
+  }
 
   Widget _fontSizeCard(BuildContext context, ThemeController theme) {
     final c = context.colors;
