@@ -20,6 +20,7 @@ import '../tdlib/td_models.dart';
 import 'custom_emoji.dart';
 import 'emoji_store.dart';
 import 'quick_reaction_choice.dart';
+import '../theme/app_theme.dart';
 
 enum MessageAction {
   copy(HeroAppIcons.file, AppStringKeys.messageActionCopy),
@@ -80,7 +81,7 @@ class QuickReactionBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(AppRadius.xxl),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12),
         ],
@@ -346,7 +347,7 @@ class MessageActionMenu extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: _surface,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.3),
@@ -415,7 +416,7 @@ class _DesktopActionList extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: MessageActionMenu._surface,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.22),
           width: 0.75,

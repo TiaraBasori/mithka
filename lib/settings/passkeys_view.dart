@@ -127,7 +127,7 @@ class _PasskeysViewState extends State<PasskeysView> {
               semanticLabel: AppStrings.t(AppStringKeys.passkeysAdd),
               onTap: _working ? null : () => unawaited(_add()),
               enabled: !_working,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               child: Padding(
                 padding: const EdgeInsets.only(left: 12),
                 child: AppIcon(

@@ -218,7 +218,9 @@ class _PollResultsViewState extends State<PollResultsView> {
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: selected ? AppTheme.brand : colors.card,
-                            borderRadius: BorderRadius.circular(10),
+                            borderRadius: BorderRadius.circular(
+                              AppRadius.control,
+                            ),
                             border: Border.all(
                               color: selected ? AppTheme.brand : colors.divider,
                             ),

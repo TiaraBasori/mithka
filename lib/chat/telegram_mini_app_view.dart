@@ -2123,7 +2123,7 @@ class _MiniAppNativeDialog extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: colors.card,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x44000000),
@@ -2405,7 +2405,7 @@ class _MiniAppBottomButton extends StatelessWidget {
             color: onPressed == null
                 ? background.withValues(alpha: 0.45)
                 : background,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.control),
           ),
           child: Stack(
             alignment: Alignment.center,
@@ -2500,7 +2500,7 @@ class _MiniAppButtonShineState extends State<_MiniAppButtonShine>
 
   @override
   Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(8),
+    borderRadius: BorderRadius.circular(AppRadius.control),
     child: AnimatedBuilder(
       animation: _controller,
       builder: (context, _) => FractionalTranslation(

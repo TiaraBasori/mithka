@@ -173,7 +173,7 @@ class _BusinessSettingsViewState extends State<BusinessSettingsView> {
                           padding: const EdgeInsets.all(14),
                           decoration: BoxDecoration(
                             color: AppTheme.brand.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(AppRadius.card),
                             border: Border.all(
                               color: AppTheme.brand.withValues(alpha: 0.24),
                               width: 0.5,

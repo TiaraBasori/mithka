@@ -351,7 +351,7 @@ class _DesktopHotkeySettingsViewState extends State<DesktopHotkeySettingsView> {
     ),
     decoration: BoxDecoration(
       color: context.colors.searchFill,
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       border: Border.all(color: context.colors.divider),
     ),
     child: Text(
@@ -499,7 +499,7 @@ class _DesktopHotkeyRecorderDialogState
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: c.searchFill,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                       border: Border.all(
                         color: _errorKey == null
                             ? c.divider
@@ -538,7 +538,7 @@ class _DesktopHotkeyRecorderDialogState
                       key: const ValueKey('desktop-hotkey-cancel'),
                       semanticLabel: AppStringKeys.confirmCancel.l10n(context),
                       onTap: () => Navigator.of(context).pop(),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,

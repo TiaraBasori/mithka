@@ -1389,7 +1389,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
           color: primary
               ? AppTheme.brand
               : AppTheme.brand.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -1415,7 +1415,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
@@ -1595,7 +1595,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
@@ -1636,7 +1636,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: c.groupedBackground,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                 ),
                 child: StickerPreview(item: _gifts[index], cornerRadius: 8),
               ),
@@ -1653,7 +1653,7 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -1715,7 +1715,7 @@ class _FeaturedPhotoMenu extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   color: c.card,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x44000000),
@@ -1738,7 +1738,7 @@ class _FeaturedPhotoMenu extends StatelessWidget {
               Container(
                 decoration: BoxDecoration(
                   color: c.card,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 clipBehavior: Clip.antiAlias,
                 child: _action(
@@ -1819,7 +1819,7 @@ class _ProfileContextMenu extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.16),

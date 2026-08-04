@@ -207,7 +207,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

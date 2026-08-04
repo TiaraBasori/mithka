@@ -1033,7 +1033,7 @@ class _PrimarySecurityButton extends StatelessWidget {
             : destructive
             ? AppTheme.unreadBadge
             : context.colors.accentButton,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: working
           ? AppActivityIndicator(

@@ -923,7 +923,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: c.searchFill,
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: Row(
           children: [
@@ -1342,7 +1342,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                   ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.62),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Text(
                     _duration(message.videoDuration!),
@@ -1441,7 +1441,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.card),
             border: Border.all(color: c.divider, width: 0.5),
             boxShadow: [
               BoxShadow(
@@ -1876,7 +1876,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
                 width: 86,
                 height: 56,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(7),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
@@ -2007,7 +2007,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
             color: state?.completed == true
                 ? const Color(0xFF1ABC7B).withValues(alpha: 0.16)
                 : AppTheme.brand.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(AppRadius.control),
           ),
           child: Icon(
             isVoice
@@ -2052,7 +2052,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: const Color(0xFF1ABC7B).withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(5),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Text(
         AppStrings.t(AppStringKeys.sharedMediaFilterDownloaded),
@@ -2070,7 +2070,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Text(
         text,

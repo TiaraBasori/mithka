@@ -1108,7 +1108,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                 ),
                 decoration: BoxDecoration(
                   color: AppTheme.brand,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                 ),
                 child: Text(
                   AppStrings.t(AppStringKeys.privacyRetry),
@@ -1924,7 +1924,7 @@ class _BlockedUsersViewState extends State<BlockedUsersView> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
               decoration: BoxDecoration(
                 border: Border.all(color: AppTheme.brand),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.card),
               ),
               child: Text(
                 AppStrings.t(AppStringKeys.privacyUnblock),

@@ -51,7 +51,7 @@ class MessageBubbleChatPreview extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: c.chatBackground,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: c.divider.withValues(alpha: 0.7)),
       ),
       child: Column(
@@ -131,7 +131,7 @@ class _PreviewBubble extends StatelessWidget {
       fallbackColor:
           surfaceColor ??
           (outgoing ? AppTheme.bubbleOutgoing : c.bubbleIncoming),
-      fallbackBorderRadius: BorderRadius.circular(12),
+      fallbackBorderRadius: BorderRadius.circular(AppRadius.card),
       fallbackBorder: outgoing
           ? null
           : Border.all(color: c.divider, width: 0.5),

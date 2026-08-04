@@ -209,7 +209,7 @@ class _ScannerOverlay extends StatelessWidget {
                 width: side,
                 height: side,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(AppRadius.xxl),
                   border: Border.all(
                     color: accepting ? AppTheme.brand : const Color(0xFFFFFFFF),
                     width: 3,

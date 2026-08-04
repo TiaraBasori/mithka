@@ -316,7 +316,7 @@ class _CommunityViewState extends State<CommunityView> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Row(
         children: [
@@ -378,7 +378,7 @@ class _CommunityViewState extends State<CommunityView> {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 38),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: Column(
           children: [
@@ -397,7 +397,7 @@ class _CommunityViewState extends State<CommunityView> {
       );
     }
     return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(AppRadius.card),
       child: ColoredBox(
         color: c.card,
         child: Column(

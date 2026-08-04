@@ -243,7 +243,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: c.panelBackground,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -370,7 +370,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
             ?.uiColors ??
         (dark ? AppColors.dark : AppColors.light);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       child: SizedBox(
         height: 270,
         child: ChatWallpaperBackground(
@@ -531,7 +531,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
               decoration: BoxDecoration(
                 color: c.card,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.card),
               ),
               child: Row(
                 children: [
@@ -1202,10 +1202,10 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
             color: selected ? c.linkBlue : c.divider,
             width: selected ? 3 : 1,
           ),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -1221,7 +1221,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xC57D4DE8),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppRadius.control),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1273,7 +1273,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Column(
         children: [
@@ -1349,7 +1349,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
         decoration: BoxDecoration(
           color: active ? c.linkBlue.withValues(alpha: 0.14) : c.searchFill,
           border: Border.all(color: active ? c.linkBlue : c.divider),
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1502,7 +1502,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
         decoration: BoxDecoration(
           color: enabled ? background : background.withValues(alpha: 0.45),
           border: primary ? null : Border.all(color: c.linkBlue),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: Text(
           AppStrings.t(label),

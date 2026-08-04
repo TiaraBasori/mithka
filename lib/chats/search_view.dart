@@ -237,7 +237,7 @@ class DesktopInlineSearchField extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: c.searchFill,
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
               color: controller.focusNode.hasFocus
                   ? AppTheme.brand.withValues(alpha: 0.72)
@@ -285,7 +285,7 @@ class DesktopInlineSearchField extends StatelessWidget {
                   key: const ValueKey('desktop-title-bar-search-clear'),
                   semanticLabel: AppStringKeys.desktopSearchClear.l10n(context),
                   onTap: controller.clear,
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                   child: SizedBox.square(
                     dimension: 18,
                     child: Center(
@@ -354,7 +354,7 @@ class DesktopInlineSearchPanel extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: c.background,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(color: c.divider, width: 0.75),
           boxShadow: [
             BoxShadow(
@@ -835,7 +835,7 @@ class _DesktopCompactSearchThumb extends StatelessWidget {
     }
     if (image != null) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         child: SizedBox.square(
           dimension: 40,
           child: Stack(
@@ -870,7 +870,7 @@ class _DesktopCompactSearchThumb extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: hit.tint.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: AppIcon(hit.icon, size: 20, color: hit.tint),
     );
@@ -1171,7 +1171,7 @@ class _SearchViewState extends State<SearchView> {
     }
     if (image != null) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         child: SizedBox(
           width: 54,
           height: 54,
@@ -1207,7 +1207,7 @@ class _SearchViewState extends State<SearchView> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: hit.tint.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: AppIcon(hit.icon, size: 24, color: hit.tint),
     );

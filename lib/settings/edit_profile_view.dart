@@ -427,7 +427,7 @@ class _EditProfileViewState extends State<EditProfileView> {
               height: 38,
               decoration: BoxDecoration(
                 color: AppTheme.brand.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.card),
               ),
               child: Center(
                 child: AppIcon(icon, size: 21, color: AppTheme.brand),

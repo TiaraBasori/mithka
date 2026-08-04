@@ -997,7 +997,7 @@ class _TopicChatViewState extends State<TopicChatView> {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -1223,7 +1223,7 @@ class _TopicChatViewState extends State<TopicChatView> {
                     height: 4,
                     decoration: BoxDecoration(
                       color: selected ? AppTheme.brand : Colors.transparent,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                   ),
                 ],
@@ -1335,7 +1335,7 @@ class _TopicChatViewState extends State<TopicChatView> {
                     alignment: Alignment.centerLeft,
                     decoration: BoxDecoration(
                       color: c.searchFill,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                     ),
                     child: Text(
                       _input.text.trim().isEmpty
@@ -1606,7 +1606,7 @@ class _ExtraReactions extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: c.searchFill,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.card),
               ),
               child: Text(
                 '${reaction.emoji ?? '⭐'} ${reaction.count}',
@@ -1732,7 +1732,7 @@ class _TopicSearchViewState extends State<_TopicSearchView> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         color: c.searchFill,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppRadius.control),
                       ),
                       child: TextField(
                         controller: _controller,
@@ -1968,7 +1968,7 @@ class _SearchResultRow extends StatelessWidget {
                 if (message.image != null) ...[
                   const SizedBox(height: 8),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                     child: SizedBox(
                       width: 160,
                       height: 92,

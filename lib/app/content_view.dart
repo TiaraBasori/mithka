@@ -248,7 +248,7 @@ class _DesktopPrimaryWindowFrameState extends State<DesktopPrimaryWindowFrame> {
                         semanticLabel: label,
                         enabled: widget.accountReady,
                         onTap: widget.accountReady ? _showProfile : null,
-                        borderRadius: BorderRadius.circular(7),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 6),
                           child: Row(
@@ -417,7 +417,7 @@ class _DesktopChatTitleBarActions extends StatelessWidget {
     key: key,
     semanticLabel: label,
     onTap: () => DesktopHotkeyRegistry.instance.invoke(action),
-    borderRadius: BorderRadius.circular(6),
+    borderRadius: BorderRadius.circular(AppRadius.md),
     child: SizedBox.square(
       dimension: actionSize,
       child: Center(
@@ -499,7 +499,7 @@ class _DesktopTitleBarProfilePopup extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(color: c.divider),
           boxShadow: [
             BoxShadow(

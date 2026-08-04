@@ -326,7 +326,7 @@ class _DesktopApplicationMenuButton extends StatelessWidget {
         child: AppInteractiveSurface(
           semanticLabel: label,
           onTap: onTap,
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           child: SizedBox(
             width: 38,
             height: 38,
@@ -368,7 +368,7 @@ class _DesktopThemeToggleButton extends StatelessWidget {
         child: AppInteractiveSurface(
           semanticLabel: label,
           onTap: onTap,
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           child: SizedBox(
             width: 38,
             height: 38,
@@ -461,7 +461,7 @@ class _DesktopApplicationMenuOverlayState
                   ),
                   decoration: BoxDecoration(
                     color: c.card,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                     border: Border.all(color: c.divider),
                     boxShadow: [
                       BoxShadow(
@@ -715,7 +715,7 @@ class _DesktopApplicationQuickAction extends StatelessWidget {
       key: ValueKey('desktop-application-quick-${action.id}'),
       semanticLabel: action.label,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(AppRadius.control),
       child: Padding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,
@@ -807,7 +807,7 @@ class _DesktopAccountSwitchButton extends StatelessWidget {
         child: AppInteractiveSurface(
           semanticLabel: label,
           onTap: onTap,
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           child: SizedBox(
             width: 38,
             height: 38,
@@ -875,7 +875,7 @@ class _DesktopAccountSwitcherOverlay extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: c.card,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.card),
                 border: Border.all(color: c.divider),
                 boxShadow: [
                   BoxShadow(
@@ -1152,7 +1152,7 @@ class _DesktopNavigationButton extends StatelessWidget {
               semanticLabel: destination.label,
               selected: selected,
               onTap: onTap,
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               child: AnimatedContainer(
                 duration: AppMotion.duration(context, AppMotion.responsive),
                 curve: AppMotion.standard,
@@ -1162,7 +1162,7 @@ class _DesktopNavigationButton extends StatelessWidget {
                   color: selected
                       ? AppTheme.brand.withValues(alpha: 0.13)
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                 ),
                 child: Stack(
                   clipBehavior: Clip.none,

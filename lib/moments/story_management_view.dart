@@ -574,7 +574,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                               margin: const EdgeInsets.only(bottom: 6),
                               decoration: BoxDecoration(
                                 color: context.colors.searchFill,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.card,
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -945,7 +947,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: context.colors.searchFill,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Row(
         children: [
@@ -965,7 +967,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: _tab == value ? context.colors.background : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         boxShadow: _tab == value
             ? const [
                 BoxShadow(
@@ -1040,7 +1042,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         onTap: () => _openStory(index),
         onLongPress: () => _storyAction(story),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -1289,7 +1291,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
       decoration: BoxDecoration(
         color: context.colors.background,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: context.colors.divider),
       ),
       child: Column(
@@ -1345,7 +1347,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   decoration: BoxDecoration(
                     color: AppTheme.brand,
-                    borderRadius: BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1446,7 +1448,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         onTap: () => _openAlbum(index),
         onLongPress: () => _albumAction(index),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -1563,7 +1565,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: context.colors.background,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(color: context.colors.divider),
         ),
         child: Row(
@@ -1574,7 +1576,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppTheme.brand.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.card),
               ),
               child: AppIcon(
                 HeroAppIcons.folder,
@@ -1733,7 +1735,7 @@ class _LiveStorySetupViewState extends State<LiveStorySetupView> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: context.colors.card,
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1854,7 +1856,7 @@ class _LiveStorySetupViewState extends State<LiveStorySetupView> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: _storyId == null ? AppTheme.brand : AppTheme.tagRed,
-                    borderRadius: BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                   ),
                   child: Text(
                     _storyId == null

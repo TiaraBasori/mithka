@@ -121,7 +121,7 @@ class _InAppNotificationCardState extends State<_InAppNotificationCard> {
           padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
           decoration: BoxDecoration(
             color: c.card.withValues(alpha: 0.97),
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: Border.all(color: c.divider.withValues(alpha: 0.8)),
             boxShadow: const [
               BoxShadow(

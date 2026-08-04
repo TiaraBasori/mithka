@@ -793,7 +793,7 @@ class AppCheckbox extends StatelessWidget {
       checked: value,
       onTap: enabled ? () => onChanged(!value) : null,
       enabled: enabled,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 150),
         opacity: enabled ? 1 : 0.42,
@@ -804,7 +804,7 @@ class AppCheckbox extends StatelessWidget {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: value ? AppTheme.brand : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(
               color: value ? AppTheme.brand : foreground,
               width: 1.6,

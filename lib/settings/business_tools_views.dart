@@ -189,7 +189,7 @@ class _BusinessIntroStickerPickerViewState
                         color: selected
                             ? AppTheme.brand.withValues(alpha: 0.14)
                             : c.card,
-                        borderRadius: BorderRadius.circular(11),
+                        borderRadius: BorderRadius.circular(AppRadius.card),
                         border: Border.all(
                           color: selected ? AppTheme.brand : c.divider,
                           width: 0.5,
@@ -2046,7 +2046,7 @@ class BusinessRecipientsEditor extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
                 decoration: BoxDecoration(
                   color: c.searchFill,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -2172,7 +2172,7 @@ class _BusinessBotChatControlSheetState
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: AppTheme.tagRed.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 child: Text(
                   AppStrings.t(AppStringKeys.businessToolsRemoveFromThisChat),

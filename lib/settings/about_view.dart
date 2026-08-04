@@ -115,7 +115,7 @@ class _AboutViewState extends State<AboutView> {
                           height: 84,
                           decoration: BoxDecoration(
                             gradient: AppTheme.brandGradient,
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(AppRadius.xl),
                           ),
                           child: const Padding(
                             padding: EdgeInsets.all(10),

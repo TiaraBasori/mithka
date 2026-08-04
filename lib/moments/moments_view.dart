@@ -466,7 +466,7 @@ class _MomentsViewState extends State<MomentsView> {
               padding: const EdgeInsets.all(AppSpacing.md),
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                   child: StoryShelf(
                     model: _stories,
                     canPublish: _canPublishStories,
@@ -519,7 +519,7 @@ class _MomentsViewState extends State<MomentsView> {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: c.background,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: c.divider, width: AppMetric.divider),
       ),
       child: Column(mainAxisSize: MainAxisSize.min, children: children),
@@ -539,7 +539,7 @@ class _MomentsViewState extends State<MomentsView> {
       key: key,
       semanticLabel: title,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.card),
       child: SizedBox(
         height: 58,
         child: Row(
@@ -1800,7 +1800,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: c.background,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(color: c.divider, width: AppMetric.divider),
           boxShadow: [
             BoxShadow(
@@ -1876,7 +1876,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 decoration: BoxDecoration(
                   color: c.searchFill,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
                 child: Row(
                   children: [
@@ -2040,7 +2040,7 @@ class _MomentsComposerHeader extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: c.background,
                   border: Border.all(color: c.divider),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 child: GestureDetector(
                   behavior: HitTestBehavior.opaque,
@@ -2432,7 +2432,9 @@ Future<void> showChannelPostMenu(BuildContext context, ChannelPost post) {
     position: RelativeRect.fromRect(anchorRect, Offset.zero & overlay.size),
     color: context.colors.card,
     elevation: 8,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadius.card),
+    ),
     items: [
       PopupMenuItem<_ChannelPostMenuAction>(
         value: _ChannelPostMenuAction.openOriginal,
@@ -2896,7 +2898,7 @@ class _ChannelPostDetailViewState extends State<ChannelPostDetailView> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: _momentQuoteFill(c),
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.card),
               ),
               child: Row(
                 children: [
@@ -3905,7 +3907,7 @@ class _PostReplyQuote extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(13, 10, 13, 10),
       decoration: BoxDecoration(
         color: _momentQuoteFill(c),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: RichText(
         maxLines: 4,
@@ -3951,7 +3953,7 @@ class _InlineQuickReply extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: _momentQuoteFill(c),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: Row(
           children: [
@@ -4578,7 +4580,9 @@ class _StoryActionTile extends StatelessWidget {
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               color: AppTheme.brand,
-                              borderRadius: BorderRadius.circular(11),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.card,
+                              ),
                               border: Border.all(color: c.background, width: 2),
                             ),
                             child: const AppIcon(
@@ -4881,7 +4885,7 @@ class _StoriesViewState extends State<StoriesView> {
           decoration: BoxDecoration(
             gradient: prominent ? AppTheme.brandGradient : null,
             color: prominent ? null : c.background,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             border: prominent ? null : Border.all(color: c.divider),
           ),
           child: Row(
@@ -4950,7 +4954,7 @@ class _StoriesViewState extends State<StoriesView> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: AppTheme.brand.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(color: AppTheme.brand.withValues(alpha: 0.22)),
         ),
         child: Row(
@@ -4996,7 +5000,7 @@ class _StoriesViewState extends State<StoriesView> {
     alignment: Alignment.center,
     decoration: BoxDecoration(
       color: context.colors.background,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
     ),
     child: const AppActivityIndicator(size: 30),
   );
@@ -5007,7 +5011,7 @@ class _StoriesViewState extends State<StoriesView> {
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
       decoration: BoxDecoration(
         color: c.background,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Column(
         children: [
@@ -5055,7 +5059,7 @@ class _StoriesViewState extends State<StoriesView> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
                   color: AppTheme.brand,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 child: Text(
                   AppStringKeys.storiesCreate.l10n(context),
@@ -5082,12 +5086,12 @@ class _StoriesViewState extends State<StoriesView> {
         height: 78,
         padding: const EdgeInsets.symmetric(horizontal: 12),
         foregroundDecoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(color: c.divider),
         ),
         decoration: BoxDecoration(
           color: c.background,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: Row(
           children: [

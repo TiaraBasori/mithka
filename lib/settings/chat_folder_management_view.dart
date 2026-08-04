@@ -977,7 +977,7 @@ class _ChatFolderEditorViewState extends State<ChatFolderEditorView> {
             color: selected ? AppTheme.brand : c.divider,
             width: selected ? 1.5 : 1,
           ),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: AppIcon(
           icon,

@@ -119,7 +119,7 @@ class _StickerViewerState extends State<StickerViewer> {
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: c.card,
-                borderRadius: BorderRadius.circular(13),
+                borderRadius: BorderRadius.circular(AppRadius.card),
                 border: Border.all(color: c.divider, width: 0.5),
                 boxShadow: const [
                   BoxShadow(

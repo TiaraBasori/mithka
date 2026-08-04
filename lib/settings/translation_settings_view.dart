@@ -167,7 +167,7 @@ class _AiTranslationPromptEditorViewState
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: backgroundColor ?? AppTheme.brand,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: borderColor == null ? null : Border.all(color: borderColor),
         ),
         child: Text(

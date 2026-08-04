@@ -4,6 +4,7 @@ import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
 import '../tdlib/td_models.dart';
 import '../theme/theme_controller.dart';
+import '../theme/app_theme.dart';
 
 /// A compact, realistic conversation sample used by appearance pickers.
 ///
@@ -190,7 +191,7 @@ BoxDecoration senderNameReadabilityDecoration(
           topEnd: Radius.circular(8),
           bottomEnd: Radius.circular(8),
         )
-      : BorderRadius.circular(8),
+      : BorderRadius.circular(AppRadius.control),
   boxShadow: const [
     BoxShadow(color: Color(0x33000000), blurRadius: 5, offset: Offset(0, 2)),
   ],
@@ -242,7 +243,7 @@ class _PreviewMessage extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
           decoration: BoxDecoration(
             color: bubbleColor,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x22000000),

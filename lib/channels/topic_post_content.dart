@@ -100,7 +100,7 @@ class _TopicContentImage extends StatelessWidget {
     final width = MediaQuery.of(context).size.width - 28;
     final height = _imageHeight(width);
     return ClipRRect(
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: SizedBox(
         width: width,
         height: height,
@@ -150,7 +150,7 @@ class _TopicFileCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           border: Border.all(color: c.divider, width: 0.5),
         ),
         child: Column(
@@ -255,7 +255,7 @@ class _TopicButtonRows extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: c.searchFill,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppRadius.control),
                         border: Border.all(color: c.divider, width: 0.5),
                       ),
                       child: Text(

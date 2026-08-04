@@ -372,7 +372,7 @@ class _CountryPickerViewState extends State<CountryPickerView> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: c.searchFill,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(AppRadius.control),
               ),
               child: Row(
                 children: [

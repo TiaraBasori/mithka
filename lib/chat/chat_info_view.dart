@@ -525,7 +525,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
 
   BoxDecoration get _card => BoxDecoration(
     color: context.colors.card,
-    borderRadius: BorderRadius.circular(12),
+    borderRadius: BorderRadius.circular(AppRadius.card),
   );
 
   void _openQR() {
@@ -657,7 +657,7 @@ class _ChatInfoViewState extends State<ChatInfoView> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: c.searchFill,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1588,7 +1588,7 @@ class _ChatFolderMembershipViewState extends State<ChatFolderMembershipView> {
         Container(
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
@@ -1834,7 +1834,7 @@ class _CreateChatFolderPromptState extends State<_CreateChatFolderPrompt> {
                 padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
                 decoration: BoxDecoration(
                   color: c.card,
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   boxShadow: const [
                     BoxShadow(
                       color: Color(0x30000000),
@@ -1862,7 +1862,7 @@ class _CreateChatFolderPromptState extends State<_CreateChatFolderPrompt> {
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
                         color: c.searchFill,
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(AppRadius.card),
                       ),
                       child: Stack(
                         alignment: Alignment.centerLeft,

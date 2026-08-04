@@ -216,7 +216,9 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
                               color: AppTheme.brand,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.card,
+                              ),
                             ),
                             child: _opening
                                 ? SizedBox(

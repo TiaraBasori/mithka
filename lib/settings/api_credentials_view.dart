@@ -106,7 +106,7 @@ class _ApiCredentialsViewState extends State<ApiCredentialsView> {
               semanticLabel: AppStrings.t(AppStringKeys.accentColorPickerSave),
               onTap: _valid && !_saving ? _save : null,
               enabled: _valid && !_saving,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: Text(

@@ -251,7 +251,7 @@ class _MessageDeleteOptionsDialogState
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 18),
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.2),
@@ -355,7 +355,7 @@ class _MessageDeleteOptionsDialogState
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: value ? AppTheme.brand : Colors.transparent,
-                borderRadius: BorderRadius.circular(5),
+                borderRadius: BorderRadius.circular(AppRadius.sm),
                 border: Border.all(
                   color: value ? AppTheme.brand : c.textTertiary,
                   width: 2,
@@ -468,7 +468,7 @@ class _ChatEditChoiceDialog<T> extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 12),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.22),
@@ -3283,7 +3283,7 @@ class _ChatViewState extends State<ChatView> {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: c.card.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(
                 color: c.divider.withValues(alpha: 0.55),
                 width: 0.5,
@@ -3495,7 +3495,7 @@ class _ChatViewState extends State<ChatView> {
               padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
               decoration: BoxDecoration(
                 color: c.card,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x33000000),
@@ -3530,7 +3530,7 @@ class _ChatViewState extends State<ChatView> {
                       filled: true,
                       fillColor: c.searchFill,
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(AppRadius.control),
                         borderSide: BorderSide.none,
                       ),
                     ),
@@ -4548,7 +4548,7 @@ class _ChatViewState extends State<ChatView> {
           margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
           clipBehavior: Clip.antiAlias,
           child: ListView.separated(
@@ -5188,7 +5188,7 @@ class _ChatViewState extends State<ChatView> {
         padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
         decoration: BoxDecoration(
           color: surface,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: isDark ? 0.24 : 0.12),
@@ -5474,7 +5474,7 @@ class _ChatViewState extends State<ChatView> {
         ),
         decoration: BoxDecoration(
           color: c.navBar,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(color: c.divider, width: 0.5),
           boxShadow: [
             BoxShadow(
@@ -6193,7 +6193,7 @@ class _ChatViewState extends State<ChatView> {
                   padding: const EdgeInsets.symmetric(horizontal: 28),
                   decoration: BoxDecoration(
                     color: requested ? c.searchFill : AppTheme.brand,
-                    borderRadius: BorderRadius.circular(23),
+                    borderRadius: BorderRadius.circular(AppRadius.xxl),
                   ),
                   child: Text(
                     AppStrings.t(label),
@@ -6671,7 +6671,7 @@ class _ChatViewState extends State<ChatView> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: c.card.withValues(alpha: 0.86),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(
             color: c.divider.withValues(alpha: 0.55),
             width: 0.5,
@@ -7736,7 +7736,7 @@ class _ChatViewState extends State<ChatView> {
       decoration: showsMessageBubbleSurface
           ? BoxDecoration(
               color: outgoing ? outgoingColor : incomingColor,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.card),
               border: outgoing || messageColors != null
                   ? null
                   : Border.all(color: c.divider, width: 0.5),
@@ -7954,7 +7954,7 @@ class _ChatViewState extends State<ChatView> {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: Colors.black.withValues(alpha: 0.45),
-                  borderRadius: BorderRadius.circular(5),
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: Text(
                   '+$extraCount',
@@ -8170,7 +8170,7 @@ class _ChatViewState extends State<ChatView> {
       height: 268,
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12),
         ],
@@ -8313,7 +8313,7 @@ class _ChatViewState extends State<ChatView> {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF4A4A4E) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: SizedBox(width: 28, height: 28, child: Center(child: child)),
       ),
@@ -8449,7 +8449,7 @@ class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: selected ? AppTheme.brand : c.searchFill,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -8619,7 +8619,7 @@ class _MessageTextSelectionDialogState
                 width: double.infinity,
                 decoration: BoxDecoration(
                   color: c.card,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                   border: Border.all(color: c.divider, width: 0.5),
                   boxShadow: [
                     BoxShadow(

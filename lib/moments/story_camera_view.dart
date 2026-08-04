@@ -221,7 +221,7 @@ class _StoryCameraViewState extends State<StoryCameraView>
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(AppRadius.xxl),
                   child: ColoredBox(
                     color: const Color(0xFF1C1C1E),
                     child: Stack(
@@ -277,7 +277,9 @@ class _StoryCameraViewState extends State<StoryCameraView>
                                 ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xB3000000),
-                                  borderRadius: BorderRadius.circular(16),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.lg,
+                                  ),
                                 ),
                                 child: Text(
                                   _elapsedLabel,
@@ -331,7 +333,7 @@ class _StoryCameraViewState extends State<StoryCameraView>
                               ? BoxShape.rectangle
                               : BoxShape.circle,
                           borderRadius: _recording
-                              ? BorderRadius.circular(13)
+                              ? BorderRadius.circular(AppRadius.card)
                               : null,
                         ),
                       ),
@@ -417,7 +419,7 @@ class _StoryCameraViewState extends State<StoryCameraView>
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: AppTheme.brand,
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 child: Text(
                   (noCamera

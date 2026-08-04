@@ -401,7 +401,7 @@ class _StorageUsageViewState extends State<StorageUsageView> {
             trailing: AppInteractiveSurface(
               onTap: _loading ? null : () => unawaited(_load()),
               semanticLabel: AppStrings.t(AppStringKeys.groupAdminRefresh),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               child: const Padding(
                 padding: EdgeInsets.all(7),
                 child: AppIcon(HeroAppIcons.arrowsRotate, size: 19),
@@ -1103,7 +1103,7 @@ class _StorageActionCard extends StatelessWidget {
           AppInteractiveSurface(
             onTap: enabled ? onTap : null,
             semanticLabel: action,
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(AppRadius.control),
             child: Container(
               constraints: BoxConstraints(
                 minWidth: desktopDense ? 70 : 76,
@@ -1115,7 +1115,7 @@ class _StorageActionCard extends StatelessWidget {
                 color: destructive
                     ? AppTheme.tagRed.withValues(alpha: 0.11)
                     : AppTheme.brand.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(AppRadius.control),
               ),
               child: showProgress
                   ? const SizedBox(
@@ -1383,7 +1383,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
                 semanticLabel: AppStrings.t(
                   AppStringKeys.storageManagerClearSelected,
                 ),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.control),
                 child: Container(
                   constraints: BoxConstraints(
                     minHeight: desktopDense ? 30 : 38,
@@ -1394,7 +1394,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppTheme.tagRed.withValues(alpha: 0.10),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.control),
                   ),
                   child: _working
                       ? const SizedBox(
@@ -1452,7 +1452,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
       selected: selected,
       semanticLabel: label,
       onTap: () => setState(() => _sort = sort),
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
         padding: EdgeInsets.symmetric(
           horizontal: desktopDense ? 8 : 9,
@@ -1462,7 +1462,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
           color: selected
               ? c.textPrimary.withValues(alpha: 0.09)
               : Colors.transparent,
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Text(
           label,
@@ -1566,7 +1566,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
   }) => AppInteractiveSurface(
     checked: selected,
     onTap: onTap,
-    borderRadius: BorderRadius.circular(99),
+    borderRadius: BorderRadius.circular(AppRadius.pill),
     child: Container(
       width: desktopDense ? 18 : 22,
       height: desktopDense ? 18 : 22,
@@ -1615,7 +1615,7 @@ class _StorageErrorState extends StatelessWidget {
             AppInteractiveSurface(
               onTap: () => unawaited(onRetry()),
               semanticLabel: AppStrings.t(AppStringKeys.callsRetry),
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,
@@ -1623,7 +1623,7 @@ class _StorageErrorState extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: AppTheme.brand.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(9),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                 ),
                 child: Text(
                   AppStrings.t(AppStringKeys.callsRetry),

@@ -405,7 +405,7 @@ class _DownloadsViewState extends State<DownloadsView> {
                 filled: true,
                 fillColor: c.searchFill,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                   borderSide: BorderSide.none,
                 ),
               ),

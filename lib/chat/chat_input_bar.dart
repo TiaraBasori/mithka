@@ -2640,7 +2640,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: c.divider, width: 0.5),
         boxShadow: [
           BoxShadow(
@@ -2701,7 +2701,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: c.divider, width: 0.5),
         boxShadow: [
           BoxShadow(
@@ -2805,7 +2805,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(color: c.divider, width: 0.5),
         boxShadow: [
           BoxShadow(
@@ -2904,7 +2904,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               children: [
                 Positioned.fill(
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(7),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                     child: DecoratedBox(
                       decoration: BoxDecoration(color: c.searchFill),
                       child: Image.file(
@@ -2985,7 +2985,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             AppTheme.cloverGreen.withValues(alpha: 0.08),
             c.searchFill,
           ),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: Row(
           children: [
@@ -3027,7 +3027,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
               key: const ValueKey('composerEditCancel'),
               semanticLabel: AppStringKeys.countryPickerCancel.l10n(context),
               onTap: vm.cancelMessageEdit,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               child: Padding(
                 padding: const EdgeInsets.all(7),
                 child: AppIcon(
@@ -3052,7 +3052,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
           color: c.searchFill,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: Row(
           children: [
@@ -3322,7 +3322,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -3360,7 +3360,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: ListView(
@@ -3589,7 +3589,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: entries.isEmpty
@@ -3715,7 +3715,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: ListView.separated(
@@ -4100,7 +4100,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       margin: const EdgeInsets.fromLTRB(12, 6, 12, 0),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: c.divider.withValues(alpha: 0.72)),
         boxShadow: [
           BoxShadow(
@@ -4323,7 +4323,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
                             ? const BoxDecoration()
                             : BoxDecoration(
                                 color: c.searchFill,
-                                borderRadius: BorderRadius.circular(18),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.lg,
+                                ),
                               ),
                         padding: desktop
                             ? const EdgeInsets.symmetric(
@@ -4727,7 +4729,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final sendLabel =
         (editing ? AppStringKeys.messageActionEdit : AppStringKeys.composerSend)
             .l10n(context);
-    final radius = BorderRadius.circular(6);
+    final radius = BorderRadius.circular(AppRadius.md);
     return AppInteractiveSurface(
       key: const ValueKey('composerSendButton'),
       semanticLabel: '$sendLabel ($shortcut)',
@@ -4851,7 +4853,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             AppTheme.brand.withValues(alpha: 0.06),
             c.searchFill,
           ),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(
             color: AppTheme.brand.withValues(alpha: 0.18),
             width: 0.6,
@@ -5107,7 +5109,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: colors.background,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           border: Border.all(color: colors.border, width: 0.5),
         ),
         child: BotButtonLabel(
@@ -5389,7 +5391,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Widget _desktopSenderPicker(MessageSenderOption sender) {
     final label =
         '${AppStringKeys.composerSend.l10n(context)}: ${sender.title}';
-    final radius = BorderRadius.circular(6);
+    final radius = BorderRadius.circular(AppRadius.md);
     return CompositedTransformTarget(
       link: _desktopSenderPopoverLink,
       child: OverlayPortal(
@@ -5443,7 +5445,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     VoidCallback? onTap,
     VoidCallback? onLongPress,
   }) {
-    final radius = BorderRadius.circular(6);
+    final radius = BorderRadius.circular(AppRadius.md);
     return Padding(
       padding: const EdgeInsets.only(right: 2),
       child: Tooltip(
@@ -5558,7 +5560,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         semanticLabel: semanticLabel,
         selected: active,
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         child: SizedBox(
           height: 40,
           child: Center(
@@ -6642,7 +6644,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: c.searchFill,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: Row(
         children: [
@@ -6821,7 +6823,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         margin: const EdgeInsets.symmetric(horizontal: 3),
         decoration: BoxDecoration(
           color: selected ? context.colors.searchFill : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: SizedBox(width: 28, height: 28, child: Center(child: child)),
       ),
@@ -6855,7 +6857,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
             padding: const EdgeInsets.all(3),
             decoration: BoxDecoration(
               color: c.searchFill,
-              borderRadius: BorderRadius.circular(13),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             child: Row(
               children: [
@@ -7043,7 +7045,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         height: 36,
         decoration: BoxDecoration(
           color: selected ? c.card : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.control),
           boxShadow: selected
               ? [
                   BoxShadow(
@@ -7533,7 +7535,7 @@ class _RelaySendingOverlayState extends State<_RelaySendingOverlay>
               padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               decoration: BoxDecoration(
                 color: c.card,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.card),
                 border: Border.all(color: c.divider, width: 0.5),
                 boxShadow: [
                   BoxShadow(
@@ -7642,7 +7644,7 @@ class _LongMessageRichTextPrompt extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(22, 22, 22, 16),
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.card),
             border: Border.all(color: c.divider, width: 0.5),
             boxShadow: [
               BoxShadow(
@@ -7724,7 +7726,7 @@ class _LongMessagePromptAction extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: primary ? AppTheme.brand : c.searchFill,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: Text(
           label,
@@ -7806,7 +7808,7 @@ class _ComposerFormatMenu extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: _padding),
               decoration: BoxDecoration(
                 color: c.card,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.card),
                 border: Border.all(color: c.divider, width: 0.5),
                 boxShadow: [
                   BoxShadow(
@@ -7876,7 +7878,7 @@ class _ComposerLinkDialogState extends State<_ComposerLinkDialog> {
         padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(color: c.divider, width: 0.5),
         ),
         child: Column(
@@ -7896,7 +7898,7 @@ class _ComposerLinkDialogState extends State<_ComposerLinkDialog> {
             Container(
               decoration: BoxDecoration(
                 color: c.searchFill,
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(AppRadius.control),
               ),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: TextField(

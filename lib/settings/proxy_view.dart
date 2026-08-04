@@ -547,7 +547,7 @@ class _ProxyEditViewState extends State<ProxyEditView> {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: c.searchFill,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: Row(
         children: [
@@ -561,7 +561,7 @@ class _ProxyEditViewState extends State<ProxyEditView> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: _type == t.$1 ? c.card : Colors.transparent,
-                    borderRadius: BorderRadius.circular(7),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Text(
                     t.$2,

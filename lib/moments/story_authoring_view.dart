@@ -366,7 +366,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: context.colors.searchFill,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                   ),
                   child: Text(emoji, style: const TextStyle(fontSize: 25)),
                 ),
@@ -861,7 +861,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(AppRadius.xxl),
                 child: ColoredBox(
                   color: const Color(0xFF1C1C1E),
                   child: Stack(
@@ -1012,7 +1012,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF2C2C2E),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                       child: Text(
                         '${_media.length}',
@@ -1033,7 +1033,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(AppRadius.xxl),
                 child: ColoredBox(
                   color: const Color(0xFF1C1C1E),
                   child: Stack(
@@ -1094,7 +1094,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   vertical: 13,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   borderSide: BorderSide.none,
                 ),
               ),
@@ -1196,7 +1196,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               color: const Color(0xFF2C2C2E),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               border: Border.all(color: AppTheme.brand, width: 2),
               image: item.isVideo
                   ? null
@@ -1335,7 +1335,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppTheme.brand,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                     boxShadow: [
                       BoxShadow(
                         color: AppTheme.brand.withValues(alpha: 0.28),
@@ -1401,7 +1401,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
           border: Border.all(color: c.divider),
         ),
         child: Row(
@@ -1471,7 +1471,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     return Container(
       decoration: BoxDecoration(
         color: context.colors.card,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(color: context.colors.divider),
       ),
       child: Column(
@@ -1576,7 +1576,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(color: c.divider),
       ),
       child: Column(

@@ -360,10 +360,8 @@ class _MessageBubbleState extends State<MessageBubble>
   /// Fallback for a theme that names no selected key. Telegram's own defaults
   /// are a wash over the base fill, and the base here can be a gradient or a
   /// user-picked colour, so there is nothing fixed to store instead.
-  Color _selectionWash(Color base) => Color.alphaBlend(
-    context.colors.linkBlue.withValues(alpha: 0.22),
-    base,
-  );
+  Color _selectionWash(Color base) =>
+      Color.alphaBlend(context.colors.linkBlue.withValues(alpha: 0.22), base);
 
   Color get _outgoingTextColor {
     if (!_showsMessageBubbleSurface) return context.colors.textPrimary;
@@ -956,7 +954,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 color: r.chosen
                     ? AppTheme.brand.withValues(alpha: 0.18)
                     : c.searchFill,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(AppRadius.card),
                 border: r.chosen ? Border.all(color: AppTheme.brand) : null,
               ),
               child: Row(
@@ -1260,7 +1258,9 @@ class _MessageBubbleState extends State<MessageBubble>
                         padding: const EdgeInsets.symmetric(vertical: 3),
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.42),
-                          borderRadius: BorderRadius.circular(9),
+                          borderRadius: BorderRadius.circular(
+                            AppRadius.control,
+                          ),
                         ),
                         child: Text(
                           _formatCallDuration(duration),
@@ -1405,7 +1405,7 @@ class _MessageBubbleState extends State<MessageBubble>
           : DecoratedBox(
               decoration: BoxDecoration(
                 color: context.colors.card.withValues(alpha: 0.72),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.control),
               ),
               child: content,
             ),
@@ -1456,7 +1456,7 @@ class _MessageBubbleState extends State<MessageBubble>
         outgoing: outgoing,
         constraints: BoxConstraints(maxWidth: _bubbleMaxWidth()),
         padding: EdgeInsets.zero,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         containsAttachedComments: true,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1576,16 +1576,16 @@ class _MessageBubbleState extends State<MessageBubble>
     return Material(
       key: ValueKey('message-button-${button.text}'),
       color: colors.background,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: InkWell(
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         onTap: () => widget.onButtonTap?.call(message, button),
         child: Container(
           height: 36,
           alignment: Alignment.center,
           padding: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: BorderRadius.circular(AppRadius.md),
             border: Border.all(color: colors.border, width: 0.5),
           ),
           child: BotButtonLabel(
@@ -1746,7 +1746,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 ),
                 decoration: BoxDecoration(
                   color: AppTheme.brand.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -2153,7 +2153,7 @@ class _MessageBubbleState extends State<MessageBubble>
           fit: StackFit.expand,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               child: block.image == null
                   ? ColoredBox(color: context.colors.searchFill)
                   : TDImage(
@@ -2208,7 +2208,7 @@ class _MessageBubbleState extends State<MessageBubble>
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: context.colors.card,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.control),
                 border: Border.all(color: context.colors.divider, width: 0.5),
               ),
               child: Row(
@@ -2277,7 +2277,7 @@ class _MessageBubbleState extends State<MessageBubble>
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 color: context.colors.card,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadius.control),
                 border: Border.all(color: context.colors.divider, width: 0.5),
               ),
               child: Row(
@@ -2378,7 +2378,7 @@ class _MessageBubbleState extends State<MessageBubble>
       return GestureDetector(
         onTap: () => widget.onOpenImage?.call(_richMediaMessage(block)),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           child: TDImage(photo: block.image),
         ),
       );
@@ -2392,7 +2392,7 @@ class _MessageBubbleState extends State<MessageBubble>
           fit: StackFit.expand,
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               child: TDImage(photo: block.image),
             ),
             const Center(
@@ -2437,7 +2437,7 @@ class _MessageBubbleState extends State<MessageBubble>
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: context.colors.searchFill,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: AppIcon(
         icon,
@@ -2484,7 +2484,7 @@ class _MessageBubbleState extends State<MessageBubble>
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
         color: fill,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
           color: outgoing
               ? _outgoingTextColor.withValues(alpha: 0.14)
@@ -2524,7 +2524,7 @@ class _MessageBubbleState extends State<MessageBubble>
           color: outgoing
               ? _outgoingTextColor.withValues(alpha: 0.08)
               : c.card.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
             color: outgoing
                 ? _outgoingTextColor.withValues(alpha: 0.18)
@@ -2631,7 +2631,7 @@ class _MessageBubbleState extends State<MessageBubble>
           const SizedBox(height: 6),
         ],
         ClipRRect(
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Table(
@@ -2725,7 +2725,7 @@ class _MessageBubbleState extends State<MessageBubble>
         color: outgoing
             ? _outgoingTextColor.withValues(alpha: 0.10)
             : AppTheme.brand.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border(left: BorderSide(color: AppTheme.brand, width: 2.5)),
       ),
       padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
@@ -2799,7 +2799,7 @@ class _MessageBubbleState extends State<MessageBubble>
         color: outgoing
             ? _outgoingTextColor.withValues(alpha: 0.10)
             : c.searchFill.withValues(alpha: 0.80),
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border(left: BorderSide(color: secondary, width: 2.5)),
       ),
       padding: const EdgeInsets.fromLTRB(10, 7, 10, 8),
@@ -2928,7 +2928,7 @@ class _MessageBubbleState extends State<MessageBubble>
         width: maxWidth,
         decoration: BoxDecoration(
           color: cardBackground,
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border(
             left: BorderSide(color: previewLine, width: accentWidth),
           ),
@@ -3245,7 +3245,9 @@ class _MessageBubbleState extends State<MessageBubble>
       child: Container(
         width: size,
         height: size,
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(8)),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.control),
+        ),
         clipBehavior: Clip.antiAlias,
         child: Stack(
           fit: StackFit.expand,
@@ -3408,7 +3410,7 @@ class _MessageBubbleState extends State<MessageBubble>
       padding: const EdgeInsets.fromLTRB(12, 8, 6, 9),
       decoration: BoxDecoration(
         color: _replyQuoteBackground(outgoing),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         border: _messageColors == null
             ? null
             : Border(left: BorderSide(color: line, width: 3)),
@@ -3707,7 +3709,7 @@ class _MessageBubbleState extends State<MessageBubble>
           color: _messageColors == null
               ? base.withValues(alpha: 0.07)
               : _messageAccentFill(quoteColor),
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border(left: BorderSide(color: quoteColor, width: 3)),
         ),
         padding: const EdgeInsets.fromLTRB(9, 7, 8, 7),
@@ -3769,7 +3771,7 @@ class _MessageBubbleState extends State<MessageBubble>
         width: _bubbleMaxWidth(),
         decoration: BoxDecoration(
           color: codeBackground,
-          borderRadius: BorderRadius.circular(7),
+          borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(color: c.divider, width: 0.5),
         ),
         clipBehavior: Clip.antiAlias,
@@ -3979,7 +3981,7 @@ class _MessageBubbleState extends State<MessageBubble>
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
           decoration: BoxDecoration(
             color: _codeBackgroundColor,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Text(segment, style: style.copyWith(fontSize: fontSize)),
         ),
@@ -4256,7 +4258,7 @@ class _MessageBubbleState extends State<MessageBubble>
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: AppTheme.brand,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withValues(alpha: 0.18),
@@ -4541,7 +4543,7 @@ class _MessageBubbleState extends State<MessageBubble>
                   ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Text(
                     _durationString(dur),
@@ -5176,7 +5178,7 @@ class _RichDetailsBlockState extends State<_RichDetailsBlock> {
     return Container(
       decoration: BoxDecoration(
         color: widget.color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(color: widget.color.withValues(alpha: 0.18)),
       ),
       child: Column(
@@ -5240,7 +5242,7 @@ class _RichSpoilerState extends State<_RichSpoiler> {
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   color: widget.color,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                 ),
                 child: Center(
                   child: AppIcon(

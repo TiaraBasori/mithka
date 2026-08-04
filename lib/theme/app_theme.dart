@@ -186,12 +186,31 @@ abstract final class AppInsets {
   );
 }
 
+/// Corner radii. Every rounded surface picks a step here rather than a
+/// literal — the literals had drifted across every value from 1 to 28, so the
+/// same kind of element was a different shape depending on the screen.
+///
+/// The lower steps keep their original values, so adopting them moved nothing.
 abstract final class AppRadius {
   static const double sm = 4;
   static const double md = 6;
   static const double control = 9;
   static const double card = 12;
-  static const double lg = 12;
+
+  /// Sheets, previews, and panels that want more roundness than a card.
+  static const double lg = 16;
+
+  /// The most prominent surfaces — modals, large overlays.
+  static const double xl = 20;
+
+  /// Full-height sheets and the story composer, which read as softer than a
+  /// modal at the sizes they draw at.
+  static const double xxl = 24;
+
+  /// Fully rounded. On a square box this is a circle, on a wide one a stadium,
+  /// and unlike a hardcoded half-of-the-height it stays right when the size
+  /// changes.
+  static const double pill = 999;
 }
 
 abstract final class AppIconSize {
@@ -556,11 +575,7 @@ class AppColors extends ThemeExtension<AppColors> {
       onAccent: Color.lerp(onAccent, other.onAccent, t)!,
       dialogButton: Color.lerp(dialogButton, other.dialogButton, t)!,
       dialogText: Color.lerp(dialogText, other.dialogText, t)!,
-      badgeBackground: Color.lerp(
-        badgeBackground,
-        other.badgeBackground,
-        t,
-      )!,
+      badgeBackground: Color.lerp(badgeBackground, other.badgeBackground, t)!,
       badgeText: Color.lerp(badgeText, other.badgeText, t)!,
       accentButton: Color.lerp(accentButton, other.accentButton, t)!,
       accentButtonText: Color.lerp(

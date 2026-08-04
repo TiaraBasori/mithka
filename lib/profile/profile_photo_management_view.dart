@@ -289,7 +289,7 @@ class _ProfilePhotoManagementViewState
     return Container(
       decoration: BoxDecoration(
         color: context.colors.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -356,7 +356,7 @@ class _ProfilePhotoManagementViewState
     padding: const EdgeInsets.all(24),
     decoration: BoxDecoration(
       color: context.colors.card,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(AppRadius.card),
     ),
     child: Text(
       AppStrings.t(AppStringKeys.profilePhotoManagementNoProfilePhotosYet),
@@ -373,7 +373,7 @@ class _ProfilePhotoManagementViewState
       onTap: () => _showActions(entry),
       onLongPress: () => _showActions(entry),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -395,7 +395,7 @@ class _ProfilePhotoManagementViewState
     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
     decoration: BoxDecoration(
       color: Colors.black.withValues(alpha: 0.62),
-      borderRadius: BorderRadius.circular(7),
+      borderRadius: BorderRadius.circular(AppRadius.md),
     ),
     child: Text(
       text,
@@ -444,7 +444,7 @@ class _PhotoActionSheet extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         decoration: BoxDecoration(
           color: colors.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(

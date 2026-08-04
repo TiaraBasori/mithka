@@ -81,7 +81,7 @@ class ChatFirstContactCard extends StatelessWidget {
                   ),
                 ],
               ),
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
               border: Border.all(
                 color: AppTheme.brand.withValues(alpha: 0.20),
                 width: 0.8,
@@ -127,7 +127,9 @@ class ChatFirstContactCard extends StatelessWidget {
                                     color: AppTheme.brand.withValues(
                                       alpha: 0.14,
                                     ),
-                                    borderRadius: BorderRadius.circular(10),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.control,
+                                    ),
                                   ),
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
@@ -180,7 +182,7 @@ class ChatFirstContactCard extends StatelessWidget {
                   DecoratedBox(
                     decoration: BoxDecoration(
                       color: c.groupedBackground.withValues(alpha: 0.70),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -237,7 +239,7 @@ class ChatFirstContactCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: c.groupedBackground.withValues(alpha: 0.62),
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
@@ -249,7 +251,7 @@ class ChatFirstContactCard extends StatelessWidget {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppTheme.brand.withValues(alpha: 0.13),
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(AppRadius.control),
               ),
               child: AppIcon(icon, size: 15, color: AppTheme.brand),
             ),

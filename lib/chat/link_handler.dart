@@ -381,7 +381,7 @@ class _EnableThemingDialog extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x30000000),
@@ -402,7 +402,7 @@ class _EnableThemingDialog extends StatelessWidget {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: c.linkBlue.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
                     ),
                     child: AppIcon(
                       HeroAppIcons.palette,
@@ -1062,7 +1062,7 @@ Future<void> _openChatBoost(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: AppTheme.brand,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 child: Text(
                   AppStrings.t(AppStringKeys.linkHandlerOpenChat),
@@ -1804,7 +1804,7 @@ Future<void> _openUnboundGroupCall(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppTheme.brand,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                   ),
                   child: Text(
                     AppStrings.t(AppStringKeys.linkHandlerJoinCall),

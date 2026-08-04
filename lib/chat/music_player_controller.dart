@@ -866,7 +866,7 @@ class _CollapsedMusicPlayer extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: _musicBlack.withValues(alpha: 0.22),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 child: AppIcon(
                   controller.isPlaying ? HeroAppIcons.pause : HeroAppIcons.play,
@@ -1427,7 +1427,7 @@ class _MusicPlaylistsSheet extends StatelessWidget {
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: musicPlayerAccent,
-                            borderRadius: BorderRadius.circular(21),
+                            borderRadius: BorderRadius.circular(AppRadius.xl),
                           ),
                           child: Text(
                             AppStrings.t(
@@ -1576,7 +1576,7 @@ class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             boxShadow: [
               BoxShadow(
                 color: _musicBlack.withValues(alpha: 0.18),
@@ -1604,7 +1604,7 @@ class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
                 padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
                   color: c.searchFill,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 child: Stack(
                   alignment: Alignment.centerLeft,

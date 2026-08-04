@@ -412,7 +412,7 @@ class _AppIconVariantTile extends StatelessWidget {
                   ),
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   child: Image.asset(variant.asset, fit: BoxFit.cover),
                 ),
               ),

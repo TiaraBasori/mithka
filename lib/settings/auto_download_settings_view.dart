@@ -209,7 +209,7 @@ class _AutoDownloadSettingsViewState extends State<AutoDownloadSettingsView> {
                     color: _network == entry.key
                         ? AppTheme.brand.withValues(alpha: 0.14)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(9),
+                    borderRadius: BorderRadius.circular(AppRadius.control),
                   ),
                   child: Text(
                     entry.value,

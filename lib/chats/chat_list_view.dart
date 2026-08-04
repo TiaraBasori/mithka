@@ -1611,7 +1611,7 @@ class _ChatListViewState extends State<ChatListView>
                     height: 4,
                     decoration: BoxDecoration(
                       color: selected ? AppTheme.brand : Colors.transparent,
-                      borderRadius: BorderRadius.circular(4),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                   ),
                 ],
@@ -2963,7 +2963,7 @@ class DesktopChatContextMenu extends StatelessWidget {
                 key: const ValueKey('desktop-chat-context-menu'),
                 width: resolvedWidth,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.2),
@@ -2973,12 +2973,12 @@ class DesktopChatContextMenu extends StatelessWidget {
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(AppRadius.control),
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: c.card,
                       border: Border.all(color: c.divider, width: 0.5),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                     ),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(
@@ -3070,7 +3070,7 @@ class _DesktopChatContextMenuItem extends StatelessWidget {
     return AppInteractiveSurface(
       semanticLabel: resolvedLabel,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: BorderRadius.circular(AppRadius.md),
       child: SizedBox(
         height: DesktopChatContextMenu.rowHeight,
         child: Padding(

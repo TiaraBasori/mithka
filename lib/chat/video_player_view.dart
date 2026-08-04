@@ -37,6 +37,7 @@ import 'forward_options.dart';
 import 'media_library_saver.dart';
 import 'video_playback_preferences.dart';
 import 'video_playback_queue.dart';
+import '../theme/app_theme.dart';
 
 typedef TdVideoStreamQuery =
     Future<Map<String, dynamic>> Function(Map<String, dynamic> request);
@@ -2198,7 +2199,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
           decoration: BoxDecoration(
             color: Colors.black.withValues(alpha: 0.72),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -2242,7 +2243,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
             padding: const EdgeInsets.fromLTRB(10, 13, 10, 11),
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(26),
+              borderRadius: BorderRadius.circular(AppRadius.xxl),
               border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
             ),
             child: Column(
@@ -2345,7 +2346,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                         behavior: HitTestBehavior.opaque,
                         onTap: _playNextVideo,
                         child: ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(AppRadius.card),
                           child: AspectRatio(
                             aspectRatio: _itemAspectRatio(next),
                             child: Stack(
@@ -2742,7 +2743,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                 key: const ValueKey('video-more-menu-surface'),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                     border: Border.all(
                       color: Colors.white.withValues(alpha: 0.13),
                     ),
@@ -2757,7 +2758,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                   child: Padding(
                     padding: const EdgeInsets.all(1),
                     child: ClipRRect(
-                      borderRadius: BorderRadius.circular(13),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
                       child: ColoredBox(
                         color: const Color(0xF21F1F21),
                         child: Padding(
@@ -2918,7 +2919,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: const Color(0xF21F1F21),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
                       border: Border.all(
                         color: Colors.white.withValues(alpha: 0.13),
                       ),
@@ -3669,7 +3670,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: const Color(0xFF111113),
-            borderRadius: BorderRadius.circular(9),
+            borderRadius: BorderRadius.circular(AppRadius.control),
             border: Border.all(color: Colors.white.withValues(alpha: 0.22)),
             boxShadow: const [
               BoxShadow(
@@ -3680,7 +3681,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(AppRadius.control),
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -4277,7 +4278,7 @@ class _FocusableVideoTextButtonState extends State<_FocusableVideoTextButton> {
               border: _focused
                   ? Border.all(color: Colors.white, width: 2)
                   : null,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             child: SizedBox(
               width: widget.size.width,
@@ -4494,7 +4495,7 @@ class _FocusableVideoActionButtonState
                       width: 2,
                     )
                   : null,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -4620,7 +4621,7 @@ class _FocusableVideoMenuItemState extends State<_FocusableVideoMenuItem> {
                     : Colors.transparent,
                 width: 2,
               ),
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             child: Row(
               children: [

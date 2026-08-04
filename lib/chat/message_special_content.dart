@@ -39,7 +39,8 @@ class MessageContactCardContent extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: borderRadius ?? BorderRadius.circular(9),
+          borderRadius:
+              borderRadius ?? BorderRadius.circular(AppRadius.control),
         ),
         child: Row(
           children: [
@@ -137,7 +138,7 @@ class MessagePollContent extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 250, maxWidth: 310),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: borderRadius ?? BorderRadius.circular(9),
+        borderRadius: borderRadius ?? BorderRadius.circular(AppRadius.control),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -318,7 +319,7 @@ class _PollOptionRow extends StatelessWidget {
         children: [
           Positioned.fill(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               child: FractionallySizedBox(
                 alignment: Alignment.centerLeft,
                 widthFactor: percentage / 100,
@@ -330,7 +331,7 @@ class _PollOptionRow extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: 38),
             padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(AppRadius.md),
               border: Border.all(
                 color: option.isChosen
                     ? AppTheme.brand
@@ -408,7 +409,7 @@ class MessageChecklistContent extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(13, 12, 13, 10),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: borderRadius ?? BorderRadius.circular(9),
+        borderRadius: borderRadius ?? BorderRadius.circular(AppRadius.control),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -534,7 +535,7 @@ class MessageStoryContent extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: borderRadius ?? BorderRadius.circular(9),
+        borderRadius: borderRadius ?? BorderRadius.circular(AppRadius.control),
         border: Border.all(
           color: AppTheme.brand.withValues(alpha: 0.35),
           width: 0.8,
@@ -548,7 +549,7 @@ class MessageStoryContent extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               gradient: AppTheme.brandGradient,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             child: const AppIcon(
               HeroAppIcons.circleNotch,
@@ -617,7 +618,7 @@ class MessageSummaryCardContent extends StatelessWidget {
     constraints: const BoxConstraints(minWidth: 240, maxWidth: 300),
     decoration: BoxDecoration(
       color: background,
-      borderRadius: borderRadius ?? BorderRadius.circular(9),
+      borderRadius: borderRadius ?? BorderRadius.circular(AppRadius.control),
     ),
     clipBehavior: Clip.antiAlias,
     child: Column(
@@ -739,7 +740,7 @@ class MessageSuggestedPostStatusContent extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: borderRadius ?? BorderRadius.circular(9),
+        borderRadius: borderRadius ?? BorderRadius.circular(AppRadius.control),
       ),
       child: Row(
         children: [

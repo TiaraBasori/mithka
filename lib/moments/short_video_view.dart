@@ -15,6 +15,7 @@ import '../tdlib/td_client.dart';
 import '../tdlib/td_image_loader.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_motion.dart';
+import '../theme/app_theme.dart';
 
 class ShortVideoLauncher {
   const ShortVideoLauncher._();
@@ -252,7 +253,7 @@ class _ShortVideoViewState extends State<ShortVideoView> {
                       foregroundColor: Colors.black,
                       minimumSize: const Size.fromHeight(46),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(AppRadius.card),
                       ),
                     ),
                     onPressed: () =>

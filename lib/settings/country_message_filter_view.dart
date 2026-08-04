@@ -168,7 +168,7 @@ class _CountryMessageFilterViewState extends State<CountryMessageFilterView> {
                               color: isSelected
                                   ? AppTheme.brand
                                   : Colors.transparent,
-                              borderRadius: BorderRadius.circular(5),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
                               border: Border.all(
                                 color: isSelected
                                     ? AppTheme.brand

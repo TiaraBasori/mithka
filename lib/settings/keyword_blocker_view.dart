@@ -201,7 +201,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: _refreshing ? c.searchFill : AppTheme.brand,
-                borderRadius: BorderRadius.circular(17),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
               ),
               child: _refreshing
                   ? const SizedBox(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/app_localizations.dart';
+import '../theme/app_theme.dart';
 
 /// Compact VIP indicator shown next to a Telegram Premium user's name.
 class VipBadge extends StatelessWidget {
@@ -16,7 +17,7 @@ class VipBadge extends StatelessWidget {
         gradient: const LinearGradient(
           colors: [Color(0xFFFFE08A), Color(0xFFF5A623)],
         ),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         boxShadow: const [
           BoxShadow(
             color: Color(0x33000000),
