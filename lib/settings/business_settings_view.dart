@@ -422,14 +422,7 @@ class _BusinessSettingsViewState extends State<BusinessSettingsView> {
     );
   }
 
-  Widget _card(List<Widget> children) => Container(
-    decoration: BoxDecoration(
-      color: context.colors.card,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: Column(children: children),
-  );
+  Widget _card(List<Widget> children) => SettingsCard(children: children);
 
   Widget _row(
     AppIconData icon,
@@ -1699,15 +1692,8 @@ class _SaveHeader extends StatelessWidget {
   }
 }
 
-Widget _editorCard({required Widget child}) => Builder(
-  builder: (context) => Container(
-    decoration: BoxDecoration(
-      color: context.colors.card,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-    ),
-    child: child,
-  ),
-);
+Widget _editorCard({required Widget child}) =>
+    Builder(builder: (context) => SettingsPanel(child: child));
 
 Widget _fieldLabel(String value) => Builder(
   builder: (context) => Padding(

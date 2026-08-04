@@ -354,12 +354,9 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
         final c = context.colors;
         final translation = context.watch<TranslationController>();
         return SafeArea(
-          child: Container(
+          child: SettingsPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
             clipBehavior: Clip.antiAlias,
             child: FutureBuilder<Set<TranslationProvider>>(
               future: _availableProvidersFuture,
@@ -437,12 +434,9 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
         final c = context.colors;
         final translation = context.watch<TranslationController>();
         return SafeArea(
-          child: Container(
+          child: SettingsPanel(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
             clipBehavior: Clip.antiAlias,
             child: ListView.separated(
               shrinkWrap: true,
@@ -538,15 +532,9 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
         final c = context.colors;
         final translation = context.watch<TranslationController>();
         return SafeArea(
-          child: Container(
-            constraints: BoxConstraints(
-              maxHeight: MediaQuery.sizeOf(context).height * 0.72,
-            ),
+          child: SettingsPanel(
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
             clipBehavior: Clip.antiAlias,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -632,14 +620,8 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
     );
   }
 
-  Widget _card(BuildContext context, List<Widget> children) => Container(
-    decoration: BoxDecoration(
-      color: context.colors.card,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: Column(children: children),
-  );
+  Widget _card(BuildContext context, List<Widget> children) =>
+      SettingsCard(children: children);
 
   Widget _note(BuildContext context, String text) => Padding(
     padding: const EdgeInsetsDirectional.fromSTEB(4, 8, 4, 0),

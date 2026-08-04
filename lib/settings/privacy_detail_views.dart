@@ -1474,15 +1474,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
   }
 
   Widget _card(List<Widget> children) {
-    final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: children),
-    );
+    return SettingsCard(children: children);
   }
 }
 
@@ -1735,14 +1727,7 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
     );
   }
 
-  Widget _card(List<Widget> children) => Container(
-    decoration: BoxDecoration(
-      color: context.colors.card,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: Column(children: children),
-  );
+  Widget _card(List<Widget> children) => SettingsCard(children: children);
 
   Widget _sessionRow(Map<String, dynamic> s, {bool current = false}) {
     final c = context.colors;

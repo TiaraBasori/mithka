@@ -373,11 +373,8 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
             ),
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: c.card,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-          ),
+        SettingsPanel(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           clipBehavior: Clip.antiAlias,
           child: Column(
             children: [

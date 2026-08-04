@@ -352,15 +352,9 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                         AppStringKeys.notificationMessageNotifications,
                       ),
                       if (_loading)
-                        Container(
-                          key: const ValueKey('notification-telegram-loading'),
-                          height: 88,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: c.card,
-                            borderRadius: BorderRadius.circular(AppRadius.card),
-                          ),
-                          child: const SizedBox(
+                        const SettingsPanel(
+                          key: ValueKey('notification-telegram-loading'),
+                          child: SizedBox(
                             width: 24,
                             height: 24,
                             child: CircularProgressIndicator.adaptive(
@@ -551,14 +545,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
     );
   }
 
-  Widget _card(List<Widget> children) => Container(
-    decoration: BoxDecoration(
-      color: context.colors.card,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: Column(children: children),
-  );
+  Widget _card(List<Widget> children) => SettingsCard(children: children);
 
   Widget _navigationRow({
     required AppIconData icon,
@@ -1148,14 +1135,7 @@ class _NotificationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: children),
-    );
+    return SettingsCard(children: children);
   }
 }
 

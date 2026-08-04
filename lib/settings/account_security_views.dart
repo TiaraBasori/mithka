@@ -885,21 +885,14 @@ class _SecurityCard extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      color: context.colors.card,
-      borderRadius: BorderRadius.circular(AppRadius.card),
-    ),
-    clipBehavior: Clip.antiAlias,
-    child: Column(
-      children: [
-        for (var index = 0; index < children.length; index++) ...[
-          if (index > 0)
-            Divider(height: 1, indent: 52, color: context.colors.divider),
-          children[index],
-        ],
+  Widget build(BuildContext context) => SettingsCard(
+    children: [
+      for (var index = 0; index < children.length; index++) ...[
+        if (index > 0)
+          Divider(height: 1, indent: 52, color: context.colors.divider),
+        children[index],
       ],
-    ),
+    ],
   );
 }
 

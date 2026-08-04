@@ -492,6 +492,45 @@ class SettingsCard extends StatelessWidget {
   }
 }
 
+/// Card surface holding arbitrary content rather than a list of rows.
+///
+/// [SettingsCard] is a column of rows and clips to its own corners, which is
+/// wrong for a chart, a paragraph, a slider or a wrap of chips. Those used to
+/// hand-roll the same BoxDecoration, which is how the corner radius drifted
+/// across seven values in the first place.
+class SettingsPanel extends StatelessWidget {
+  const SettingsPanel({
+    super.key,
+    required this.child,
+    this.padding,
+    this.margin,
+    this.clipBehavior = Clip.none,
+  });
+
+  final Widget child;
+
+  /// Null leaves the child to manage its own insets, which several panels do.
+  final EdgeInsetsGeometry? padding;
+  final EdgeInsetsGeometry? margin;
+
+  /// Set when the child paints into the corners — a list or an image.
+  final Clip clipBehavior;
+
+  @override
+  Widget build(BuildContext context) {
+    final panel = Container(
+      padding: padding,
+      clipBehavior: clipBehavior,
+      decoration: BoxDecoration(
+        color: context.colors.card,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+      ),
+      child: child,
+    );
+    return margin == null ? panel : Padding(padding: margin!, child: panel);
+  }
+}
+
 /// Colored settings glyph tile used by the main settings list and nested
 /// settings menus. The 28 px tile has a 7 px radius and a centered 15 px white
 /// glyph, including on yellow and other light backgrounds.

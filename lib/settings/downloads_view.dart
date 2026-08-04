@@ -227,12 +227,9 @@ class _DownloadsViewState extends State<DownloadsView> {
         final c = sheetContext.colors;
         return SafeArea(
           top: false,
-          child: Container(
+          child: SettingsPanel(
+            padding: const EdgeInsets.fromLTRB(16, 15, 16, 10),
             margin: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
             clipBehavior: Clip.antiAlias,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -320,56 +317,48 @@ class _DownloadsViewState extends State<DownloadsView> {
         final c = sheetContext.colors;
         return SafeArea(
           top: false,
-          child: Container(
+          child: SettingsCard(
             margin: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SettingsRow(
-                  leading: const AppIcon(HeroAppIcons.arrowsRotate),
-                  title: AppStrings.t(AppStringKeys.downloadsRefreshDownloads),
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    unawaited(_load(reset: true));
-                  },
+            children: [
+              SettingsRow(
+                leading: const AppIcon(HeroAppIcons.arrowsRotate),
+                title: AppStrings.t(AppStringKeys.downloadsRefreshDownloads),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  unawaited(_load(reset: true));
+                },
+              ),
+              Divider(height: 1, color: c.divider),
+              SettingsRow(
+                leading: AppIcon(
+                  hasRunning ? HeroAppIcons.pause : HeroAppIcons.play,
                 ),
-                Divider(height: 1, color: c.divider),
-                SettingsRow(
-                  leading: AppIcon(
-                    hasRunning ? HeroAppIcons.pause : HeroAppIcons.play,
-                  ),
-                  title: hasRunning
-                      ? 'Pause all downloads'
-                      : 'Resume all downloads',
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    await _service.toggleAllDownloads(paused: hasRunning);
-                    await _load(reset: true);
-                  },
+                title: hasRunning
+                    ? 'Pause all downloads'
+                    : 'Resume all downloads',
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  await _service.toggleAllDownloads(paused: hasRunning);
+                  await _load(reset: true);
+                },
+              ),
+              Divider(height: 1, color: c.divider),
+              SettingsRow(
+                leading: const AppIcon(HeroAppIcons.trash),
+                title: AppStrings.t(
+                  AppStringKeys.downloadsClearActiveDownloads,
                 ),
-                Divider(height: 1, color: c.divider),
-                SettingsRow(
-                  leading: const AppIcon(HeroAppIcons.trash),
-                  title: AppStrings.t(
-                    AppStringKeys.downloadsClearActiveDownloads,
-                  ),
-                  onTap: () => _clear(true, false),
+                onTap: () => _clear(true, false),
+              ),
+              Divider(height: 1, color: c.divider),
+              SettingsRow(
+                leading: const AppIcon(HeroAppIcons.trash),
+                title: AppStrings.t(
+                  AppStringKeys.downloadsClearCompletedDownloads,
                 ),
-                Divider(height: 1, color: c.divider),
-                SettingsRow(
-                  leading: const AppIcon(HeroAppIcons.trash),
-                  title: AppStrings.t(
-                    AppStringKeys.downloadsClearCompletedDownloads,
-                  ),
-                  onTap: () => _clear(false, true),
-                ),
-              ],
-            ),
+                onTap: () => _clear(false, true),
+              ),
+            ],
           ),
         );
       },
@@ -526,12 +515,9 @@ class _DownloadsViewState extends State<DownloadsView> {
     final progress = item.size <= 0
         ? null
         : (item.downloaded / item.size).clamp(0.0, 1.0);
-    return Container(
+    return SettingsPanel(
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
       margin: const EdgeInsets.only(bottom: 8),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: item.completed ? () => _open(item) : null,

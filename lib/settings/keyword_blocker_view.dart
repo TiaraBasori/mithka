@@ -121,11 +121,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
 
   Widget _inputCard() {
     final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+    return SettingsPanel(
       padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
       child: Row(
         children: [
@@ -174,11 +170,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
 
   Widget _urlCard() {
     final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+    return SettingsPanel(
       padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
       child: Row(
         children: [
@@ -234,11 +226,8 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
 
   Widget _keywordCard(List<String> keywords) {
     final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+    return SettingsPanel(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [

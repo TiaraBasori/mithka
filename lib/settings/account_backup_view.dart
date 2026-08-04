@@ -513,12 +513,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
       onTap: _working || !_consented || !_supported
           ? null
           : () => _backupActive(AccountSessionBackupStorage.synced),
-      child: Container(
-        height: 52,
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
+      child: SettingsPanel(
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
           children: [
@@ -586,12 +581,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
       onTap: onTap,
       child: Opacity(
         opacity: enabled ? 1 : 0.45,
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: c.card,
-            borderRadius: BorderRadius.circular(AppRadius.card),
-          ),
+        child: SettingsPanel(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
             children: [
@@ -619,12 +609,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
   }
 
   Widget _enabledSwitch() {
-    final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+    return SettingsPanel(
       clipBehavior: Clip.antiAlias,
       child: SettingsSwitchRow(
         title: Platform.isIOS
@@ -647,13 +632,8 @@ class _AccountBackupViewState extends State<AccountBackupView> {
 
   Widget _empty(String message) {
     final c = context.colors;
-    return Container(
-      alignment: Alignment.center,
+    return SettingsPanel(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
       child: Text(
         message.l10n(context),
         textAlign: TextAlign.center,
@@ -663,32 +643,24 @@ class _AccountBackupViewState extends State<AccountBackupView> {
   }
 
   Widget _backupList() {
-    final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (final backup in _backups) ...[
-            _BackupRow(
-              backup: backup,
-              subtitle:
-                  '${_storageLabel(backup.storage)} · ${_dateFormat.format(backup.createdAt.toLocal())} · ${_formatBytes(backup.sizeBytes)}',
-              userIdLabel: backup.userId == null
-                  ? null
-                  : AppStrings.t(AppStringKeys.accountBackupUserId, {
-                      'value1': backup.userId,
-                    }),
-              onRestore: () => _restore(backup),
-              onDelete: () => _delete(backup),
-            ),
-            if (backup != _backups.last) const InsetDivider(leadingInset: 56),
-          ],
+    return SettingsCard(
+      children: [
+        for (final backup in _backups) ...[
+          _BackupRow(
+            backup: backup,
+            subtitle:
+                '${_storageLabel(backup.storage)} · ${_dateFormat.format(backup.createdAt.toLocal())} · ${_formatBytes(backup.sizeBytes)}',
+            userIdLabel: backup.userId == null
+                ? null
+                : AppStrings.t(AppStringKeys.accountBackupUserId, {
+                    'value1': backup.userId,
+                  }),
+            onRestore: () => _restore(backup),
+            onDelete: () => _delete(backup),
+          ),
+          if (backup != _backups.last) const InsetDivider(leadingInset: 56),
         ],
-      ),
+      ],
     );
   }
 

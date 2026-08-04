@@ -906,12 +906,8 @@ class _SurfacePreviewCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Container(
+    return SettingsPanel(
       padding: const EdgeInsets.all(AppSpacing.xxl),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1800,11 +1796,7 @@ extension _DisplayAppearanceHelpers on AppearanceView {
 
   Widget _fontSizeCard(BuildContext context, ThemeController theme) {
     final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+    return SettingsPanel(
       clipBehavior: Clip.antiAlias,
       child: _scaleSlider(
         context,
@@ -1835,11 +1827,7 @@ extension _DisplayAppearanceHelpers on AppearanceView {
 
   Widget _interfaceSizeCard(BuildContext context, ThemeController theme) {
     final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+    return SettingsPanel(
       clipBehavior: Clip.antiAlias,
       child: _scaleSlider(
         context,
@@ -2015,12 +2003,8 @@ extension _DisplayAppearanceHelpers on AppearanceView {
     required Widget child,
   }) {
     final c = context.colors;
-    return Container(
+    return SettingsPanel(
       padding: const EdgeInsets.all(AppSpacing.xxl),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -2203,21 +2187,13 @@ extension _DisplayAppearanceHelpers on AppearanceView {
   );
 
   Widget _card(BuildContext context, List<Widget> rows) {
-    final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var i = 0; i < rows.length; i++) ...[
-            rows[i],
-            if (i < rows.length - 1) const InsetDivider(leadingInset: 52),
-          ],
+    return SettingsCard(
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          rows[i],
+          if (i < rows.length - 1) const InsetDivider(leadingInset: 52),
         ],
-      ),
+      ],
     );
   }
 
@@ -2663,11 +2639,7 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
   Widget _fontFilesCard(BuildContext context, _FontCacheSnapshot data) {
     final c = context.colors;
     if (data.entries.isEmpty) {
-      return Container(
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
+      return SettingsPanel(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xxl,
           vertical: AppSpacing.xxl,
@@ -2684,22 +2656,14 @@ class _FontCacheManagementViewState extends State<FontCacheManagementView> {
   }
 
   Widget _cacheCard(BuildContext context, List<Widget> rows) {
-    final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          for (var i = 0; i < rows.length; i++) ...[
-            rows[i],
-            if (i < rows.length - 1)
-              const InsetDivider(leadingInset: AppSpacing.xxl),
-          ],
+    return SettingsCard(
+      children: [
+        for (var i = 0; i < rows.length; i++) ...[
+          rows[i],
+          if (i < rows.length - 1)
+            const InsetDivider(leadingInset: AppSpacing.xxl),
         ],
-      ),
+      ],
     );
   }
 
@@ -3296,11 +3260,7 @@ class TextFontView extends StatelessWidget {
   Widget _chainCard(BuildContext context, List<String> fonts) {
     final c = context.colors;
     if (fonts.isEmpty) {
-      return Container(
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
+      return SettingsPanel(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xxl,
           vertical: AppSpacing.xxl,
@@ -3311,11 +3271,7 @@ class TextFontView extends StatelessWidget {
         ),
       );
     }
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+    return SettingsPanel(
       clipBehavior: Clip.antiAlias,
       child: ReorderableListView.builder(
         shrinkWrap: true,
@@ -3424,40 +3380,33 @@ class TextFontView extends StatelessWidget {
   }
 
   Widget _actionCard(BuildContext context, ThemeController theme) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
+    return SettingsCard(
+      children: [
+        _actionRow(
+          context,
+          AppStrings.t(AppStringKeys.appearanceAddTextFont),
+          HeroAppIcons.plus.data,
+          () async {
+            final family = await Navigator.of(context).push<String>(
+              MaterialPageRoute(builder: (_) => const FontAddView()),
+            );
+            if (family == null || !context.mounted) return;
+            context.read<ThemeController>().addFontToFallbackChain(family);
+          },
+        ),
+        if (theme.fontFallbackChain.isNotEmpty) ...[
+          const InsetDivider(leadingInset: AppSpacing.xxl),
           _actionRow(
             context,
-            AppStrings.t(AppStringKeys.appearanceAddTextFont),
-            HeroAppIcons.plus.data,
-            () async {
-              final family = await Navigator.of(context).push<String>(
-                MaterialPageRoute(builder: (_) => const FontAddView()),
-              );
-              if (family == null || !context.mounted) return;
-              context.read<ThemeController>().addFontToFallbackChain(family);
-            },
-          ),
-          if (theme.fontFallbackChain.isNotEmpty) ...[
-            const InsetDivider(leadingInset: AppSpacing.xxl),
-            _actionRow(
-              context,
-              AppStrings.t(AppStringKeys.appearanceClearTextFonts),
-              HeroAppIcons.xmark.data,
-              () => context.read<ThemeController>().setFontFallbackChain(
-                const <String>[],
-              ),
-              destructive: true,
+            AppStrings.t(AppStringKeys.appearanceClearTextFonts),
+            HeroAppIcons.xmark.data,
+            () => context.read<ThemeController>().setFontFallbackChain(
+              const <String>[],
             ),
-          ],
+            destructive: true,
+          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -3568,24 +3517,17 @@ class _EmojiFontPickerViewState extends State<EmojiFontPickerView> {
                     AppSpacing.section,
                   ),
                   children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        color: c.card,
-                        borderRadius: BorderRadius.circular(AppRadius.card),
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Column(
-                        children: [
-                          _systemRow(context, theme),
-                          if (entries.isNotEmpty)
+                    SettingsCard(
+                      children: [
+                        _systemRow(context, theme),
+                        if (entries.isNotEmpty)
+                          const InsetDivider(leadingInset: AppSpacing.xxl),
+                        for (var i = 0; i < entries.length; i++) ...[
+                          _entryRow(context, entries[i], theme),
+                          if (i < entries.length - 1)
                             const InsetDivider(leadingInset: AppSpacing.xxl),
-                          for (var i = 0; i < entries.length; i++) ...[
-                            _entryRow(context, entries[i], theme),
-                            if (i < entries.length - 1)
-                              const InsetDivider(leadingInset: AppSpacing.xxl),
-                          ],
                         ],
-                      ),
+                      ],
                     ),
                     const SizedBox(height: AppSpacing.md),
                     Padding(
@@ -3974,11 +3916,7 @@ class _FontAddViewState extends State<FontAddView> {
           AppSpacing.section,
         ),
         children: [
-          Container(
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
+          SettingsPanel(
             padding: const EdgeInsets.all(AppSpacing.xxl),
             child: Text(
               AppStrings.t(AppStringKeys.appearanceNoMatchingFonts),

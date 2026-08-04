@@ -164,11 +164,8 @@ class _AboutViewState extends State<AboutView> {
                     ),
                   ),
                   const SizedBox(height: 30),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: c.card,
-                      borderRadius: BorderRadius.circular(AppRadius.card),
-                    ),
+                  SettingsPanel(
+                    padding: const EdgeInsets.only(left: 48),
                     clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [

@@ -1261,7 +1261,6 @@ class _SettingsViewState extends State<SettingsView> {
   }
 
   Widget _logoutCard(BuildContext context) {
-    final c = context.colors;
     return AppInteractiveSurface(
       key: const ValueKey('settings-log-out'),
       semanticLabel: AppStrings.t(AppStringKeys.settingsLogOut),
@@ -1275,18 +1274,10 @@ class _SettingsViewState extends State<SettingsView> {
         );
       },
       borderRadius: BorderRadius.circular(AppRadius.card),
-      child: Container(
-        constraints: const BoxConstraints(
-          minHeight: AppMetric.settingsRowHeight,
-        ),
-        alignment: Alignment.center,
+      child: SettingsPanel(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xxl,
           vertical: AppSpacing.md,
-        ),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: Text(
           AppStrings.t(AppStringKeys.settingsLogOut),

@@ -31,12 +31,9 @@ Future<T?> _businessChoiceSheet<T>(
     final c = sheetContext.colors;
     return SafeArea(
       top: false,
-      child: Container(
+      child: SettingsPanel(
+        padding: const EdgeInsets.fromLTRB(16, 15, 16, 10),
         margin: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
         clipBehavior: Clip.antiAlias,
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2142,13 +2139,9 @@ class _BusinessBotChatControlSheetState
     final c = context.colors;
     return SafeArea(
       top: false,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      child: SettingsPanel(
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2382,14 +2375,8 @@ class _BusinessDateTimeSheetState extends State<_BusinessDateTimeSheet> {
   }
 }
 
-Widget _surface(BuildContext context, {required Widget child}) => Container(
-  decoration: BoxDecoration(
-    color: context.colors.card,
-    borderRadius: BorderRadius.circular(AppRadius.card),
-  ),
-  clipBehavior: Clip.antiAlias,
-  child: child,
-);
+Widget _surface(BuildContext context, {required Widget child}) =>
+    SettingsPanel(clipBehavior: Clip.antiAlias, child: child);
 
 Widget _label(BuildContext context, String value) => Padding(
   padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),

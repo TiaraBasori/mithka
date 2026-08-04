@@ -163,14 +163,7 @@ class _GeneralSettingsViewState extends State<GeneralSettingsView> {
       SettingsIconTile(icon: icon, backgroundColor: color);
 
   Widget _card(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: context.colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: children),
-    );
+    return SettingsCard(children: children);
   }
 
   Widget _storageCard() {

@@ -514,13 +514,9 @@ class _StorageUsageViewState extends State<StorageUsageView> {
         const Color(0xFFEC6B91),
       ),
     ];
-    return Container(
+    return SettingsPanel(
       key: const ValueKey('storage-other-card'),
       padding: EdgeInsets.all(desktopDense ? 14 : 17),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -582,49 +578,42 @@ class _StorageUsageViewState extends State<StorageUsageView> {
 
   Widget _policyCard({required bool desktopDense}) {
     final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          SettingsRow(
-            height: desktopDense ? 44 : 52,
-            title: AppStrings.t(AppStringKeys.storageUsageKeepMedia),
-            value: _retentionOptions[_retention] ?? '',
-            onTap: _working
-                ? null
-                : () => unawaited(
-                    _choosePolicy(
-                      title: AppStrings.t(AppStringKeys.storageUsageKeepMedia),
-                      options: _retentionOptions,
-                      selected: _retention,
-                      onSelected: (value) => _savePolicy(retention: value),
-                    ),
+    return SettingsCard(
+      children: [
+        SettingsRow(
+          height: desktopDense ? 44 : 52,
+          title: AppStrings.t(AppStringKeys.storageUsageKeepMedia),
+          value: _retentionOptions[_retention] ?? '',
+          onTap: _working
+              ? null
+              : () => unawaited(
+                  _choosePolicy(
+                    title: AppStrings.t(AppStringKeys.storageUsageKeepMedia),
+                    options: _retentionOptions,
+                    selected: _retention,
+                    onSelected: (value) => _savePolicy(retention: value),
                   ),
-          ),
-          Divider(height: 1, color: c.divider),
-          SettingsRow(
-            height: desktopDense ? 44 : 52,
-            title: AppStrings.t(AppStringKeys.storageUsageMaximumCacheSize),
-            value: _limitOptions[_limit] ?? '',
-            onTap: _working
-                ? null
-                : () => unawaited(
-                    _choosePolicy(
-                      title: AppStrings.t(
-                        AppStringKeys.storageUsageMaximumCacheSize,
-                      ),
-                      options: _limitOptions,
-                      selected: _limit,
-                      onSelected: (value) => _savePolicy(limit: value),
+                ),
+        ),
+        Divider(height: 1, color: c.divider),
+        SettingsRow(
+          height: desktopDense ? 44 : 52,
+          title: AppStrings.t(AppStringKeys.storageUsageMaximumCacheSize),
+          value: _limitOptions[_limit] ?? '',
+          onTap: _working
+              ? null
+              : () => unawaited(
+                  _choosePolicy(
+                    title: AppStrings.t(
+                      AppStringKeys.storageUsageMaximumCacheSize,
                     ),
+                    options: _limitOptions,
+                    selected: _limit,
+                    onSelected: (value) => _savePolicy(limit: value),
                   ),
-          ),
-        ],
-      ),
+                ),
+        ),
+      ],
     );
   }
 
@@ -650,12 +639,9 @@ class _StorageUsageViewState extends State<StorageUsageView> {
         const NetworkUsageView(),
       ),
     ];
-    return Container(
+    return SettingsPanel(
       key: const ValueKey('storage-related-settings'),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+      padding: EdgeInsets.symmetric(horizontal: desktopDense ? 12 : 15),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
@@ -728,12 +714,9 @@ class _StorageUsageViewState extends State<StorageUsageView> {
         final c = sheetContext.colors;
         return SafeArea(
           top: false,
-          child: Container(
+          child: SettingsPanel(
+            padding: const EdgeInsets.fromLTRB(16, 15, 16, 10),
             margin: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
             clipBehavior: Clip.antiAlias,
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1064,12 +1047,8 @@ class _StorageActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    return Container(
+    return SettingsPanel(
       padding: EdgeInsets.all(desktopDense ? 14 : 17),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
       child: Row(
         children: [
           Container(

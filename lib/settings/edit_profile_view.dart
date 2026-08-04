@@ -367,13 +367,9 @@ class _EditProfileViewState extends State<EditProfileView> {
       builder: (context) {
         return SafeArea(
           top: false,
-          child: Container(
-            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          child: SettingsPanel(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(AppRadius.card),
-            ),
+            margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -748,13 +744,9 @@ class _EditProfileViewState extends State<EditProfileView> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+      child: SettingsPanel(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
+        margin: const EdgeInsets.only(bottom: 12),
         child: Row(
           children: [
             SizedBox(
@@ -787,13 +779,9 @@ class _EditProfileViewState extends State<EditProfileView> {
   /// can only be changed through an OTP verification flow.
   Widget _readonlyField(String label, String value) {
     final c = context.colors;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+    return SettingsPanel(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+      margin: const EdgeInsets.only(bottom: 12),
       child: Row(
         children: [
           SizedBox(
@@ -826,13 +814,9 @@ class _EditProfileViewState extends State<EditProfileView> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+      child: SettingsPanel(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
+        margin: const EdgeInsets.only(bottom: 12),
         child: Row(
           children: [
             SizedBox(
@@ -870,13 +854,9 @@ class _EditProfileViewState extends State<EditProfileView> {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: _editProfileIcon,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+      child: SettingsPanel(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: c.card,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-        ),
+        margin: const EdgeInsets.only(bottom: 12),
         child: Row(
           children: [
             SizedBox(

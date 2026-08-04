@@ -80,12 +80,8 @@ class _AccentColorPickerViewState extends State<AccentColorPickerView> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                Container(
+                SettingsPanel(
                   padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: c.card,
-                    borderRadius: BorderRadius.circular(AppRadius.card),
-                  ),
                   child: Wrap(
                     spacing: 18,
                     runSpacing: 18,

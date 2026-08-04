@@ -128,11 +128,10 @@ class _QuickReactionSettingsViewState extends State<QuickReactionSettingsView> {
   }
 
   Widget _selectedStrip(List<QuickReactionChoice> selected) {
-    return Container(
-      height: 70,
-      decoration: BoxDecoration(
-        color: context.colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
+    return SettingsPanel(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.sm,
       ),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
@@ -183,10 +182,10 @@ class _QuickReactionSettingsViewState extends State<QuickReactionSettingsView> {
         !packs.any((pack) => pack.id.toString() == _tab)) {
       _tab = 'standard';
     }
-    return Container(
-      decoration: BoxDecoration(
-        color: context.colors.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
+    return SettingsPanel(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xs,
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

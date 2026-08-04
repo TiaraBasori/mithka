@@ -136,13 +136,8 @@ class _CountryMessageFilterViewState extends State<CountryMessageFilterView> {
                     behavior: HitTestBehavior.opaque,
                     onTap: () =>
                         _filter.setCountrySelected(country.iso, !isSelected),
-                    child: Container(
-                      height: 56,
+                    child: SettingsPanel(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      decoration: BoxDecoration(
-                        color: c.card,
-                        borderRadius: BorderRadius.circular(AppRadius.card),
-                      ),
                       child: Row(
                         children: [
                           CountryFlag(iso: country.iso, size: 22),

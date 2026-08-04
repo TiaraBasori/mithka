@@ -145,11 +145,8 @@ class _VideoPlaybackSettingsViewState extends State<VideoPlaybackSettingsView> {
     required ValueChanged<T> onSelected,
   }) {
     final c = context.colors;
-    return Container(
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+    return SettingsPanel(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [

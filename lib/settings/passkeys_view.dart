@@ -162,14 +162,10 @@ class _PasskeysViewState extends State<PasskeysView> {
                         ),
                       ),
                       if (_items.isEmpty)
-                        Container(
+                        SettingsPanel(
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
                             vertical: 34,
-                          ),
-                          decoration: BoxDecoration(
-                            color: c.card,
-                            borderRadius: BorderRadius.circular(AppRadius.card),
                           ),
                           child: Column(
                             children: [
@@ -191,25 +187,18 @@ class _PasskeysViewState extends State<PasskeysView> {
                           ),
                         )
                       else
-                        Container(
-                          decoration: BoxDecoration(
-                            color: c.card,
-                            borderRadius: BorderRadius.circular(AppRadius.card),
-                          ),
-                          clipBehavior: Clip.antiAlias,
-                          child: Column(
-                            children: [
-                              for (
-                                var index = 0;
-                                index < _items.length;
-                                index++
-                              ) ...[
-                                _passkeyRow(_items[index]),
-                                if (index != _items.length - 1)
-                                  const InsetDivider(leadingInset: 54),
-                              ],
+                        SettingsCard(
+                          children: [
+                            for (
+                              var index = 0;
+                              index < _items.length;
+                              index++
+                            ) ...[
+                              _passkeyRow(_items[index]),
+                              if (index != _items.length - 1)
+                                const InsetDivider(leadingInset: 54),
                             ],
-                          ),
+                          ],
                         ),
                     ],
                   ),
