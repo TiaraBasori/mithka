@@ -1565,7 +1565,7 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                             style: TextStyle(
                               color: AppTheme.brand,
                               fontSize: 22,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               height: 1,
                             ),
                           ),

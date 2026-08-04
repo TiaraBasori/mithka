@@ -454,7 +454,7 @@ class _MacosTitleBarAvatar extends StatelessWidget {
         style: TextStyle(
           color: Colors.white,
           fontSize: size * 0.4,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           decoration: TextDecoration.none,
         ),
       ),
@@ -532,7 +532,7 @@ class _DesktopTitleBarProfilePopup extends StatelessWidget {
                     style: TextStyle(
                       color: c.textPrimary,
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       decoration: TextDecoration.none,
                     ),
                   ),

@@ -249,7 +249,7 @@ class _DownloadsViewState extends State<DownloadsView> {
                         style: TextStyle(
                           color: c.textPrimary,
                           fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 4),

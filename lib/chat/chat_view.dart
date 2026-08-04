@@ -269,7 +269,7 @@ class _MessageDeleteOptionsDialogState
                 style: TextStyle(
                   fontSize: 19,
                   height: 1.28,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   color: c.textPrimary,
                   decoration: TextDecoration.none,
                 ),
@@ -401,7 +401,7 @@ class _MessageDeleteOptionsDialogState
           label,
           style: TextStyle(
             fontSize: 16,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: color,
             decoration: TextDecoration.none,
           ),
@@ -490,7 +490,7 @@ class _ChatEditChoiceDialog<T> extends StatelessWidget {
                 style: TextStyle(
                   color: c.textPrimary,
                   fontSize: 17,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   decoration: TextDecoration.none,
                 ),
               ),
@@ -5580,7 +5580,7 @@ class _ChatViewState extends State<ChatView> {
               style: TextStyle(
                 color: c.textPrimary,
                 fontSize: 13,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 letterSpacing: 0.2,
               ),
             ),
@@ -5853,7 +5853,7 @@ class _ChatViewState extends State<ChatView> {
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -8644,7 +8644,7 @@ class _MessageTextSelectionDialogState
                               style: TextStyle(
                                 color: c.textPrimary,
                                 fontSize: 17,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 decoration: TextDecoration.none,
                               ),
                             ),

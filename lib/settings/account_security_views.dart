@@ -1048,7 +1048,7 @@ class _PrimarySecurityButton extends StatelessWidget {
               label,
               style: const TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 color: Colors.white,
               ),
             ),

@@ -227,7 +227,7 @@ class _ShortVideoViewState extends State<ShortVideoView> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -508,7 +508,7 @@ class _ShortVideoViewState extends State<ShortVideoView> {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 15,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   shadows: [Shadow(blurRadius: 8)],
                 ),
               ),
@@ -553,7 +553,7 @@ class _ShortVideoViewState extends State<ShortVideoView> {
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 17,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 shadows: [Shadow(blurRadius: 8)],
               ),
             ),
@@ -600,7 +600,7 @@ class _ShortVideoViewState extends State<ShortVideoView> {
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 8),

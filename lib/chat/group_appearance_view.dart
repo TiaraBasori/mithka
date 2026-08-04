@@ -605,7 +605,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
                         }),
                         style: const TextStyle(
                           fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           color: Color(0xFFFFFFFF),
                         ),
                       ),

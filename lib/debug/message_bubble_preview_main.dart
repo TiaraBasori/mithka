@@ -101,7 +101,7 @@ class _PreviewGallery extends StatelessWidget {
               style: const TextStyle(
                 color: Color(0xFFF4F4F7),
                 fontSize: 19,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 decoration: TextDecoration.none,
               ),
             ),

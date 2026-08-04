@@ -1253,7 +1253,7 @@ class _SearchViewState extends State<SearchView> {
                 duration: const Duration(milliseconds: 160),
                 style: TextStyle(
                   fontSize: 15,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   color: selected ? AppTheme.brand : c.textSecondary,
                 ),
                 child: Text(tab.label, maxLines: 1),

@@ -529,7 +529,7 @@ class _StorageUsageViewState extends State<StorageUsageView> {
             style: TextStyle(
               color: c.textPrimary,
               fontSize: desktopDense ? 15 : 17,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
@@ -747,7 +747,7 @@ class _StorageUsageViewState extends State<StorageUsageView> {
                       style: TextStyle(
                         color: c.textPrimary,
                         fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -823,7 +823,7 @@ class _StorageDonutSummary extends StatelessWidget {
                     style: TextStyle(
                       color: c.textPrimary,
                       fontSize: desktopDense ? 22 : 25,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -853,7 +853,7 @@ class _StorageDonutSummary extends StatelessWidget {
           style: TextStyle(
             color: c.textPrimary,
             fontSize: desktopDense ? 20 : 21,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 6),
@@ -963,7 +963,7 @@ class _LegendDot extends StatelessWidget {
         style: TextStyle(
           color: context.colors.textPrimary,
           fontSize: desktopDense ? 12 : 13,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
         ),
       ),
     ],
@@ -1096,7 +1096,7 @@ class _StorageActionCard extends StatelessWidget {
                   style: TextStyle(
                     color: c.textPrimary,
                     fontSize: desktopDense ? 15 : 17,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -1149,7 +1149,7 @@ class _StorageActionCard extends StatelessWidget {
                       style: TextStyle(
                         color: destructive ? AppTheme.tagRed : AppTheme.brand,
                         fontSize: desktopDense ? 12 : 14,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
             ),
@@ -1372,7 +1372,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
                   style: TextStyle(
                     color: selected ? c.textPrimary : c.textSecondary,
                     fontSize: 13,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
               )
@@ -1382,7 +1382,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
                 style: TextStyle(
                   color: selected ? c.textPrimary : c.textSecondary,
                   fontSize: 14,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 ),
               ),
               const SizedBox(width: 8),
@@ -1436,7 +1436,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
                   style: TextStyle(
                     color: c.textPrimary,
                     fontSize: desktopDense ? 13 : 15,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -1476,7 +1476,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
                           style: TextStyle(
                             color: AppTheme.tagRed,
                             fontSize: desktopDense ? 11 : 13,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                 ),
@@ -1536,7 +1536,7 @@ class _StorageManagerViewState extends State<_StorageManagerView> {
           style: TextStyle(
             color: selected ? c.textPrimary : c.textSecondary,
             fontSize: desktopDense ? 11 : 12,
-            fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
       ),
@@ -1696,7 +1696,7 @@ class _StorageErrorState extends StatelessWidget {
                   AppStrings.t(AppStringKeys.callsRetry),
                   style: TextStyle(
                     color: AppTheme.brand,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

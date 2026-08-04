@@ -1850,7 +1850,7 @@ class _CreateChatFolderPromptState extends State<_CreateChatFolderPrompt> {
                       style: TextStyle(
                         color: c.textPrimary,
                         fontSize: 19,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 16),

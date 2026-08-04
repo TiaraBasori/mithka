@@ -95,7 +95,7 @@ class _StoryAreaEditorViewState extends State<StoryAreaEditorView> {
                   style: TextStyle(
                     color: AppTheme.brand,
                     fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -303,7 +303,7 @@ class _StoryAreaEditorViewState extends State<StoryAreaEditorView> {
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 11,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

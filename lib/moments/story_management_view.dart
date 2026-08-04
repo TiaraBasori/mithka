@@ -495,7 +495,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             style: TextStyle(
               color: context.colors.textPrimary,
               fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -983,7 +983,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
               ? context.colors.textPrimary
               : context.colors.textSecondary,
           fontSize: 14,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
         ),
       ),
     ),
@@ -1103,7 +1103,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                           color: Colors.white,
                           fontSize: 13,
                           height: 1.15,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           shadows: [Shadow(blurRadius: 4)],
                         ),
                       ),
@@ -1243,7 +1243,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 10,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -1318,7 +1318,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             style: TextStyle(
               color: context.colors.textPrimary,
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 5),
@@ -1361,7 +1361,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -1385,7 +1385,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             style: TextStyle(
               color: context.colors.textPrimary,
               fontSize: 18,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -1406,7 +1406,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                     style: TextStyle(
                       color: AppTheme.brand,
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -1505,7 +1505,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1593,7 +1593,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                     style: TextStyle(
                       color: context.colors.textPrimary,
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -1862,7 +1862,7 @@ class _LiveStorySetupViewState extends State<LiveStorySetupView> {
                         : 'End live story',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

@@ -1239,7 +1239,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
                             ),
                             style: const TextStyle(
                               fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               color: Color(0xFFFFFFFF),
                             ),
                           ),
@@ -1509,7 +1509,7 @@ class _ChatWallpaperViewState extends State<ChatWallpaperView> {
           style: TextStyle(
             color: foreground,
             fontSize: 16,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ),

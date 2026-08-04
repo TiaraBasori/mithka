@@ -783,7 +783,7 @@ class _PyrogramSessionImportSheetState
                         ),
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           color: c.textPrimary,
                         ),
                       ),

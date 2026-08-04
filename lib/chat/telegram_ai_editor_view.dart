@@ -216,7 +216,7 @@ Future<T?> _aiChoiceSheet<T>(
                   style: TextStyle(
                     color: c.textPrimary,
                     fontSize: 17,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -608,7 +608,7 @@ class _TelegramAiEditorViewState extends State<TelegramAiEditorView> {
                   style: TextStyle(
                     color: selected ? AppTheme.brand : c.textSecondary,
                     fontSize: 13,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w600,
                   ),
                 ),
               ],
@@ -975,7 +975,7 @@ class _TelegramAiStylesViewState extends State<TelegramAiStylesView> {
                         style: TextStyle(
                           color: c.textPrimary,
                           fontSize: 18,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 14),

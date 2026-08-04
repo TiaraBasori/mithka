@@ -2336,7 +2336,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: compact ? 20 : 26,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (next != null) ...[
@@ -2392,7 +2392,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                                     style: const TextStyle(
                                       color: Colors.white,
                                       fontSize: 16,
-                                      fontWeight: FontWeight.w700,
+                                      fontWeight: FontWeight.w600,
                                       shadows: [Shadow(blurRadius: 8)],
                                     ),
                                   ),
@@ -3159,7 +3159,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 11,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (_showsDisplayModeButton) ...[
@@ -3397,7 +3397,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 11,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 if (_showsDisplayModeButton) ...[
@@ -3712,7 +3712,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -4288,7 +4288,7 @@ class _FocusableVideoTextButtonState extends State<_FocusableVideoTextButton> {
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: widget.fontSize,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
@@ -4506,7 +4506,7 @@ class _FocusableVideoActionButtonState
                   style: TextStyle(
                     color: foreground,
                     fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],

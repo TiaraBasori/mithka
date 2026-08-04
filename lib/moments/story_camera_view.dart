@@ -284,7 +284,7 @@ class _StoryCameraViewState extends State<StoryCameraView>
                                   style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 14,
-                                    fontWeight: FontWeight.w700,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -385,7 +385,7 @@ class _StoryCameraViewState extends State<StoryCameraView>
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 20,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const SizedBox(height: 10),
@@ -427,7 +427,7 @@ class _StoryCameraViewState extends State<StoryCameraView>
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 15,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

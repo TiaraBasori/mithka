@@ -324,7 +324,7 @@ class _ChatSearchViewState extends State<ChatSearchView> {
       spans.add(
         TextSpan(
           text: text.substring(index, end),
-          style: TextStyle(color: c.linkBlue, fontWeight: FontWeight.w700),
+          style: TextStyle(color: c.linkBlue, fontWeight: FontWeight.w600),
         ),
       );
       start = end;

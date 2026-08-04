@@ -511,7 +511,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
                           AppStringKeys.globalThemeDefault.l10n(context),
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         color: c.textPrimary,
                       ),
                     ),

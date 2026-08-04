@@ -532,7 +532,7 @@ class _MessageSendOptionsSheetState extends State<_MessageSendOptionsSheet> {
       style: TextStyle(
         color: context.colors.textPrimary,
         fontSize: 18,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
       ),
     ),
   );

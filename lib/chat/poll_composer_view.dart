@@ -688,7 +688,7 @@ class _PollComposerViewState extends State<PollComposerView> {
                       ),
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         color: c.textPrimary,
                       ),
                     ),

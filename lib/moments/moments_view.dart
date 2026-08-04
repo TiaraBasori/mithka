@@ -457,7 +457,7 @@ class _MomentsViewState extends State<MomentsView> {
               style: TextStyle(
                 color: c.textPrimary,
                 fontSize: 19,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -4230,7 +4230,7 @@ class _PostImageTile extends StatelessWidget {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -4431,7 +4431,7 @@ class StoryShelf extends StatelessWidget {
                   style: TextStyle(
                     color: c.textPrimary,
                     fontSize: 17,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -4840,7 +4840,7 @@ class _StoriesViewState extends State<StoriesView> {
               style: TextStyle(
                 color: c.textPrimary,
                 fontSize: 16,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             const Spacer(),
@@ -4915,7 +4915,7 @@ class _StoriesViewState extends State<StoriesView> {
                       style: TextStyle(
                         color: prominent ? Colors.white : c.textPrimary,
                         fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -4971,7 +4971,7 @@ class _StoriesViewState extends State<StoriesView> {
                     style: TextStyle(
                       color: c.textPrimary,
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -5031,7 +5031,7 @@ class _StoriesViewState extends State<StoriesView> {
             style: TextStyle(
               color: c.textPrimary,
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 6),
@@ -5062,7 +5062,7 @@ class _StoriesViewState extends State<StoriesView> {
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

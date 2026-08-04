@@ -414,7 +414,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: _tab == tab
-                                ? FontWeight.w700
+                                ? FontWeight.w600
                                 : FontWeight.w500,
                             color: _tab == tab
                                 ? AppTheme.brand
@@ -615,7 +615,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
               title,
               style: TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 color: c.textSecondary,
               ),
             ),
@@ -732,7 +732,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                     AppStrings.t(AppStringKeys.confirmContinue),
                     style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       color: Colors.white,
                     ),
                   ),
@@ -798,7 +798,7 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 14,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             color: c.textPrimary,
                           ),
                         ),

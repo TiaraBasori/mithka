@@ -43,10 +43,26 @@ abstract final class AppTextWeight {
   static const FontWeight regular = FontWeight.w400;
   static const FontWeight medium = FontWeight.w500;
   static const FontWeight semibold = FontWeight.w600;
-  static const FontWeight bold = FontWeight.w700;
+  static const FontWeight bold = FontWeight.w600;
+
+  /// The only weights Mithka's own styles use. Anything heavier reads as a
+  /// different typeface at the sizes the app draws at.
+  ///
+  /// [forSystemBoldText] is exempt — it answers a system accessibility
+  /// setting rather than a design choice.
+  static const allowed = <FontWeight>[
+    FontWeight.w300,
+    FontWeight.w400,
+    FontWeight.w500,
+    FontWeight.w600,
+  ];
 
   /// Mirrors the platform Bold Text accessibility setting without making
   /// explicitly regular labels bold in the normal system configuration.
+  ///
+  /// This ladder deliberately climbs past [allowed]: the user asked the system
+  /// for heavier text, and honouring that matters more than the app's own
+  /// typographic range.
   static FontWeight forSystemBoldText(
     FontWeight weight, {
     required bool boldText,

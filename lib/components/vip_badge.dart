@@ -37,7 +37,7 @@ class VipBadge extends StatelessWidget {
             AppStringKeys.vipBadgeLabel.l10n(context),
             style: const TextStyle(
               fontSize: 11,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
               letterSpacing: 0.3,
               color: _ink,
               height: 1.1,

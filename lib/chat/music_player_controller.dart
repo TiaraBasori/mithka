@@ -1104,7 +1104,7 @@ void _showMusicQueue(BuildContext context, MusicPlayerController controller) {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           color: c.textPrimary,
                         ),
                       ),
@@ -1386,7 +1386,7 @@ class _MusicPlaylistsSheet extends StatelessWidget {
                         AppStrings.t(AppStringKeys.musicPlayerPlaylists),
                         style: TextStyle(
                           fontSize: 19,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           color: c.textPrimary,
                         ),
                       ),
@@ -1594,7 +1594,7 @@ class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
                 style: TextStyle(
                   color: c.textPrimary,
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 16),
@@ -1790,7 +1790,7 @@ class _PlaylistTracksSheet extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 fontSize: 19,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 color: c.textPrimary,
                               ),
                             ),
@@ -1899,7 +1899,7 @@ class _PlayedChatTracksSheet extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             fontSize: 19,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             color: c.textPrimary,
                           ),
                         ),
@@ -2188,7 +2188,7 @@ class _RepeatOneGlyph extends StatelessWidget {
                 inherit: false,
                 fontSize: size * 0.44,
                 height: 1,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 color: color,
               ),
             ),

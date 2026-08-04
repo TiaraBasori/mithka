@@ -354,7 +354,7 @@ class _ChatThemeViewState extends State<ChatThemeView> {
                             ),
                             style: const TextStyle(
                               fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               color: Color(0xFFFFFFFF),
                             ),
                           ),
@@ -399,7 +399,7 @@ class _ChatThemeViewState extends State<ChatThemeView> {
               style: const TextStyle(
                 color: Color(0xFFFFFFFF),
                 fontSize: 16,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

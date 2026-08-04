@@ -353,7 +353,7 @@ class _ProfileViewState extends State<ProfileView> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 22,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w600,
                                   color: foreground,
                                 ),
                               ),

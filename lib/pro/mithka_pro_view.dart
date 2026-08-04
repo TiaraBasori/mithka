@@ -270,7 +270,7 @@ class _MithkaProViewState extends State<MithkaProView> {
                   AppStrings.t(AppStringKeys.mithkaProTitle),
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: context.colors.textPrimary,
                   ),
                 ),
@@ -401,7 +401,7 @@ class _MithkaProViewState extends State<MithkaProView> {
                               AppStrings.t(badgeKey),
                               style: TextStyle(
                                 fontSize: 9,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                                 color: AppTheme.brand,
                               ),
                             ),

@@ -474,7 +474,7 @@ class _LoginViewState extends State<LoginView> {
             'Mithka',
             style: TextStyle(
               fontSize: 26,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               color: c.textPrimary,
             ),
           ),
@@ -604,7 +604,7 @@ class _LoginViewState extends State<LoginView> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: c.textPrimary,
           ),
         ),
@@ -673,7 +673,7 @@ class _LoginViewState extends State<LoginView> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: c.textPrimary,
           ),
         ),
@@ -783,7 +783,7 @@ class _LoginViewState extends State<LoginView> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: c.textPrimary,
           ),
         ),
@@ -959,7 +959,7 @@ class _LoginViewState extends State<LoginView> {
                       style: const TextStyle(
                         color: Color(0xFFFFFFFF),
                         fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         height: 1,
                         decoration: TextDecoration.none,
                       ),
@@ -1707,7 +1707,7 @@ class _VerificationCodeBox extends StatelessWidget {
         style: TextStyle(
           color: c.textPrimary,
           fontSize: 24,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           height: 1,
           decoration: TextDecoration.none,
         ),

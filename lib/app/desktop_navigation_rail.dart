@@ -1054,7 +1054,7 @@ class _DesktopAccountAvatar extends StatelessWidget {
               style: TextStyle(
                 color: Colors.white,
                 fontSize: size * 0.4,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
     );

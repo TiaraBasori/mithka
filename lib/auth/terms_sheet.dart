@@ -99,7 +99,7 @@ class _TermsSheet extends StatelessWidget {
                           AppStrings.t(AppStringKeys.loginTermsTitle),
                           style: TextStyle(
                             fontSize: 22,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             color: c.textPrimary,
                           ),
                         ),
@@ -226,7 +226,7 @@ class _TermsAcceptButtonState extends State<_TermsAcceptButton> {
                     style: const TextStyle(
                       color: Color(0xFFFFFFFF),
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
           ),

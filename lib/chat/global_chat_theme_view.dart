@@ -256,7 +256,7 @@ class _GlobalChatThemeViewState extends State<GlobalChatThemeView> {
                   style: const TextStyle(
                     color: Color(0xF2FFFFFF),
                     fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     shadows: [Shadow(color: Color(0x77000000), blurRadius: 6)],
                   ),
                 ),

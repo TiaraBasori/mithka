@@ -420,7 +420,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   style: TextStyle(
                     color: context.colors.textPrimary,
                     fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -894,7 +894,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -1019,7 +1019,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -1153,7 +1153,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1275,7 +1275,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   style: TextStyle(
                     color: c.textPrimary,
                     fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Positioned(
@@ -1358,7 +1358,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -1379,7 +1379,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
       style: TextStyle(
         color: context.colors.textSecondary,
         fontSize: 12,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
       ),
     ),
@@ -1430,7 +1430,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                 style: TextStyle(
                   color: c.textPrimary,
                   fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -1555,7 +1555,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   style: TextStyle(
                     color: c.textPrimary,
                     fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

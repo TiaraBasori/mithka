@@ -1299,7 +1299,7 @@ class _RepresentativeChatListRow extends StatelessWidget {
                   style: TextStyle(
                     color: Color(0xFFFFFFFF),
                     fontSize: AppTextSize.caption,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

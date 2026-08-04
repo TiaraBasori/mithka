@@ -565,7 +565,7 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
                       ),
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         color: c.textPrimary,
                       ),
                     ),

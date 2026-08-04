@@ -339,7 +339,7 @@ class _CommunityViewState extends State<CommunityView> {
                   textAlign: TextAlign.left,
                   style: TextStyle(
                     fontSize: AppTextSize.title,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: c.textPrimary,
                   ),
                 ),

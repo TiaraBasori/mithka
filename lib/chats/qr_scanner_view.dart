@@ -287,7 +287,7 @@ class _QrScannerViewState extends State<QrScannerView> {
                     style: const TextStyle(
                       color: Color(0xFFFFFFFF),
                       fontSize: 22,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       decoration: TextDecoration.none,
                     ),
                   ),
@@ -464,7 +464,7 @@ class _QrChoiceCard extends StatelessWidget {
                         '${index + 1}',
                         style: TextStyle(
                           color: context.colors.linkBlue,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -631,7 +631,7 @@ class _QrBottomCard extends StatelessWidget {
                       style: TextStyle(
                         color: context.colors.textPrimary,
                         fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),

@@ -256,7 +256,7 @@ class _DirectMessagesTopicRow extends StatelessWidget {
                             color: colors.textPrimary,
                             fontSize: 15,
                             fontWeight: unread
-                                ? FontWeight.w700
+                                ? FontWeight.w600
                                 : FontWeight.w600,
                           ),
                         ),
@@ -323,7 +323,7 @@ class _DirectMessagesTopicRow extends StatelessWidget {
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -1146,7 +1146,7 @@ class _SuggestedPostComposerSheetState
                 style: TextStyle(
                   color: colors.textPrimary,
                   fontSize: 19,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               if (!widget.offerOnly) ...[
@@ -1295,7 +1295,7 @@ class _SuggestedPostComposerSheetState
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

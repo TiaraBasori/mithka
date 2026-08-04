@@ -222,7 +222,7 @@ class _ChatWallpaperColorViewState extends State<ChatWallpaperColorView> {
                     style: TextStyle(
                       color: c.onAccent,
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),

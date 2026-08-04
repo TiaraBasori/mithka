@@ -1610,7 +1610,7 @@ class _MessageBubbleState extends State<MessageBubble>
                 '$value',
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   color: outgoing ? _outgoingTextColor : c.textSecondary,
                 ),
               ),
@@ -4252,7 +4252,7 @@ class _MessageBubbleState extends State<MessageBubble>
                           style: TextStyle(
                             color: AppTheme.onBrand,
                             fontSize: 13,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],
@@ -4752,7 +4752,7 @@ class _MessageBubbleState extends State<MessageBubble>
                         fontSize: 12,
                         fontWeight: _voice.speed == 1
                             ? FontWeight.w400
-                            : FontWeight.w700,
+                            : FontWeight.w600,
                         color: outgoing
                             ? _outgoingTextColor.withValues(alpha: 0.9)
                             : decorative

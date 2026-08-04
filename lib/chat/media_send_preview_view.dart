@@ -180,7 +180,7 @@ class _MediaSendPreviewViewState extends State<MediaSendPreviewView> {
                     style: TextStyle(
                       color: c.textPrimary,
                       fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 12),

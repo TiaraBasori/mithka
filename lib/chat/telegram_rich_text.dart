@@ -395,7 +395,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     for (final entity in active) {
       switch (entity.type) {
         case 'textEntityTypeBold':
-          style = style.copyWith(fontWeight: FontWeight.w700);
+          style = style.copyWith(fontWeight: FontWeight.w600);
         case 'textEntityTypeItalic':
           style = style.copyWith(fontStyle: FontStyle.italic);
         case 'textEntityTypeUnderline':

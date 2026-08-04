@@ -183,7 +183,7 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
                                 style: TextStyle(
                                   color: c.textPrimary,
                                   fontSize: 17,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -253,7 +253,7 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
                                         style: TextStyle(
                                           color: AppTheme.onBrand,
                                           fontSize: 15,
-                                          fontWeight: FontWeight.w700,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],

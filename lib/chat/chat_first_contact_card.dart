@@ -114,7 +114,7 @@ class ChatFirstContactCard extends StatelessWidget {
                                 style: TextStyle(
                                   color: c.textPrimary,
                                   fontSize: 17,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               if (!info.isContact) ...[

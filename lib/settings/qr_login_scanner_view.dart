@@ -166,7 +166,7 @@ class _QrLoginScannerViewState extends State<QrLoginScannerView> {
                   style: const TextStyle(
                     color: Color(0xFFFFFFFF),
                     fontSize: 22,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     decoration: TextDecoration.none,
                   ),
                 ),

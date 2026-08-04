@@ -153,7 +153,7 @@ class _InAppNotificationCardState extends State<_InAppNotificationCard> {
                         color: c.textPrimary,
                         fontSize: 15,
                         height: 1.18,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),

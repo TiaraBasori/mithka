@@ -131,7 +131,7 @@ class _UnreadChatSummaryViewState extends State<UnreadChatSummaryView> {
                     color: c.textPrimary,
                     fontSize: 25,
                     height: 1.2,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -553,7 +553,7 @@ class _UnreadChatSummaryViewState extends State<UnreadChatSummaryView> {
             color: c.textPrimary,
             fontSize: 18,
             height: 1.35,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           ),
         ),
         if (timeRange != null) ...[
@@ -591,7 +591,7 @@ class _UnreadChatSummaryViewState extends State<UnreadChatSummaryView> {
             text: '${AppStringKeys.aiSummaryRant.l10n(context)}：',
             style: const TextStyle(
               color: Color(0xFF2EBF75),
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

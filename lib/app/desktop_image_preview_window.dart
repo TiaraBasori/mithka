@@ -697,7 +697,7 @@ class _PreviewTextButton extends StatelessWidget {
           style: TextStyle(
             color: foreground,
             fontSize: 12,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             decoration: TextDecoration.none,
           ),
         ),
