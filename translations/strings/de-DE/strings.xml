@@ -2896,8 +2896,10 @@
     <string name="videoPlayerNextVideo">Nächstes Video</string>
     <string name="videoPlayerNoNextVideo">Kein nächstes Video</string>
     <string name="videoPlayerNoPreviousVideo">Kein vorheriges Video</string>
+    <string name="videoPlayerOrientationChangeFailed">Videoausrichtung konnte nicht geändert werden</string>
     <string name="videoPlayerPictureInPicture">Bild-in-Bild</string>
     <string name="videoPlayerPictureInPictureFailed">Bild-in-Bild konnte nicht gestartet werden</string>
+    <string name="videoPlayerPlayHorizontally">Horizontal abspielen</string>
     <string name="videoPlayerPlayNext">Nächstes abspielen</string>
     <string name="videoPlayerPlaybackSpeed">Wiedergabegeschwindigkeit</string>
     <string name="videoPlayerPreviousVideo">Vorheriges Video</string>
@@ -2908,6 +2910,7 @@
     <string name="videoPlayerSwipeFurther">Weiter wischen</string>
     <string name="videoPlayerToggleDisplayMode">Anzeigemodus wechseln</string>
     <string name="videoPlayerUpNext">Als Nächstes</string>
+    <string name="videoPlayerUseSystemOrientation">Systemausrichtung verwenden</string>
     <string name="videoPlayerWaitingForFile">Warten auf Videodatei</string>
     <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewReviewTheRecordingBeforeSendingSendOptionsInclude">Überprüfen Sie die Aufnahme vor dem Senden. Zu den Sendeoptionen gehören stille Zustellung, Planung, Effekte und einmalige Ansicht.</string>

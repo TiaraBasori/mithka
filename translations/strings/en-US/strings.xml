@@ -2896,8 +2896,10 @@
     <string name="videoPlayerNextVideo">Next video</string>
     <string name="videoPlayerNoNextVideo">No next video</string>
     <string name="videoPlayerNoPreviousVideo">No previous video</string>
+    <string name="videoPlayerOrientationChangeFailed">Could not change video orientation</string>
     <string name="videoPlayerPictureInPicture">Picture in Picture</string>
     <string name="videoPlayerPictureInPictureFailed">Picture in Picture failed to start</string>
+    <string name="videoPlayerPlayHorizontally">Play horizontally</string>
     <string name="videoPlayerPlayNext">Play next</string>
     <string name="videoPlayerPlaybackSpeed">Playback Speed</string>
     <string name="videoPlayerPreviousVideo">Previous video</string>
@@ -2908,6 +2910,7 @@
     <string name="videoPlayerSwipeFurther">Swipe further</string>
     <string name="videoPlayerToggleDisplayMode">Switch display mode</string>
     <string name="videoPlayerUpNext">Up next</string>
+    <string name="videoPlayerUseSystemOrientation">Use system orientation</string>
     <string name="videoPlayerWaitingForFile">Waiting for video file</string>
     <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewReviewTheRecordingBeforeSendingSendOptionsInclude">Review the recording before sending. Send options include silent delivery, scheduling, effects and view-once.</string>

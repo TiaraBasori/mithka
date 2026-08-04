@@ -2896,8 +2896,10 @@
     <string name="videoPlayerNextVideo">Vidéo suivante</string>
     <string name="videoPlayerNoNextVideo">Aucune vidéo suivante</string>
     <string name="videoPlayerNoPreviousVideo">Aucune vidéo précédente</string>
+    <string name="videoPlayerOrientationChangeFailed">Impossible de changer l’orientation de la vidéo</string>
     <string name="videoPlayerPictureInPicture">Image dans l’image</string>
     <string name="videoPlayerPictureInPictureFailed">Impossible de démarrer l’image dans l’image</string>
+    <string name="videoPlayerPlayHorizontally">Lire horizontalement</string>
     <string name="videoPlayerPlayNext">Lire la suivante</string>
     <string name="videoPlayerPlaybackSpeed">Vitesse de lecture</string>
     <string name="videoPlayerPreviousVideo">Vidéo précédente</string>
@@ -2908,6 +2910,7 @@
     <string name="videoPlayerSwipeFurther">Balayez davantage</string>
     <string name="videoPlayerToggleDisplayMode">Changer de mode d’affichage</string>
     <string name="videoPlayerUpNext">À suivre</string>
+    <string name="videoPlayerUseSystemOrientation">Utiliser l’orientation du système</string>
     <string name="videoPlayerWaitingForFile">En attente du fichier vidéo</string>
     <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewReviewTheRecordingBeforeSendingSendOptionsInclude">Vérifiez l’enregistrement avant de l’envoyer. Les options d'envoi incluent la livraison silencieuse, la planification, les effets et la visualisation unique.</string>

@@ -2896,8 +2896,10 @@
     <string name="videoPlayerNextVideo">Vídeo siguiente</string>
     <string name="videoPlayerNoNextVideo">No hay vídeo siguiente</string>
     <string name="videoPlayerNoPreviousVideo">No hay vídeo anterior</string>
+    <string name="videoPlayerOrientationChangeFailed">No se pudo cambiar la orientación del vídeo</string>
     <string name="videoPlayerPictureInPicture">Imagen en imagen</string>
     <string name="videoPlayerPictureInPictureFailed">No se pudo iniciar imagen en imagen</string>
+    <string name="videoPlayerPlayHorizontally">Reproducir horizontalmente</string>
     <string name="videoPlayerPlayNext">Reproducir siguiente</string>
     <string name="videoPlayerPlaybackSpeed">Velocidad de reproducción</string>
     <string name="videoPlayerPreviousVideo">Vídeo anterior</string>
@@ -2908,6 +2910,7 @@
     <string name="videoPlayerSwipeFurther">Desliza más</string>
     <string name="videoPlayerToggleDisplayMode">Cambiar modo de visualización</string>
     <string name="videoPlayerUpNext">A continuación</string>
+    <string name="videoPlayerUseSystemOrientation">Usar orientación del sistema</string>
     <string name="videoPlayerWaitingForFile">Esperando el archivo de vídeo</string>
     <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewReviewTheRecordingBeforeSendingSendOptionsInclude">Revise la grabación antes de enviarla. Las opciones de envío incluyen entrega silenciosa, programación, efectos y visualización única.</string>

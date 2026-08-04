@@ -2890,8 +2890,10 @@
     <string name="videoPlayerNextVideo">次の動画</string>
     <string name="videoPlayerNoNextVideo">次の動画はありません</string>
     <string name="videoPlayerNoPreviousVideo">前の動画はありません</string>
+    <string name="videoPlayerOrientationChangeFailed">動画の向きを変更できませんでした</string>
     <string name="videoPlayerPictureInPicture">ピクチャ・イン・ピクチャ</string>
     <string name="videoPlayerPictureInPictureFailed">ピクチャ・イン・ピクチャを開始できませんでした</string>
+    <string name="videoPlayerPlayHorizontally">横向きで再生</string>
     <string name="videoPlayerPlayNext">次を再生</string>
     <string name="videoPlayerPlaybackSpeed">再生速度</string>
     <string name="videoPlayerPreviousVideo">前の動画</string>
@@ -2902,6 +2904,7 @@
     <string name="videoPlayerSwipeFurther">さらにスワイプ</string>
     <string name="videoPlayerToggleDisplayMode">表示モードを切り替え</string>
     <string name="videoPlayerUpNext">次の動画</string>
+    <string name="videoPlayerUseSystemOrientation">システムの向きを使用</string>
     <string name="videoPlayerWaitingForFile">動画ファイルを待機中</string>
     <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewReviewTheRecordingBeforeSendingSendOptionsInclude">送信する前に録音を確認してください。送信オプションには、サイレント配信、スケジュール、エフェクト、ビューワンスが含まれます。</string>

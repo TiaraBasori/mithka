@@ -2890,8 +2890,10 @@
     <string name="videoPlayerNextVideo">下一個影片</string>
     <string name="videoPlayerNoNextVideo">沒有下一個影片</string>
     <string name="videoPlayerNoPreviousVideo">沒有上一個影片</string>
+    <string name="videoPlayerOrientationChangeFailed">無法更改影片方向</string>
     <string name="videoPlayerPictureInPicture">子母畫面</string>
     <string name="videoPlayerPictureInPictureFailed">子母畫面啟動失敗</string>
+    <string name="videoPlayerPlayHorizontally">橫向播放</string>
     <string name="videoPlayerPlayNext">播放下一個</string>
     <string name="videoPlayerPlaybackSpeed">播放速度</string>
     <string name="videoPlayerPreviousVideo">上一個影片</string>
@@ -2902,6 +2904,7 @@
     <string name="videoPlayerSwipeFurther">繼續滑動</string>
     <string name="videoPlayerToggleDisplayMode">切換顯示模式</string>
     <string name="videoPlayerUpNext">接下來播放</string>
+    <string name="videoPlayerUseSystemOrientation">使用系統螢幕方向</string>
     <string name="videoPlayerWaitingForFile">等待影片檔案</string>
     <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewReviewTheRecordingBeforeSendingSendOptionsInclude">發送前查看錄音。發送選項包括靜默傳送、調度、效果和一次性檢視。</string>

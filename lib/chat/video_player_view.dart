@@ -806,6 +806,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   Future<bool>? _systemPiPStartOperation;
   int _lastSystemPiPSyncMs = -1;
   bool _wakelockActive = false;
+  bool _landscapePlayback = false;
+  bool _orientationChangeInFlight = false;
   _PlayerGesture? _activeGesture;
   _PlayerGestureSide? _activeGestureSide;
   Offset? _gestureOrigin;
@@ -1602,6 +1604,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
   }
 
   void _close() {
+    _releaseVideoOrientation();
     unawaited(_restorePlayerBrightness());
     if (_wakelockActive) {
       _wakelockActive = false;
@@ -1618,6 +1621,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
 
   @override
   void dispose() {
+    _releaseVideoOrientation();
     unawaited(_restorePlayerBrightness());
     if (_wakelockActive) {
       _wakelockActive = false;
@@ -3334,6 +3338,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
         if (!compact || width >= 220) {
           addAction(_speedMenu(compact: compact));
         }
+        if (_showsOrientationButton && (!compact || width >= 272)) {
+          addAction(_orientationButton(size: layout.actionButtonSize));
+        }
         final displayModeMinimumWidth = compact && _showsNavigationControls
             ? 252.0
             : 240.0;
@@ -3806,6 +3813,67 @@ class _VideoPlayerViewState extends State<VideoPlayerView> {
       label: _volumeButtonLabel,
       size: size,
     );
+  }
+
+  bool get _showsOrientationButton =>
+      widget.presentation == VideoPlayerPresentation.fullscreen &&
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
+
+  Widget _orientationButton({required double size}) {
+    final label =
+        (_landscapePlayback
+                ? AppStringKeys.videoPlayerUseSystemOrientation
+                : AppStringKeys.videoPlayerPlayHorizontally)
+            .l10n(context);
+    return _FocusableVideoIconButton(
+      icon: HeroAppIcons.rotate,
+      label: label,
+      enabled: !_orientationChangeInFlight,
+      onPressed: _toggleVideoOrientation,
+      size: Size.square(size),
+      iconSize: math.max(18, size * 0.44),
+      opacity: _orientationChangeInFlight ? 0.48 : 0.92,
+      backgroundColor: _landscapePlayback
+          ? const Color(0xE238383A)
+          : const Color(0xB82C2C2E),
+      borderColor: Colors.white.withValues(
+        alpha: _landscapePlayback ? 0.28 : 0.12,
+      ),
+      cornerRadius: math.max(22, size / 2),
+    );
+  }
+
+  Future<void> _toggleVideoOrientation() async {
+    if (_orientationChangeInFlight) return;
+    final forceLandscape = !_landscapePlayback;
+    setState(() => _orientationChangeInFlight = true);
+    try {
+      await SystemChrome.setPreferredOrientations(
+        forceLandscape
+            ? const [
+                DeviceOrientation.landscapeLeft,
+                DeviceOrientation.landscapeRight,
+              ]
+            : DeviceOrientation.values,
+      );
+      if (mounted) setState(() => _landscapePlayback = forceLandscape);
+    } catch (_) {
+      if (mounted) {
+        showToast(context, AppStringKeys.videoPlayerOrientationChangeFailed);
+      }
+    } finally {
+      if (mounted) setState(() => _orientationChangeInFlight = false);
+    }
+    _scheduleHide();
+  }
+
+  void _releaseVideoOrientation() {
+    if (!_landscapePlayback && !_orientationChangeInFlight) return;
+    _landscapePlayback = false;
+    _orientationChangeInFlight = false;
+    unawaited(SystemChrome.setPreferredOrientations(DeviceOrientation.values));
   }
 
   bool get _canOfferPictureInPicture =>

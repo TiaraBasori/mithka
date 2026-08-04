@@ -2779,9 +2779,12 @@ abstract final class AppStringKeys {
   static const videoPlayerNextVideo = 'videoPlayerNextVideo';
   static const videoPlayerNoNextVideo = 'videoPlayerNoNextVideo';
   static const videoPlayerNoPreviousVideo = 'videoPlayerNoPreviousVideo';
+  static const videoPlayerOrientationChangeFailed =
+      'videoPlayerOrientationChangeFailed';
   static const videoPlayerPictureInPicture = 'videoPlayerPictureInPicture';
   static const videoPlayerPictureInPictureFailed =
       'videoPlayerPictureInPictureFailed';
+  static const videoPlayerPlayHorizontally = 'videoPlayerPlayHorizontally';
   static const videoPlayerPlaybackSpeed = 'videoPlayerPlaybackSpeed';
   static const videoPlayerPlayNext = 'videoPlayerPlayNext';
   static const videoPlayerPreviousVideo = 'videoPlayerPreviousVideo';
@@ -2793,6 +2796,8 @@ abstract final class AppStringKeys {
   static const videoPlayerSwipeFurther = 'videoPlayerSwipeFurther';
   static const videoPlayerToggleDisplayMode = 'videoPlayerToggleDisplayMode';
   static const videoPlayerUpNext = 'videoPlayerUpNext';
+  static const videoPlayerUseSystemOrientation =
+      'videoPlayerUseSystemOrientation';
   static const videoPlayerWaitingForFile = 'videoPlayerWaitingForFile';
   static const vipBadgeLabel = 'vipBadgeLabel';
   static const blockingBlocklist = 'blockingBlocklist';

@@ -2890,8 +2890,10 @@
     <string name="videoPlayerNextVideo">다음 동영상</string>
     <string name="videoPlayerNoNextVideo">다음 동영상 없음</string>
     <string name="videoPlayerNoPreviousVideo">이전 동영상 없음</string>
+    <string name="videoPlayerOrientationChangeFailed">동영상 방향을 변경할 수 없습니다</string>
     <string name="videoPlayerPictureInPicture">화면 속 화면</string>
     <string name="videoPlayerPictureInPictureFailed">화면 속 화면을 시작하지 못했습니다</string>
+    <string name="videoPlayerPlayHorizontally">가로로 재생</string>
     <string name="videoPlayerPlayNext">다음 재생</string>
     <string name="videoPlayerPlaybackSpeed">재생 속도</string>
     <string name="videoPlayerPreviousVideo">이전 동영상</string>
@@ -2902,6 +2904,7 @@
     <string name="videoPlayerSwipeFurther">더 스와이프하세요</string>
     <string name="videoPlayerToggleDisplayMode">표시 모드 전환</string>
     <string name="videoPlayerUpNext">다음 동영상</string>
+    <string name="videoPlayerUseSystemOrientation">시스템 방향 사용</string>
     <string name="videoPlayerWaitingForFile">동영상 파일 대기 중</string>
     <string name="vipBadgeLabel">VIP</string>
     <string name="voiceNotePreviewReviewTheRecordingBeforeSendingSendOptionsInclude">보내기 전에 녹음 내용을 검토하세요. 보내기 옵션에는 자동 전달, 예약, 효과 및 일회 보기가 포함됩니다.</string>
