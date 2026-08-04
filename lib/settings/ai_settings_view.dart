@@ -98,10 +98,7 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                           ),
                         ),
                         const SizedBox(height: AppSpacing.section),
-                        _sectionTitle(
-                          context,
-                          AppStringKeys.aiModels.l10n(context),
-                        ),
+                        const SettingsSectionHeader(AppStringKeys.aiModels),
                         SettingsCard(
                           children: [
                             SettingsRow(
@@ -128,9 +125,8 @@ class _AiSettingsViewState extends State<AiSettingsView> {
                           ],
                         ),
                         const SizedBox(height: AppSpacing.section),
-                        _sectionTitle(
-                          context,
-                          AppStringKeys.aiModelConfiguration.l10n(context),
+                        const SettingsSectionHeader(
+                          AppStringKeys.aiModelConfiguration,
                         ),
                         SettingsCard(
                           children: [
@@ -1460,7 +1456,7 @@ class _PickerCard extends StatelessWidget {
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         clipBehavior: Clip.antiAlias,
         child: ListView.separated(
@@ -1777,11 +1773,6 @@ Widget _modelTestResponse(
     ),
   );
 }
-
-Widget _sectionTitle(BuildContext context, String title) => Padding(
-  padding: const EdgeInsets.only(left: 4, bottom: AppSpacing.sm),
-  child: Text(title, style: AppTextStyle.caption(context.colors.textTertiary)),
-);
 
 Widget _note(BuildContext context, String text) => Padding(
   padding: const EdgeInsets.fromLTRB(4, AppSpacing.sm, 4, 0),

@@ -84,7 +84,7 @@ class _AccentColorPickerViewState extends State<AccentColorPickerView> {
                   padding: const EdgeInsets.all(18),
                   decoration: BoxDecoration(
                     color: c.card,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                   ),
                   child: Wrap(
                     spacing: 18,

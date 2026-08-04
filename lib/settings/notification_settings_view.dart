@@ -348,10 +348,8 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                     key: const ValueKey('notification-section-telegram'),
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _sectionTitle(
-                        AppStrings.t(
-                          AppStringKeys.notificationMessageNotifications,
-                        ),
+                      const SettingsSectionHeader(
+                        AppStringKeys.notificationMessageNotifications,
                       ),
                       if (_loading)
                         Container(
@@ -360,7 +358,7 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: c.card,
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(AppRadius.card),
                           ),
                           child: const SizedBox(
                             width: 24,
@@ -457,8 +455,8 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
                     key: const ValueKey('notification-section-device'),
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _NotificationSectionTitle(
-                        AppStrings.t(AppStringKeys.notificationOnDeviceTitle),
+                      const SettingsSectionHeader(
+                        AppStringKeys.notificationOnDeviceTitle,
                       ),
                       SettingsCard(
                         children: [
@@ -553,23 +551,10 @@ class _NotificationSettingsViewState extends State<NotificationSettingsView> {
     );
   }
 
-  Widget _sectionTitle(String text) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 20, 12, 8),
-    child: Text(
-      text.toUpperCase(),
-      style: TextStyle(
-        color: context.colors.textSecondary,
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0.2,
-      ),
-    ),
-  );
-
   Widget _card(List<Widget> children) => Container(
     decoration: BoxDecoration(
       color: context.colors.card,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(AppRadius.card),
     ),
     clipBehavior: Clip.antiAlias,
     child: Column(children: children),
@@ -746,9 +731,7 @@ class _AccountNotificationSelectionViewState
           ],
         ),
         if (mode == NotificationAccountMode.selected) ...[
-          _NotificationSectionTitle(
-            AppStrings.t(AppStringKeys.notificationAccounts),
-          ),
+          const SettingsSectionHeader(AppStringKeys.notificationAccounts),
           _NotificationCard(
             children: [
               for (var index = 0; index < widget.accounts.length; index++) ...[
@@ -831,9 +814,7 @@ class _ScopeNotificationSettingsViewState
           ],
         ),
         if (hasNotifications) ...[
-          _NotificationSectionTitle(
-            AppStrings.t(AppStringKeys.notificationOptions),
-          ),
+          const SettingsSectionHeader(AppStringKeys.notificationOptions),
           _NotificationCard(
             children: [
               _NotificationSwitchRow(
@@ -949,9 +930,7 @@ class _StoryNotificationSettingsViewState
           ],
         ),
         if (hasNotifications) ...[
-          _NotificationSectionTitle(
-            AppStrings.t(AppStringKeys.notificationOptions),
-          ),
+          const SettingsSectionHeader(AppStringKeys.notificationOptions),
           _NotificationCard(
             children: [
               _NotificationSwitchRow(
@@ -1078,9 +1057,7 @@ class _ReactionNotificationSettingsViewState
           ],
         ),
         if (enabled) ...[
-          _NotificationSectionTitle(
-            AppStrings.t(AppStringKeys.notificationOptions),
-          ),
+          const SettingsSectionHeader(AppStringKeys.notificationOptions),
           _NotificationCard(
             children: [
               _NotificationSwitchRow(
@@ -1174,32 +1151,10 @@ class _NotificationCard extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: context.colors.card,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
-    );
-  }
-}
-
-class _NotificationSectionTitle extends StatelessWidget {
-  const _NotificationSectionTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 12, 8),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          color: context.colors.textSecondary,
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.2,
-        ),
-      ),
     );
   }
 }

@@ -519,7 +519,7 @@ class _StorageUsageViewState extends State<StorageUsageView> {
       padding: EdgeInsets.all(desktopDense ? 14 : 17),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(desktopDense ? 10 : 14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -585,7 +585,7 @@ class _StorageUsageViewState extends State<StorageUsageView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(desktopDense ? 10 : 14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -654,7 +654,7 @@ class _StorageUsageViewState extends State<StorageUsageView> {
       key: const ValueKey('storage-related-settings'),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(desktopDense ? 10 : 14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -732,7 +732,7 @@ class _StorageUsageViewState extends State<StorageUsageView> {
             margin: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -1068,7 +1068,7 @@ class _StorageActionCard extends StatelessWidget {
       padding: EdgeInsets.all(desktopDense ? 14 : 17),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(desktopDense ? 10 : 14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Row(
         children: [

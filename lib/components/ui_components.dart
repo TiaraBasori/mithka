@@ -429,6 +429,49 @@ class InsetDivider extends StatelessWidget {
 
 /// Standard grouped settings card. Use this for left-label/right-value rows
 /// instead of duplicating per-screen private `_settingsCard` variants.
+/// Label above a group of settings rows.
+///
+/// Every settings screen used to define its own: sixteen private copies under
+/// five names, with three paddings, two sizes, two colours, and one that
+/// uppercased its text. This is the one shape they all share.
+class SettingsSectionHeader extends StatelessWidget {
+  /// [titleKey] is an `AppStringKeys` constant.
+  const SettingsSectionHeader(this.titleKey, {super.key, this.text})
+    : assert(
+        titleKey != null || text != null,
+        'a section header needs a key or literal text',
+      );
+
+  /// For a label that is data rather than copy — a folder name, say.
+  const SettingsSectionHeader.text(String this.text, {super.key})
+    : titleKey = null;
+
+  final String? titleKey;
+  final String? text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xxl,
+        AppSpacing.lg,
+        AppSpacing.xxl,
+        AppSpacing.sm,
+      ),
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: Text(
+          text ?? AppStrings.t(titleKey!),
+          style: TextStyle(
+            fontSize: AppTextSize.footnote,
+            color: context.colors.textTertiary,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class SettingsCard extends StatelessWidget {
   const SettingsCard({super.key, required this.children, this.margin});
 

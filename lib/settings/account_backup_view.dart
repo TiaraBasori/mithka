@@ -164,7 +164,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: c.card,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(AppRadius.card),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x44000000),
@@ -435,7 +435,9 @@ class _AccountBackupViewState extends State<AccountBackupView> {
                       const SizedBox(height: 12),
                       _notice(),
                       const SizedBox(height: 18),
-                      _sectionTitle(AppStringKeys.accountBackupSessions),
+                      const SettingsSectionHeader(
+                        AppStringKeys.accountBackupSessions,
+                      ),
                       if (_loading)
                         const Padding(
                           padding: EdgeInsets.only(top: 24),
@@ -515,7 +517,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
         height: 52,
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 16),
         child: Row(
@@ -588,7 +590,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
           height: 52,
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(AppRadius.card),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -621,7 +623,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: SettingsSwitchRow(
@@ -643,17 +645,6 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     );
   }
 
-  Widget _sectionTitle(String title) {
-    final c = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(left: 16, bottom: 6),
-      child: Text(
-        title.l10n(context),
-        style: TextStyle(fontSize: 13, color: c.textTertiary),
-      ),
-    );
-  }
-
   Widget _empty(String message) {
     final c = context.colors;
     return Container(
@@ -661,7 +652,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Text(
         message.l10n(context),
@@ -676,7 +667,7 @@ class _AccountBackupViewState extends State<AccountBackupView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -819,7 +810,7 @@ class _PyrogramSessionImportSheetState
                   ),
                   decoration: BoxDecoration(
                     color: c.card,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                     border: Border.all(color: c.divider),
                   ),
                   padding: const EdgeInsets.symmetric(

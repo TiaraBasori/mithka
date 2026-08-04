@@ -35,7 +35,7 @@ Future<T?> _businessChoiceSheet<T>(
         margin: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         clipBehavior: Clip.antiAlias,
         child: Column(
@@ -2147,7 +2147,7 @@ class _BusinessBotChatControlSheetState
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -2385,7 +2385,7 @@ class _BusinessDateTimeSheetState extends State<_BusinessDateTimeSheet> {
 Widget _surface(BuildContext context, {required Widget child}) => Container(
   decoration: BoxDecoration(
     color: context.colors.card,
-    borderRadius: BorderRadius.circular(12),
+    borderRadius: BorderRadius.circular(AppRadius.card),
   ),
   clipBehavior: Clip.antiAlias,
   child: child,

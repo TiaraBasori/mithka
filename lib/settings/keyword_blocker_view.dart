@@ -124,7 +124,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
       child: Row(
@@ -177,7 +177,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
       child: Row(
@@ -237,7 +237,7 @@ class _KeywordBlockerViewState extends State<KeywordBlockerView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

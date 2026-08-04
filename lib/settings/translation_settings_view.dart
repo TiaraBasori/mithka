@@ -93,7 +93,7 @@ class _AiTranslationPromptEditorViewState
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: c.card,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
                       border: Border.all(color: c.divider, width: 0.5),
                     ),
                     child: TextField(
@@ -238,9 +238,8 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
                   ),
                 ]),
                 const SizedBox(height: 14),
-                _sectionTitle(
-                  context,
-                  AppStringKeys.translationSettingsAiSection.l10n(context),
+                const SettingsSectionHeader(
+                  AppStringKeys.translationSettingsAiSection,
                 ),
                 _card(context, [
                   _switchRow(
@@ -303,11 +302,8 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
                   AppStringKeys.translationSettingsAiDescription.l10n(context),
                 ),
                 const SizedBox(height: 14),
-                _sectionTitle(
-                  context,
-                  AppStringKeys.translationSettingsStandardSection.l10n(
-                    context,
-                  ),
+                const SettingsSectionHeader(
+                  AppStringKeys.translationSettingsStandardSection,
                 ),
                 _card(context, [
                   _navRow(
@@ -362,7 +358,7 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: FutureBuilder<Set<TranslationProvider>>(
@@ -445,7 +441,7 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: ListView.separated(
@@ -549,7 +545,7 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -639,22 +635,10 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
   Widget _card(BuildContext context, List<Widget> children) => Container(
     decoration: BoxDecoration(
       color: context.colors.card,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.card),
     ),
     clipBehavior: Clip.antiAlias,
     child: Column(children: children),
-  );
-
-  Widget _sectionTitle(BuildContext context, String title) => Padding(
-    padding: const EdgeInsetsDirectional.only(start: 4, bottom: 8),
-    child: Text(
-      title,
-      style: TextStyle(
-        color: context.colors.textTertiary,
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-      ),
-    ),
   );
 
   Widget _note(BuildContext context, String text) => Padding(

@@ -121,7 +121,7 @@ class _NetworkUsageViewState extends State<NetworkUsageView> {
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
                           color: c.card,
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(AppRadius.card),
                         ),
                         child: Row(
                           children: [
@@ -195,7 +195,7 @@ class _NetworkUsageViewState extends State<NetworkUsageView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Column(
         children: [
@@ -239,7 +239,7 @@ class _NetworkUsageViewState extends State<NetworkUsageView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: totals.isEmpty

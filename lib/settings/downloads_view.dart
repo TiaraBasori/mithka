@@ -231,7 +231,7 @@ class _DownloadsViewState extends State<DownloadsView> {
             margin: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -324,7 +324,7 @@ class _DownloadsViewState extends State<DownloadsView> {
             margin: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(
@@ -530,7 +530,7 @@ class _DownloadsViewState extends State<DownloadsView> {
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,

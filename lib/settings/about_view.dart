@@ -167,7 +167,7 @@ class _AboutViewState extends State<AboutView> {
                   Container(
                     decoration: BoxDecoration(
                       color: c.card,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
                     ),
                     clipBehavior: Clip.antiAlias,
                     child: Column(

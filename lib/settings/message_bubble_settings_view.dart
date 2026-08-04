@@ -114,7 +114,7 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
                 Container(
                   decoration: BoxDecoration(
                     color: c.card,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                     border: Border.all(color: c.divider, width: 0.5),
                   ),
                   clipBehavior: Clip.antiAlias,
@@ -164,7 +164,7 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: c.card,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(AppRadius.card),
                       border: Border.all(color: c.divider, width: 0.5),
                     ),
                     child: Column(
@@ -307,7 +307,7 @@ class _MessageBubbleSettingsViewState extends State<MessageBubbleSettingsView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(color: c.divider, width: 0.5),
       ),
       clipBehavior: Clip.antiAlias,

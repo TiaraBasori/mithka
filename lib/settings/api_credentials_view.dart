@@ -155,8 +155,8 @@ class _ApiCredentialsViewState extends State<ApiCredentialsView> {
                         ),
                       ]),
                       const SizedBox(height: 14),
-                      _sectionTitle(
-                        AppStrings.t(AppStringKeys.apiCredentialsUserAgent),
+                      const SettingsSectionHeader(
+                        AppStringKeys.apiCredentialsUserAgent,
                       ),
                       _card([
                         _field(
@@ -205,28 +205,10 @@ class _ApiCredentialsViewState extends State<ApiCredentialsView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
-    );
-  }
-
-  Widget _sectionTitle(String title) {
-    final c = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: 8),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          title,
-          style: TextStyle(
-            color: c.textTertiary,
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
     );
   }
 

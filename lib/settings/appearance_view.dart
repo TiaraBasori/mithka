@@ -405,7 +405,7 @@ class _AppIconVariantTile extends StatelessWidget {
                 padding: const EdgeInsets.all(3),
                 decoration: BoxDecoration(
                   color: c.card,
-                  borderRadius: BorderRadius.circular(23),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                   border: Border.all(
                     color: selected ? AppTheme.brand : c.divider,
                     width: selected ? 3 : 1,

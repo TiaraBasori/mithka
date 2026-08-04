@@ -192,7 +192,7 @@ class _AutoDownloadSettingsViewState extends State<AutoDownloadSettingsView> {
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Row(
         children: [
@@ -239,7 +239,7 @@ class _AutoDownloadSettingsViewState extends State<AutoDownloadSettingsView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
@@ -278,7 +278,7 @@ class _AutoDownloadSettingsViewState extends State<AutoDownloadSettingsView> {
             margin: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: Column(

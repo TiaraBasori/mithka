@@ -97,7 +97,9 @@ class _QuickReactionSettingsViewState extends State<QuickReactionSettingsView> {
                     AppSpacing.section,
                   ),
                   children: [
-                    _sectionLabel(AppStringKeys.quickReactionsSelected),
+                    const SettingsSectionHeader(
+                      AppStringKeys.quickReactionsSelected,
+                    ),
                     _selectedStrip(selected),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(
@@ -111,7 +113,9 @@ class _QuickReactionSettingsViewState extends State<QuickReactionSettingsView> {
                         style: AppTextStyle.footnote(c.textTertiary),
                       ),
                     ),
-                    _sectionLabel(AppStringKeys.quickReactionsAvailable),
+                    const SettingsSectionHeader(
+                      AppStringKeys.quickReactionsAvailable,
+                    ),
                     _picker(selected),
                   ],
                 );
@@ -122,14 +126,6 @@ class _QuickReactionSettingsViewState extends State<QuickReactionSettingsView> {
       ),
     );
   }
-
-  Widget _sectionLabel(String key) => Padding(
-    padding: const EdgeInsets.only(left: AppSpacing.xxl, bottom: AppSpacing.sm),
-    child: Text(
-      AppStrings.t(key),
-      style: AppTextStyle.footnote(context.colors.textTertiary),
-    ),
-  );
 
   Widget _selectedStrip(List<QuickReactionChoice> selected) {
     return Container(

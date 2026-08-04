@@ -72,7 +72,7 @@ class _TransferBoostViewState extends State<TransferBoostView> {
             margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
             decoration: BoxDecoration(
               color: c.card,
-              borderRadius: BorderRadius.circular(14),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
             clipBehavior: Clip.antiAlias,
             child: ListView.separated(
@@ -127,17 +127,6 @@ class _TransferBoostViewState extends State<TransferBoostView> {
     );
   }
 
-  Widget _sectionLabel(BuildContext context, String key) {
-    final c = context.colors;
-    return Padding(
-      padding: const EdgeInsets.only(left: 4, bottom: AppSpacing.sm),
-      child: Text(
-        key.l10n(context),
-        style: TextStyle(fontSize: AppTextSize.caption, color: c.textTertiary),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -166,8 +155,7 @@ class _TransferBoostViewState extends State<TransferBoostView> {
                       AppSpacing.section,
                     ),
                     children: [
-                      _sectionLabel(
-                        context,
+                      const SettingsSectionHeader(
                         AppStringKeys.transferBoostDownloadSection,
                       ),
                       SettingsCard(
@@ -240,8 +228,7 @@ class _TransferBoostViewState extends State<TransferBoostView> {
                         ],
                       ),
                       const SizedBox(height: AppSpacing.xl),
-                      _sectionLabel(
-                        context,
+                      const SettingsSectionHeader(
                         AppStringKeys.transferBoostUploadSection,
                       ),
                       SettingsCard(

@@ -1478,7 +1478,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(children: children),
@@ -1670,8 +1670,8 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                   ]),
                   const SizedBox(height: 14),
                   if (_current != null) ...[
-                    _sectionLabel(
-                      AppStrings.t(AppStringKeys.privacyCurrentDevice),
+                    const SettingsSectionHeader(
+                      AppStringKeys.privacyCurrentDevice,
                     ),
                     _card([_sessionRow(_current!, current: true)]),
                     const SizedBox(height: 14),
@@ -1698,8 +1698,8 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                       ]),
                     ),
                     const SizedBox(height: 14),
-                    _sectionLabel(
-                      AppStrings.t(AppStringKeys.privacyOtherDevices),
+                    const SettingsSectionHeader(
+                      AppStringKeys.privacyOtherDevices,
                     ),
                     _card([
                       for (var i = 0; i < _others.length; i++) ...[
@@ -1709,8 +1709,8 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
                       ],
                     ]),
                   ] else ...[
-                    _sectionLabel(
-                      AppStrings.t(AppStringKeys.privacyOtherDevices),
+                    const SettingsSectionHeader(
+                      AppStringKeys.privacyOtherDevices,
                     ),
                     _card([
                       SizedBox(
@@ -1735,18 +1735,10 @@ class _ActiveSessionsViewState extends State<ActiveSessionsView> {
     );
   }
 
-  Widget _sectionLabel(String t) => Padding(
-    padding: const EdgeInsets.only(left: 16, bottom: 6),
-    child: Text(
-      t,
-      style: TextStyle(fontSize: 13, color: context.colors.textTertiary),
-    ),
-  );
-
   Widget _card(List<Widget> children) => Container(
     decoration: BoxDecoration(
       color: context.colors.card,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.card),
     ),
     clipBehavior: Clip.antiAlias,
     child: Column(children: children),

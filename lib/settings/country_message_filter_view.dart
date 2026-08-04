@@ -141,9 +141,7 @@ class _CountryMessageFilterViewState extends State<CountryMessageFilterView> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
                         color: c.card,
-                        borderRadius: BorderRadius.circular(
-                          index == 0 || index == _countries.length - 1 ? 10 : 0,
-                        ),
+                        borderRadius: BorderRadius.circular(AppRadius.card),
                       ),
                       child: Row(
                         children: [

@@ -471,7 +471,7 @@ class _DesktopHotkeyRecorderDialogState
           constraints: const BoxConstraints(maxWidth: 430),
           child: Material(
             color: c.card,
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(AppRadius.card),
             clipBehavior: Clip.antiAlias,
             child: Padding(
               padding: const EdgeInsets.all(18),

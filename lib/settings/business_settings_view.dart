@@ -206,7 +206,9 @@ class _BusinessSettingsViewState extends State<BusinessSettingsView> {
                         ),
                         const SizedBox(height: 18),
                       ],
-                      _sectionLabel(AppStringKeys.businessSettingsProfile),
+                      const SettingsSectionHeader(
+                        AppStringKeys.businessSettingsProfile,
+                      ),
                       _card([
                         if (_supports('businessFeatureLocation'))
                           _row(
@@ -250,7 +252,9 @@ class _BusinessSettingsViewState extends State<BusinessSettingsView> {
                           ),
                       ]),
                       const SizedBox(height: 22),
-                      _sectionLabel(AppStringKeys.businessSettingsTools),
+                      const SettingsSectionHeader(
+                        AppStringKeys.businessSettingsTools,
+                      ),
                       _card([
                         if (_supports('businessFeatureQuickReplies')) ...[
                           _literalRow(
@@ -418,18 +422,10 @@ class _BusinessSettingsViewState extends State<BusinessSettingsView> {
     );
   }
 
-  Widget _sectionLabel(String title) => Padding(
-    padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-    child: Text(
-      AppStrings.t(title),
-      style: TextStyle(fontSize: 13, color: context.colors.textSecondary),
-    ),
-  );
-
   Widget _card(List<Widget> children) => Container(
     decoration: BoxDecoration(
       color: context.colors.card,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.card),
     ),
     clipBehavior: Clip.antiAlias,
     child: Column(children: children),
@@ -1707,7 +1703,7 @@ Widget _editorCard({required Widget child}) => Builder(
   builder: (context) => Container(
     decoration: BoxDecoration(
       color: context.colors.card,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(AppRadius.card),
     ),
     child: child,
   ),
