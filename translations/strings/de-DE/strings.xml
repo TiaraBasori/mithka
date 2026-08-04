@@ -396,7 +396,7 @@
     <string name="appearanceShowEditAndReadMarks">Bearbeitet- und Gelesen-Markierungen anzeigen</string>
     <string name="appearanceShowGroupMemberTitles">Titel von Gruppenmitgliedern anzeigen</string>
     <string name="appearanceShowMessageBubbles">Nachrichtenblasen anzeigen</string>
-    <string name="appearanceShowMessageBubblesDescription">Wenn deaktiviert, werden Standard-Nachrichtenhintergründe ausgeblendet. Blasen aus benutzerdefinierten Themes bleiben sichtbar und der ausgewählte Stil bleibt erhalten.</string>
+    <string name="appearanceShowMessageBubblesDescription">Wenn deaktiviert, wird das benutzerdefinierte Blasenbild nicht verwendet und Nachrichten nutzen die Blase deines Themes. Der ausgewählte Stil bleibt erhalten.</string>
     <string name="appearanceShowNameColors">Namensfarben</string>
     <string name="appearanceShowPlainMemberRoleTags">Einfache Mitgliederabzeichen anzeigen</string>
     <string name="appearanceShowPremiumStatusEmoji">Premium-Status-emoji</string>

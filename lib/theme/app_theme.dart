@@ -346,6 +346,7 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.panelBackground,
     required this.bubbleIncoming,
     required this.bubbleIncomingText,
+    required this.bubbleOutgoingText,
     required this.textPrimary,
     required this.textSecondary,
     required this.textTertiary,
@@ -372,6 +373,10 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color panelBackground;
   final Color bubbleIncoming;
   final Color bubbleIncomingText;
+
+  /// Ink on an outgoing bubble, for themes that name no chat_messageTextOut.
+  /// Stored per brightness rather than measured off the fill.
+  final Color bubbleOutgoingText;
   final Color textPrimary;
   final Color textSecondary;
   final Color textTertiary;
@@ -410,6 +415,7 @@ class AppColors extends ThemeExtension<AppColors> {
     panelBackground: _hex(0xF2F3F5),
     bubbleIncoming: _hex(0xFFFFFF),
     bubbleIncomingText: _hex(0x1A1A1A),
+    bubbleOutgoingText: _hex(0xFFFFFF),
     textPrimary: _hex(0x1A1A1A),
     textSecondary: _hex(0x8A8A8F),
     textTertiary: _hex(0xB0B3B8),
@@ -437,6 +443,7 @@ class AppColors extends ThemeExtension<AppColors> {
     panelBackground: _hex(0x151718),
     bubbleIncoming: _hex(0x292D30),
     bubbleIncomingText: _hex(0xEDEDED),
+    bubbleOutgoingText: _hex(0xFFFFFF),
     textPrimary: _hex(0xEDEDED),
     textSecondary: _hex(0x9A9A9A),
     textTertiary: _hex(0x707276),
@@ -465,6 +472,7 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? panelBackground,
     Color? bubbleIncoming,
     Color? bubbleIncomingText,
+    Color? bubbleOutgoingText,
     Color? textPrimary,
     Color? textSecondary,
     Color? textTertiary,
@@ -491,6 +499,7 @@ class AppColors extends ThemeExtension<AppColors> {
       panelBackground: panelBackground ?? this.panelBackground,
       bubbleIncoming: bubbleIncoming ?? this.bubbleIncoming,
       bubbleIncomingText: bubbleIncomingText ?? this.bubbleIncomingText,
+      bubbleOutgoingText: bubbleOutgoingText ?? this.bubbleOutgoingText,
       textPrimary: textPrimary ?? this.textPrimary,
       textSecondary: textSecondary ?? this.textSecondary,
       textTertiary: textTertiary ?? this.textTertiary,
@@ -532,6 +541,11 @@ class AppColors extends ThemeExtension<AppColors> {
       bubbleIncomingText: Color.lerp(
         bubbleIncomingText,
         other.bubbleIncomingText,
+        t,
+      )!,
+      bubbleOutgoingText: Color.lerp(
+        bubbleOutgoingText,
+        other.bubbleOutgoingText,
         t,
       )!,
       textPrimary: Color.lerp(textPrimary, other.textPrimary, t)!,

@@ -143,6 +143,7 @@ class DesktopChatWindowPalette {
       panelBackground: Color(inputBarBackground),
       bubbleIncoming: Color(bubbleIncoming),
       bubbleIncomingText: Color(bubbleIncomingText),
+      bubbleOutgoingText: Color(onAccent),
       textPrimary: Color(textPrimary),
       textSecondary: Color(textSecondary),
       textTertiary: Color(textTertiary),

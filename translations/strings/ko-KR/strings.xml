@@ -396,7 +396,7 @@
     <string name="appearanceShowEditAndReadMarks">수정 및 읽음 표시 보이기</string>
     <string name="appearanceShowGroupMemberTitles">그룹 멤버 직함 표시</string>
     <string name="appearanceShowMessageBubbles">메시지 말풍선 표시</string>
-    <string name="appearanceShowMessageBubblesDescription">끄면 기본 메시지 배경이 숨겨집니다. 사용자 지정 테마의 말풍선은 계속 표시되며 선택한 말풍선 스타일도 유지됩니다.</string>
+    <string name="appearanceShowMessageBubblesDescription">끄면 사용자 지정 말풍선 이미지가 사용되지 않고 테마 기본 말풍선이 적용됩니다. 선택한 스타일은 유지됩니다.</string>
     <string name="appearanceShowNameColors">이름 색상</string>
     <string name="appearanceShowPlainMemberRoleTags">일반 멤버 배지 표시</string>
     <string name="appearanceShowPremiumStatusEmoji">Premium 상태 emoji</string>

@@ -396,7 +396,7 @@
     <string name="appearanceShowEditAndReadMarks">編集済み・既読マークを表示</string>
     <string name="appearanceShowGroupMemberTitles">グループメンバーの肩書きを表示</string>
     <string name="appearanceShowMessageBubbles">メッセージバブルを表示</string>
-    <string name="appearanceShowMessageBubblesDescription">オフにすると標準のメッセージ背景が非表示になります。カスタムテーマのバブルは表示され、選択したバブルスタイルも保持されます。</string>
+    <string name="appearanceShowMessageBubblesDescription">オフにするとカスタムバブル画像は使われず、テーマ本来のバブルが適用されます。選択したスタイルは保持されます。</string>
     <string name="appearanceShowNameColors">名前の色</string>
     <string name="appearanceShowPlainMemberRoleTags">一般メンバーバッジを表示</string>
     <string name="appearanceShowPremiumStatusEmoji">Premium ステータス emoji</string>

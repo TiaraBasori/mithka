@@ -370,12 +370,13 @@ class _MessageBubbleState extends State<MessageBubble>
     if (!context.watch<ThemeController>().themingEnabled) {
       return AppTheme.bubbleOutgoingText;
     }
+    // Last resort is the palette's own outgoing ink, not a measurement of the
+    // fill — the fill can be a gradient or a picked colour, and guessing from
+    // it is what produced ink that matched no theme.
     return _bubbleBackgroundStyle.foregroundColor ??
         widget.outgoingBubbleTextColor ??
         _activeCloudTheme?.outgoingTextColor ??
-        (_outgoingBubbleColor.computeLuminance() > 0.64
-            ? const Color(0xFF171717)
-            : AppTheme.bubbleOutgoingText);
+        context.colors.bubbleOutgoingText;
   }
 
   Color get _incomingThemeBubbleColor {
@@ -1389,9 +1390,10 @@ class _MessageBubbleState extends State<MessageBubble>
               isSending: message.isSending && !message.isSendAcknowledged,
               isRead: widget.isRead,
               pendingColor: _outgoingTextColor,
-              sentColor: _showsMessageBubbleSurface
-                  ? Colors.white
-                  : _outgoingTextColor,
+              // The tick is ink on the bubble like the text is, so it follows
+              // the same colour. Hardcoding white lost it entirely on a light
+              // outgoing fill.
+              sentColor: _outgoingTextColor,
               size: 10,
             ),
         ],

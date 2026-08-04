@@ -396,7 +396,7 @@
     <string name="appearanceShowEditAndReadMarks">Afficher les marques de modification et de lecture</string>
     <string name="appearanceShowGroupMemberTitles">Afficher les titres des membres du groupe</string>
     <string name="appearanceShowMessageBubbles">Afficher les bulles de messages</string>
-    <string name="appearanceShowMessageBubblesDescription">Lorsque cette option est désactivée, les arrière-plans standard sont masqués. Les bulles des thèmes personnalisés restent visibles et le style choisi est conservé.</string>
+    <string name="appearanceShowMessageBubblesDescription">Lorsque cette option est désactivée, l'image de bulle personnalisée n'est pas utilisée et les messages reprennent la bulle de votre thème. Le style choisi est conservé.</string>
     <string name="appearanceShowNameColors">Couleurs de nom</string>
     <string name="appearanceShowPlainMemberRoleTags">Afficher les badges de membre simples</string>
     <string name="appearanceShowPremiumStatusEmoji">Emoji de statut Premium</string>

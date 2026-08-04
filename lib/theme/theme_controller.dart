@@ -1297,7 +1297,10 @@ class ThemeController extends ChangeNotifier {
   MessageBubbleBackgroundSpec effectiveMessageBubbleBackgroundSpecFor({
     required bool outgoing,
   }) {
-    if (!_themingEnabled ||
+    // Turning the preference off drops the custom image and falls back to the
+    // theme's own bubble; the selection is kept so re-enabling restores it.
+    if (!_messageBubblesEnabled ||
+        !_themingEnabled ||
         (!outgoing &&
             _messageBubbleApplicationScope ==
                 MessageBubbleApplicationScope.ownMessages)) {
@@ -1311,13 +1314,12 @@ class ThemeController extends ChangeNotifier {
     required Brightness brightness,
     bool hasCustomChatTheme = false,
   }) {
-    final cloudTheme = cloudThemeFor(brightness);
-    return _messageBubblesEnabled ||
-        effectiveMessageBubbleBackgroundSpecFor(
-          outgoing: outgoing,
-        ).isDecorative ||
-        (cloudTheme != null && !cloudTheme.isBuiltIn) ||
-        (_themingEnabled && hasCustomChatTheme);
+    // Messages always sit on a bubble. The preference chooses whether that
+    // bubble is the custom image or the theme's own default fill — see
+    // [effectiveMessageBubbleBackgroundSpecFor] — it does not remove the
+    // surface. Dropping it left incoming messages as bare text on the
+    // wallpaper while outgoing kept a bubble.
+    return true;
   }
 
   MessageBubbleBackgroundSpec messageBubbleBackgroundSpecFor(

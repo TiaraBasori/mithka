@@ -396,7 +396,7 @@
     <string name="appearanceShowEditAndReadMarks">Mostrar marcas de edición y lectura</string>
     <string name="appearanceShowGroupMemberTitles">Mostrar cargos de miembros del grupo</string>
     <string name="appearanceShowMessageBubbles">Mostrar burbujas de mensajes</string>
-    <string name="appearanceShowMessageBubblesDescription">Si se desactiva, se ocultan los fondos de mensaje estándar. Las burbujas de temas personalizados siguen visibles y se conserva el estilo elegido.</string>
+    <string name="appearanceShowMessageBubblesDescription">Si se desactiva, no se usa la imagen de burbuja personalizada y los mensajes vuelven a la burbuja de tu tema. Se conserva el estilo elegido.</string>
     <string name="appearanceShowNameColors">Colores de nombre</string>
     <string name="appearanceShowPlainMemberRoleTags">Mostrar insignias de miembro simples</string>
     <string name="appearanceShowPremiumStatusEmoji">Emoji de estado Premium</string>

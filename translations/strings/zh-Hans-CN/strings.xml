@@ -396,7 +396,7 @@
     <string name="appearanceShowEditAndReadMarks">显示编辑和已读标记</string>
     <string name="appearanceShowGroupMemberTitles">群成员显示头衔</string>
     <string name="appearanceShowMessageBubbles">显示消息气泡</string>
-    <string name="appearanceShowMessageBubblesDescription">关闭后将隐藏标准消息背景。自定义主题的气泡仍会显示，同时保留已选的气泡样式。</string>
+    <string name="appearanceShowMessageBubblesDescription">关闭后将不使用自定义气泡图片，消息改用主题自带的气泡。已选的样式会保留。</string>
     <string name="appearanceShowNameColors">名字颜色</string>
     <string name="appearanceShowPlainMemberRoleTags">显示普通成员标签</string>
     <string name="appearanceShowPremiumStatusEmoji">Premium 状态表情</string>
