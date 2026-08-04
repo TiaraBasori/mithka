@@ -1521,8 +1521,7 @@ abstract final class AppStringKeys {
       'groupManagementLogChangedSlowMode';
   static const groupManagementLogCreatedTopic =
       'groupManagementLogCreatedTopic';
-  static const groupManagementLogClosedTopic =
-      'groupManagementLogClosedTopic';
+  static const groupManagementLogClosedTopic = 'groupManagementLogClosedTopic';
   static const groupManagementLogReopenedTopic =
       'groupManagementLogReopenedTopic';
   static const groupManagementLogDeletedInviteLink =
@@ -3939,6 +3938,7 @@ abstract final class AppStringKeys {
   static const aboutUpdateAvailable = 'aboutUpdateAvailable';
   static const aboutUpdateCheckFailed = 'aboutUpdateCheckFailed';
   static const aboutDownloadUpdate = 'aboutDownloadUpdate';
+  static const settingsChooseSection = 'settingsChooseSection';
 }
 
 abstract final class AppStrings {

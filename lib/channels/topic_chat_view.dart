@@ -346,7 +346,8 @@ class _TopicChatViewState extends State<TopicChatView> {
                 info.str('name') ??
                 topic.str('name') ??
                 AppStringKeys.topicChatTopicTitle,
-            lastMessage: message ??
+            lastMessage:
+                message ??
                 _fallbackTopicMessage(
                   id,
                   info,
@@ -407,9 +408,11 @@ class _TopicChatViewState extends State<TopicChatView> {
               .map(TDParse.message)
               .whereType<ChatMessage>()
               .where((message) => !message.isService)
-              .where((message) =>
-                  message.replyToMessageId == null ||
-                  message.replyToMessageId == topic.id)
+              .where(
+                (message) =>
+                    message.replyToMessageId == null ||
+                    message.replyToMessageId == topic.id,
+              )
               .toList()
             ..sort((a, b) => b.date.compareTo(a.date));
       _topicMessages[topic.id] = messages.isEmpty

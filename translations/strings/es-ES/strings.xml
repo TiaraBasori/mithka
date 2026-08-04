@@ -2279,6 +2279,7 @@
     <string name="sensitiveContentUnblockTitle">¿Mostrar contenido 18+?</string>
     <string name="settingsAboutMithka">Acerca de Mithka</string>
     <string name="settingsChatBehavior">Comportamiento del chat</string>
+    <string name="settingsChooseSection">Elige una sección a la izquierda</string>
     <string name="settingsContentFilters">Filtros de contenido</string>
     <string name="settingsDataAndStorage">Datos y almacenamiento</string>
     <string name="settingsLogOut">Cerrar sesión</string>

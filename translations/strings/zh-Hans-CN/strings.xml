@@ -2274,6 +2274,7 @@
     <string name="sensitiveContentUnblockTitle">显示 18+ 内容？</string>
     <string name="settingsAboutMithka">关于 Mithka</string>
     <string name="settingsChatBehavior">聊天行为</string>
+    <string name="settingsChooseSection">在左侧选择一个项目</string>
     <string name="settingsContentFilters">内容筛选</string>
     <string name="settingsDataAndStorage">数据与存储</string>
     <string name="settingsLogOut">退出登录</string>

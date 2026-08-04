@@ -2274,6 +2274,7 @@
     <string name="sensitiveContentUnblockTitle">18+ コンテンツを表示しますか？</string>
     <string name="settingsAboutMithka">Mithka について</string>
     <string name="settingsChatBehavior">チャットの動作</string>
+    <string name="settingsChooseSection">左側から項目を選択してください</string>
     <string name="settingsContentFilters">コンテンツフィルター</string>
     <string name="settingsDataAndStorage">データとストレージ</string>
     <string name="settingsLogOut">ログアウト</string>
