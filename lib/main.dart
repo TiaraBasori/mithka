@@ -85,7 +85,13 @@ import 'theme/theme_controller.dart';
 /// without it the window follows the system language.
 Future<void> _preloadLocaleCatalogue([SharedPreferences? prefs]) {
   WidgetsFlutterBinding.ensureInitialized();
-  final saved = prefs == null ? null : AppLocaleController(prefs).locale;
+  Locale? saved;
+  if (prefs != null) {
+    // Only the stored value is wanted here; the tree builds its own controller.
+    final reader = AppLocaleController(prefs);
+    saved = reader.locale;
+    reader.dispose();
+  }
   return AppStrings.ensureLoaded(saved ?? PlatformDispatcher.instance.locale);
 }
 
