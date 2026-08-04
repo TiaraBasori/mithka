@@ -401,6 +401,9 @@
     <string name="appearanceShowPlainMemberRoleTags">一般メンバーバッジを表示</string>
     <string name="appearanceShowPremiumStatusEmoji">Premium ステータス emoji</string>
     <string name="appearanceShowUnreadChatCount">未読チャット数</string>
+    <string name="appearanceSectionText">テキスト</string>
+    <string name="appearanceSectionChat">チャット</string>
+    <string name="appearanceSectionChatList">チャットリスト</string>
     <string name="appearanceSize">インターフェース</string>
     <string name="appearanceStatusAnimated">アニメーション</string>
     <string name="appearanceStatusDisplay">ステータスを表示</string>

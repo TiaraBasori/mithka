@@ -401,6 +401,9 @@
     <string name="appearanceShowPlainMemberRoleTags">일반 멤버 배지 표시</string>
     <string name="appearanceShowPremiumStatusEmoji">Premium 상태 emoji</string>
     <string name="appearanceShowUnreadChatCount">읽지 않은 채팅 수</string>
+    <string name="appearanceSectionText">텍스트</string>
+    <string name="appearanceSectionChat">채팅</string>
+    <string name="appearanceSectionChatList">채팅 목록</string>
     <string name="appearanceSize">인터페이스</string>
     <string name="appearanceStatusAnimated">움직임</string>
     <string name="appearanceStatusDisplay">상태 표시</string>

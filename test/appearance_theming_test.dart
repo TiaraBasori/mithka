@@ -59,7 +59,11 @@ void main() {
     final controller = await _pumpAppearance(tester, themingEnabled: false);
 
     expect(find.text('Theme'), findsOneWidget);
-    expect(find.text('Interface'), findsOneWidget);
+    // The old catch-all "Interface" heading is gone: rows now sit under the
+    // thing they change — Text, Chat, and Chat List.
+    expect(find.text('Interface'), findsNothing);
+    expect(find.text('Text'), findsOneWidget);
+    expect(find.text('Chat'), findsOneWidget);
     expect(find.text('Interface Size'), findsOneWidget);
     expect(find.text('Font'), findsOneWidget);
     expect(find.text('Message Bubbles'), findsOneWidget);
@@ -340,7 +344,7 @@ void main() {
       surfaceSize: const Size(402, 874),
     );
 
-    expect(find.text('Interface'), findsOneWidget);
+    expect(find.text('Chat List'), findsWidgets);
     final unreadBadgeRow = find.byKey(
       const ValueKey('unread-badge-settings-row'),
     );

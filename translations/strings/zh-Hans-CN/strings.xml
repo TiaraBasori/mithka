@@ -401,6 +401,9 @@
     <string name="appearanceShowPlainMemberRoleTags">显示普通成员标签</string>
     <string name="appearanceShowPremiumStatusEmoji">Premium 状态表情</string>
     <string name="appearanceShowUnreadChatCount">未读会话数</string>
+    <string name="appearanceSectionText">文字</string>
+    <string name="appearanceSectionChat">聊天</string>
+    <string name="appearanceSectionChatList">聊天列表</string>
     <string name="appearanceSize">界面</string>
     <string name="appearanceStatusAnimated">动态</string>
     <string name="appearanceStatusDisplay">显示状态</string>

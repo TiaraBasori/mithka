@@ -401,6 +401,9 @@
     <string name="appearanceShowPlainMemberRoleTags">Show Plain Member Badges</string>
     <string name="appearanceShowPremiumStatusEmoji">Premium status emoji</string>
     <string name="appearanceShowUnreadChatCount">Unread chat count</string>
+    <string name="appearanceSectionText">Text</string>
+    <string name="appearanceSectionChat">Chat</string>
+    <string name="appearanceSectionChatList">Chat List</string>
     <string name="appearanceSize">Interface</string>
     <string name="appearanceStatusAnimated">Animated</string>
     <string name="appearanceStatusDisplay">Display status</string>

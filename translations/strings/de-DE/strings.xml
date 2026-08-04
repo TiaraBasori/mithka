@@ -401,6 +401,9 @@
     <string name="appearanceShowPlainMemberRoleTags">Einfache Mitgliederabzeichen anzeigen</string>
     <string name="appearanceShowPremiumStatusEmoji">Premium-Status-emoji</string>
     <string name="appearanceShowUnreadChatCount">Ungelesene Chats</string>
+    <string name="appearanceSectionText">Text</string>
+    <string name="appearanceSectionChat">Chat</string>
+    <string name="appearanceSectionChatList">Chatliste</string>
     <string name="appearanceSize">Oberfläche</string>
     <string name="appearanceStatusAnimated">Animiert</string>
     <string name="appearanceStatusDisplay">Status anzeigen</string>

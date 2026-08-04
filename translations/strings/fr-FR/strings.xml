@@ -401,6 +401,9 @@
     <string name="appearanceShowPlainMemberRoleTags">Afficher les badges de membre simples</string>
     <string name="appearanceShowPremiumStatusEmoji">Emoji de statut Premium</string>
     <string name="appearanceShowUnreadChatCount">Discussions non lues</string>
+    <string name="appearanceSectionText">Texte</string>
+    <string name="appearanceSectionChat">Discussion</string>
+    <string name="appearanceSectionChatList">Liste des discussions</string>
     <string name="appearanceSize">Interface</string>
     <string name="appearanceStatusAnimated">Animé</string>
     <string name="appearanceStatusDisplay">Afficher le statut</string>

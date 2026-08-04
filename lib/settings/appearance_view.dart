@@ -67,6 +67,9 @@ class AppearanceView extends StatelessWidget {
                   AppSpacing.section,
                 ),
                 children: [
+                  // What the app looks like as a whole. No heading: it is the
+                  // first card, and a "Theme" heading over a "Theme" row only
+                  // says it twice.
                   _card(context, [
                     KeyedSubtree(
                       key: const ValueKey('appearance-theme-settings-row'),
@@ -82,6 +85,28 @@ class AppearanceView extends StatelessWidget {
                         icon: HeroAppIcons.palette.data,
                       ),
                     ),
+                    _navigationRow(
+                      context,
+                      AppStrings.t(AppStringKeys.appIconTitle),
+                      null,
+                      () => Navigator.of(context).push(
+                        AppPageRoute<void>(
+                          pageBuilder: (_, _, _) => const AppIconSettingsView(),
+                        ),
+                      ),
+                      preview: Image.asset(
+                        appIcons.variant.asset,
+                        width: AppIconSize.nav,
+                        height: AppIconSize.nav,
+                      ),
+                    ),
+                  ]),
+                  const SizedBox(height: AppSpacing.xl),
+                  _label(
+                    context,
+                    AppStrings.t(AppStringKeys.appearanceSectionText),
+                  ),
+                  _card(context, [
                     KeyedSubtree(
                       key: const ValueKey('appearance-scaling-settings-row'),
                       child: _navigationRow(
@@ -113,10 +138,14 @@ class AppearanceView extends StatelessWidget {
                     ),
                   ]),
                   const SizedBox(height: AppSpacing.xl),
-                  _label(context, AppStrings.t(AppStringKeys.appearanceSize)),
-                  _card(context, _interfaceNavigationRows(context)),
-                  const SizedBox(height: AppSpacing.xl),
+                  _label(
+                    context,
+                    AppStrings.t(AppStringKeys.appearanceSectionChat),
+                  ),
+                  // Message Bubbles used to sit alone in an unlabelled card;
+                  // it belongs with the rest of what a conversation looks like.
                   _card(context, [
+                    _chatViewNavigationRow(context),
                     KeyedSubtree(
                       key: const ValueKey('appearance-message-bubbles-row'),
                       child: _navigationRow(
@@ -134,24 +163,11 @@ class AppearanceView extends StatelessWidget {
                     ),
                   ]),
                   const SizedBox(height: AppSpacing.xl),
-                  _label(context, AppStrings.t(AppStringKeys.appIconTitle)),
-                  _card(context, [
-                    _navigationRow(
-                      context,
-                      AppStrings.t(AppStringKeys.appIconTitle),
-                      null,
-                      () => Navigator.of(context).push(
-                        AppPageRoute<void>(
-                          pageBuilder: (_, _, _) => const AppIconSettingsView(),
-                        ),
-                      ),
-                      preview: Image.asset(
-                        appIcons.variant.asset,
-                        width: AppIconSize.nav,
-                        height: AppIconSize.nav,
-                      ),
-                    ),
-                  ]),
+                  _label(
+                    context,
+                    AppStrings.t(AppStringKeys.appearanceSectionChatList),
+                  ),
+                  _card(context, _chatListNavigationRows(context)),
                 ],
               ),
             ),
@@ -562,9 +578,17 @@ class DisplaySettingsView extends StatelessWidget {
                 AppSpacing.section,
               ),
               children: [
+                appearance._card(context, [
+                  appearance._chatViewNavigationRow(context),
+                ]),
+                const SizedBox(height: AppSpacing.xl),
+                appearance._label(
+                  context,
+                  AppStrings.t(AppStringKeys.appearanceSectionChatList),
+                ),
                 appearance._card(
                   context,
-                  appearance._interfaceNavigationRows(context),
+                  appearance._chatListNavigationRows(context),
                 ),
               ],
             ),
@@ -1735,35 +1759,25 @@ class ArchivedChatsSettingsView extends StatelessWidget {
 }
 
 extension _DisplayAppearanceHelpers on AppearanceView {
-  List<Widget> _interfaceNavigationRows(BuildContext context) => [
-    KeyedSubtree(
-      key: const ValueKey('avatars-sidebar-settings-row'),
-      child: _navigationRow(
-        context,
-        AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
-        null,
-        () => Navigator.of(context).push(
-          AppPageRoute<void>(
-            pageBuilder: (_, _, _) => const AvatarsAndSidebarSettingsView(),
-          ),
+  /// What a single conversation looks like.
+  Widget _chatViewNavigationRow(BuildContext context) => KeyedSubtree(
+    key: const ValueKey('chat-view-settings-row'),
+    child: _navigationRow(
+      context,
+      AppStrings.t(AppStringKeys.appearanceChatView),
+      null,
+      () => Navigator.of(context).push(
+        AppPageRoute<void>(
+          pageBuilder: (_, _, _) => const ChatViewAppearanceSettingsView(),
         ),
-        icon: HeroAppIcons.users.data,
       ),
+      icon: HeroAppIcons.message.data,
     ),
-    KeyedSubtree(
-      key: const ValueKey('chat-view-settings-row'),
-      child: _navigationRow(
-        context,
-        AppStrings.t(AppStringKeys.appearanceChatView),
-        null,
-        () => Navigator.of(context).push(
-          AppPageRoute<void>(
-            pageBuilder: (_, _, _) => const ChatViewAppearanceSettingsView(),
-          ),
-        ),
-        icon: HeroAppIcons.message.data,
-      ),
-    ),
+  );
+
+  /// The list and the chrome around it. Avatars and the sidebar belong here
+  /// rather than under a heading called "Interface" that said nothing.
+  List<Widget> _chatListNavigationRows(BuildContext context) => [
     KeyedSubtree(
       key: const ValueKey('chat-list-settings-row'),
       child: _navigationRow(
@@ -1790,6 +1804,20 @@ extension _DisplayAppearanceHelpers on AppearanceView {
           ),
         ),
         icon: HeroAppIcons.solidBell.data,
+      ),
+    ),
+    KeyedSubtree(
+      key: const ValueKey('avatars-sidebar-settings-row'),
+      child: _navigationRow(
+        context,
+        AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
+        null,
+        () => Navigator.of(context).push(
+          AppPageRoute<void>(
+            pageBuilder: (_, _, _) => const AvatarsAndSidebarSettingsView(),
+          ),
+        ),
+        icon: HeroAppIcons.users.data,
       ),
     ),
   ];
