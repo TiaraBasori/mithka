@@ -1414,6 +1414,7 @@
     <string name="groupManagementLogChangedPostingPermissions">投稿権限を変更しました</string>
     <string name="groupManagementLogChangedPublicUsername">公開ユーザー名を変更しました</string>
     <string name="groupManagementLogChangedSlowMode">スローモードを変更しました</string>
+    <string name="groupManagementLogClosedTopic">トピックを閉じました</string>
     <string name="groupManagementLogCreatedTopic">トピックを作成しました</string>
     <string name="groupManagementLogDeletedInviteLink">招待リンクを削除しました</string>
     <string name="groupManagementLogDeletedMessage">メッセージを削除しました</string>
@@ -1430,6 +1431,7 @@
     <string name="groupManagementLogLeftGroup">グループを退出しました</string>
     <string name="groupManagementLogNoPermission">グループ管理ログを表示する権限がありません</string>
     <string name="groupManagementLogPinnedMessage">メッセージを固定しました</string>
+    <string name="groupManagementLogReopenedTopic">トピックを再開しました</string>
     <string name="groupManagementLogRevokedInviteLink">招待リンクを取り消しました</string>
     <string name="groupManagementLogStartedVideoChat">ビデオチャットを作成しました</string>
     <string name="groupManagementLogTitle">グループ管理ログ</string>

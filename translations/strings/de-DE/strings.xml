@@ -1416,6 +1416,7 @@
     <string name="groupManagementLogChangedPostingPermissions">Schreibberechtigungen geändert</string>
     <string name="groupManagementLogChangedPublicUsername">Öffentlichen Benutzernamen geändert</string>
     <string name="groupManagementLogChangedSlowMode">Langsamen Modus geändert</string>
+    <string name="groupManagementLogClosedTopic">Thema geschlossen</string>
     <string name="groupManagementLogCreatedTopic">Thema erstellt</string>
     <string name="groupManagementLogDeletedInviteLink">Einladungslink gelöscht</string>
     <string name="groupManagementLogDeletedMessage">Nachricht gelöscht</string>
@@ -1432,6 +1433,7 @@
     <string name="groupManagementLogLeftGroup">Gruppe verlassen</string>
     <string name="groupManagementLogNoPermission">Keine Berechtigung zum Anzeigen der Gruppenverwaltung</string>
     <string name="groupManagementLogPinnedMessage">Nachricht angeheftet</string>
+    <string name="groupManagementLogReopenedTopic">Thema wieder geöffnet</string>
     <string name="groupManagementLogRevokedInviteLink">Einladungslink widerrufen</string>
     <string name="groupManagementLogStartedVideoChat">Videochat gestartet</string>
     <string name="groupManagementLogTitle">Gruppenverwaltung</string>

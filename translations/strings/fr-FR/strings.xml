@@ -1416,6 +1416,7 @@
     <string name="groupManagementLogChangedPostingPermissions">A modifié les permissions de publication</string>
     <string name="groupManagementLogChangedPublicUsername">A modifié le nom d’utilisateur public</string>
     <string name="groupManagementLogChangedSlowMode">A modifié le mode lent</string>
+    <string name="groupManagementLogClosedTopic">A fermé le sujet</string>
     <string name="groupManagementLogCreatedTopic">A créé un sujet</string>
     <string name="groupManagementLogDeletedInviteLink">A supprimé un lien d’invitation</string>
     <string name="groupManagementLogDeletedMessage">A supprimé un message</string>
@@ -1432,6 +1433,7 @@
     <string name="groupManagementLogLeftGroup">A quitté le groupe</string>
     <string name="groupManagementLogNoPermission">Vous n’avez pas l’autorisation de consulter le journal de gestion du groupe</string>
     <string name="groupManagementLogPinnedMessage">A épinglé un message</string>
+    <string name="groupManagementLogReopenedTopic">A rouvert le sujet</string>
     <string name="groupManagementLogRevokedInviteLink">A révoqué un lien d’invitation</string>
     <string name="groupManagementLogStartedVideoChat">A créé un chat vidéo</string>
     <string name="groupManagementLogTitle">Journal de gestion du groupe</string>

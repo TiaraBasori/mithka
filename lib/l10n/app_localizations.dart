@@ -1521,6 +1521,10 @@ abstract final class AppStringKeys {
       'groupManagementLogChangedSlowMode';
   static const groupManagementLogCreatedTopic =
       'groupManagementLogCreatedTopic';
+  static const groupManagementLogClosedTopic =
+      'groupManagementLogClosedTopic';
+  static const groupManagementLogReopenedTopic =
+      'groupManagementLogReopenedTopic';
   static const groupManagementLogDeletedInviteLink =
       'groupManagementLogDeletedInviteLink';
   static const groupManagementLogDeletedMessage =

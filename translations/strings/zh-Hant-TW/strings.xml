@@ -1414,6 +1414,7 @@
     <string name="groupManagementLogChangedPostingPermissions">修改了發言權限</string>
     <string name="groupManagementLogChangedPublicUsername">修改了公開使用者名稱</string>
     <string name="groupManagementLogChangedSlowMode">修改了慢速模式</string>
+    <string name="groupManagementLogClosedTopic">關閉了話題</string>
     <string name="groupManagementLogCreatedTopic">建立了話題</string>
     <string name="groupManagementLogDeletedInviteLink">刪除了邀請連結</string>
     <string name="groupManagementLogDeletedMessage">刪除了訊息</string>
@@ -1430,6 +1431,7 @@
     <string name="groupManagementLogLeftGroup">離開了群組聊天</string>
     <string name="groupManagementLogNoPermission">沒有權限查看群組管理記錄</string>
     <string name="groupManagementLogPinnedMessage">置頂了訊息</string>
+    <string name="groupManagementLogReopenedTopic">重新開啟了話題</string>
     <string name="groupManagementLogRevokedInviteLink">撤銷了邀請連結</string>
     <string name="groupManagementLogStartedVideoChat">建立了視訊聊天</string>
     <string name="groupManagementLogTitle">群組管理記錄</string>

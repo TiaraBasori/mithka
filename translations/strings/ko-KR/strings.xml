@@ -1414,6 +1414,7 @@
     <string name="groupManagementLogChangedPostingPermissions">발언 권한을 변경했습니다</string>
     <string name="groupManagementLogChangedPublicUsername">공개 사용자 이름을 변경했습니다</string>
     <string name="groupManagementLogChangedSlowMode">슬로우 모드를 변경했습니다</string>
+    <string name="groupManagementLogClosedTopic">주제를 닫았습니다</string>
     <string name="groupManagementLogCreatedTopic">주제를 만들었습니다</string>
     <string name="groupManagementLogDeletedInviteLink">초대 링크를 삭제했습니다</string>
     <string name="groupManagementLogDeletedMessage">메시지를 삭제했습니다</string>
@@ -1430,6 +1431,7 @@
     <string name="groupManagementLogLeftGroup">그룹 채팅을 나갔습니다</string>
     <string name="groupManagementLogNoPermission">그룹 관리 기록을 볼 권한이 없습니다</string>
     <string name="groupManagementLogPinnedMessage">메시지를 고정했습니다</string>
+    <string name="groupManagementLogReopenedTopic">주제를 다시 열었습니다</string>
     <string name="groupManagementLogRevokedInviteLink">초대 링크를 취소했습니다</string>
     <string name="groupManagementLogStartedVideoChat">영상 채팅을 만들었습니다</string>
     <string name="groupManagementLogTitle">그룹 관리 기록</string>

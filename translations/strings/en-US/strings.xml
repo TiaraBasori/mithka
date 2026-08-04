@@ -1416,6 +1416,7 @@
     <string name="groupManagementLogChangedPostingPermissions">Changed posting permissions</string>
     <string name="groupManagementLogChangedPublicUsername">Changed public username</string>
     <string name="groupManagementLogChangedSlowMode">Changed slow mode</string>
+    <string name="groupManagementLogClosedTopic">Closed topic</string>
     <string name="groupManagementLogCreatedTopic">Created topic</string>
     <string name="groupManagementLogDeletedInviteLink">Deleted invite link</string>
     <string name="groupManagementLogDeletedMessage">Deleted message</string>
@@ -1432,6 +1433,7 @@
     <string name="groupManagementLogLeftGroup">Left the group</string>
     <string name="groupManagementLogNoPermission">You do not have permission to view the group management log</string>
     <string name="groupManagementLogPinnedMessage">Pinned message</string>
+    <string name="groupManagementLogReopenedTopic">Reopened topic</string>
     <string name="groupManagementLogRevokedInviteLink">Revoked invite link</string>
     <string name="groupManagementLogStartedVideoChat">Started video chat</string>
     <string name="groupManagementLogTitle">Group Management Log</string>
