@@ -130,6 +130,24 @@ void _dialogBadgeAndBubbleKeys() {
       expect(colors.badgeText, const Color(0xFF171717));
     });
 
+    test('the filled accent button keys its fill and label apart', () {
+      final colors = themeWith(const {
+        'list.plainBg': 0xFFFFFFFF,
+        'featuredStickers_addButton': 0xFF229AF0,
+        'featuredStickers_buttonText': 0xFF102030,
+      }).uiColors;
+      expect(colors.accentButton, const Color(0xFF229AF0));
+      expect(colors.accentButtonText, const Color(0xFF102030));
+    });
+
+    test('a button with no keys falls back to accent and on-accent', () {
+      final colors = themeWith(const {
+        'list.plainBg': 0xFFFFFFFF,
+      }, accent: 0xFF07C160).uiColors;
+      expect(colors.accentButton, const Color(0xFF07C160));
+      expect(colors.accentButtonText, white);
+    });
+
     test('selected bubble fills come from their own keys', () {
       final theme = themeWith(const {
         'list.plainBg': 0xFFFFFFFF,

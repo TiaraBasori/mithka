@@ -156,6 +156,8 @@ class DesktopChatWindowPalette {
       dialogText: Color(textPrimary),
       badgeBackground: Color(brand),
       badgeText: Color(onAccent),
+      accentButton: Color(brand),
+      accentButtonText: Color(onAccent),
     );
   }
 

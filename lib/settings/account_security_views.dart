@@ -1032,17 +1032,20 @@ class _PrimarySecurityButton extends StatelessWidget {
             ? context.colors.textTertiary
             : destructive
             ? AppTheme.unreadBadge
-            : AppTheme.brand,
+            : context.colors.accentButton,
         borderRadius: BorderRadius.circular(12),
       ),
       child: working
-          ? const AppActivityIndicator(size: 20, color: Colors.white)
+          ? AppActivityIndicator(
+              size: 20,
+              color: context.colors.accentButtonText,
+            )
           : Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: Colors.white,
+                color: context.colors.accentButtonText,
               ),
             ),
     ),

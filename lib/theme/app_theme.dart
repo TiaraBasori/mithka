@@ -356,6 +356,8 @@ class AppColors extends ThemeExtension<AppColors> {
     required this.dialogText,
     required this.badgeBackground,
     required this.badgeText,
+    required this.accentButton,
+    required this.accentButtonText,
   });
 
   final Color background; // list row background
@@ -389,6 +391,12 @@ class AppColors extends ThemeExtension<AppColors> {
   final Color badgeBackground;
   final Color badgeText;
 
+  /// Filled accent button and its label. Telegram keys the pair separately
+  /// (key_featuredStickers_addButton / ...buttonText) — the fill is the accent
+  /// and the label defaults to white, but a theme may move either alone.
+  final Color accentButton;
+  final Color accentButtonText;
+
   static final AppColors light = AppColors(
     background: _hex(0xFFFFFF),
     pinnedRow: _hex(0xF3F4F7),
@@ -412,6 +420,8 @@ class AppColors extends ThemeExtension<AppColors> {
     dialogText: _hex(0x1A1D21),
     badgeBackground: _hex(0x4B8DEE),
     badgeText: _hex(0xFFFFFF),
+    accentButton: _hex(0x4B8DEE),
+    accentButtonText: _hex(0xFFFFFF),
   );
 
   static final AppColors dark = AppColors(
@@ -437,6 +447,8 @@ class AppColors extends ThemeExtension<AppColors> {
     dialogText: _hex(0xEDEDED),
     badgeBackground: _hex(0x5EA0FF),
     badgeText: _hex(0xFFFFFF),
+    accentButton: _hex(0x5EA0FF),
+    accentButtonText: _hex(0xFFFFFF),
   );
 
   @override
@@ -463,6 +475,8 @@ class AppColors extends ThemeExtension<AppColors> {
     Color? dialogText,
     Color? badgeBackground,
     Color? badgeText,
+    Color? accentButton,
+    Color? accentButtonText,
   }) {
     return AppColors(
       background: background ?? this.background,
@@ -487,6 +501,8 @@ class AppColors extends ThemeExtension<AppColors> {
       dialogText: dialogText ?? this.dialogText,
       badgeBackground: badgeBackground ?? this.badgeBackground,
       badgeText: badgeText ?? this.badgeText,
+      accentButton: accentButton ?? this.accentButton,
+      accentButtonText: accentButtonText ?? this.accentButtonText,
     );
   }
 
@@ -532,6 +548,12 @@ class AppColors extends ThemeExtension<AppColors> {
         t,
       )!,
       badgeText: Color.lerp(badgeText, other.badgeText, t)!,
+      accentButton: Color.lerp(accentButton, other.accentButton, t)!,
+      accentButtonText: Color.lerp(
+        accentButtonText,
+        other.accentButtonText,
+        t,
+      )!,
     );
   }
 }

@@ -158,6 +158,8 @@ enum TelegramThemeSemanticColor {
   dialogText,
   badgeBackground,
   badgeText,
+  accentButton,
+  accentButtonText,
   chatBackground,
   searchFill,
   inputBarBackground,
@@ -623,6 +625,21 @@ class TelegramCloudTheme {
           'badgeTextColor',
           'dialogsUnreadFg',
         ],
+        // The filled accent button. Telegram keys the fill and the label as
+        // two independent values, so a theme can restyle one without the
+        // other and neither is inferred from the accent.
+        TelegramThemeSemanticColor.accentButton => const [
+          'featuredStickers_addButton',
+          'list.itemCheckColors.fillColor',
+          'accentColor',
+          'activeButtonBg',
+        ],
+        TelegramThemeSemanticColor.accentButtonText => const [
+          'featuredStickers_buttonText',
+          'list.itemCheckColors.foregroundColor',
+          'underSelectedColor',
+          'activeButtonFg',
+        ],
         TelegramThemeSemanticColor.chatBackground => const [
           'chat_wallpaper',
           'chat_background',
@@ -878,6 +895,11 @@ class TelegramCloudTheme {
       ),
       badgeText: value(
         TelegramThemeSemanticColor.badgeText,
+        value(TelegramThemeSemanticColor.onAccent, base.onAccent),
+      ),
+      accentButton: value(TelegramThemeSemanticColor.accentButton, accent),
+      accentButtonText: value(
+        TelegramThemeSemanticColor.accentButtonText,
         value(TelegramThemeSemanticColor.onAccent, base.onAccent),
       ),
     );
