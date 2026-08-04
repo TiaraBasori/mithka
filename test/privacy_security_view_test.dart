@@ -53,17 +53,9 @@ void main() {
       expect(find.text('Delete Account If Away For'), findsNothing);
       expect(find.text('更换手机号码'), findsOneWidget);
       expect(find.text('危险区域'), findsOneWidget);
-      expect(find.text('侧边栏隐藏手机号'), findsOneWidget);
+      expect(find.text('侧边栏隐藏手机号'), findsNothing);
       expect(find.text('解锁设置'), findsNothing);
       expect(find.text('账号备份'), findsNothing);
-
-      final sidebarPhoneRow = find.byKey(
-        const ValueKey('privacy-sidebar-phone-row'),
-      );
-      expect(theme.hideSidebarPhone, isFalse);
-      await tester.tap(sidebarPhoneRow);
-      await tester.pump();
-      expect(theme.hideSidebarPhone, isTrue);
 
       final dangerZone = find.byKey(const ValueKey('privacy-danger-zone'));
       expect(dangerZone, findsOneWidget);

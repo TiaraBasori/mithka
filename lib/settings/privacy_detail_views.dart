@@ -12,6 +12,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
+import 'package:provider/provider.dart';
 
 import '../chat/chat_picker_view.dart';
 import '../chat/image_edit_view.dart';
@@ -25,6 +26,7 @@ import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
+import '../theme/theme_controller.dart';
 import 'keyword_blocker.dart';
 import 'privacy_rule_options.dart';
 import 'qr_login_scanner_view.dart';
@@ -936,6 +938,7 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final theme = context.watch<ThemeController>();
     return Scaffold(
       backgroundColor: c.groupedBackground,
       body: Column(
@@ -980,6 +983,19 @@ class _PrivacyRuleViewState extends State<PrivacyRuleView> {
                         const InsetDivider(leadingInset: 16),
                     ],
                   ]),
+                  if (_isPhoneNumber) ...[
+                    const SizedBox(height: 14),
+                    _card([
+                      KeyedSubtree(
+                        key: const ValueKey('privacy-sidebar-phone-row'),
+                        child: _toggleAction(
+                          label: AppStringKeys.appearanceHidePhoneInSidebar,
+                          value: theme.hideSidebarPhone,
+                          onChanged: (value) => theme.hideSidebarPhone = value,
+                        ),
+                      ),
+                    ]),
+                  ],
                   if (_isProfilePhoto) ...[
                     _hint(
                       AppStrings.t(
