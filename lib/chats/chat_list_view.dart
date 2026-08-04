@@ -604,6 +604,8 @@ class _ChatListViewState extends State<ChatListView>
   bool _reactivationSyncScheduled = false;
   int _lastVisibleRows = 1;
   final ChatListSwipeSession _chatListSwipeSession = ChatListSwipeSession();
+  final ScrollController _folderTabScrollController = ScrollController();
+  final Map<int?, GlobalKey> _folderTabKeys = {};
   int _nextComposerFocusRequestId = 0;
   OverlayEntry? _desktopChatMenuEntry;
   OverlayEntry? _desktopPlusMenuEntry;
@@ -735,6 +737,7 @@ class _ChatListViewState extends State<ChatListView>
     _folderTransitionController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _folderTabScrollController.dispose();
     _model.removeListener(_onModel);
     _model.dispose();
     super.dispose();
@@ -1052,6 +1055,21 @@ class _ChatListViewState extends State<ChatListView>
     } else {
       _folderTransitionController.forward(from: 0);
     }
+    _ensureFolderTabVisible(filter.folderId);
+  }
+
+  void _ensureFolderTabVisible(int? folderId) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final key = _folderTabKeys[folderId];
+      final ctx = key?.currentContext;
+      if (ctx == null) return;
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    });
   }
 
   void _onControllerRequest() {
@@ -1518,6 +1536,7 @@ class _ChatListViewState extends State<ChatListView>
         border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
       ),
       child: ListView.separated(
+        controller: _folderTabScrollController,
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
         itemCount: _model.filters.length,
@@ -1525,7 +1544,12 @@ class _ChatListViewState extends State<ChatListView>
         itemBuilder: (context, index) {
           final filter = _model.filters[index];
           final selected = filter.folderId == selectedFolderId;
+          final key = _folderTabKeys.putIfAbsent(
+            filter.folderId,
+            () => GlobalKey(),
+          );
           return GestureDetector(
+            key: key,
             behavior: HitTestBehavior.opaque,
             onTap: () => _selectFilter(filter),
             child: SizedBox(
