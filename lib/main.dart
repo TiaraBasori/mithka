@@ -92,7 +92,9 @@ Future<void> _preloadLocaleCatalogue([SharedPreferences? prefs]) {
     saved = reader.locale;
     reader.dispose();
   }
-  return AppStrings.ensureLoaded(saved ?? PlatformDispatcher.instance.locale);
+  final locale = saved ?? ui.PlatformDispatcher.instance.locale;
+  AppStrings.setLocale(locale);
+  return AppStrings.ensureLoaded(locale);
 }
 
 Future<void> main(List<String> arguments) async {

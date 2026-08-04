@@ -3955,6 +3955,20 @@ abstract final class AppStrings {
 
   static bool get isReady => LocaleCatalogues.isReady;
 
+  /// Sets the locale used by callers that cannot pass a [BuildContext].
+  ///
+  /// Most widgets resolve through `context.l10n`, but a few shared services
+  /// and desktop chrome render strings without a localization context. Keep
+  /// that path in sync before the next rebuild so a locale change cannot
+  /// briefly mix the previous language with the new catalogue.
+  static void setLocale(Locale locale) {
+    final resolved = AppLocalizations.resolve(locale);
+    final tag = resolved.toLanguageTag();
+    Intl.defaultLocale = tag;
+    _cachedTag = tag;
+    _cachedLocaleKey = AppLocalizations.localeKeyFor(resolved);
+  }
+
   static String t(String key, [Map<String, Object?> placeholders = const {}]) {
     return tForLocale(_currentLocaleKey, key, placeholders);
   }
@@ -4057,7 +4071,7 @@ class _AppLocalizationsDelegate
   @override
   Future<AppLocalizations> load(Locale locale) {
     final resolved = AppLocalizations.resolve(locale);
-    Intl.defaultLocale = resolved.toLanguageTag();
+    AppStrings.setLocale(resolved);
     // Resolve synchronously when the catalogue is already in memory, which is
     // the normal case because main() preloads before runApp. An async future
     // here would leave Localizations — and therefore the whole app — blank for

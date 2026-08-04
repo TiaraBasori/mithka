@@ -5750,5 +5750,48 @@ void main() {
       expect(find.text('Messages'), findsOneWidget);
       expect(find.text('消息'), findsNothing);
     });
+
+    testWidgets('global AppStrings text follows language changes', (
+      tester,
+    ) async {
+      Intl.defaultLocale = null;
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = AppLocaleController(prefs)
+        ..locale = const Locale.fromSubtags(
+          languageCode: 'zh',
+          scriptCode: 'Hans',
+        );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: controller,
+          child: Consumer<AppLocaleController>(
+            builder: (context, locale, _) {
+              return MaterialApp(
+                locale: locale.locale,
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                ],
+                home: Text(
+                  AppStrings.t(AppStringKeys.businessSettingsTitle),
+                  textDirection: ui.TextDirection.ltr,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      expect(find.text('Telegram 企业版'), findsOneWidget);
+
+      controller.locale = const Locale('en');
+      await tester.pumpAndSettle();
+      expect(find.text('Telegram Business'), findsOneWidget);
+      expect(find.text('Telegram 企业版'), findsNothing);
+    });
   });
 }
