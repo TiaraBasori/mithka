@@ -2411,11 +2411,11 @@ class _DesktopTitleBarPlusMenuOverlay extends StatelessWidget {
     // Right-aligned to the button, and only pulled back if that would run the
     // menu off an edge — a button already at the window edge should still get
     // an exactly aligned menu.
-    final maxLeft = (screen.width - AppMetric.menuWidth).clamp(
-      0.0,
-      double.infinity,
-    );
-    final left = (anchor.right - AppMetric.menuWidth).clamp(0.0, maxLeft);
+    // Must match the width PlusMenu actually renders, which is denser on a
+    // pointer — otherwise the menu no longer lines up with its button.
+    final width = AppMetric.popupMenuWidth();
+    final maxLeft = (screen.width - width).clamp(0.0, double.infinity);
+    final left = (anchor.right - width).clamp(0.0, maxLeft);
 
     return Stack(
       children: [
@@ -2717,13 +2717,14 @@ class PlusMenu extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
+    final inset = AppMetric.popupMenuInset();
     return Material(
       color: Colors.transparent,
       child: Container(
-        width: AppMetric.menuWidth,
+        width: AppMetric.popupMenuWidth(),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           // The card and the empty content area behind it are the same colour
           // in the light theme, so without an edge the menu did not read as a
           // surface at all.
@@ -2744,29 +2745,27 @@ class PlusMenu extends StatelessWidget {
                 behavior: HitTestBehavior.opaque,
                 onTap: () => onSelect(item.$2),
                 child: SizedBox(
-                  height: AppMetric.menuRowHeight,
+                  height: AppMetric.popupMenuRowHeight(),
                   child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.xxl,
-                    ),
+                    padding: EdgeInsets.symmetric(horizontal: inset),
                     child: Row(
                       children: [
                         SizedBox(
-                          width: AppMetric.menuIconSlot,
+                          width: AppMetric.popupMenuIconSlot(),
                           child: AppIcon(
                             item.$1,
-                            size: AppIconSize.lg + 1,
+                            size: AppMetric.popupMenuIconSlot() - 3,
                             color: c.textPrimary,
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.xl),
+                        SizedBox(width: inset * 0.75),
                         Expanded(
                           child: Text(
                             item.$2.l10n(context),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: AppTextSize.bodyLarge,
+                              fontSize: AppMetric.popupMenuTextSize(),
                               color: c.textPrimary,
                             ),
                           ),
@@ -2801,11 +2800,11 @@ class ChatFilterMenu extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: Container(
-        width: AppMetric.menuWidth,
+        width: AppMetric.popupMenuWidth(),
         constraints: const BoxConstraints(maxHeight: 360),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.15),
@@ -2825,26 +2824,26 @@ class ChatFilterMenu extends StatelessWidget {
               behavior: HitTestBehavior.opaque,
               onTap: () => onSelect(filter),
               child: SizedBox(
-                height: AppMetric.menuRowHeight,
+                height: AppMetric.popupMenuRowHeight(),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xxl,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: AppMetric.popupMenuInset(),
                   ),
                   child: Row(
                     children: [
                       AppIcon(
                         filter.isAll ? HeroAppIcons.inbox : HeroAppIcons.folder,
-                        size: AppIconSize.lg + 1,
+                        size: AppMetric.popupMenuIconSlot() - 3,
                         color: c.textPrimary,
                       ),
-                      const SizedBox(width: AppSpacing.xl),
+                      SizedBox(width: AppMetric.popupMenuInset() * 0.75),
                       Expanded(
                         child: Text(
                           filter.title.l10n(context),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: AppTextSize.bodyLarge,
+                            fontSize: AppMetric.popupMenuTextSize(),
                             color: c.textPrimary,
                           ),
                         ),
@@ -2852,7 +2851,7 @@ class ChatFilterMenu extends StatelessWidget {
                       if (selectedFilter)
                         AppIcon(
                           HeroAppIcons.check,
-                          size: 18,
+                          size: AppMetric.popupMenuIconSlot() - 4,
                           color: AppTheme.brand,
                         ),
                     ],

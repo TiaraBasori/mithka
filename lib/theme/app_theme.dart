@@ -225,6 +225,21 @@ abstract final class AppMetric {
   static const double menuWidth = 220;
   static const double menuRowHeight = 50;
   static const double menuIconSlot = 24;
+
+  // Anchored popup menus. The touch sizes above are built for a fingertip; on
+  // a pointer they read as oversized next to the title bar they hang from.
+  static double popupMenuWidth([TargetPlatform? platform]) =>
+      isDesktopTargetPlatform(platform) ? 196 : menuWidth;
+  static double popupMenuRowHeight([TargetPlatform? platform]) =>
+      isDesktopTargetPlatform(platform) ? 32 : menuRowHeight;
+  static double popupMenuIconSlot([TargetPlatform? platform]) =>
+      isDesktopTargetPlatform(platform) ? 18 : menuIconSlot;
+  static double popupMenuTextSize([TargetPlatform? platform]) =>
+      isDesktopTargetPlatform(platform)
+      ? AppTextSize.footnote
+      : AppTextSize.bodyLarge;
+  static double popupMenuInset([TargetPlatform? platform]) =>
+      isDesktopTargetPlatform(platform) ? AppSpacing.lg : AppSpacing.xxl;
   static const double splashPenguinSize = 192;
   static const double splashSpinnerSize = 24;
   static const double divider = 0.5;
