@@ -885,7 +885,11 @@ class SettingsFilterChip extends StatelessWidget {
         ),
         child: Row(
           mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-          mainAxisAlignment: MainAxisAlignment.center,
+          // A vertical rail wants its glyphs on one straight edge to scan;
+          // an inline chip centres its own content.
+          mainAxisAlignment: expand
+              ? MainAxisAlignment.start
+              : MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
               AppIcon(icon!, size: dense ? 15 : 18, color: foreground),
