@@ -23,9 +23,12 @@ import 'package:provider/provider.dart';
 import '../app/unread_badge_model.dart';
 import '../chat/chat_wallpaper.dart';
 import '../chat/chat_wallpaper_view.dart';
+import '../chat/emoji_store.dart';
 import '../chat/image_media_album_bubble.dart';
+import '../chat/message_action_menu.dart';
 import '../chat/message_bubble.dart';
 import '../chat/message_bubble_chat_preview.dart';
+import '../chat/quick_reaction_choice.dart';
 import '../components/app_icons.dart';
 import '../components/desktop_content_constraint.dart';
 import '../components/photo_avatar.dart';
@@ -684,10 +687,7 @@ class ChatViewAppearanceSettingsView extends StatelessWidget {
     const appearance = AppearanceView();
     return _DisplaySectionPage(
       title: AppStrings.t(AppStringKeys.appearanceChatView),
-      preview: _SurfacePreviewCard(
-        title: AppStrings.t(AppStringKeys.appearanceChatView),
-        child: const _ChatViewSettingsPreview(),
-      ),
+      preview: const _ChatViewSettingsPreview(),
       controls: appearance._card(context, [
         appearance._toggleRow(
           context,
@@ -1187,9 +1187,15 @@ class _LiveAvatarRow extends StatelessWidget {
   }
 }
 
-class _ChatViewSettingsPreview extends StatelessWidget {
+class _ChatViewSettingsPreview extends StatefulWidget {
   const _ChatViewSettingsPreview();
 
+  @override
+  State<_ChatViewSettingsPreview> createState() =>
+      _ChatViewSettingsPreviewState();
+}
+
+class _ChatViewSettingsPreviewState extends State<_ChatViewSettingsPreview> {
   static final List<ChatMessage> _albumMessages = [
     ChatMessage(
       id: -9101,
@@ -1249,44 +1255,93 @@ class _ChatViewSettingsPreview extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: RepaintBoundary(
         child: ExcludeSemantics(
-          child: IgnorePointer(
-            child: TickerMode(
-              enabled: false,
-              child: SizedBox(
-                height: 280,
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: theme.groupImageMessages
-                      ? ImageMediaAlbumBubble(
-                          key: const ValueKey('chat-view-preview-album'),
-                          messages: _albumMessages,
-                          peerTitle: 'Design Circle',
-                          isGroup: true,
-                          meName: 'You',
-                          imageBuilder: _previewAlbumImage,
-                        )
-                      : Column(
-                          children: [
-                            for (final message in _albumMessages)
-                              MessageBubble(
-                                key: ValueKey(
-                                  'chat-view-preview-message-${message.id}',
-                                ),
-                                message: message,
-                                peerTitle: 'Design Circle',
-                                isGroup: true,
-                                meName: 'You',
+          child: TickerMode(
+            enabled: false,
+            child: SizedBox(
+              height: 280,
+              child: SingleChildScrollView(
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: theme.groupImageMessages
+                    ? ImageMediaAlbumBubble(
+                        key: const ValueKey('chat-view-preview-album'),
+                        messages: _albumMessages,
+                        peerTitle: 'Design Circle',
+                        isGroup: true,
+                        meName: 'You',
+                        imageBuilder: _previewAlbumImage,
+                        onLongPress: _showQuickReactions,
+                      )
+                    : Column(
+                        children: [
+                          for (final message in _albumMessages)
+                            MessageBubble(
+                              key: ValueKey(
+                                'chat-view-preview-message-${message.id}',
                               ),
-                          ],
-                        ),
-                ),
+                              message: message,
+                              peerTitle: 'Design Circle',
+                              isGroup: true,
+                              meName: 'You',
+                              onLongPress: _showQuickReactions,
+                            ),
+                        ],
+                      ),
               ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  OverlayEntry? _quickReactionOverlay;
+
+  void _showQuickReactions(
+    ChatMessage message,
+    Rect? globalBounds,
+    MessageActionSource _,
+  ) {
+    _dismissQuickReactions();
+    EmojiStore.shared.loadIfNeeded();
+
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final overlayBox = overlay.context.findRenderObject() as RenderBox?;
+    final anchorRect = globalBounds != null && overlayBox?.hasSize == true
+        ? MessageActionMenu.rectInOverlay(
+            globalBounds,
+            globalToLocal: overlayBox!.globalToLocal,
+          )
+        : null;
+    late final OverlayEntry entry;
+    void dismiss() {
+      if (_quickReactionOverlay != entry) return;
+      entry.remove();
+      _quickReactionOverlay = null;
+    }
+
+    entry = OverlayEntry(
+      builder: (context) => _ChatViewQuickReactionOverlay(
+        anchorRect: anchorRect,
+        outgoing: message.isOutgoing,
+        onDismiss: dismiss,
+        onReaction: (_) => dismiss(),
+        onExpand: dismiss,
+      ),
+    );
+    _quickReactionOverlay = entry;
+    overlay.insert(entry);
+  }
+
+  void _dismissQuickReactions() {
+    _quickReactionOverlay?.remove();
+    _quickReactionOverlay = null;
+  }
+
+  @override
+  void dispose() {
+    _dismissQuickReactions();
+    super.dispose();
   }
 
   static Widget _previewAlbumImage(
@@ -1299,6 +1354,72 @@ class _ChatViewSettingsPreview extends StatelessWidget {
     fit: BoxFit.cover,
     gaplessPlayback: true,
   );
+}
+
+class _ChatViewQuickReactionOverlay extends StatelessWidget {
+  const _ChatViewQuickReactionOverlay({
+    required this.anchorRect,
+    required this.outgoing,
+    required this.onDismiss,
+    required this.onReaction,
+    required this.onExpand,
+  });
+
+  final Rect? anchorRect;
+  final bool outgoing;
+  final VoidCallback onDismiss;
+  final ValueChanged<QuickReactionChoice> onReaction;
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final topSafe = media.padding.top + AppSpacing.sm;
+    final bottomSafe = media.size.height - media.padding.bottom - AppSpacing.sm;
+    const barHeight = 46.0;
+    final top = anchorRect == null
+        ? (media.size.height - barHeight) / 2
+        : (anchorRect!.top - barHeight - AppSpacing.sm).clamp(
+            topSafe,
+            bottomSafe - barHeight,
+          );
+    final alignment = outgoing ? Alignment.centerRight : Alignment.centerLeft;
+
+    return Material(
+      type: MaterialType.transparency,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              key: const ValueKey('chat-view-preview-reaction-dismiss'),
+              behavior: HitTestBehavior.opaque,
+              onTap: onDismiss,
+              child: const SizedBox.expand(),
+            ),
+          ),
+          Positioned(
+            top: top,
+            left: 10,
+            right: 10,
+            child: AnimatedBuilder(
+              animation: EmojiStore.shared,
+              builder: (context, _) => Align(
+                alignment: alignment,
+                child: QuickReactionBar(
+                  reactions: effectiveQuickReactions(
+                    context.watch<ThemeController>().quickReactions,
+                    allowCustomEmoji: EmojiStore.shared.isPremium,
+                  ),
+                  onReaction: onReaction,
+                  onExpand: onExpand,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ChatListSettingsPreview extends StatelessWidget {

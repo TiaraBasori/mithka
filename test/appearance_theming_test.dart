@@ -88,11 +88,13 @@ void main() {
 
     // Theme is reached from the settings list now rather than from this hub,
     // so push it directly instead of tapping a row that no longer exists.
-    tester
-        .state<NavigatorState>(find.byType(Navigator))
-        .push(
-          MaterialPageRoute<void>(builder: (_) => const ThemeSettingsView()),
-        );
+    unawaited(
+      tester
+          .state<NavigatorState>(find.byType(Navigator))
+          .push(
+            MaterialPageRoute<void>(builder: (_) => const ThemeSettingsView()),
+          ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byType(ThemeSettingsView), findsOneWidget);
@@ -280,6 +282,14 @@ void main() {
       controller.showMemberTags = true;
       controller.showPlainMemberRoleTags = true;
       await openChild('chat-view-settings-row', 'chat-view-preview');
+      expect(find.text('Chat View'), findsOneWidget);
+      expect(
+        find.ancestor(
+          of: find.byKey(const ValueKey('chat-view-preview')),
+          matching: find.byType(SettingsPanel),
+        ),
+        findsNothing,
+      );
       expect(
         find.byKey(const ValueKey('appearance-live-preview-unavailable')),
         findsNothing,
@@ -304,6 +314,17 @@ void main() {
         find.byKey(const ValueKey('messageTappedTimestamp')),
         findsOneWidget,
       );
+      await tester.longPress(
+        find.byKey(const ValueKey('messageImageAlbumTile--9101')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('quick-reaction-bar')), findsOneWidget);
+      expect(find.text('👍'), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey('chat-view-preview-reaction-dismiss')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('quick-reaction-bar')), findsNothing);
       await returnToAppearance();
 
       await openChild('chat-list-settings-row', 'chat-list-preview');
