@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Generated from the Mithka app tables. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- Mithka's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutReportProblem">报告问题</string>
     <string name="aboutReportProblemDetail">附带不含聊天内容的诊断信息</string>
@@ -299,7 +299,7 @@
     <string name="appLockGestureMismatch">两次手势不一致，请重试。</string>
     <string name="appLockGestureTooShort">请至少连接 4 个点。</string>
     <string name="appLockLockNow">锁定 Mithka</string>
-    <string name="appLockPin">PIN</string>
+    <string name="appLockPin">PIN 码</string>
     <string name="appLockPinDescription">4 位数字密码</string>
     <string name="appLockPinMismatch">两次 PIN 不一致，请重试。</string>
     <string name="appLockResetGesture">重置手势密码</string>
@@ -499,7 +499,7 @@
     <string name="businessSettingsThisBusinessFeatureIsUnavailableInThisBuild">此版本中不提供此业务功能</string>
     <string name="businessSettingsThursday">周四</string>
     <string name="businessSettingsTimeZone">时区</string>
-    <string name="businessSettingsTitle">Telegram Business</string>
+    <string name="businessSettingsTitle">Telegram 企业版</string>
     <string name="businessSettingsTools">商业工具</string>
     <string name="businessSettingsTuesday">周二</string>
     <string name="businessSettingsWednesday">周三</string>
@@ -642,8 +642,8 @@
     <string name="channelDirectMessagesDraft">Draft: {value1}</string>
     <string name="channelDirectMessagesEmpty">No direct-message topics yet</string>
     <string name="channelDirectMessagesLoadMore">Load more topics</string>
-    <string name="channelDirectMessagesMarkRead">Mark as read</string>
-    <string name="channelDirectMessagesMarkUnread">Mark as unread</string>
+    <string name="channelDirectMessagesMarkRead">标记为已读</string>
+    <string name="channelDirectMessagesMarkUnread">标记为未读</string>
     <string name="channelDirectMessagesNoMessages">No messages</string>
     <string name="channelDirectMessagesOlder">Load older messages</string>
     <string name="channelDirectMessagesRangeEnd">End date</string>
@@ -1074,8 +1074,8 @@
     <string name="confirmContinue">继续</string>
     <string name="confirmOk">确定</string>
     <string name="contactShareEmpty">No contacts with a shareable phone number</string>
-    <string name="contactShareSearch">Search contacts</string>
-    <string name="contactShareTitle">Share Contact</string>
+    <string name="contactShareSearch">搜索联系人</string>
+    <string name="contactShareTitle">分享联系人</string>
     <string name="contactsFriends">好友</string>
     <string name="contactsLoading">加载中…</string>
     <string name="contactsNoBots">暂无机器人</string>
@@ -1264,7 +1264,7 @@
     <string name="groupAdminAggressiveAntiSpam">Aggressive anti-spam</string>
     <string name="groupAdminAllReactions">All reactions</string>
     <string name="groupAdminAutomaticTranslation">Automatic translation</string>
-    <string name="groupAdminAvailableReactions">Available reactions</string>
+    <string name="groupAdminAvailableReactions">可选择的回应</string>
     <string name="groupAdminChangePhoto">Change photo</string>
     <string name="groupAdminCommunitySection">Community</string>
     <string name="groupAdminDescription">Description</string>
@@ -1287,7 +1287,7 @@
     <string name="groupAdminErrorTranslation">Couldn’t change automatic translation: {value1}</string>
     <string name="groupAdminHideMembers">Hide members</string>
     <string name="groupAdminHistoryForNewMembers">History visible to new members</string>
-    <string name="groupAdminHour">1 hour</string>
+    <string name="groupAdminHour">1小时</string>
     <string name="groupAdminLinked">Linked</string>
     <string name="groupAdminMessagesSection">Messages</string>
     <string name="groupAdminMinute">1 minute</string>
@@ -1298,7 +1298,7 @@
     <string name="groupAdminProfileSection">Profile</string>
     <string name="groupAdminProtectContent">Protect content</string>
     <string name="groupAdminReactionCount">{value1} reactions</string>
-    <string name="groupAdminRefresh">Refresh</string>
+    <string name="groupAdminRefresh">刷新</string>
     <string name="groupAdminRemovePhoto">Remove photo</string>
     <string name="groupAdminRemovePhotoConfirm">Remove the chat photo?</string>
     <string name="groupAdminSeconds">{value1} seconds</string>
@@ -1670,7 +1670,7 @@
     <string name="messageInfoReadDateHidden">Hidden by your privacy settings</string>
     <string name="messageInfoReadDatePrivate">Hidden by the recipient’s privacy settings</string>
     <string name="messageInfoReadDateTooOld">No longer available</string>
-    <string name="messageInfoReadDateUnavailable">Not available</string>
+    <string name="messageInfoReadDateUnavailable">不可用</string>
     <string name="messageInfoSender">Sender</string>
     <string name="messageInfoSent">Sent</string>
     <string name="messageInfoText">Text</string>
@@ -1678,7 +1678,7 @@
     <string name="messageInfoUnknownViewer">Unknown viewer</string>
     <string name="messageInfoUnread">Unread</string>
     <string name="messageInfoViewers">Viewed by</string>
-    <string name="messageInfoViews">Views</string>
+    <string name="messageInfoViews">浏览次数</string>
     <string name="messageInformationTitle">Message Info</string>
     <string name="messageLeaveAComment">发表评论</string>
     <string name="messagePollClosed">Closed</string>
@@ -2277,7 +2277,7 @@
     <string name="sharedContactAddFailed">Could not add contact</string>
     <string name="sharedContactAdded">Contact added</string>
     <string name="sharedContactCall">Call</string>
-    <string name="sharedContactCopyNumber">Copy Phone Number</string>
+    <string name="sharedContactCopyNumber">复制电话号码</string>
     <string name="sharedContactMessage">Message</string>
     <string name="sharedContactViewProfile">View Profile</string>
     <string name="sharedMediaCacheDeleteFailed">删除缓存失败</string>
@@ -2366,9 +2366,9 @@
     <string name="stickerStudioMaskPlacementValue">Mask placement: {value1}</string>
     <string name="stickerStudioMatchingEmojiHint">1–20 emoji</string>
     <string name="stickerStudioNameUnavailable">This short name is unavailable.</string>
-    <string name="stickerStudioNewSet">New Sticker Set</string>
+    <string name="stickerStudioNewSet">新贴纸包</string>
     <string name="stickerStudioNoFile">No file selected</string>
-    <string name="stickerStudioRefresh">Refresh</string>
+    <string name="stickerStudioRefresh">刷新</string>
     <string name="stickerStudioRemove">Remove</string>
     <string name="stickerStudioRemoveMessage">The sticker will be removed from this set.</string>
     <string name="stickerStudioRemoveSticker">Remove sticker?</string>
@@ -2382,7 +2382,7 @@
     <string name="stickerStudioSetTitle">Set title</string>
     <string name="stickerStudioSetTitleHint">1–64 characters</string>
     <string name="stickerStudioSetType">SET TYPE</string>
-    <string name="stickerStudioShortNameSuggest">Suggest</string>
+    <string name="stickerStudioShortNameSuggest">推荐</string>
     <string name="stickerStudioSourceGenericNote">The client checks file type, dimensions, duration metadata, and size before upload. TDLib performs the final server-side validation.</string>
     <string name="stickerStudioSourceNeedsChanges">源文件需要修改</string>
     <string name="stickerStudioSourceSpecNote">TDLib 会转换 PNG/WEBP 文件；TGS 和 WEBM 文件必须符合动画或视频贴纸规范。</string>
@@ -2393,9 +2393,9 @@
     <string name="stickerStudioTitleInvalid">Enter a title between 1 and 64 characters.</string>
     <string name="stickerStudioTypeCustomEmoji">Custom Emoji</string>
     <string name="stickerStudioTypeCustomEmojiDetail">Inline emoji for Premium users</string>
-    <string name="stickerStudioTypeMask">Masks</string>
+    <string name="stickerStudioTypeMask">装饰</string>
     <string name="stickerStudioTypeMaskDetail">Static images positioned on a face</string>
-    <string name="stickerStudioTypeRegular">Stickers</string>
+    <string name="stickerStudioTypeRegular">贴纸</string>
     <string name="stickerStudioTypeRegularDetail">Static, animated, and video stickers</string>
     <string name="stickerStudioUntitled">Untitled set</string>
     <string name="stickerStudioUpdateFailed">Sticker set update failed: {value1}</string>
@@ -2554,12 +2554,12 @@
     <string name="storyPublishing">发布中…</string>
     <string name="storyReplyHint">Reply to story</string>
     <string name="storyReplySent">Reply sent</string>
-    <string name="storyReport">Report Story</string>
+    <string name="storyReport">举报动态</string>
     <string name="storyReportDetails">Add report details</string>
     <string name="storyReported">Story reported</string>
     <string name="storySelectedCount">已选择 {value1} 人</string>
     <string name="storyShare">分享故事</string>
-    <string name="storyShared">Story shared</string>
+    <string name="storyShared">已分享动态</string>
     <string name="storyUiComponentsWorking">工作</string>
     <string name="storyUnsupported">暂不支持的动态</string>
     <string name="storyViewerMute">静音</string>
@@ -2583,7 +2583,7 @@
     <string name="suggestedPostApprovalFailed">Suggested post approval failed</string>
     <string name="suggestedPostApprove">Approve</string>
     <string name="suggestedPostApproved">Suggested post approved</string>
-    <string name="suggestedPostComposerTitle">Suggest a Post</string>
+    <string name="suggestedPostComposerTitle">推荐帖子</string>
     <string name="suggestedPostDecline">Decline</string>
     <string name="suggestedPostDeclineComment">Optional comment</string>
     <string name="suggestedPostDeclineTitle">Decline suggested post</string>

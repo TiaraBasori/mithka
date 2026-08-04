@@ -38,6 +38,7 @@ class Locale:
     name: str
     native_name: str
     plural_categories: tuple[str, ...]
+    telegram_code: str
 
     @property
     def directory(self) -> Path:
@@ -66,6 +67,7 @@ def load_locales() -> tuple[Locale, list[Locale]]:
             name=entry["name"],
             native_name=entry["nativeName"],
             plural_categories=tuple(entry["pluralCategories"]),
+            telegram_code=entry["telegramCode"],
         )
         for entry in data["locales"]
     ]

@@ -17,6 +17,29 @@ The app does not read these files directly. `tools/gen_assets.py` compiles them
 into `assets/l10n/`, which is what ships and what the app loads at launch. See
 [docs/localization.md](../docs/localization.md) for the runtime side.
 
+## Borrowing from Telegram's packs
+
+`tools/import_telegram.py` fills gaps from Telegram's official Android packs,
+under a deliberately strict rule. A string is adopted only when our value is
+still byte-identical to the English source (so it was never translated), our
+English text matches **exactly one** phrase in Telegram's English pack, the
+placeholders agree, and Telegram's translation is non-empty and actually
+differs. It has closed 139 gaps so far.
+
+```bash
+python3 translations/tools/import_telegram.py --dry-run
+```
+
+Anything looser was measured and rejected. Mithka used to map 753 keys onto
+Telegram keys at runtime; adopting those translations wholesale would rewrite
+3382 already-reviewed strings, and many would be worse — several distinct
+Mithka errors collapse onto one generic "An error occurred", "Find Groups"
+becomes "Search Chats", and "Search fonts" becomes "Search". A correct local
+translation beats a nearby upstream one.
+
+A handful of keys share English with a Telegram phrase but not its UI context;
+they are named in the tool's `SKIP` set with the reason.
+
 ## Why the strings live here and not on Telegram's platform
 
 Mithka used to take part of its wording from the user's Telegram language pack.

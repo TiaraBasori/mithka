@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Generated from the Mithka app tables. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- Mithka's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutReportProblem">Informar de un problema</string>
     <string name="aboutReportProblemDetail">Incluye diagnósticos sin datos privados</string>
@@ -642,8 +642,8 @@
     <string name="channelDirectMessagesDraft">Draft: {value1}</string>
     <string name="channelDirectMessagesEmpty">No direct-message topics yet</string>
     <string name="channelDirectMessagesLoadMore">Load more topics</string>
-    <string name="channelDirectMessagesMarkRead">Mark as read</string>
-    <string name="channelDirectMessagesMarkUnread">Mark as unread</string>
+    <string name="channelDirectMessagesMarkRead">Marcar como leído</string>
+    <string name="channelDirectMessagesMarkUnread">Marcar como no leído</string>
     <string name="channelDirectMessagesNoMessages">No messages</string>
     <string name="channelDirectMessagesOlder">Load older messages</string>
     <string name="channelDirectMessagesRangeEnd">End date</string>
@@ -1076,8 +1076,8 @@
     <string name="confirmContinue">Continuar</string>
     <string name="confirmOk">Aceptar</string>
     <string name="contactShareEmpty">No contacts with a shareable phone number</string>
-    <string name="contactShareSearch">Search contacts</string>
-    <string name="contactShareTitle">Share Contact</string>
+    <string name="contactShareSearch">Buscar contactos</string>
+    <string name="contactShareTitle">Compartir contacto</string>
     <string name="contactsFriends">Amigos</string>
     <string name="contactsLoading">Cargando…</string>
     <string name="contactsNoBots">No hay bots</string>
@@ -1266,7 +1266,7 @@
     <string name="groupAdminAggressiveAntiSpam">Aggressive anti-spam</string>
     <string name="groupAdminAllReactions">All reactions</string>
     <string name="groupAdminAutomaticTranslation">Automatic translation</string>
-    <string name="groupAdminAvailableReactions">Available reactions</string>
+    <string name="groupAdminAvailableReactions">Reacciones disponibles</string>
     <string name="groupAdminChangePhoto">Change photo</string>
     <string name="groupAdminCommunitySection">Community</string>
     <string name="groupAdminDescription">Description</string>
@@ -1289,7 +1289,7 @@
     <string name="groupAdminErrorTranslation">Couldn’t change automatic translation: {value1}</string>
     <string name="groupAdminHideMembers">Hide members</string>
     <string name="groupAdminHistoryForNewMembers">History visible to new members</string>
-    <string name="groupAdminHour">1 hour</string>
+    <string name="groupAdminHour">1 hora</string>
     <string name="groupAdminLinked">Linked</string>
     <string name="groupAdminMessagesSection">Messages</string>
     <string name="groupAdminMinute">1 minute</string>
@@ -1300,7 +1300,7 @@
     <string name="groupAdminProfileSection">Profile</string>
     <string name="groupAdminProtectContent">Protect content</string>
     <string name="groupAdminReactionCount">{value1} reactions</string>
-    <string name="groupAdminRefresh">Refresh</string>
+    <string name="groupAdminRefresh">Recargar</string>
     <string name="groupAdminRemovePhoto">Remove photo</string>
     <string name="groupAdminRemovePhotoConfirm">Remove the chat photo?</string>
     <string name="groupAdminSeconds">{value1} seconds</string>
@@ -1672,7 +1672,7 @@
     <string name="messageInfoReadDateHidden">Hidden by your privacy settings</string>
     <string name="messageInfoReadDatePrivate">Hidden by the recipient’s privacy settings</string>
     <string name="messageInfoReadDateTooOld">No longer available</string>
-    <string name="messageInfoReadDateUnavailable">Not available</string>
+    <string name="messageInfoReadDateUnavailable">No disponible</string>
     <string name="messageInfoSender">Sender</string>
     <string name="messageInfoSent">Sent</string>
     <string name="messageInfoText">Text</string>
@@ -1680,7 +1680,7 @@
     <string name="messageInfoUnknownViewer">Unknown viewer</string>
     <string name="messageInfoUnread">Unread</string>
     <string name="messageInfoViewers">Viewed by</string>
-    <string name="messageInfoViews">Views</string>
+    <string name="messageInfoViews">Vistas</string>
     <string name="messageInformationTitle">Message Info</string>
     <string name="messageLeaveAComment">Deja un comentario</string>
     <string name="messagePollClosed">Closed</string>
@@ -2003,7 +2003,7 @@
     <string name="profileContactManagementPersonalPhotoUpdated">Foto personal actualizada</string>
     <string name="profileContactManagementPhoneShared">Número de teléfono compartido</string>
     <string name="profileContactManagementPhotoCurrent">Actual</string>
-    <string name="profileContactManagementPhotoPersonal">Personal</string>
+    <string name="profileContactManagementPhotoPersonal">Personales</string>
     <string name="profileContactManagementPhotoPublic">Pública</string>
     <string name="profileContactManagementPhotoSuggestionSent">Sugerencia de foto enviada</string>
     <string name="profileContactManagementPrivacyExceptionSubtitleValue1">Tu número de teléfono será visible para {value1}.</string>
@@ -2282,7 +2282,7 @@
     <string name="sharedContactAddFailed">Could not add contact</string>
     <string name="sharedContactAdded">Contact added</string>
     <string name="sharedContactCall">Call</string>
-    <string name="sharedContactCopyNumber">Copy Phone Number</string>
+    <string name="sharedContactCopyNumber">Copiar número de teléfono</string>
     <string name="sharedContactMessage">Message</string>
     <string name="sharedContactViewProfile">View Profile</string>
     <string name="sharedMediaCacheDeleteFailed">No se pudo eliminar la caché</string>
@@ -2338,7 +2338,7 @@
     <string name="stickerStudioActionEditMask">Edit mask placement</string>
     <string name="stickerStudioActionMoveEarlier">Move earlier</string>
     <string name="stickerStudioActionMoveLater">Move later</string>
-    <string name="stickerStudioActionRemove">Remove sticker</string>
+    <string name="stickerStudioActionRemove">Eliminar sticker</string>
     <string name="stickerStudioActionReplace">Replace source</string>
     <string name="stickerStudioActionUseThumbnail">Use as set thumbnail</string>
     <string name="stickerStudioAddSource">Add sticker source</string>
@@ -2372,9 +2372,9 @@
     <string name="stickerStudioMaskPlacementValue">Mask placement: {value1}</string>
     <string name="stickerStudioMatchingEmojiHint">1–20 emoji</string>
     <string name="stickerStudioNameUnavailable">This short name is unavailable.</string>
-    <string name="stickerStudioNewSet">New Sticker Set</string>
+    <string name="stickerStudioNewSet">Nuevo pack de stickers</string>
     <string name="stickerStudioNoFile">No file selected</string>
-    <string name="stickerStudioRefresh">Refresh</string>
+    <string name="stickerStudioRefresh">Recargar</string>
     <string name="stickerStudioRemove">Remove</string>
     <string name="stickerStudioRemoveMessage">The sticker will be removed from this set.</string>
     <string name="stickerStudioRemoveSticker">Remove sticker?</string>
@@ -2388,7 +2388,7 @@
     <string name="stickerStudioSetTitle">Set title</string>
     <string name="stickerStudioSetTitleHint">1–64 characters</string>
     <string name="stickerStudioSetType">SET TYPE</string>
-    <string name="stickerStudioShortNameSuggest">Suggest</string>
+    <string name="stickerStudioShortNameSuggest">Sugerir</string>
     <string name="stickerStudioSourceGenericNote">The client checks file type, dimensions, duration metadata, and size before upload. TDLib performs the final server-side validation.</string>
     <string name="stickerStudioSourceNeedsChanges">Source needs changes</string>
     <string name="stickerStudioSourceSpecNote">PNG/WEBP input is converted by TDLib. TGS and WEBM files must already satisfy the animated or video sticker specification.</string>
@@ -2399,7 +2399,7 @@
     <string name="stickerStudioTitleInvalid">Enter a title between 1 and 64 characters.</string>
     <string name="stickerStudioTypeCustomEmoji">Custom Emoji</string>
     <string name="stickerStudioTypeCustomEmojiDetail">Inline emoji for Premium users</string>
-    <string name="stickerStudioTypeMask">Masks</string>
+    <string name="stickerStudioTypeMask">Máscaras</string>
     <string name="stickerStudioTypeMaskDetail">Static images positioned on a face</string>
     <string name="stickerStudioTypeRegular">Stickers</string>
     <string name="stickerStudioTypeRegularDetail">Static, animated, and video stickers</string>
@@ -2560,12 +2560,12 @@
     <string name="storyPublishing">Publicando…</string>
     <string name="storyReplyHint">Reply to story</string>
     <string name="storyReplySent">Reply sent</string>
-    <string name="storyReport">Report Story</string>
+    <string name="storyReport">Reportar historia</string>
     <string name="storyReportDetails">Add report details</string>
     <string name="storyReported">Story reported</string>
     <string name="storySelectedCount">{value1} seleccionadas</string>
     <string name="storyShare">Compartir historia</string>
-    <string name="storyShared">Story shared</string>
+    <string name="storyShared">Historia compartida</string>
     <string name="storyUiComponentsWorking">trabajando</string>
     <string name="storyUnsupported">Historia no compatible</string>
     <string name="storyViewerMute">Silenciar</string>
@@ -2589,7 +2589,7 @@
     <string name="suggestedPostApprovalFailed">Suggested post approval failed</string>
     <string name="suggestedPostApprove">Approve</string>
     <string name="suggestedPostApproved">Suggested post approved</string>
-    <string name="suggestedPostComposerTitle">Suggest a Post</string>
+    <string name="suggestedPostComposerTitle">Sugerir un post</string>
     <string name="suggestedPostDecline">Decline</string>
     <string name="suggestedPostDeclineComment">Optional comment</string>
     <string name="suggestedPostDeclineTitle">Decline suggested post</string>
