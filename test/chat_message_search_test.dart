@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/chat_message_search_bar.dart';
 import 'package:mithka/chat/chat_message_search_controller.dart';
+import 'package:mithka/chat/chat_search_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/td_client.dart';
 import 'package:mithka/tdlib/td_models.dart';
@@ -217,6 +218,65 @@ void main() {
       expect(controller.hasMore, isFalse);
     });
 
+    test('a filter narrows the search to one kind of message', () async {
+      final controller = ChatMessageSearchController(chatId: _chatId);
+      addTearDown(controller.dispose);
+
+      controller.open();
+      controller.updateQuery('needle');
+      await Future<void>.delayed(_debounce);
+      await pumpEventQueue();
+      expect(_filtersUsed(requests), ['searchMessagesFilterEmpty']);
+
+      requests.clear();
+      controller.setFilter(ChatSearchFilter.media);
+      expect(
+        controller.results,
+        isEmpty,
+        reason: 'hits from the old filter describe a different set',
+      );
+      await Future<void>.delayed(_debounce);
+      await pumpEventQueue();
+
+      expect(_filtersUsed(requests), ['searchMessagesFilterPhotoAndVideo']);
+      expect(controller.filter, ChatSearchFilter.media);
+      expect(controller.hasResults, isTrue);
+    });
+
+    test('a filter alone searches with nothing typed', () async {
+      final controller = ChatMessageSearchController(chatId: _chatId);
+      addTearDown(controller.dispose);
+
+      controller.open();
+      expect(controller.hasSearch, isFalse);
+
+      controller.setFilter(ChatSearchFilter.voice);
+      expect(controller.hasSearch, isTrue);
+      await Future<void>.delayed(_debounce);
+      await pumpEventQueue();
+
+      expect(_filtersUsed(requests), ['searchMessagesFilterVoiceNote']);
+      final search = requests.firstWhere(
+        (request) => request['@type'] == 'searchChatMessages',
+      );
+      expect(search['query'], '');
+      expect(controller.hasResults, isTrue);
+    });
+
+    test('closing forgets the filter as well as the query', () async {
+      final controller = ChatMessageSearchController(chatId: _chatId);
+      addTearDown(controller.dispose);
+
+      controller.open();
+      controller.setFilter(ChatSearchFilter.files);
+      await Future<void>.delayed(_debounce);
+      await pumpEventQueue();
+
+      controller.close();
+      expect(controller.filter, ChatSearchFilter.all);
+      expect(controller.hasSearch, isFalse);
+    });
+
     test('a stale page cannot repopulate a newer query', () async {
       final slow = Completer<Map<String, dynamic>>();
       handler = (request) async {
@@ -360,6 +420,35 @@ void main() {
       expect(controller.activeMessageId, 20);
     });
 
+    testWidgets('a list-only surface marks no row until one is picked', (
+      tester,
+    ) async {
+      final controller = ChatMessageSearchController(
+        chatId: _chatId,
+        autoActivateFirstResult: false,
+      );
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        _harness(
+          fill: true,
+          ChatSearchResultsPane(
+            controller: controller,
+            peerTitle: 'Group',
+            onSelect: (_) {},
+          ),
+        ),
+      );
+
+      controller.open();
+      controller.updateQuery('needle');
+      await tester.pump(_debounce);
+      await tester.pumpAndSettle();
+
+      expect(controller.hasResults, isTrue);
+      expect(controller.activeIndex, -1);
+      expect(controller.matchPosition, 0);
+    });
+
     testWidgets('an empty query invites one instead of reporting none', (
       tester,
     ) async {
@@ -388,23 +477,88 @@ void main() {
       );
     });
   });
+
+  group('pushed search screen', () {
+    testWidgets('names the sender of a group hit instead of the chat', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [AppLocalizations.delegate],
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppColors.light]),
+          home: const ChatSearchView(
+            chatId: _chatId,
+            title: 'The group',
+            initialQuery: 'needle',
+          ),
+        ),
+      );
+      await tester.pump(_debounce);
+      await tester.pumpAndSettle();
+
+      // Search hits arrive without a resolved sender; without hydration every
+      // row would be attributed to the chat itself.
+      expect(find.text('Mao Contact'), findsWidgets);
+      expect(find.text('The group'), findsNothing);
+    });
+
+    testWidgets('pops the picked message id to whoever opened it', (
+      tester,
+    ) async {
+      int? picked;
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [AppLocalizations.delegate],
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppColors.light]),
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () async {
+                    picked = await Navigator.of(context).push<int>(
+                      MaterialPageRoute<int>(
+                        builder: (_) => const ChatSearchView(
+                          chatId: _chatId,
+                          title: 'The group',
+                          initialQuery: 'needle',
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      await tester.pump(_debounce);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('chatSearchResult-20')));
+      await tester.pumpAndSettle();
+
+      expect(picked, 20);
+    });
+  });
 }
 
-Widget _header(ChatMessageSearchController controller) => ChatSearchHeaderBar(
-  controller: controller,
-  height: 48,
-  onClose: () {},
-);
+Widget _header(ChatMessageSearchController controller) =>
+    ChatSearchHeaderBar(controller: controller, height: 48, onClose: () {});
 
 /// The stepper shows its disabled state by fading the glyph, so the icon's
 /// opacity is the observable that does not depend on the surface's internals.
 bool _stepperEnabled(WidgetTester tester, String key) {
   final icon = tester.widget<Icon>(
     find
-        .descendant(
-          of: find.byKey(ValueKey(key)),
-          matching: find.byType(Icon),
-        )
+        .descendant(of: find.byKey(ValueKey(key)), matching: find.byType(Icon))
         .first,
   );
   return (icon.color?.a ?? 1) > 0.5;
@@ -479,3 +633,10 @@ Map<String, dynamic> _message(int id) => {
     },
   },
 };
+
+List<String> _filtersUsed(List<Map<String, dynamic>> requests) => requests
+    .where((request) => request['@type'] == 'searchChatMessages')
+    .map((request) => (request['filter'] as Map<String, dynamic>)['@type'])
+    .cast<String>()
+    .toSet()
+    .toList();

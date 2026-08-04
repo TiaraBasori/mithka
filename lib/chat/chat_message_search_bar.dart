@@ -16,6 +16,7 @@ import 'package:flutter/services.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/photo_avatar.dart';
+import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_motion.dart';
@@ -63,46 +64,90 @@ class ChatSearchHeaderBar extends StatelessWidget {
             ? Border(bottom: BorderSide(color: c.divider, width: 0.5))
             : null,
       ),
-      child: SizedBox(
-        height: height,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          child: Row(
-            children: [
-              AppInteractiveSurface(
-                key: const ValueKey('chatSearchClose'),
-                semanticLabel: AppStringKeys.navigationBack.l10n(context),
-                onTap: onClose,
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                child: SizedBox(
-                  width: AppMetric.hitTarget,
-                  height: AppMetric.hitTarget,
-                  child: Center(
-                    child: AppIcon(
-                      HeroAppIcons.chevronLeft,
-                      size: AppIconSize.nav,
-                      color: c.textPrimary,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: _ChatSearchField(
-                  controller: controller,
-                  onClose: onClose,
-                ),
-              ),
-              if (showSteppers) ...[
-                const SizedBox(width: AppSpacing.sm),
-                ChatSearchSteppers(controller: controller),
-              ],
-            ],
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            height: height,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: _fieldRow(context, c),
+            ),
           ),
-        ),
+          ChatSearchFilterStrip(controller: controller),
+        ],
       ),
     );
   }
+
+  Widget _fieldRow(BuildContext context, AppColors c) => Row(
+    children: [
+      AppInteractiveSurface(
+        key: const ValueKey('chatSearchClose'),
+        semanticLabel: AppStringKeys.navigationBack.l10n(context),
+        onTap: onClose,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: SizedBox(
+          width: AppMetric.hitTarget,
+          height: AppMetric.hitTarget,
+          child: Center(
+            child: AppIcon(
+              HeroAppIcons.chevronLeft,
+              size: AppIconSize.nav,
+              color: c.textPrimary,
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(width: AppSpacing.sm),
+      Expanded(
+        child: _ChatSearchField(controller: controller, onClose: onClose),
+      ),
+      if (showSteppers) ...[
+        const SizedBox(width: AppSpacing.sm),
+        ChatSearchSteppers(controller: controller),
+      ],
+    ],
+  );
+}
+
+/// Narrows a chat's search to one kind of message.
+///
+/// The strip stays out of the way until search is actually open, and scrolls
+/// horizontally so a narrow phone never truncates the last chip.
+class ChatSearchFilterStrip extends StatelessWidget {
+  const ChatSearchFilterStrip({super.key, required this.controller});
+
+  static const double height = 44;
+
+  final ChatMessageSearchController controller;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) => SizedBox(
+      key: const ValueKey('chatSearchFilterStrip'),
+      height: height,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl,
+          vertical: AppSpacing.xs,
+        ),
+        itemCount: ChatSearchFilter.values.length,
+        separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+        itemBuilder: (context, index) {
+          final filter = ChatSearchFilter.values[index];
+          return SettingsFilterChip(
+            key: ValueKey('chatSearchFilter-${filter.name}'),
+            label: filter.labelKey.l10n(context),
+            selected: controller.filter == filter,
+            onTap: () => controller.setFilter(filter),
+          );
+        },
+      ),
+    ),
+  );
 }
 
 class _ChatSearchField extends StatelessWidget {
@@ -385,7 +430,7 @@ String chatSearchStatusLabel(
   BuildContext context,
   ChatMessageSearchController controller,
 ) {
-  if (!controller.hasQuery) {
+  if (!controller.hasSearch) {
     return AppStringKeys.chatSearchMessagePlaceholder.l10n(context);
   }
   if (controller.hasResults) {
@@ -408,12 +453,17 @@ class ChatSearchResultsPane extends StatelessWidget {
     required this.peerTitle,
     required this.onSelect,
     this.showHeader = true,
+    this.backgroundColor,
   });
 
   final ChatMessageSearchController controller;
   final String peerTitle;
   final ValueChanged<ChatMessage> onSelect;
   final bool showHeader;
+
+  /// Defaults to the trailing-pane wash. A full screen passes the page
+  /// background so the list does not read as a pane floating on itself.
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -425,7 +475,7 @@ class ChatSearchResultsPane extends StatelessWidget {
     final c = context.colors;
     return ColoredBox(
       key: const ValueKey('chatSearchResultsPane'),
-      color: c.panelBackground,
+      color: backgroundColor ?? c.panelBackground,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

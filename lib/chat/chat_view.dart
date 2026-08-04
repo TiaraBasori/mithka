@@ -6306,12 +6306,13 @@ class _ChatViewState extends State<ChatView> {
                       icon: HeroAppIcons.tableCells,
                       onTap: () => unawaited(_openBotMenuApp(_vm.botMenu!)),
                     ),
-                  _ChatHeaderAction(
-                    key: const ValueKey('chatHeaderSearch'),
-                    label: AppStringKeys.chatSearchInThisChat.l10n(context),
-                    icon: HeroAppIcons.magnifyingGlass,
-                    onTap: _openSearch,
-                  ),
+                  if (_canSearchMessages)
+                    _ChatHeaderAction(
+                      key: const ValueKey('chatHeaderSearch'),
+                      label: AppStringKeys.chatSearchInThisChat.l10n(context),
+                      icon: HeroAppIcons.magnifyingGlass,
+                      onTap: _openSearch,
+                    ),
                   if (wideGroupHeader)
                     WideGroupChatHeaderActions(
                       onStartCall: (isVideo) => unawaited(_startCall(isVideo)),
@@ -6353,6 +6354,12 @@ class _ChatViewState extends State<ChatView> {
       ),
     );
   }
+
+  /// The join screen and a restricted peer both render the chat header over a
+  /// page with no transcript behind it. Offering search there would open a
+  /// field that can only ever report nothing.
+  bool get _canSearchMessages =>
+      !_vm.isPeerRestricted && (_vm.isMember || _vm.messages.isNotEmpty);
 
   bool get _usesWideGroupHeader {
     return wideGroupHeaderActionsEnabled(
@@ -7074,10 +7081,14 @@ class _ChatViewState extends State<ChatView> {
     final media = MediaQuery.of(context);
     final origin = renderObject.localToGlobal(Offset.zero);
     final rect = origin & renderObject.size;
+    // Search replaces the whole header, translation panel and header bottom
+    // included, with the field plus its filter strip.
     final viewportTop =
         media.padding.top +
         widget.headerHeight +
-        (widget.headerBottom == null ? 0 : widget.headerBottomHeight) +
+        (_search.isActive
+            ? ChatSearchFilterStrip.height
+            : (widget.headerBottom == null ? 0 : widget.headerBottomHeight)) +
         (widget.showHeaderDivider ? 1 : 0);
     final viewportBottom =
         media.size.height - media.viewInsets.bottom - media.padding.bottom - 72;

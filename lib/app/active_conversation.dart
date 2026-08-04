@@ -66,10 +66,7 @@ class ActiveConversation {
       }
       final title = registration.title().trim();
       if (registration.chatId == 0) continue;
-      return ActiveConversationScope(
-        chatId: registration.chatId,
-        title: title,
-      );
+      return ActiveConversationScope(chatId: registration.chatId, title: title);
     }
     return null;
   }

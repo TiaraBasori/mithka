@@ -15,6 +15,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../app/adaptive_split_layout.dart';
+import '../l10n/app_localizations.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
@@ -60,6 +61,37 @@ List<InlineSpan> chatSearchHighlightSpans({
   return spans.isEmpty ? [TextSpan(text: text)] : spans;
 }
 
+/// The kinds of message an in-chat search can narrow to.
+///
+/// Labels and TDLib filter names are the ones global search already uses, so a
+/// chat's filter strip reads the same as the search screen's category tabs.
+enum ChatSearchFilter {
+  all,
+  media,
+  links,
+  files,
+  music,
+  voice;
+
+  String get labelKey => switch (this) {
+    ChatSearchFilter.all => AppStringKeys.sharedMediaFilterAll,
+    ChatSearchFilter.media => AppStringKeys.searchTabMedia,
+    ChatSearchFilter.links => AppStringKeys.searchTabLinks,
+    ChatSearchFilter.files => AppStringKeys.searchTabFiles,
+    ChatSearchFilter.music => AppStringKeys.searchTabMusic,
+    ChatSearchFilter.voice => AppStringKeys.searchTabVoiceMessages,
+  };
+
+  String get tdlibFilter => switch (this) {
+    ChatSearchFilter.all => 'searchMessagesFilterEmpty',
+    ChatSearchFilter.media => 'searchMessagesFilterPhotoAndVideo',
+    ChatSearchFilter.links => 'searchMessagesFilterUrl',
+    ChatSearchFilter.files => 'searchMessagesFilterDocument',
+    ChatSearchFilter.music => 'searchMessagesFilterAudio',
+    ChatSearchFilter.voice => 'searchMessagesFilterVoiceNote',
+  };
+}
+
 /// Sender identity for a hit, resolved once per sender and shared by every
 /// result row that quotes them.
 class _SearchSender {
@@ -79,6 +111,7 @@ class ChatMessageSearchController extends ChangeNotifier {
     required this.chatId,
     TdClient? client,
     this.onActivateResult,
+    this.autoActivateFirstResult = true,
   }) : _client = client ?? TdClient.shared;
 
   static const Duration _debounceDelay = Duration(milliseconds: 280);
@@ -90,6 +123,13 @@ class ChatMessageSearchController extends ChangeNotifier {
   /// Called whenever the cursor lands on a hit — including the automatic
   /// landing on the newest hit of a freshly typed query.
   final ValueChanged<ChatMessage>? onActivateResult;
+
+  /// Whether a fresh query moves the cursor to its newest hit.
+  ///
+  /// A transcript wants that — the view follows what was typed. A surface that
+  /// only lists hits does not: there is nothing to follow, and a marked first
+  /// row would read as a choice the user did not make.
+  final bool autoActivateFirstResult;
 
   final TextEditingController textController = TextEditingController();
   final FocusNode focusNode = FocusNode();
@@ -106,6 +146,7 @@ class ChatMessageSearchController extends ChangeNotifier {
   int _nextFromMessageId = 0;
   int _activeIndex = -1;
   List<ChatMessage> _results = const [];
+  ChatSearchFilter _filter = ChatSearchFilter.all;
 
   bool get isActive => _active;
   String get query => _query;
@@ -117,9 +158,16 @@ class ChatMessageSearchController extends ChangeNotifier {
       : null;
   int? get activeMessageId => activeResult?.id;
 
+  ChatSearchFilter get filter => _filter;
+
   /// A run is in flight, or one is queued behind the debounce.
   bool get isLoading => _loading || _debounce?.isActive == true;
   bool get hasQuery => _query.trim().isNotEmpty;
+
+  /// Whether anything is being searched for. A narrowed filter counts on its
+  /// own — "every photo in this chat" is a useful result set with nothing
+  /// typed.
+  bool get hasSearch => hasQuery || _filter != ChatSearchFilter.all;
   bool get hasResults => _results.isNotEmpty;
   bool get hasMore => _nextFromMessageId != 0;
 
@@ -162,6 +210,7 @@ class ChatMessageSearchController extends ChangeNotifier {
     _nextFromMessageId = 0;
     _loading = false;
     _loadingMore = false;
+    _filter = ChatSearchFilter.all;
     textController.clear();
     focusNode.unfocus();
     notifyListeners();
@@ -169,16 +218,30 @@ class ChatMessageSearchController extends ChangeNotifier {
 
   void updateQuery(String value) {
     if (_disposed) return;
-    _cancelRun();
     _query = value;
+    _restart();
+  }
+
+  /// Narrows the search to one kind of message, keeping whatever is typed.
+  void setFilter(ChatSearchFilter filter) {
+    if (_disposed || filter == _filter) return;
+    _filter = filter;
+    _restart();
+  }
+
+  /// Drops the current results and queues a fresh first page. Hits from the
+  /// previous query or filter describe a different set, so they are discarded
+  /// rather than filtered down.
+  void _restart() {
+    _cancelRun();
     _results = const [];
     _activeIndex = -1;
     _totalCount = 0;
     _nextFromMessageId = 0;
     _loadingMore = false;
-    final trimmed = value.trim();
     _loading = false;
-    if (trimmed.isNotEmpty) {
+    if (hasSearch) {
+      final trimmed = _query.trim();
       final runId = _runId;
       _debounce = Timer(_debounceDelay, () => _runFirstPage(trimmed, runId));
     }
@@ -224,9 +287,8 @@ class ChatMessageSearchController extends ChangeNotifier {
   }
 
   Future<void> loadMore() async {
-    if (_disposed || _loadingMore || !hasMore) return;
+    if (_disposed || _loadingMore || !hasMore || !hasSearch) return;
     final trimmed = _query.trim();
-    if (trimmed.isEmpty) return;
     final runId = _runId;
     _loadingMore = true;
     notifyListeners();
@@ -274,7 +336,9 @@ class ChatMessageSearchController extends ChangeNotifier {
     unawaited(_hydrateSenders(page.messages, runId));
     // Typing lands on the newest hit so the transcript follows the query
     // without a second gesture; later pages never move the cursor.
-    if (activateFirst && _results.isNotEmpty) selectIndex(0);
+    if (activateFirst && autoActivateFirstResult && _results.isNotEmpty) {
+      selectIndex(0);
+    }
   }
 
   Future<_SearchPage?> _fetchPage(String query, {required int from}) async {
@@ -287,9 +351,10 @@ class ChatMessageSearchController extends ChangeNotifier {
         'from_message_id': from,
         'offset': 0,
         'limit': _pageSize,
-        'filter': {'@type': 'searchMessagesFilterEmpty'},
+        'filter': {'@type': _filter.tdlibFilter},
       });
-      final raw = response.objects('messages') ?? const <Map<String, dynamic>>[];
+      final raw =
+          response.objects('messages') ?? const <Map<String, dynamic>>[];
       final messages = raw
           .map(TDParse.message)
           .whereType<ChatMessage>()
