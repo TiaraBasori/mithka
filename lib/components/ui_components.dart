@@ -1017,12 +1017,17 @@ class AppValueScrubber extends StatelessWidget {
     required this.min,
     required this.max,
     required this.onChanged,
+    this.compact = false,
   });
 
   final double value;
   final double min;
   final double max;
   final ValueChanged<double> onChanged;
+
+  /// Slimmer track and thumb, for a scrubber sitting inline in a toolbar
+  /// rather than owning a settings row.
+  final bool compact;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -1039,7 +1044,7 @@ class AppValueScrubber extends StatelessWidget {
           onTapDown: (event) => update(event.localPosition.dx),
           onHorizontalDragUpdate: (event) => update(event.localPosition.dx),
           child: SizedBox(
-            height: 34,
+            height: compact ? 22 : 34,
             child: Stack(
               alignment: Alignment.centerLeft,
               children: [
@@ -1047,7 +1052,7 @@ class AppValueScrubber extends StatelessWidget {
                   left: 0,
                   right: 0,
                   child: Container(
-                    height: 4,
+                    height: compact ? 3 : 4,
                     decoration: BoxDecoration(
                       color: context.colors.divider,
                       borderRadius: BorderRadius.circular(2),
@@ -1058,7 +1063,7 @@ class AppValueScrubber extends StatelessWidget {
                   left: 0,
                   width: constraints.maxWidth * progress,
                   child: Container(
-                    height: 4,
+                    height: compact ? 3 : 4,
                     decoration: BoxDecoration(
                       color: context.colors.linkBlue,
                       borderRadius: BorderRadius.circular(2),
@@ -1066,14 +1071,17 @@ class AppValueScrubber extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  left: constraints.maxWidth * progress - 9,
+                  left: constraints.maxWidth * progress - (compact ? 6 : 9),
                   child: Container(
-                    width: 18,
-                    height: 18,
+                    width: compact ? 12 : 18,
+                    height: compact ? 12 : 18,
                     decoration: BoxDecoration(
                       color: context.colors.linkBlue,
                       shape: BoxShape.circle,
-                      border: Border.all(color: context.colors.card, width: 2),
+                      border: Border.all(
+                        color: context.colors.card,
+                        width: compact ? 1.5 : 2,
+                      ),
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x28000000),
