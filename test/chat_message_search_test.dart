@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/chat_message_search_bar.dart';
 import 'package:mithka/chat/chat_message_search_controller.dart';
+import 'package:mithka/chat/chat_search_query.dart';
 import 'package:mithka/chat/chat_search_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/td_client.dart';
@@ -104,6 +105,47 @@ void main() {
       );
       expect(spans, hasLength(1));
       expect((spans.single as TextSpan).style, isNull);
+    });
+  });
+
+  group('query tokens', () {
+    test('from: is lifted out of the searched text', () {
+      final tokens = parseChatSearchQuery('from:bob dinner plans');
+      expect(tokens.fromQuery, 'bob');
+      expect(tokens.text, 'dinner plans');
+      expect(tokens.filter, isNull);
+    });
+
+    test('a quoted from: keeps a name with spaces whole', () {
+      final tokens = parseChatSearchQuery('from:"Mao Contact" receipt');
+      expect(tokens.fromQuery, 'Mao Contact');
+      expect(tokens.text, 'receipt');
+    });
+
+    test('has: maps its aliases onto message filters', () {
+      expect(parseChatSearchQuery('has:link').filter, ChatSearchFilter.links);
+      expect(parseChatSearchQuery('has:file').filter, ChatSearchFilter.files);
+      expect(parseChatSearchQuery('HAS:Photo').filter, ChatSearchFilter.media);
+      expect(parseChatSearchQuery('has:voice').filter, ChatSearchFilter.voice);
+    });
+
+    test('an unknown has: value stays part of the search text', () {
+      final tokens = parseChatSearchQuery('has:sticker');
+      expect(tokens.filter, isNull);
+      expect(tokens.text, 'has:sticker');
+    });
+
+    test('a token still being typed narrows nothing', () {
+      final tokens = parseChatSearchQuery('from:');
+      expect(tokens.fromQuery, isNull);
+      expect(tokens.text, isEmpty);
+    });
+
+    test('both tokens combine and leave the rest of the words', () {
+      final tokens = parseChatSearchQuery('from:bob has:link the article');
+      expect(tokens.fromQuery, 'bob');
+      expect(tokens.filter, ChatSearchFilter.links);
+      expect(tokens.text, 'the article');
     });
   });
 
@@ -275,6 +317,43 @@ void main() {
       controller.close();
       expect(controller.filter, ChatSearchFilter.all);
       expect(controller.hasSearch, isFalse);
+    });
+
+    test('from: resolves a member and scopes the search to them', () async {
+      final controller = ChatMessageSearchController(chatId: _chatId);
+      addTearDown(controller.dispose);
+
+      controller.open();
+      controller.updateQuery('from:mao receipt');
+      await Future<void>.delayed(_debounce);
+      await pumpEventQueue();
+
+      expect(
+        requests.any((request) => request['@type'] == 'searchChatMembers'),
+        isTrue,
+      );
+      final search = requests.firstWhere(
+        (request) => request['@type'] == 'searchChatMessages',
+      );
+      // The token is a TDLib parameter, not a word to look for.
+      expect(search['query'], 'receipt');
+      expect((search['sender_id'] as Map<String, dynamic>)['user_id'], 55);
+      expect(controller.senderName, 'Mao Contact');
+      expect(controller.hasSearch, isTrue);
+    });
+
+    test('has: overrides the chip while it is typed', () async {
+      final controller = ChatMessageSearchController(chatId: _chatId);
+      addTearDown(controller.dispose);
+
+      controller.open();
+      controller.setFilter(ChatSearchFilter.music);
+      controller.updateQuery('has:link report');
+      await Future<void>.delayed(_debounce);
+      await pumpEventQueue();
+
+      expect(controller.filter, ChatSearchFilter.links);
+      expect(_filtersUsed(requests), contains('searchMessagesFilterUrl'));
     });
 
     test('a stale page cannot repopulate a newer query', () async {
@@ -596,6 +675,17 @@ Map<String, dynamic> _defaultResponse(Map<String, dynamic> request) =>
         totalCount: 3,
         next: 0,
       ),
+      'searchChatMembers' => {
+        '@type': 'chatMembers',
+        'total_count': 1,
+        'members': [
+          {
+            '@type': 'chatMember',
+            'member_id': {'@type': 'messageSenderUser', 'user_id': 55},
+            'status': {'@type': 'chatMemberStatusMember'},
+          },
+        ],
+      },
       'getUser' => {
         '@type': 'user',
         'id': request['user_id'],

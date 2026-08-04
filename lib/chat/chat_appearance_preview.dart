@@ -24,7 +24,7 @@ class ChatAppearancePreview extends StatelessWidget {
     this.outgoingName = 'Jessica',
     this.incomingNameColor,
     this.outgoingNameColor,
-    this.senderNameReadabilityMode = SenderNameReadabilityMode.shadow,
+    this.senderNameReadabilityMode = SenderNameReadabilityMode.blend,
   });
 
   final Color incomingBubbleColor;
@@ -75,7 +75,6 @@ class SenderNameReadabilityPlate extends StatelessWidget {
     required this.mode,
     required this.bubbleColor,
     required this.child,
-    this.shadowColor,
     this.padding = const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
     this.connectedToLeading = false,
   });
@@ -83,22 +82,17 @@ class SenderNameReadabilityPlate extends StatelessWidget {
   final SenderNameReadabilityMode mode;
   final Color bubbleColor;
   final Widget child;
-  final Color? shadowColor;
   final EdgeInsetsGeometry padding;
   final bool connectedToLeading;
 
   @override
   Widget build(BuildContext context) {
     if (mode == SenderNameReadabilityMode.none) return child;
-    if (mode == SenderNameReadabilityMode.shadow) {
-      return DefaultTextStyle.merge(
-        key: const ValueKey('senderNameReadabilityShadow'),
-        style: TextStyle(
-          shadows: [
-            Shadow(color: shadowColor ?? bubbleColor, blurRadius: 12),
-            Shadow(color: shadowColor ?? bubbleColor, blurRadius: 6),
-          ],
-        ),
+    // Blend carries no decoration of its own — it is a colour applied to the
+    // name, which senderNameReadabilityColor resolves for the caller.
+    if (mode == SenderNameReadabilityMode.blend) {
+      return KeyedSubtree(
+        key: const ValueKey('senderNameReadabilityBlend'),
         child: child,
       );
     }
@@ -123,24 +117,39 @@ class SenderIdentityPills extends StatelessWidget {
     required this.bubbleColor,
     required this.name,
     required this.nameStyle,
-    this.shadowColor,
+    this.textColor,
     this.role,
     this.roleTitle,
     this.roleAfterName = false,
+    this.trailing,
   });
 
   final SenderNameReadabilityMode readabilityMode;
   final Color bubbleColor;
   final String name;
   final TextStyle nameStyle;
-  final Color? shadowColor;
+
+  /// The bubble's own text colour, which the blend mode meets halfway.
+  final Color? textColor;
   final MemberRole? role;
   final String? roleTitle;
   final bool roleAfterName;
 
+  /// Sits directly after the name, before any trailing role tag — an emoji
+  /// status belongs to the person, so it reads ahead of their badge.
+  final Widget? trailing;
+
   @override
   Widget build(BuildContext context) {
-    final effectiveNameStyle = nameStyle.copyWith(fontWeight: FontWeight.w500);
+    final resolvedColor = senderNameReadabilityColor(
+      mode: readabilityMode,
+      senderColor: nameStyle.color ?? const Color(0xFF000000),
+      textColor: textColor ?? nameStyle.color ?? const Color(0xFF000000),
+    );
+    final effectiveNameStyle = nameStyle.copyWith(
+      fontWeight: FontWeight.w500,
+      color: resolvedColor,
+    );
     final connected =
         !roleAfterName &&
         readabilityMode == SenderNameReadabilityMode.background &&
@@ -162,7 +171,6 @@ class SenderIdentityPills extends StatelessWidget {
           child: SenderNameReadabilityPlate(
             mode: readabilityMode,
             bubbleColor: bubbleColor,
-            shadowColor: shadowColor,
             connectedToLeading: connected,
             child: Text(
               name,
@@ -172,6 +180,7 @@ class SenderIdentityPills extends StatelessWidget {
             ),
           ),
         ),
+        if (trailing != null) ...[const SizedBox(width: 3), trailing!],
         if (role != null && roleAfterName) ...[
           const SizedBox(width: 4),
           RoleTag(role: role!, title: roleTitle),
@@ -180,6 +189,19 @@ class SenderIdentityPills extends StatelessWidget {
     );
   }
 }
+
+/// The colour a sender's name renders in under [mode].
+///
+/// [SenderNameReadabilityMode.blend] meets the bubble's own text colour
+/// halfway, which keeps the sender's hue recognisable while holding contrast
+/// over a wallpaper — the job a shadow used to do, without the halo.
+Color senderNameReadabilityColor({
+  required SenderNameReadabilityMode mode,
+  required Color senderColor,
+  required Color textColor,
+}) => mode == SenderNameReadabilityMode.blend
+    ? Color.lerp(textColor, senderColor, 0.5) ?? senderColor
+    : senderColor;
 
 BoxDecoration senderNameReadabilityDecoration(
   Color bubbleColor, {
@@ -227,6 +249,7 @@ class _PreviewMessage extends StatelessWidget {
         SenderIdentityPills(
           readabilityMode: readabilityMode,
           bubbleColor: bubbleColor,
+          textColor: textColor,
           name: name,
           nameStyle: TextStyle(
             color: nameColor,

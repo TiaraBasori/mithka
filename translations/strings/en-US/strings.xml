@@ -390,8 +390,8 @@
     <string name="appearanceSenderNameBackground">Sender name background</string>
     <string name="appearanceSenderNameReadability">Improve Name Readability</string>
     <string name="appearanceSenderNameReadabilityBackground">Add Background</string>
+    <string name="appearanceSenderNameReadabilityBlend">Blend Color</string>
     <string name="appearanceSenderNameReadabilityNone">None</string>
-    <string name="appearanceSenderNameReadabilityShadow">Add Shadow</string>
     <string name="appearanceShowChatListSearch">Chat list search</string>
     <string name="appearanceShowEditAndReadMarks">Show Edit and Read Marks</string>
     <string name="appearanceShowGroupMemberTitles">Show Group Member Titles</string>
@@ -919,6 +919,8 @@
         <item quantity="other">{count} results</item>
     </plurals>
     <string name="chatSearchSearching">Searching…</string>
+    <string name="chatSearchTokenFrom">from:</string>
+    <string name="chatSearchTokenHint">Try from: or has:</string>
     <string name="chatSelectUntilHere">Select up to here</string>
     <string name="chatSelectedMessagesCount">{value1} messages selected</string>
     <string name="chatSendFailedBlocked">This message can’t be sent because one side has blocked the other.</string>

@@ -171,7 +171,11 @@ enum StatusEmojiDisplayMode {
   bool get animate => this == StatusEmojiDisplayMode.animated;
 }
 
-enum SenderNameReadabilityMode { background, shadow, none }
+/// How a sender's name is kept legible over a wallpaper.
+///
+/// [blend] pulls the sender colour halfway to the bubble's text colour, which
+/// holds contrast without the halo a shadow leaves around the glyphs.
+enum SenderNameReadabilityMode { background, blend, none }
 
 enum AppFontChoice {
   system(
@@ -1056,14 +1060,15 @@ class ThemeController extends ChangeNotifier {
     );
     _senderNameReadabilityMode = SenderNameReadabilityMode.values.firstWhere(
       (mode) => mode.name == storedSenderNameReadability,
-      orElse: () {
-        final legacy = _prefs.getBool(_senderNameReadabilityPlateKey);
-        return legacy == true
-            ? SenderNameReadabilityMode.background
-            : legacy == false
-            ? SenderNameReadabilityMode.none
-            : SenderNameReadabilityMode.shadow;
-      },
+      // 'shadow' is what this mode was called before it became a colour blend;
+      // a stored preference still names it.
+      orElse: () => storedSenderNameReadability == 'shadow'
+          ? SenderNameReadabilityMode.blend
+          : switch (_prefs.getBool(_senderNameReadabilityPlateKey)) {
+              true => SenderNameReadabilityMode.background,
+              false => SenderNameReadabilityMode.none,
+              null => SenderNameReadabilityMode.blend,
+            },
     );
     _showMessageMetaIndicators =
         _prefs.getBool(_messageMetaIndicatorsKey) ?? false;
@@ -1232,7 +1237,7 @@ class ThemeController extends ChangeNotifier {
       StatusEmojiDisplayMode.static;
   StatusEmojiDisplayMode _chatStatusEmojiMode = StatusEmojiDisplayMode.static;
   SenderNameReadabilityMode _senderNameReadabilityMode =
-      SenderNameReadabilityMode.shadow;
+      SenderNameReadabilityMode.blend;
   bool _showMessageMetaIndicators = false;
   bool _alwaysShowMessageTime = false;
   bool _enterToSend = false;

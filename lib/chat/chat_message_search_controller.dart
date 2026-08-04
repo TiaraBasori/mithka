@@ -19,6 +19,7 @@ import '../l10n/app_localizations.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import 'chat_search_query.dart';
 
 /// Width of the trailing results pane in a wide chat.
 const double chatSearchResultsPaneWidth = 300;
@@ -147,6 +148,8 @@ class ChatMessageSearchController extends ChangeNotifier {
   int _activeIndex = -1;
   List<ChatMessage> _results = const [];
   ChatSearchFilter _filter = ChatSearchFilter.all;
+  ChatSearchTokens _tokens = const ChatSearchTokens(text: '');
+  _SearchSenderFilter? _senderFilter;
 
   bool get isActive => _active;
   String get query => _query;
@@ -158,16 +161,28 @@ class ChatMessageSearchController extends ChangeNotifier {
       : null;
   int? get activeMessageId => activeResult?.id;
 
-  ChatSearchFilter get filter => _filter;
+  /// The filter in force: a `has:` token wins over the chip while it is typed,
+  /// because it is the more specific thing the user just said.
+  ChatSearchFilter get filter => _tokens.filter ?? _filter;
+
+  /// The resolved `from:` sender, once a member matched the token.
+  int? get senderUserId => _senderFilter?.userId;
+  String? get senderName => _senderFilter?.name;
+
+  /// The `from:` text as typed, resolved or not.
+  String? get senderQuery => _tokens.fromQuery;
 
   /// A run is in flight, or one is queued behind the debounce.
   bool get isLoading => _loading || _debounce?.isActive == true;
   bool get hasQuery => _query.trim().isNotEmpty;
 
-  /// Whether anything is being searched for. A narrowed filter counts on its
-  /// own — "every photo in this chat" is a useful result set with nothing
-  /// typed.
-  bool get hasSearch => hasQuery || _filter != ChatSearchFilter.all;
+  /// Whether anything is being searched for. A narrowed filter or a `from:`
+  /// sender counts on its own — "every photo Bob sent" is a useful result set
+  /// with no words typed.
+  bool get hasSearch =>
+      _tokens.text.trim().isNotEmpty ||
+      filter != ChatSearchFilter.all ||
+      _tokens.fromQuery != null;
   bool get hasResults => _results.isNotEmpty;
   bool get hasMore => _nextFromMessageId != 0;
 
@@ -211,6 +226,8 @@ class ChatMessageSearchController extends ChangeNotifier {
     _loading = false;
     _loadingMore = false;
     _filter = ChatSearchFilter.all;
+    _tokens = const ChatSearchTokens(text: '');
+    _senderFilter = null;
     textController.clear();
     focusNode.unfocus();
     notifyListeners();
@@ -219,6 +236,9 @@ class ChatMessageSearchController extends ChangeNotifier {
   void updateQuery(String value) {
     if (_disposed) return;
     _query = value;
+    _tokens = parseChatSearchQuery(value);
+    // A sender resolved for a different token no longer applies.
+    if (_senderFilter?.query != _tokens.fromQuery) _senderFilter = null;
     _restart();
   }
 
@@ -241,9 +261,11 @@ class ChatMessageSearchController extends ChangeNotifier {
     _loadingMore = false;
     _loading = false;
     if (hasSearch) {
-      final trimmed = _query.trim();
       final runId = _runId;
-      _debounce = Timer(_debounceDelay, () => _runFirstPage(trimmed, runId));
+      _debounce = Timer(
+        _debounceDelay,
+        () => _runFirstPage(_tokens.text.trim(), runId),
+      );
     }
     notifyListeners();
   }
@@ -288,7 +310,7 @@ class ChatMessageSearchController extends ChangeNotifier {
 
   Future<void> loadMore() async {
     if (_disposed || _loadingMore || !hasMore || !hasSearch) return;
-    final trimmed = _query.trim();
+    final trimmed = _tokens.text.trim();
     final runId = _runId;
     _loadingMore = true;
     notifyListeners();
@@ -306,6 +328,10 @@ class ChatMessageSearchController extends ChangeNotifier {
     if (_disposed || runId != _runId) return;
     _loading = true;
     notifyListeners();
+    // The sender has to be resolved before the first page, or the page would
+    // be run unfiltered and then replaced a moment later.
+    await _resolveSenderFilter(runId);
+    if (_disposed || runId != _runId) return;
     final page = await _fetchPage(trimmed, from: 0);
     if (_disposed || runId != _runId) return;
     _loading = false;
@@ -347,11 +373,13 @@ class ChatMessageSearchController extends ChangeNotifier {
         '@type': 'searchChatMessages',
         'chat_id': chatId,
         'query': query,
-        'sender_id': null,
+        'sender_id': _senderFilter == null
+            ? null
+            : {'@type': 'messageSenderUser', 'user_id': _senderFilter!.userId},
         'from_message_id': from,
         'offset': 0,
         'limit': _pageSize,
-        'filter': {'@type': _filter.tdlibFilter},
+        'filter': {'@type': filter.tdlibFilter},
       });
       final raw =
           response.objects('messages') ?? const <Map<String, dynamic>>[];
@@ -373,6 +401,48 @@ class ChatMessageSearchController extends ChangeNotifier {
       );
     } catch (_) {
       return null;
+    }
+  }
+
+  /// Turns the `from:` text into a member of this chat.
+  ///
+  /// TDLib matches names and usernames itself, so the token behaves like the
+  /// member picker rather than an exact-name match. An unresolvable name
+  /// leaves the filter off — the search still runs on the remaining words.
+  Future<void> _resolveSenderFilter(int runId) async {
+    final query = _tokens.fromQuery;
+    if (query == null) {
+      _senderFilter = null;
+      return;
+    }
+    if (_senderFilter?.query == query) return;
+    try {
+      final response = await _client.query({
+        '@type': 'searchChatMembers',
+        'chat_id': chatId,
+        'query': query,
+        'limit': 1,
+        'filter': null,
+      });
+      if (_disposed || runId != _runId) return;
+      final member = (response.objects('members') ?? const []).firstOrNull;
+      final sender = member?.obj('member_id');
+      final userId = sender?.type == 'messageSenderUser'
+          ? sender?.int64('user_id')
+          : null;
+      if (userId == null || userId == 0) {
+        _senderFilter = null;
+        return;
+      }
+      final resolved = await _resolveSender(userId);
+      if (_disposed || runId != _runId) return;
+      _senderFilter = _SearchSenderFilter(
+        query: query,
+        userId: userId,
+        name: resolved?.name ?? query,
+      );
+    } catch (_) {
+      if (!_disposed && runId == _runId) _senderFilter = null;
     }
   }
 
@@ -446,6 +516,20 @@ class ChatMessageSearchController extends ChangeNotifier {
     focusNode.dispose();
     super.dispose();
   }
+}
+
+/// A `from:` token that resolved to a real member.
+class _SearchSenderFilter {
+  const _SearchSenderFilter({
+    required this.query,
+    required this.userId,
+    required this.name,
+  });
+
+  /// The token text this was resolved from, so a retyped name re-resolves.
+  final String query;
+  final int userId;
+  final String name;
 }
 
 class _SearchPage {

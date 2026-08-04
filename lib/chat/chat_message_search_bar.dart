@@ -111,6 +111,52 @@ class ChatSearchHeaderBar extends StatelessWidget {
   );
 }
 
+/// A resolved `from:` token, shown so the narrowed search is visible rather
+/// than implied by a shrinking result list.
+class _ChatSearchSenderChip extends StatelessWidget {
+  const _ChatSearchSenderChip({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = AppTextStyle.caption(
+      AppTheme.brand,
+      weight: AppTextWeight.semibold,
+    );
+    return Container(
+      key: const ValueKey('chatSearchSenderChip'),
+      height: 20,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      decoration: BoxDecoration(
+        color: AppTheme.brand.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            AppStringKeys.chatSearchTokenFrom.l10n(context),
+            style: style.copyWith(
+              color: AppTheme.brand.withValues(alpha: 0.75),
+            ),
+          ),
+          const SizedBox(width: 3),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 110),
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: style,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Narrows a chat's search to one kind of message.
 ///
 /// The strip stays out of the way until search is actually open, and scrolls
@@ -213,6 +259,10 @@ class _ChatSearchField extends StatelessWidget {
             color: c.textTertiary,
           ),
           const SizedBox(width: AppSpacing.sm),
+          if (controller.senderName case final sender?) ...[
+            _ChatSearchSenderChip(name: sender),
+            const SizedBox(width: AppSpacing.sm),
+          ],
           Expanded(
             child: Focus(
               onKeyEvent: _handleKey,
@@ -227,7 +277,11 @@ class _ChatSearchField extends StatelessWidget {
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
-                  hintText: AppStringKeys.chatSearchInThisChat.l10n(context),
+                  hintText:
+                      (controller.hasSearch
+                              ? AppStringKeys.chatSearchInThisChat
+                              : AppStringKeys.chatSearchTokenHint)
+                          .l10n(context),
                   hintStyle: AppTextStyle.body(c.textTertiary),
                 ),
                 onChanged: controller.updateQuery,

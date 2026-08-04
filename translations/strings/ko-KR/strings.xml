@@ -390,8 +390,8 @@
     <string name="appearanceSenderNameBackground">보낸 사람 이름 배경</string>
     <string name="appearanceSenderNameReadability">이름 가독성 향상</string>
     <string name="appearanceSenderNameReadabilityBackground">배경 추가</string>
+    <string name="appearanceSenderNameReadabilityBlend">색상 혼합</string>
     <string name="appearanceSenderNameReadabilityNone">없음</string>
-    <string name="appearanceSenderNameReadabilityShadow">그림자 추가</string>
     <string name="appearanceShowChatListSearch">채팅 목록 검색</string>
     <string name="appearanceShowEditAndReadMarks">수정 및 읽음 표시 보이기</string>
     <string name="appearanceShowGroupMemberTitles">그룹 멤버 직함 표시</string>
@@ -917,6 +917,8 @@
         <item quantity="other">결과 {count}개</item>
     </plurals>
     <string name="chatSearchSearching">검색 중…</string>
+    <string name="chatSearchTokenFrom">from:</string>
+    <string name="chatSearchTokenHint">from: 또는 has: 사용 가능</string>
     <string name="chatSelectUntilHere">여기까지 선택</string>
     <string name="chatSelectedMessagesCount">메시지 {value1}개 선택됨</string>
     <string name="chatSendFailedBlocked">한쪽이 상대방을 차단하여 이 메시지를 보낼 수 없습니다.</string>

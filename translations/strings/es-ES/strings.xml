@@ -390,8 +390,8 @@
     <string name="appearanceSenderNameBackground">Fondo del nombre del remitente</string>
     <string name="appearanceSenderNameReadability">Mejorar legibilidad del nombre</string>
     <string name="appearanceSenderNameReadabilityBackground">Añadir fondo</string>
+    <string name="appearanceSenderNameReadabilityBlend">Mezclar color</string>
     <string name="appearanceSenderNameReadabilityNone">Ninguno</string>
-    <string name="appearanceSenderNameReadabilityShadow">Añadir sombra</string>
     <string name="appearanceShowChatListSearch">Buscar en chats</string>
     <string name="appearanceShowEditAndReadMarks">Mostrar marcas de edición y lectura</string>
     <string name="appearanceShowGroupMemberTitles">Mostrar cargos de miembros del grupo</string>
@@ -919,6 +919,8 @@
         <item quantity="other">{count} resultados</item>
     </plurals>
     <string name="chatSearchSearching">Buscando…</string>
+    <string name="chatSearchTokenFrom">de:</string>
+    <string name="chatSearchTokenHint">Prueba from: o has:</string>
     <string name="chatSelectUntilHere">Seleccionar hasta aquí</string>
     <string name="chatSelectedMessagesCount">{value1} mensajes seleccionados</string>
     <string name="chatSendFailedBlocked">No se puede enviar este mensaje porque una de las dos personas bloqueó a la otra.</string>

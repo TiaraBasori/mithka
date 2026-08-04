@@ -198,6 +198,10 @@ class ImageMediaAlbumBubble extends StatelessWidget {
         incomingBubbleColor ??
         cloudTheme?.incomingColor ??
         colors.bubbleIncoming;
+    final incomingTextColor =
+        bubbleBackground.foregroundColor ??
+        incomingBubbleTextColor ??
+        colors.bubbleIncomingText;
     final senderTitle = first.senderTitle?.trim();
 
     return Padding(
@@ -209,7 +213,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
             child: SenderIdentityPills(
               readabilityMode: theme.senderNameReadabilityMode,
               bubbleColor: incomingColor,
-              shadowColor: cloudTheme?.incomingColor,
+              textColor: incomingTextColor,
               name: first.senderName!,
               nameStyle: TextStyle(
                 fontSize: 12,

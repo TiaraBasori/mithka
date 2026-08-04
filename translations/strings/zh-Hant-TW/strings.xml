@@ -390,8 +390,8 @@
     <string name="appearanceSenderNameBackground">傳送者名稱背景</string>
     <string name="appearanceSenderNameReadability">改善名稱可讀性</string>
     <string name="appearanceSenderNameReadabilityBackground">加入背景</string>
+    <string name="appearanceSenderNameReadabilityBlend">混合顏色</string>
     <string name="appearanceSenderNameReadabilityNone">無</string>
-    <string name="appearanceSenderNameReadabilityShadow">增加陰影</string>
     <string name="appearanceShowChatListSearch">聊天列表搜尋</string>
     <string name="appearanceShowEditAndReadMarks">顯示編輯與已讀標記</string>
     <string name="appearanceShowGroupMemberTitles">顯示群組成員頭銜</string>
@@ -917,6 +917,8 @@
         <item quantity="other">{count} 則結果</item>
     </plurals>
     <string name="chatSearchSearching">正在搜尋…</string>
+    <string name="chatSearchTokenFrom">來自:</string>
+    <string name="chatSearchTokenHint">試試 from: 或 has:</string>
     <string name="chatSelectUntilHere">選取到這裡</string>
     <string name="chatSelectedMessagesCount">已選取 {value1} 則訊息</string>
     <string name="chatSendFailedBlocked">由於一方已封鎖另一方，無法傳送此訊息。</string>
