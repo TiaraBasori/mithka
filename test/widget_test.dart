@@ -5830,12 +5830,12 @@ void main() {
           ),
         ),
       );
-      expect(find.text('Telegram 企业版'), findsOneWidget);
+      expect(find.text('企业资料'), findsOneWidget);
 
       controller.locale = const Locale('en');
       await tester.pumpAndSettle();
-      expect(find.text('Telegram Business'), findsOneWidget);
-      expect(find.text('Telegram 企业版'), findsNothing);
+      expect(find.text('Business Profile'), findsOneWidget);
+      expect(find.text('企业资料'), findsNothing);
     });
   });
 }

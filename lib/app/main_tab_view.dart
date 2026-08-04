@@ -53,6 +53,7 @@ import 'desktop_navigation_rail.dart';
 import 'desktop_utility_window.dart';
 import 'detail_content_reveal.dart';
 import 'unread_badge_model.dart';
+import '../chat/emoji_store.dart';
 
 @visibleForTesting
 bool desktopChatKindUsesContextPane(ChatKind? kind) =>
@@ -669,7 +670,6 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         ),
     ];
     final fileLabel = AppStrings.t(AppStringKeys.topicPostContentFile);
-    final videoLabel = AppStrings.t(AppStringKeys.sharedMediaVideos);
     final railActions = [
       DesktopNavigationAction(
         id: 'calls',
@@ -679,13 +679,6 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
           DesktopUtilityWindowKind.calls,
           AppStrings.t(AppStringKeys.callsTitle),
         ),
-      ),
-      DesktopNavigationAction(
-        id: 'videos',
-        label: videoLabel,
-        icon: HeroAppIcons.video,
-        onTap: () =>
-            _openDesktopUtility(DesktopUtilityWindowKind.videos, videoLabel),
       ),
     ];
     final applicationMenuQuickActions = [
@@ -709,7 +702,30 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         onTap: _openGlobalThemeSelector,
       ),
     ];
-    final applicationMenuActions = [
+    // Recomputed on each rail rebuild: the premium gate below changes after
+    // the first frame, and a list captured in build() would stay stale.
+    List<DesktopNavigationAction> applicationMenuActions() => [
+      DesktopNavigationAction(
+        id: 'profile',
+        label: AppStrings.t(AppStringKeys.editProfileTitle),
+        icon: HeroAppIcons.solidCircleUser,
+        onTap: () => _openDesktopUtility(
+          DesktopUtilityWindowKind.editProfile,
+          AppStrings.t(AppStringKeys.editProfileTitle),
+        ),
+      ),
+      // Business tools need Telegram Premium; without it the screen is only a
+      // wall of locked rows, so it does not earn a place in the menu.
+      if (EmojiStore.shared.isPremium)
+        DesktopNavigationAction(
+          id: 'business-profile',
+          label: AppStrings.t(AppStringKeys.businessSettingsTitle),
+          icon: HeroAppIcons.venue,
+          onTap: () => _openDesktopUtility(
+            DesktopUtilityWindowKind.businessProfile,
+            AppStrings.t(AppStringKeys.businessSettingsTitle),
+          ),
+        ),
       DesktopNavigationAction(
         id: 'settings',
         label: AppStrings.t(AppStringKeys.profileSettings),
@@ -746,7 +762,10 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                 Row(
                   children: [
                     AnimatedBuilder(
-                      animation: _unread,
+                      // EmojiStore carries the is_premium option, which decides
+                      // whether the business entry is in the menu at all and
+                      // lands after the first frame.
+                      animation: Listenable.merge([_unread, EmojiStore.shared]),
                       builder: (context, _) => DesktopNavigationRail(
                         destinations: destinations,
                         selection: selection,
@@ -791,7 +810,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                         languageOptions: languageOptions,
                         applicationMenuQuickActions:
                             applicationMenuQuickActions,
-                        applicationMenuActions: applicationMenuActions,
+                        applicationMenuActions: applicationMenuActions(),
                       ),
                     ),
                     if (geometry.showListPane)

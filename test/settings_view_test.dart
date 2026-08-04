@@ -42,9 +42,8 @@ void main() {
     expect(find.byKey(const ValueKey('settings-section-mithka')), findsNothing);
 
     const expectedOrder = [
-      'edit-profile',
-      'telegram-business',
-      'mithka-pro',
+      // edit-profile and telegram-business are top-level entries now, and
+      // mithka-pro is hidden wherever no store can open its paywall.
       'notifications',
       'telegram-privacy',
       'telegram-blocked-users',
@@ -236,15 +235,17 @@ void main() {
     expect(find.byKey(const ValueKey('settings-root-back')), findsNothing);
     expect(find.byKey(const ValueKey('settings-log-out')), findsNothing);
 
-    // General starts expanded, so its screens are listed under it.
+    // General is absent here: it holds only Mithka Pro, which hides itself
+    // where no store can open its paywall. The first category is Notifications,
+    // a single-screen category that is its own row rather than a parent.
     expect(
       find.byKey(const ValueKey('settings-category-general')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
-      find.byKey(const ValueKey('settings-child-edit-profile')),
+      find.byKey(const ValueKey('settings-category-notifications')),
       findsOneWidget,
-      reason: 'an expanded category lists its screens in the sidebar',
+      reason: 'a single-screen category is its own row in the sidebar',
     );
 
     // A collapsed category hides its children until it is opened.
@@ -255,11 +256,13 @@ void main() {
     await tester.ensureVisible(
       find.byKey(const ValueKey('settings-category-appearance')),
     );
-    await tester.pumpAndSettle();
+    // Bounded pumps: the default pane is now Notifications, whose loading
+    // indicator spins forever without a TDLib connection, so nothing settles.
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(
       find.byKey(const ValueKey('settings-category-appearance')),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(
       find.byKey(const ValueKey('settings-child-mithka-chat-behavior')),
       findsOneWidget,
@@ -413,7 +416,7 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.byKey(const ValueKey('settings-child-edit-profile')),
+        find.byKey(const ValueKey('settings-child-notifications')),
         findsNothing,
       );
     } finally {

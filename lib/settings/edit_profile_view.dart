@@ -37,9 +37,17 @@ import 'business_settings_view.dart';
 import 'edit_field_view.dart';
 
 class EditProfileView extends StatefulWidget {
-  const EditProfileView({super.key, this.openAvatarPicker = false});
+  const EditProfileView({
+    super.key,
+    this.openAvatarPicker = false,
+    this.showBackButton = true,
+  });
 
   final bool openAvatarPicker;
+
+  /// False in a detached desktop window, where there is nothing behind this
+  /// screen to go back to.
+  final bool showBackButton;
 
   @override
   State<EditProfileView> createState() => _EditProfileViewState();
@@ -597,7 +605,9 @@ class _EditProfileViewState extends State<EditProfileView> {
         children: [
           NavHeader(
             title: AppStrings.t(AppStringKeys.editProfileTitle),
-            onBack: () => Navigator.of(context).pop(),
+            onBack: widget.showBackButton
+                ? () => Navigator.of(context).pop()
+                : null,
           ),
           Expanded(
             child: _loading

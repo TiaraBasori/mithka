@@ -66,6 +66,8 @@ import 'desktop_utility_window_stub.dart'
     if (dart.library.io) 'desktop_utility_window_io.dart'
     as implementation;
 import 'global_video_split_host.dart';
+import '../settings/edit_profile_view.dart';
+import '../settings/business_settings_view.dart';
 
 export 'desktop_utility_window_models.dart';
 
@@ -657,6 +659,10 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
           .asNameMap()[widget.arguments.initialSearchTab],
       showBackButton: false,
     ),
+    DesktopUtilityWindowKind.editProfile => const EditProfileView(
+      showBackButton: false,
+    ),
+    DesktopUtilityWindowKind.businessProfile => const BusinessSettingsView(),
     DesktopUtilityWindowKind.settings => SettingsView(
       showBackButton: false,
       allowSessionLifecycleActions: false,

@@ -33,12 +33,10 @@ import 'advanced_settings_view.dart';
 import 'ai_settings_view.dart';
 import 'appearance_view.dart';
 import 'blocking_settings_view.dart';
-import 'business_settings_view.dart';
 import 'chat_folder_management_view.dart';
 import 'desktop_hotkey_settings_view.dart';
 import 'developer_mode_controller.dart';
 import 'developer_settings_view.dart';
-import 'edit_profile_view.dart';
 import 'feature_settings_view.dart';
 import 'general_settings_view.dart';
 import 'language_settings_view.dart';
@@ -685,35 +683,6 @@ class _SettingsViewState extends State<SettingsView> {
     final pro = context.watch<MithkaProService>();
     return [
       _SettingsDestination(
-        id: 'edit-profile',
-        owner: _SettingsOwner.telegram,
-        group: 0,
-        order: 0,
-        titleKey: AppStringKeys.editProfileTitle,
-        icon: HeroAppIcons.solidCircleUser,
-        color: const Color(0xFF3C8CF0),
-        destination: () => const EditProfileView(),
-        searchTerms: const ['account', 'name', 'username', 'phone', 'bio'],
-      ),
-      _SettingsDestination(
-        id: 'telegram-business',
-        owner: _SettingsOwner.telegram,
-        group: 0,
-        order: 10,
-        titleKey: AppStringKeys.businessSettingsTitle,
-        icon: HeroAppIcons.venue,
-        color: const Color(0xFF7467F0),
-        destination: () => const BusinessSettingsView(),
-        searchTerms: const [
-          'business',
-          'hours',
-          'location',
-          'greeting',
-          'away',
-          'quick replies',
-        ],
-      ),
-      _SettingsDestination(
         id: 'notifications',
         group: 2,
         order: 0,
@@ -799,8 +768,9 @@ class _SettingsViewState extends State<SettingsView> {
           'locale',
         ],
       ),
-      _SettingsDestination(
-        id: 'mithka-pro',
+      if (pro.storeAvailable)
+        _SettingsDestination(
+          id: 'mithka-pro',
         owner: _SettingsOwner.mithka,
         group: 1,
         order: 0,
@@ -1322,7 +1292,7 @@ const _settingsCategoryDefinitions = <_SettingsCategoryDefinition>[
     id: 'general',
     titleKey: AppStringKeys.generalTitle,
     icon: HeroAppIcons.gear,
-    destinationIds: ['edit-profile', 'telegram-business', 'mithka-pro'],
+    destinationIds: ['mithka-pro'],
   ),
   _SettingsCategoryDefinition(
     id: 'notifications',

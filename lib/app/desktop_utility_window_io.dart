@@ -194,6 +194,12 @@ WindowOptions desktopUtilityWindowOptions(
       const Size(1080, 760),
       const Size(760, 560),
     ),
+    // Single-column forms; they do not need the settings window's width.
+    DesktopUtilityWindowKind.editProfile ||
+    DesktopUtilityWindowKind.businessProfile => (
+      const Size(620, 760),
+      const Size(480, 560),
+    ),
     DesktopUtilityWindowKind.audioPicker => (
       const Size(640, 720),
       const Size(480, 520),

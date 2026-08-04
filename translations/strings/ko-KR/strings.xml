@@ -505,7 +505,7 @@
     <string name="businessSettingsThisBusinessFeatureIsUnavailableInThisBuild">이 빌드에서는 이 비즈니스 기능을 사용할 수 없습니다.</string>
     <string name="businessSettingsThursday">목요일</string>
     <string name="businessSettingsTimeZone">시간대</string>
-    <string name="businessSettingsTitle">텔레그램 비즈니스</string>
+    <string name="businessSettingsTitle">비즈니스 프로필</string>
     <string name="businessSettingsTools">비즈니스 도구</string>
     <string name="businessSettingsTuesday">화요일</string>
     <string name="businessSettingsWednesday">수요일</string>
