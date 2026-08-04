@@ -905,10 +905,20 @@
     <string name="chatSavedToPhotos">In Fotos gesichert</string>
     <string name="chatSavedToSavedMessages">In Saved Messages gespeichert</string>
     <string name="chatSavingToPhotos">Originalmedium wird heruntergeladen…</string>
+    <string name="chatSearchAllResults">Alle Ergebnisse</string>
     <string name="chatSearchHistoryTitle">Chatverlauf durchsuchen</string>
+    <string name="chatSearchInThisChat">Im Chat suchen</string>
+    <string name="chatSearchMatchCounter">{value1} von {value2}</string>
     <string name="chatSearchMessagePlaceholder">Nachrichten in diesem Chat suchen</string>
     <string name="chatSearchMessageResultLabel">[Nachricht]</string>
+    <string name="chatSearchNewerMatch">Neuerer Treffer</string>
     <string name="chatSearchNoMessagesFound">Keine passenden Nachrichten gefunden</string>
+    <string name="chatSearchOlderMatch">Älterer Treffer</string>
+    <plurals name="chatSearchResultCount">
+        <item quantity="one">{count} Ergebnis</item>
+        <item quantity="other">{count} Ergebnisse</item>
+    </plurals>
+    <string name="chatSearchSearching">Suche läuft…</string>
     <string name="chatSelectUntilHere">Bis hier auswählen</string>
     <string name="chatSelectedMessagesCount">{value1} Nachrichten ausgewählt</string>
     <string name="chatSendFailedBlocked">Diese Nachricht kann nicht gesendet werden, weil eine Seite die andere blockiert hat.</string>
@@ -1118,6 +1128,9 @@
     <string name="desktopHotkeysTitle">Tastaturkurzbefehle</string>
     <string name="desktopSearchAll">Alle durchsuchen</string>
     <string name="desktopSearchClear">Suche löschen</string>
+    <string name="desktopSearchScopeIn">in:</string>
+    <string name="desktopSearchScopePlaceholder">In diesem Chat suchen</string>
+    <string name="desktopSearchScopeRemove">Alle Chats durchsuchen</string>
     <string name="desktopWindowClose">Fenster schließen</string>
     <string name="desktopWindowMaximizeRestore">Maximieren oder wiederherstellen</string>
     <string name="desktopWindowMinimize">Minimieren</string>

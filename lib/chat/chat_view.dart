@@ -71,11 +71,12 @@ import 'chat_info_view.dart';
 import 'chat_input_bar.dart';
 import 'chat_media_drop_region.dart';
 import 'chat_message_merge.dart';
+import 'chat_message_search_bar.dart';
+import 'chat_message_search_controller.dart';
 import 'chat_open_performance.dart';
 import 'chat_picker_view.dart';
 import 'chat_return_to_latest_coordinator.dart';
 import 'chat_scroll_metrics.dart';
-import 'chat_search_view.dart';
 import 'chat_send_failure.dart';
 import 'chat_session_cache.dart';
 import 'chat_translation_panel.dart';
@@ -843,6 +844,12 @@ class _ChatViewState extends State<ChatView> {
   int _entryLastReadInboxId = 0;
   int? _entryFirstUnreadMessageId;
   bool _showEntryUnreadBanner = false;
+  late final ChatMessageSearchController _search;
+
+  /// The hit the search cursor is sitting on. Unlike [_scrollTargetId] this
+  /// survives the jump that put it there, so the bubble stays marked while the
+  /// user steps through the rest of the results.
+  int? _searchHighlightId;
   double _keyboardInset = 0;
   bool _shortTranscriptFillScheduled = false;
   bool _isFillingShortTranscript = false;
@@ -1080,6 +1087,10 @@ class _ChatViewState extends State<ChatView> {
       _lastNewestMessageId = _latestServerMessage(_vm.messages)?.id;
       _lastOldestMessageId = _oldestServerMessage(_vm.messages)?.id;
     }
+    _search = ChatMessageSearchController(
+      chatId: widget.chatId,
+      onActivateResult: _openSearchResult,
+    )..addListener(_onSearchChanged);
     _vm.addListener(_onModel);
     _setScrollTarget(widget.initialMessageId);
     _vm.onAppear();
@@ -1444,8 +1455,15 @@ class _ChatViewState extends State<ChatView> {
 
   Widget _withExitState(Widget child) {
     return PopScope(
+      // Back closes search before it closes the chat, so a hit list never
+      // takes the whole conversation with it.
+      canPop: !_search.isActive,
       onPopInvokedWithResult: (didPop, _) {
-        if (didPop) _prepareExitState();
+        if (didPop) {
+          _prepareExitState();
+          return;
+        }
+        if (_search.isActive) _closeSearch();
       },
       child: child,
     );
@@ -2991,7 +3009,10 @@ class _ChatViewState extends State<ChatView> {
   }
 
   bool get _canBackSwipe =>
-      widget.showBackButton && !_isSelecting && _actionTarget == null;
+      widget.showBackButton &&
+      !_isSelecting &&
+      !_search.isActive &&
+      _actionTarget == null;
 
   Future<void> _popFromBackSwipe() async {
     if (_backSwipePopping || !mounted) return;
@@ -3209,6 +3230,9 @@ class _ChatViewState extends State<ChatView> {
     _bannerTimer?.cancel();
     _readSyncTimer?.cancel();
     _translation.removeListener(_onTranslationSettingsChanged);
+    _search
+      ..removeListener(_onSearchChanged)
+      ..dispose();
     _vm.removeListener(_onModel);
     _vm.onDisappear();
     _vm.dispose();
@@ -5112,23 +5136,45 @@ class _ChatViewState extends State<ChatView> {
                   key: _actionOverlayKey,
                   children: [
                     Positioned.fill(
-                      child: ChatHeaderTrailingPaneLayout(
-                        header: showPeerRestrictionBlock
-                            ? _header()
-                            : (_isSelecting ? _selectionHeader() : _header()),
-                        body: showPeerRestrictionBlock
-                            ? _restrictedPeerBlockPage()
-                            : Column(
-                                children: [
-                                  Expanded(child: _transcriptLayer()),
-                                  _chatMusicPlayer(),
-                                  _isSelecting
-                                      ? _selectionActionBar()
-                                      : _composerArea(),
-                                ],
-                              ),
-                        trailingPane: widget.trailingPane,
-                        trailingPaneWidth: widget.trailingPaneWidth,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final searchPane = _searchUsesResultsPane(
+                            constraints.maxWidth,
+                          );
+                          final searching = _search.isActive;
+                          return ChatHeaderTrailingPaneLayout(
+                            header: showPeerRestrictionBlock
+                                ? _header()
+                                : searching
+                                ? _searchHeader(showSteppers: searchPane)
+                                : (_isSelecting
+                                      ? _selectionHeader()
+                                      : _header()),
+                            body: showPeerRestrictionBlock
+                                ? _restrictedPeerBlockPage()
+                                : Column(
+                                    children: [
+                                      Expanded(child: _transcriptLayer()),
+                                      _chatMusicPlayer(),
+                                      // A narrow chat trades the composer for
+                                      // the hit navigator; a wide one keeps
+                                      // composing available beside the results.
+                                      if (searching && !searchPane)
+                                        _searchNavigator()
+                                      else if (_isSelecting)
+                                        _selectionActionBar()
+                                      else
+                                        _composerArea(),
+                                    ],
+                                  ),
+                            trailingPane: searchPane
+                                ? _searchResultsPane()
+                                : widget.trailingPane,
+                            trailingPaneWidth: searchPane
+                                ? chatSearchResultsPaneWidth
+                                : widget.trailingPaneWidth,
+                          );
+                        },
                       ),
                     ),
                     if (_actionTarget != null && !_isSelecting)
@@ -6260,6 +6306,12 @@ class _ChatViewState extends State<ChatView> {
                       icon: HeroAppIcons.tableCells,
                       onTap: () => unawaited(_openBotMenuApp(_vm.botMenu!)),
                     ),
+                  _ChatHeaderAction(
+                    key: const ValueKey('chatHeaderSearch'),
+                    label: AppStringKeys.chatSearchInThisChat.l10n(context),
+                    icon: HeroAppIcons.magnifyingGlass,
+                    onTap: _openSearch,
+                  ),
                   if (wideGroupHeader)
                     WideGroupChatHeaderActions(
                       onStartCall: (isVideo) => unawaited(_startCall(isVideo)),
@@ -6846,21 +6898,76 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Future<void> _openHashtagSearch(String hashtag) async {
+  /// A hashtag is already a query over the open chat, so it opens in-chat
+  /// search rather than pushing a screen over the transcript it refers to.
+  void _openHashtagSearch(String hashtag) {
     final tag = hashtag.trim();
     if (tag.isEmpty) return;
-    final result = await Navigator.of(context).push<int>(
-      MaterialPageRoute(
-        builder: (_) => ChatSearchView(
-          chatId: widget.chatId,
-          title: _vm.peerTitle,
-          initialQuery: tag.startsWith('#') ? tag : '#$tag',
-        ),
-      ),
-    );
-    if (!mounted || result == null) return;
-    await _scrollToMessage(result);
+    _openSearch(initialQuery: tag.startsWith('#') ? tag : '#$tag');
   }
+
+  // MARK: - In-chat search
+
+  void _onSearchChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _openSearch({String? initialQuery}) {
+    if (_isSelecting) _exitSelection();
+    _search.open(initialQuery: initialQuery);
+  }
+
+  void _closeSearch() {
+    if (!_search.isActive) return;
+    setState(() => _searchHighlightId = null);
+    _search.close();
+  }
+
+  /// Moves the transcript to a hit and leaves it marked.
+  ///
+  /// The alignment sits the message just above centre so the messages around
+  /// it — the reason the user searched — are on screen too.
+  Future<void> _openSearchResult(ChatMessage result) async {
+    setState(() => _searchHighlightId = result.id);
+    await _scrollToMessage(result.id, alignment: 0.38, forceAlignment: true);
+  }
+
+  bool _searchUsesResultsPane(double conversationWidth) =>
+      _search.isActive &&
+      chatSearchUsesResultsPane(
+        windowSize: MediaQuery.sizeOf(context),
+        conversationWidth: conversationWidth,
+      );
+
+  /// [showSteppers] follows the results pane: a wide chat keeps the composer,
+  /// so the up/down controls ride in the header beside the field, while a
+  /// narrow one gets them in the navigator that replaces the composer.
+  Widget _searchHeader({required bool showSteppers}) => ChatSearchHeaderBar(
+    controller: _search,
+    height: widget.headerHeight,
+    backgroundColor: widget.headerColor,
+    showDivider: widget.showHeaderDivider,
+    showSteppers: showSteppers,
+    onClose: _closeSearch,
+  );
+
+  Widget _searchResultsPane() => ChatSearchResultsPane(
+    controller: _search,
+    peerTitle: _vm.peerTitle,
+    onSelect: _search.selectResult,
+  );
+
+  Widget _searchNavigator() => ChatSearchNavigator(
+    controller: _search,
+    onShowResults: () => unawaited(
+      showChatSearchResultsSheet(
+        context: context,
+        controller: _search,
+        peerTitle: _vm.peerTitle,
+        onSelect: _search.selectResult,
+      ),
+    ),
+  );
 
   Future<void> _ensureMessageVisible(
     int messageId, {
@@ -7278,8 +7385,24 @@ class _ChatViewState extends State<ChatView> {
       key: entry.key,
       child: KeyedSubtree(
         key: visibilityKey,
-        child: RepaintBoundary(child: content),
+        child: RepaintBoundary(child: _searchHighlight(entry, content)),
       ),
+    );
+  }
+
+  /// Washes the row holding the current search hit. A full-width tint rather
+  /// than a bubble outline, so an album or a document run reads as one hit.
+  Widget _searchHighlight(_TranscriptEntry entry, Widget content) {
+    final highlightId = _searchHighlightId;
+    if (highlightId == null) return content;
+    final highlighted = entry.messages.any((m) => m.id == highlightId);
+    return AnimatedContainer(
+      duration: AppMotion.duration(context, AppMotion.deliberate),
+      curve: AppMotion.standard,
+      color: highlighted
+          ? AppTheme.brand.withValues(alpha: 0.12)
+          : Colors.transparent,
+      child: content,
     );
   }
 

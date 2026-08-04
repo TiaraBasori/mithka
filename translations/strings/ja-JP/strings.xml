@@ -904,10 +904,19 @@
     <string name="chatSavedToPhotos">写真に保存しました</string>
     <string name="chatSavedToSavedMessages">Saved Messages に保存しました</string>
     <string name="chatSavingToPhotos">オリジナルのメディアをダウンロード中…</string>
+    <string name="chatSearchAllResults">すべての結果</string>
     <string name="chatSearchHistoryTitle">チャット履歴を検索</string>
+    <string name="chatSearchInThisChat">チャット内を検索</string>
+    <string name="chatSearchMatchCounter">{value2} 件中 {value1} 件目</string>
     <string name="chatSearchMessagePlaceholder">このチャットのメッセージを検索</string>
     <string name="chatSearchMessageResultLabel">[メッセージ]</string>
+    <string name="chatSearchNewerMatch">新しい一致</string>
     <string name="chatSearchNoMessagesFound">該当するメッセージが見つかりません</string>
+    <string name="chatSearchOlderMatch">古い一致</string>
+    <plurals name="chatSearchResultCount">
+        <item quantity="other">{count} 件の結果</item>
+    </plurals>
+    <string name="chatSearchSearching">検索中…</string>
     <string name="chatSelectUntilHere">ここまで選択</string>
     <string name="chatSelectedMessagesCount">{value1} 件のメッセージを選択中</string>
     <string name="chatSendFailedBlocked">どちらかが相手をブロックしているため、このメッセージは送信できません。</string>
@@ -1116,6 +1125,9 @@
     <string name="desktopHotkeysTitle">キーボードショートカット</string>
     <string name="desktopSearchAll">すべて検索</string>
     <string name="desktopSearchClear">検索をクリア</string>
+    <string name="desktopSearchScopeIn">in:</string>
+    <string name="desktopSearchScopePlaceholder">このチャットを検索</string>
+    <string name="desktopSearchScopeRemove">すべてのチャットを検索</string>
     <string name="desktopWindowClose">ウインドウを閉じる</string>
     <string name="desktopWindowMaximizeRestore">最大化または元に戻す</string>
     <string name="desktopWindowMinimize">最小化</string>

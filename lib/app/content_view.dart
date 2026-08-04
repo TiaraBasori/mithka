@@ -23,6 +23,7 @@ import '../platform/adaptive_platform.dart';
 import '../settings/desktop_hotkey_controller.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
+import 'active_conversation.dart';
 import 'app_navigator.dart';
 import 'desktop_chat_list_title_bar_anchors.dart';
 import 'desktop_utility_window.dart';
@@ -101,7 +102,7 @@ class _DesktopPrimaryWindowFrameState extends State<DesktopPrimaryWindowFrame> {
     if (!kIsWeb && isDesktopTargetPlatform(defaultTargetPlatform)) {
       _focusSearchRegistration = DesktopHotkeyRegistry.instance.register(
         DesktopHotkeyAction.focusSearch,
-        _searchController.focus,
+        _focusSearch,
         isEnabled: () => widget.accountReady,
       );
     }
@@ -124,6 +125,12 @@ class _DesktopPrimaryWindowFrameState extends State<DesktopPrimaryWindowFrame> {
     _searchController.dispose();
     super.dispose();
   }
+
+  /// Focusing search from inside a conversation pre-fills an `in: <chat>`
+  /// filter, so the common case — "find this in what I'm reading" — needs no
+  /// second step, while removing the chip widens the search again.
+  void _focusSearch() =>
+      _searchController.focus(scope: ActiveConversation.shared.current);
 
   Future<void> _openSearchAll(String query) => _openSearch(query, null);
 
@@ -361,9 +368,18 @@ class _DesktopChatTitleBarActions extends StatelessWidget {
   final FutureOr<void> Function(String query) onSearchAll;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: DesktopInlineSearchField.width + gap + actionSize,
-    height: actionSize,
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: searchController,
+    builder: (context, child) => SizedBox(
+      // The field grows when it carries an `in: <chat>` chip; the title bar
+      // has to give it that room in the same frame or the chip overflows.
+      width:
+          DesktopInlineSearchField.widthFor(searchController) +
+          gap +
+          actionSize,
+      height: actionSize,
+      child: child,
+    ),
     // DesktopPrimaryWindowFrame wraps the app Navigator from MaterialApp's
     // builder, so title-bar controls are siblings of (not descendants of) the
     // Navigator's Overlay. EditableText needs its own local Overlay ancestor

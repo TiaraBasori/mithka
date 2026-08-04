@@ -1,0 +1,396 @@
+//
+//  chat_message_search_controller.dart
+//
+//  In-chat message search. The transcript never leaves the screen, so this
+//  owns only the query, the paged `searchChatMessages` results, and the cursor
+//  the search header, navigator, and results pane step through. Moving the
+//  transcript to a hit stays the chat view's job; the controller announces it
+//  through [ChatMessageSearchController.onActivateResult].
+//
+
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+
+import '../app/adaptive_split_layout.dart';
+import '../tdlib/json_helpers.dart';
+import '../tdlib/td_client.dart';
+import '../tdlib/td_models.dart';
+
+/// Width of the trailing results pane in a wide chat.
+const double chatSearchResultsPaneWidth = 300;
+
+/// A wide chat lists every hit beside the transcript and keeps the composer;
+/// anything narrower steps through hits from a bottom navigator so the
+/// transcript keeps the full width.
+bool chatSearchUsesResultsPane({
+  required Size windowSize,
+  required double conversationWidth,
+  TargetPlatform? platform,
+  bool isWeb = kIsWeb,
+}) =>
+    usesSplitSelectionLayout(windowSize, platform: platform, isWeb: isWeb) &&
+    conversationWidth >=
+        chatSearchResultsPaneWidth + desktopConversationMinWidth;
+
+/// Splits [text] around every occurrence of [query] so a result row can weight
+/// the matched runs. Returns a single unstyled span when nothing matches.
+List<InlineSpan> chatSearchHighlightSpans({
+  required String text,
+  required String query,
+  required TextStyle matchStyle,
+}) {
+  final needle = query.trim();
+  if (needle.isEmpty || text.isEmpty) return [TextSpan(text: text)];
+  final haystack = text.toLowerCase();
+  final lowerNeedle = needle.toLowerCase();
+  final spans = <InlineSpan>[];
+  var start = 0;
+  while (start < text.length) {
+    final index = haystack.indexOf(lowerNeedle, start);
+    if (index < 0) break;
+    if (index > start) spans.add(TextSpan(text: text.substring(start, index)));
+    final end = index + needle.length;
+    spans.add(TextSpan(text: text.substring(index, end), style: matchStyle));
+    start = end;
+  }
+  if (start < text.length) spans.add(TextSpan(text: text.substring(start)));
+  return spans.isEmpty ? [TextSpan(text: text)] : spans;
+}
+
+/// Sender identity for a hit, resolved once per sender and shared by every
+/// result row that quotes them.
+class _SearchSender {
+  const _SearchSender({required this.name, this.photo});
+
+  final String name;
+  final TdFileRef? photo;
+}
+
+/// Query, results, and cursor for search inside one open chat.
+///
+/// Results arrive newest-first, matching TDLib. "Older" therefore walks
+/// forward through [results] and "newer" walks back, which is also the
+/// direction the up/down controls point in the transcript.
+class ChatMessageSearchController extends ChangeNotifier {
+  ChatMessageSearchController({
+    required this.chatId,
+    TdClient? client,
+    this.onActivateResult,
+  }) : _client = client ?? TdClient.shared;
+
+  static const Duration _debounceDelay = Duration(milliseconds: 280);
+  static const int _pageSize = 40;
+
+  final int chatId;
+  final TdClient _client;
+
+  /// Called whenever the cursor lands on a hit — including the automatic
+  /// landing on the newest hit of a freshly typed query.
+  final ValueChanged<ChatMessage>? onActivateResult;
+
+  final TextEditingController textController = TextEditingController();
+  final FocusNode focusNode = FocusNode();
+
+  final Map<int, _SearchSender> _senders = {};
+  Timer? _debounce;
+  int _runId = 0;
+  bool _disposed = false;
+  bool _active = false;
+  bool _loading = false;
+  bool _loadingMore = false;
+  String _query = '';
+  int _totalCount = 0;
+  int _nextFromMessageId = 0;
+  int _activeIndex = -1;
+  List<ChatMessage> _results = const [];
+
+  bool get isActive => _active;
+  String get query => _query;
+  List<ChatMessage> get results => _results;
+  int get activeIndex => _activeIndex;
+  ChatMessage? get activeResult =>
+      _activeIndex >= 0 && _activeIndex < _results.length
+      ? _results[_activeIndex]
+      : null;
+  int? get activeMessageId => activeResult?.id;
+
+  /// A run is in flight, or one is queued behind the debounce.
+  bool get isLoading => _loading || _debounce?.isActive == true;
+  bool get hasQuery => _query.trim().isNotEmpty;
+  bool get hasResults => _results.isNotEmpty;
+  bool get hasMore => _nextFromMessageId != 0;
+
+  /// TDLib reports the full match count even while only the first page is
+  /// loaded; a short or exhausted response can still exceed it.
+  int get matchCount => math.max(_totalCount, _results.length);
+
+  /// The cursor's 1-based position, or 0 before anything is selected.
+  int get matchPosition => _activeIndex < 0 ? 0 : _activeIndex + 1;
+
+  bool get canStepOlder =>
+      _activeIndex + 1 < _results.length || (hasMore && hasResults);
+  bool get canStepNewer => _activeIndex > 0;
+
+  void open({String? initialQuery}) {
+    if (_disposed) return;
+    final seed = initialQuery?.trim() ?? '';
+    if (!_active) {
+      _active = true;
+      notifyListeners();
+    }
+    if (seed.isNotEmpty && seed != _query) {
+      textController.value = TextEditingValue(
+        text: seed,
+        selection: TextSelection.collapsed(offset: seed.length),
+      );
+      updateQuery(seed);
+    }
+    focusNode.requestFocus();
+  }
+
+  void close() {
+    if (_disposed || !_active) return;
+    _cancelRun();
+    _active = false;
+    _query = '';
+    _results = const [];
+    _activeIndex = -1;
+    _totalCount = 0;
+    _nextFromMessageId = 0;
+    _loading = false;
+    _loadingMore = false;
+    textController.clear();
+    focusNode.unfocus();
+    notifyListeners();
+  }
+
+  void updateQuery(String value) {
+    if (_disposed) return;
+    _cancelRun();
+    _query = value;
+    _results = const [];
+    _activeIndex = -1;
+    _totalCount = 0;
+    _nextFromMessageId = 0;
+    _loadingMore = false;
+    final trimmed = value.trim();
+    _loading = false;
+    if (trimmed.isNotEmpty) {
+      final runId = _runId;
+      _debounce = Timer(_debounceDelay, () => _runFirstPage(trimmed, runId));
+    }
+    notifyListeners();
+  }
+
+  void clear() {
+    if (_disposed) return;
+    textController.clear();
+    updateQuery('');
+    focusNode.requestFocus();
+  }
+
+  /// Moves the cursor to [index] and announces the hit. Out-of-range indexes
+  /// are ignored so callers can step without bounds-checking twice.
+  void selectIndex(int index) {
+    if (_disposed || index < 0 || index >= _results.length) return;
+    _activeIndex = index;
+    notifyListeners();
+    onActivateResult?.call(_results[index]);
+  }
+
+  void selectResult(ChatMessage message) {
+    final index = _results.indexWhere((result) => result.id == message.id);
+    if (index >= 0) selectIndex(index);
+  }
+
+  /// Steps one hit further back in time, loading the next page first when the
+  /// cursor is sitting on the oldest loaded hit.
+  Future<void> stepOlder() async {
+    if (_disposed || _results.isEmpty) return;
+    if (_activeIndex + 1 >= _results.length) {
+      if (!hasMore) return;
+      await loadMore();
+      if (_disposed || _activeIndex + 1 >= _results.length) return;
+    }
+    selectIndex(_activeIndex + 1);
+  }
+
+  void stepNewer() {
+    if (_disposed || _activeIndex <= 0) return;
+    selectIndex(_activeIndex - 1);
+  }
+
+  Future<void> loadMore() async {
+    if (_disposed || _loadingMore || !hasMore) return;
+    final trimmed = _query.trim();
+    if (trimmed.isEmpty) return;
+    final runId = _runId;
+    _loadingMore = true;
+    notifyListeners();
+    final page = await _fetchPage(trimmed, from: _nextFromMessageId);
+    if (_disposed || runId != _runId) return;
+    _loadingMore = false;
+    if (page == null) {
+      notifyListeners();
+      return;
+    }
+    _appendPage(page, runId: runId);
+  }
+
+  Future<void> _runFirstPage(String trimmed, int runId) async {
+    if (_disposed || runId != _runId) return;
+    _loading = true;
+    notifyListeners();
+    final page = await _fetchPage(trimmed, from: 0);
+    if (_disposed || runId != _runId) return;
+    _loading = false;
+    if (page == null) {
+      notifyListeners();
+      return;
+    }
+    _appendPage(page, runId: runId, activateFirst: true);
+  }
+
+  void _appendPage(
+    _SearchPage page, {
+    required int runId,
+    bool activateFirst = false,
+  }) {
+    final known = {for (final result in _results) result.id};
+    final merged = <ChatMessage>[
+      ..._results,
+      ...page.messages.where((message) => known.add(message.id)),
+    ];
+    final grew = merged.length > _results.length;
+    _results = List<ChatMessage>.unmodifiable(merged);
+    _totalCount = page.totalCount;
+    // A page that adds nothing new cannot advance the cursor, so treat it as
+    // the end of the results rather than paging the same window forever.
+    _nextFromMessageId = grew ? page.nextFromMessageId : 0;
+    notifyListeners();
+    unawaited(_hydrateSenders(page.messages, runId));
+    // Typing lands on the newest hit so the transcript follows the query
+    // without a second gesture; later pages never move the cursor.
+    if (activateFirst && _results.isNotEmpty) selectIndex(0);
+  }
+
+  Future<_SearchPage?> _fetchPage(String query, {required int from}) async {
+    try {
+      final response = await _client.query({
+        '@type': 'searchChatMessages',
+        'chat_id': chatId,
+        'query': query,
+        'sender_id': null,
+        'from_message_id': from,
+        'offset': 0,
+        'limit': _pageSize,
+        'filter': {'@type': 'searchMessagesFilterEmpty'},
+      });
+      final raw = response.objects('messages') ?? const <Map<String, dynamic>>[];
+      final messages = raw
+          .map(TDParse.message)
+          .whereType<ChatMessage>()
+          .where((message) => !message.isService)
+          .toList(growable: false);
+      // A zero cursor means TDLib reached the beginning of the chat. Without
+      // one, the oldest hit in the page is the only usable cursor, and a short
+      // page is the only proof that paging is done.
+      final nextFromMessageId =
+          response.int64('next_from_message_id') ??
+          (raw.length < _pageSize ? 0 : (messages.lastOrNull?.id ?? 0));
+      return _SearchPage(
+        messages: messages,
+        totalCount: response.integer('total_count') ?? messages.length,
+        nextFromMessageId: nextFromMessageId,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Search hits arrive without a resolved sender, so a group would otherwise
+  /// attribute every row to the chat itself.
+  Future<void> _hydrateSenders(List<ChatMessage> batch, int runId) async {
+    var changed = false;
+    for (final message in batch) {
+      if (_disposed || runId != _runId) return;
+      final senderId = message.senderId;
+      if (senderId == null || senderId == 0) continue;
+      if (message.isOutgoing && !message.senderIsChat) continue;
+      if (message.senderName != null) continue;
+      var sender = _senders[senderId];
+      if (sender == null) {
+        sender = await _resolveSender(senderId);
+        if (_disposed || runId != _runId) return;
+        if (sender == null) continue;
+        _senders[senderId] = sender;
+      }
+      message.senderName ??= sender.name;
+      message.senderPhoto ??= sender.photo;
+      changed = true;
+    }
+    if (changed && !_disposed && runId == _runId) notifyListeners();
+  }
+
+  Future<_SearchSender?> _resolveSender(int senderId) async {
+    try {
+      if (senderId > 0) {
+        final user = await _client.query({
+          '@type': 'getUser',
+          'user_id': senderId,
+        });
+        return _SearchSender(
+          name: TDParse.userName(user),
+          photo: TDParse.smallPhoto(user.obj('profile_photo')),
+        );
+      }
+      final chat = await _client.query({
+        '@type': 'getChat',
+        'chat_id': senderId,
+      });
+      final title = chat.str('title')?.trim();
+      // An untitled sender chat keeps the row's own peer-title fallback rather
+      // than showing a placeholder name.
+      if (title == null || title.isEmpty) return null;
+      return _SearchSender(
+        name: title,
+        photo: TDParse.smallPhoto(chat.obj('photo')),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Invalidates every in-flight page so a stale response can never repopulate
+  /// the list behind a newer query.
+  void _cancelRun() {
+    _debounce?.cancel();
+    _debounce = null;
+    _runId++;
+  }
+
+  @override
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    _cancelRun();
+    textController.dispose();
+    focusNode.dispose();
+    super.dispose();
+  }
+}
+
+class _SearchPage {
+  const _SearchPage({
+    required this.messages,
+    required this.totalCount,
+    required this.nextFromMessageId,
+  });
+
+  final List<ChatMessage> messages;
+  final int totalCount;
+  final int nextFromMessageId;
+}
