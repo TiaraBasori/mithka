@@ -629,7 +629,9 @@ class AppSwitch extends StatelessWidget {
     final handleSize = pointerDense ? 18.0 : 26.0;
     final trackColor = value ? c.linkBlue : c.textTertiary;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final handleColor = isDark ? const Color(0xFF171717) : const Color(0xFFFFFFFF);
+    final handleColor = isDark
+        ? const Color(0xFF171717)
+        : const Color(0xFFFFFFFF);
     return AppInteractiveSurface(
       semanticLabel:
           semanticLabel ??

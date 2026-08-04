@@ -1574,7 +1574,9 @@ class _ForumSplitDetailPaneState extends State<_ForumSplitDetailPane> {
       color: Colors.transparent,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Align(
-        alignment: Alignment.centerLeft,
+        // Desktop split pane: the mode switch sits top-right, mirroring the
+        // header actions above it.
+        alignment: Alignment.centerRight,
         child: Container(
           height: 32,
           decoration: BoxDecoration(

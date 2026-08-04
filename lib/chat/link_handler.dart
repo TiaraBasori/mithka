@@ -548,6 +548,12 @@ String? _normalizeTelegramLink(String raw) {
   if (trimmed.isEmpty) return null;
   final lower = trimmed.toLowerCase();
   if (lower.startsWith('tg:')) return trimmed;
+  // The app's own schemes carry tg:// grammar — rewrite so TDLib's
+  // getInternalLinkType (which only knows tg:) can classify them. Without
+  // this they fell through to the external launcher, which bounced them
+  // right back to us via LaunchServices as a no-op activation.
+  if (lower.startsWith('mk:')) return 'tg:${trimmed.substring(3)}';
+  if (lower.startsWith('mithka:')) return 'tg:${trimmed.substring(7)}';
 
   var candidate = trimmed;
   if (!candidate.contains('://')) candidate = 'https://$candidate';

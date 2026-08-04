@@ -1546,7 +1546,7 @@ class _ChatListViewState extends State<ChatListView>
           final selected = filter.folderId == selectedFolderId;
           final key = _folderTabKeys.putIfAbsent(
             filter.folderId,
-            () => GlobalKey(),
+            GlobalKey.new,
           );
           return GestureDetector(
             key: key,
