@@ -1144,6 +1144,7 @@
     <string name="downloadsRemoveAndKeepCachedFile">Entfernen Sie die zwischengespeicherte Datei und behalten Sie sie bei</string>
     <string name="downloadsRemoveFromDownloads">Aus Downloads entfernen?</string>
     <string name="downloadsSearchDownloads">Downloads suchen</string>
+    <string name="editProfileAddPhoto">Foto hinzufügen</string>
     <string name="editProfileAnimatedAvatar">Animierter Avatar</string>
     <string name="editProfileAnimatedAvatarDescription">Kurzes Video, GIF, APNG oder Live Photo verwenden</string>
     <string name="editProfileAnimatedAvatarPremiumRequired">Animierte Avatare erfordern Telegram Premium</string>
@@ -1168,11 +1169,17 @@
     <string name="editProfileNoBirthYear">Ohne Jahr</string>
     <string name="editProfileNotBound">Nicht verknüpft</string>
     <string name="editProfilePhone">Telefon</string>
+    <string name="editProfilePhotoCurrent">Aktuelles Foto</string>
+    <string name="editProfilePhotoPublic">Öffentliches Foto</string>
     <string name="editProfileProfileColor">Profilfarbe</string>
     <string name="editProfileProfileColorDescription">Farbe für den Hintergrund deines Profils.</string>
     <string name="editProfileProfileIcon">Profilsymbol</string>
     <string name="editProfileProfileIconEmpty">Keine Profilsymbole verfügbar</string>
     <string name="editProfileSaveFailed">Speichern fehlgeschlagen</string>
+    <string name="editProfileSectionAbout">Über mich</string>
+    <string name="editProfileSectionAccount">Konto</string>
+    <string name="editProfileSectionAppearance">Darstellung</string>
+    <string name="editProfileSectionName">Name</string>
     <string name="editProfileSetUsername">Benutzernamen festlegen</string>
     <string name="editProfileStaticAvatar">Fotoavatar</string>
     <string name="editProfileStaticAvatarDescription">Ein Standbild zuschneiden und hochladen</string>

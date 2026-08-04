@@ -1142,6 +1142,7 @@
     <string name="downloadsRemoveAndKeepCachedFile">캐시된 파일 제거 및 보관</string>
     <string name="downloadsRemoveFromDownloads">다운로드에서 삭제하시겠습니까?</string>
     <string name="downloadsSearchDownloads">다운로드 검색</string>
+    <string name="editProfileAddPhoto">사진 추가</string>
     <string name="editProfileAnimatedAvatar">움직이는 아바타</string>
     <string name="editProfileAnimatedAvatarDescription">짧은 동영상, GIF, APNG, Live Photo 지원</string>
     <string name="editProfileAnimatedAvatarPremiumRequired">움직이는 아바타를 사용하려면 Telegram Premium이 필요합니다</string>
@@ -1166,11 +1167,17 @@
     <string name="editProfileNoBirthYear">연도 없음</string>
     <string name="editProfileNotBound">연결되지 않음</string>
     <string name="editProfilePhone">전화번호</string>
+    <string name="editProfilePhotoCurrent">현재 사진</string>
+    <string name="editProfilePhotoPublic">공개 사진</string>
     <string name="editProfileProfileColor">프로필 색상</string>
     <string name="editProfileProfileColorDescription">프로필 페이지 배경에 사용되는 색상입니다.</string>
     <string name="editProfileProfileIcon">프로필 아이콘</string>
     <string name="editProfileProfileIconEmpty">사용 가능한 프로필 아이콘이 없습니다</string>
     <string name="editProfileSaveFailed">저장 실패</string>
+    <string name="editProfileSectionAbout">소개</string>
+    <string name="editProfileSectionAccount">계정</string>
+    <string name="editProfileSectionAppearance">외관</string>
+    <string name="editProfileSectionName">이름</string>
     <string name="editProfileSetUsername">사용자 이름 설정</string>
     <string name="editProfileStaticAvatar">사진 아바타</string>
     <string name="editProfileStaticAvatarDescription">정지 이미지를 자르고 업로드</string>

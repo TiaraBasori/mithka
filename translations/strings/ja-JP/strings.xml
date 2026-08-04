@@ -1142,6 +1142,7 @@
     <string name="downloadsRemoveAndKeepCachedFile">キャッシュされたファイルを削除して保持する</string>
     <string name="downloadsRemoveFromDownloads">ダウンロードから削除しますか?</string>
     <string name="downloadsSearchDownloads">ダウンロードの検索</string>
+    <string name="editProfileAddPhoto">写真を追加</string>
     <string name="editProfileAnimatedAvatar">アニメーションアバター</string>
     <string name="editProfileAnimatedAvatarDescription">短い動画、GIF、APNG、Live Photosに対応</string>
     <string name="editProfileAnimatedAvatarPremiumRequired">アニメーションアバターにはTelegram Premiumが必要です</string>
@@ -1166,11 +1167,17 @@
     <string name="editProfileNoBirthYear">年なし</string>
     <string name="editProfileNotBound">未連携</string>
     <string name="editProfilePhone">電話</string>
+    <string name="editProfilePhotoCurrent">現在の写真</string>
+    <string name="editProfilePhotoPublic">公開写真</string>
     <string name="editProfileProfileColor">プロフィールの色</string>
     <string name="editProfileProfileColorDescription">プロフィールページの背景に使われる色です。</string>
     <string name="editProfileProfileIcon">プロフィールアイコン</string>
     <string name="editProfileProfileIconEmpty">利用できるプロフィールアイコンがありません</string>
     <string name="editProfileSaveFailed">保存できませんでした</string>
+    <string name="editProfileSectionAbout">自己紹介</string>
+    <string name="editProfileSectionAccount">アカウント</string>
+    <string name="editProfileSectionAppearance">外観</string>
+    <string name="editProfileSectionName">名前</string>
     <string name="editProfileSetUsername">ユーザー名を設定</string>
     <string name="editProfileStaticAvatar">写真アバター</string>
     <string name="editProfileStaticAvatarDescription">静止画像を切り抜いてアップロード</string>
