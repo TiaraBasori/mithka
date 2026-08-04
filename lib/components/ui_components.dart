@@ -826,6 +826,8 @@ class SettingsSwitchRow extends StatelessWidget {
     required this.value,
     required this.onChanged,
     this.leading,
+    this.subtitle,
+    this.enabled = true,
     this.height = AppMetric.settingsRowHeight,
     this.leadingInset = AppMetric.settingsLeadingInset,
   });
@@ -834,6 +836,15 @@ class SettingsSwitchRow extends StatelessWidget {
   final bool value;
   final ValueChanged<bool> onChanged;
   final Widget? leading;
+
+  /// Explanatory line under the title, for a switch whose effect is not
+  /// obvious from its label alone.
+  final String? subtitle;
+
+  /// A disabled row still reads, but dims and stops responding — used where
+  /// the platform, not the user, decides.
+  final bool enabled;
+
   final double height;
   final double leadingInset;
 
@@ -853,7 +864,8 @@ class SettingsSwitchRow extends StatelessWidget {
     final verticalPadding = pointerDense ? AppSpacing.sm : AppSpacing.md;
     return AppInteractiveSurface(
       toggled: value,
-      onTap: () => onChanged(!value),
+      enabled: enabled,
+      onTap: enabled ? () => onChanged(!value) : null,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: ConstrainedBox(
         constraints: BoxConstraints(minHeight: effectiveHeight),
@@ -873,18 +885,39 @@ class SettingsSwitchRow extends StatelessWidget {
                 SizedBox(width: horizontalGap),
               ],
               Expanded(
-                child: Text(
-                  title.l10n(context),
-                  style: pointerDense
-                      ? AppTextStyle.callout(c.textPrimary)
-                      : AppTextStyle.body(c.textPrimary),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title.l10n(context),
+                      style: pointerDense
+                          ? AppTextStyle.callout(
+                              enabled ? c.textPrimary : c.textTertiary,
+                            )
+                          : AppTextStyle.body(
+                              enabled ? c.textPrimary : c.textTertiary,
+                            ),
+                    ),
+                    if (subtitle != null && subtitle!.isNotEmpty) ...[
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        subtitle!.l10n(context),
+                        style: AppTextStyle.footnote(c.textTertiary),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               SizedBox(width: horizontalGap),
               ExcludeSemantics(
                 child: ExcludeFocus(
                   child: IgnorePointer(
-                    child: AppSwitch(value: value, onChanged: onChanged),
+                    child: AppSwitch(
+                      value: value,
+                      onChanged: onChanged,
+                      enabled: enabled,
+                    ),
                   ),
                 ),
               ),

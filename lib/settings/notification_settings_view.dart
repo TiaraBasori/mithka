@@ -722,7 +722,7 @@ class _AccountNotificationSelectionViewState
           _NotificationCard(
             children: [
               for (var index = 0; index < widget.accounts.length; index++) ...[
-                _NotificationSwitchRow(
+                SettingsSwitchRow(
                   title: widget.accounts[index].name,
                   subtitle: widget.accounts[index].phone,
                   value: _preferences.selectedAccountIds.contains(
@@ -793,7 +793,7 @@ class _ScopeNotificationSettingsViewState
       children: [
         _NotificationCard(
           children: [
-            _NotificationSwitchRow(
+            SettingsSwitchRow(
               title: AppStrings.t(AppStringKeys.notificationNotifications),
               value: enabled,
               onChanged: (value) => _set('mute_for', value ? 0 : _muteForever),
@@ -804,14 +804,14 @@ class _ScopeNotificationSettingsViewState
           const SettingsSectionHeader(AppStringKeys.notificationOptions),
           _NotificationCard(
             children: [
-              _NotificationSwitchRow(
+              SettingsSwitchRow(
                 title: AppStrings.t(AppStringKeys.notificationPreview),
                 value: _settings.boolean('show_preview') ?? true,
                 enabled: hasNotifications,
                 onChanged: (value) => _set('show_preview', value),
               ),
               const InsetDivider(leadingInset: 16),
-              _NotificationSwitchRow(
+              SettingsSwitchRow(
                 title: AppStrings.t(AppStringKeys.notificationSound),
                 value: (_settings.int64('sound_id') ?? 0) > 0,
                 enabled:
@@ -898,14 +898,14 @@ class _StoryNotificationSettingsViewState
       children: [
         _NotificationCard(
           children: [
-            _NotificationSwitchRow(
+            SettingsSwitchRow(
               title: AppStrings.t(AppStringKeys.notificationAllStories),
               value: mode == StoryNotificationMode.all,
               onChanged: _setAllStories,
             ),
             if (mode != StoryNotificationMode.all) ...[
               const InsetDivider(leadingInset: 16),
-              _NotificationSwitchRow(
+              SettingsSwitchRow(
                 title: AppStrings.t(AppStringKeys.notificationTopFive),
                 subtitle: AppStrings.t(
                   AppStringKeys.notificationTopFiveDescription,
@@ -920,7 +920,7 @@ class _StoryNotificationSettingsViewState
           const SettingsSectionHeader(AppStringKeys.notificationOptions),
           _NotificationCard(
             children: [
-              _NotificationSwitchRow(
+              SettingsSwitchRow(
                 title: AppStrings.t(AppStringKeys.notificationStoryPoster),
                 value:
                     _settings.boolean('show_story_poster') ??
@@ -930,7 +930,7 @@ class _StoryNotificationSettingsViewState
                 onChanged: (value) => _set('show_story_poster', value),
               ),
               const InsetDivider(leadingInset: 16),
-              _NotificationSwitchRow(
+              SettingsSwitchRow(
                 title: AppStrings.t(AppStringKeys.notificationSound),
                 value: (_settings.int64('story_sound_id') ?? 0) > 0,
                 enabled:
@@ -1047,13 +1047,13 @@ class _ReactionNotificationSettingsViewState
           const SettingsSectionHeader(AppStringKeys.notificationOptions),
           _NotificationCard(
             children: [
-              _NotificationSwitchRow(
+              SettingsSwitchRow(
                 title: AppStrings.t(AppStringKeys.notificationPreview),
                 value: _settings.boolean('show_preview') ?? true,
                 onChanged: (value) => _set('show_preview', value),
               ),
               const InsetDivider(leadingInset: 16),
-              _NotificationSwitchRow(
+              SettingsSwitchRow(
                 title: AppStrings.t(AppStringKeys.notificationSound),
                 value: (_settings.int64('sound_id') ?? 0) > 0,
                 enabled:
@@ -1139,74 +1139,6 @@ class _NotificationCard extends StatelessWidget {
   }
 }
 
-class _NotificationSwitchRow extends StatelessWidget {
-  const _NotificationSwitchRow({
-    required this.title,
-    required this.value,
-    required this.onChanged,
-    this.enabled = true,
-    this.subtitle,
-  });
-
-  final String title;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final bool enabled;
-  final String? subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: subtitle == null ? 58 : 72),
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: subtitle == null ? 0 : 9,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      color: enabled
-                          ? context.colors.textPrimary
-                          : context.colors.textTertiary,
-                      fontSize: 16,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle!,
-                      style: TextStyle(
-                        color: enabled
-                            ? context.colors.textSecondary
-                            : context.colors.textTertiary,
-                        fontSize: 12.5,
-                        height: 1.25,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            _NotificationToggle(
-              value: value,
-              enabled: enabled,
-              onChanged: onChanged,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _ReactionSourceRow extends StatelessWidget {
   const _ReactionSourceRow({
     required this.title,
@@ -1252,69 +1184,8 @@ class _ReactionSourceRow extends StatelessWidget {
                 ),
               ),
             ),
-            _NotificationToggle(value: value, onChanged: onChanged),
+            AppSwitch(value: value, onChanged: onChanged),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NotificationToggle extends StatelessWidget {
-  const _NotificationToggle({
-    required this.value,
-    required this.onChanged,
-    this.enabled = true,
-  });
-
-  final bool value;
-  final ValueChanged<bool> onChanged;
-  final bool enabled;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      toggled: value,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: enabled ? () => onChanged(!value) : null,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 160),
-          opacity: enabled ? 1 : 0.45,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 160),
-            curve: Curves.easeOut,
-            width: 50,
-            height: 30,
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: value ? c.linkBlue : c.textTertiary,
-              borderRadius: BorderRadius.circular(15),
-            ),
-            child: AnimatedAlign(
-              duration: const Duration(milliseconds: 160),
-              curve: Curves.easeOut,
-              alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-              child: Container(
-                width: 26,
-                height: 26,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFFFFFFF),
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x30000000),
-                      blurRadius: 3,
-                      offset: Offset(0, 1),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ),
       ),
     );

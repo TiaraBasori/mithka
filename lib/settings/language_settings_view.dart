@@ -31,12 +31,16 @@ class LanguageSettingsView extends StatelessWidget {
                 children: [
                   SettingsCard(
                     children: [
-                      _NavLanguageRow(
-                        icon: HeroAppIcons.globe,
+                      SettingsRow(
+                        leading: AppIcon(
+                          HeroAppIcons.globe,
+                          size: AppIconSize.lg,
+                          color: AppTheme.brand,
+                        ),
                         title: AppStringKeys.languageMithkaLanguage.l10n(
                           context,
                         ),
-                        subtitle: locale.selectedLabel(context),
+                        value: locale.selectedLabel(context),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (_) => const AppLanguageSettingsView(),
@@ -44,12 +48,16 @@ class LanguageSettingsView extends StatelessWidget {
                         ),
                       ),
                       const InsetDivider(leadingInset: 56),
-                      _NavLanguageRow(
-                        icon: HeroAppIcons.comment,
+                      SettingsRow(
+                        leading: AppIcon(
+                          HeroAppIcons.comment,
+                          size: AppIconSize.lg,
+                          color: AppTheme.brand,
+                        ),
                         title: AppStrings.t(
                           AppStringKeys.messageActionTranslate,
                         ),
-                        subtitle: AppStrings.t(
+                        value: AppStrings.t(
                           AppStringKeys.translationSettingsTitle,
                         ),
                         onTap: () => Navigator.of(context).push(
@@ -122,70 +130,6 @@ class AppLanguageSettingsView extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _NavLanguageRow extends StatelessWidget {
-  const _NavLanguageRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  final AppIconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: SizedBox(
-        height: 58,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              AppIcon(icon, size: 22, color: AppTheme.brand),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 3,
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16, color: c.textPrimary),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                flex: 2,
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(fontSize: 13, color: c.textTertiary),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
-              AppIcon(
-                HeroAppIcons.chevronRight,
-                size: 14,
-                color: c.textTertiary,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

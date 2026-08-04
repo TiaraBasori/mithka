@@ -170,8 +170,12 @@ class _AboutViewState extends State<AboutView> {
                     child: Column(
                       children: [
                         if (UpdateChecker.supportsManualCheck) ...[
-                          _AboutLinkRow(
-                            icon: HeroAppIcons.download.data,
+                          SettingsRow(
+                            leading: AppIcon(
+                              HeroAppIcons.download,
+                              size: AppIconSize.lg,
+                              color: AppTheme.brand,
+                            ),
                             title: AppStrings.t(
                               AppStringKeys.aboutCheckForUpdates,
                             ),
@@ -186,8 +190,12 @@ class _AboutViewState extends State<AboutView> {
                           ),
                         ],
                         if (sentryEnabled) ...[
-                          _AboutLinkRow(
-                            icon: HeroAppIcons.comments.data,
+                          SettingsRow(
+                            leading: AppIcon(
+                              HeroAppIcons.comments,
+                              size: AppIconSize.lg,
+                              color: AppTheme.brand,
+                            ),
                             title: AppStrings.t(
                               AppStringKeys.aboutReportProblem,
                             ),
@@ -208,8 +216,12 @@ class _AboutViewState extends State<AboutView> {
                             child: Divider(height: 1, color: c.divider),
                           ),
                         ],
-                        _AboutLinkRow(
-                          icon: HeroAppIcons.globe.data,
+                        SettingsRow(
+                          leading: AppIcon(
+                            HeroAppIcons.globe,
+                            size: AppIconSize.lg,
+                            color: AppTheme.brand,
+                          ),
                           title: AppStrings.t(AppStringKeys.aboutWebsite),
                           value: 'mithka.ieb.app',
                           onTap: () => openLink(context, _websiteUrl),
@@ -218,8 +230,12 @@ class _AboutViewState extends State<AboutView> {
                           padding: const EdgeInsets.only(left: 48),
                           child: Divider(height: 1, color: c.divider),
                         ),
-                        _AboutLinkRow(
-                          icon: HeroAppIcons.solidPaperPlane.data,
+                        SettingsRow(
+                          leading: AppIcon(
+                            HeroAppIcons.solidPaperPlane,
+                            size: AppIconSize.lg,
+                            color: AppTheme.brand,
+                          ),
                           title: AppStrings.t(
                             AppStringKeys.aboutTelegramChannel,
                           ),
@@ -230,8 +246,12 @@ class _AboutViewState extends State<AboutView> {
                           padding: const EdgeInsets.only(left: 48),
                           child: Divider(height: 1, color: c.divider),
                         ),
-                        _AboutLinkRow(
-                          icon: HeroAppIcons.code.data,
+                        SettingsRow(
+                          leading: AppIcon(
+                            HeroAppIcons.code,
+                            size: AppIconSize.lg,
+                            color: AppTheme.brand,
+                          ),
                           title: 'GitHub',
                           value: 'github.com/iebb/mithka',
                           onTap: () => openLink(context, _githubUrl),
@@ -244,66 +264,6 @@ class _AboutViewState extends State<AboutView> {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AboutLinkRow extends StatelessWidget {
-  const _AboutLinkRow({
-    required this.icon,
-    required this.title,
-    required this.value,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String title;
-  final String value;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.colors;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: SizedBox(
-        height: 52,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              Icon(icon, size: 20, color: AppTheme.brand),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16, color: c.textPrimary),
-                ),
-              ),
-              const SizedBox(width: 12),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 140),
-                child: Text(
-                  value,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(fontSize: 14, color: c.textSecondary),
-                ),
-              ),
-              const SizedBox(width: 6),
-              AppIcon(
-                HeroAppIcons.chevronRight,
-                size: 14,
-                color: c.textTertiary,
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
