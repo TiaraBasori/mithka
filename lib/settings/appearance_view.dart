@@ -20,6 +20,7 @@ import 'package:mithka/l10n/preview_texts.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
+import '../chat/chat_appearance_preview.dart';
 import '../chat/chat_wallpaper.dart';
 import '../chat/chat_wallpaper_view.dart';
 import '../chat/emoji_store.dart';
@@ -39,6 +40,7 @@ import '../theme/app_theme.dart';
 import '../theme/emoji_font_catalog.dart';
 import '../theme/global_theme_view.dart';
 import '../theme/message_bubble_background.dart';
+import '../theme/message_name_colors.dart';
 import '../theme/system_font_catalog.dart';
 import '../theme/theme_controller.dart';
 import 'app_icon_controller.dart';
@@ -560,6 +562,8 @@ class SenderNameReadabilitySettingsView extends StatelessWidget {
                 AppSpacing.section,
               ),
               children: [
+                const _SenderNameReadabilityPreview(),
+                const SizedBox(height: AppSpacing.xl),
                 const AppearanceView()._card(context, [
                   for (final mode in SenderNameReadabilityMode.values)
                     const AppearanceView()._choiceRow(
@@ -590,6 +594,79 @@ class SenderNameReadabilitySettingsView extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Every name colour a sender can be assigned, over the background they will
+/// actually be read on.
+///
+/// One treatment can be legible on the palette's dark blue and lost on its
+/// yellow, so the choice is only answerable by seeing all of them at once
+/// against the current wallpaper rather than one sample name.
+class _SenderNameReadabilityPreview extends StatelessWidget {
+  const _SenderNameReadabilityPreview();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final theme = context.watch<ThemeController>();
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return AnimatedBuilder(
+      animation: ChatWallpaperController.shared,
+      builder: (context, _) {
+        final wallpaperController = ChatWallpaperController.shared;
+        final cloudTheme = theme.cloudThemeFor(
+          dark ? Brightness.dark : Brightness.light,
+        );
+        final selected = selectGlobalChatWallpaper(
+          defaultWallpaper: wallpaperController.defaultWallpaper(dark: dark),
+          cloudThemeWallpaper: cloudTheme?.wallpaper,
+          globalThemeWallpaper: wallpaperController.globalThemeWallpaperFor(
+            dark: dark,
+          ),
+        );
+        final incomingBackground = theme
+            .effectiveMessageBubbleBackgroundSpecFor(outgoing: false);
+        final bubbleColor =
+            incomingBackground.backgroundColor ??
+            cloudTheme?.incomingColor ??
+            c.bubbleIncoming;
+        final colors = messageNameColorsForTheme(cloudTheme);
+        final sample = AppStrings.t(AppStringKeys.appearancePreviewUsersSample);
+        return ClipRRect(
+          key: const ValueKey('senderNameReadabilityPreview'),
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          child: ChatWallpaperBackground(
+            wallpaper: selected == null
+                ? null
+                : wallpaperController.resolvedWallpaper(selected),
+            fallbackColor: c.chatBackground,
+            brightness: Theme.of(context).brightness,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xl,
+                vertical: AppSpacing.xxl,
+              ),
+              child: Wrap(
+                spacing: AppSpacing.lg,
+                runSpacing: AppSpacing.lg,
+                alignment: WrapAlignment.center,
+                children: [
+                  for (final color in colors)
+                    SenderIdentityPills(
+                      readabilityMode: theme.senderNameReadabilityMode,
+                      bubbleColor: bubbleColor,
+                      shadowColor: cloudTheme?.incomingColor,
+                      name: sample,
+                      nameStyle: TextStyle(fontSize: 12, color: color),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
