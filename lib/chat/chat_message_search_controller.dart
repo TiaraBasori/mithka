@@ -122,9 +122,13 @@ class ChatMessageSearchController extends ChangeNotifier {
   final int chatId;
   final TdClient _client;
 
-  /// Called whenever the cursor lands on a hit — including the automatic
-  /// landing on the newest hit of a freshly typed query.
-  final ValueChanged<ChatMessage>? onActivateResult;
+  /// Called whenever the cursor lands on a hit.
+  ///
+  /// `automatic` marks the landing a fresh query performs on its own, which a
+  /// caller must treat differently from a deliberate step: it happens on every
+  /// keystroke's worth of results.
+  final void Function(ChatMessage message, {required bool automatic})?
+  onActivateResult;
 
   /// Whether a fresh query moves the cursor to its newest hit.
   ///
@@ -368,11 +372,11 @@ class ChatMessageSearchController extends ChangeNotifier {
 
   /// Moves the cursor to [index] and announces the hit. Out-of-range indexes
   /// are ignored so callers can step without bounds-checking twice.
-  void selectIndex(int index) {
+  void selectIndex(int index, {bool automatic = false}) {
     if (_disposed || index < 0 || index >= _results.length) return;
     _activeIndex = index;
     notifyListeners();
-    onActivateResult?.call(_results[index]);
+    onActivateResult?.call(_results[index], automatic: automatic);
   }
 
   void selectResult(ChatMessage message) {
@@ -452,7 +456,7 @@ class ChatMessageSearchController extends ChangeNotifier {
     // Typing lands on the newest hit so the transcript follows the query
     // without a second gesture; later pages never move the cursor.
     if (activateFirst && autoActivateFirstResult && _results.isNotEmpty) {
-      selectIndex(0);
+      selectIndex(0, automatic: true);
     }
   }
 
