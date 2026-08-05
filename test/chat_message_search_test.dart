@@ -141,6 +141,46 @@ void main() {
       expect(tokens.text, isEmpty);
     });
 
+    test('in: is lifted out like from:', () {
+      final tokens = parseChatSearchQuery('in:"Mithka Users" from:bob hello');
+      expect(tokens.inQuery, 'Mithka Users');
+      expect(tokens.fromQuery, 'bob');
+      expect(tokens.text, 'hello');
+    });
+
+    test('the caret decides which token is being suggested for', () {
+      const raw = 'in:mith from:bob report';
+      // Inside `in:`.
+      expect(activeChatSearchToken(raw, 5)?.kind, ChatSearchTokenKind.chat);
+      // Inside `from:`.
+      expect(activeChatSearchToken(raw, 15)?.kind, ChatSearchTokenKind.from);
+      // Out in the plain words.
+      expect(activeChatSearchToken(raw, raw.length), isNull);
+    });
+
+    test('an empty token still offers suggestions', () {
+      final token = activeChatSearchToken('from:', 5);
+      expect(token?.kind, ChatSearchTokenKind.from);
+      expect(token?.value, isEmpty);
+    });
+
+    test('picking a suggestion rewrites only that token', () {
+      const raw = 'in:mith from:bob report';
+      final token = activeChatSearchToken(raw, 5)!;
+      final applied = applyChatSearchToken(raw, token, 'Mithka Users');
+      // Quoted because it holds a space, and the rest of the query survives.
+      expect(applied.text, 'in:"Mithka Users" from:bob report');
+      expect(applied.caret, 'in:"Mithka Users" '.length);
+      // A token at the end of the query gains the separator it lacks.
+      final trailing = applyChatSearchToken(
+        'from:',
+        activeChatSearchToken('from:', 5)!,
+        '@bob',
+      );
+      expect(trailing.text, 'from:@bob ');
+      expect(trailing.caret, trailing.text.length);
+    });
+
     test('both tokens combine and leave the rest of the words', () {
       final tokens = parseChatSearchQuery('from:bob has:link the article');
       expect(tokens.fromQuery, 'bob');
