@@ -632,6 +632,10 @@ class _SenderNameReadabilityPreview extends StatelessWidget {
             incomingBackground.backgroundColor ??
             cloudTheme?.incomingColor ??
             c.bubbleIncoming;
+        // Blend meets this halfway, so the preview has to read it from the
+        // same place a real incoming bubble does.
+        final bubbleTextColor =
+            incomingBackground.foregroundColor ?? c.bubbleIncomingText;
         final colors = messageNameColorsForTheme(cloudTheme);
         final sample = AppStrings.t(AppStringKeys.appearancePreviewUsersSample);
         return ClipRRect(
@@ -657,9 +661,17 @@ class _SenderNameReadabilityPreview extends StatelessWidget {
                     SenderIdentityPills(
                       readabilityMode: theme.senderNameReadabilityMode,
                       bubbleColor: bubbleColor,
-                      shadowColor: cloudTheme?.incomingColor,
+                      textColor: bubbleTextColor,
                       name: sample,
                       nameStyle: TextStyle(fontSize: 12, color: color),
+                      // The background treatment is a tag joined to the name,
+                      // so previewing it without a tag would hide half of what
+                      // is being chosen.
+                      role:
+                          theme.senderNameReadabilityMode ==
+                              SenderNameReadabilityMode.background
+                          ? MemberRole.admin
+                          : null,
                     ),
                 ],
               ),

@@ -150,15 +150,22 @@ class SenderIdentityPills extends StatelessWidget {
       fontWeight: FontWeight.w500,
       color: resolvedColor,
     );
+    // The background treatment is one continuous pill — tag, then name joined
+    // to it. That geometry only reads as a single object with the tag leading,
+    // so it overrides the platform's preference for a trailing tag and desktop
+    // matches mobile here.
+    final tagAfterName =
+        roleAfterName &&
+        readabilityMode != SenderNameReadabilityMode.background;
     final connected =
-        !roleAfterName &&
+        !tagAfterName &&
         readabilityMode == SenderNameReadabilityMode.background &&
         role != null;
     return Row(
       key: connected ? const ValueKey('connectedSenderIdentityPills') : null,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (role != null && !roleAfterName) ...[
+        if (role != null && !tagAfterName) ...[
           RoleTag(
             role: role!,
             title: roleTitle,
@@ -181,7 +188,7 @@ class SenderIdentityPills extends StatelessWidget {
           ),
         ),
         if (trailing != null) ...[const SizedBox(width: 3), trailing!],
-        if (role != null && roleAfterName) ...[
+        if (role != null && tagAfterName) ...[
           const SizedBox(width: 4),
           RoleTag(role: role!, title: roleTitle),
         ],

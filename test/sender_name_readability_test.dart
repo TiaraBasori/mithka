@@ -132,6 +132,36 @@ void main() {
     expect(name.style?.shadows, isNull);
   });
 
+  testWidgets('the background pill keeps its tag leading on desktop', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: Align(
+          alignment: Alignment.topLeft,
+          child: SenderIdentityPills(
+            readabilityMode: SenderNameReadabilityMode.background,
+            bubbleColor: Color(0xFF223344),
+            name: 'Bob Harris',
+            nameStyle: TextStyle(color: Color(0xFF00A0FF), fontSize: 12),
+            role: MemberRole.admin,
+            // What a desktop caller asks for; the continuous pill overrides it.
+            roleAfterName: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('connectedSenderIdentityPills')),
+      findsOneWidget,
+    );
+    final tag = tester.getTopLeft(find.byType(RoleTag)).dx;
+    final name = tester.getTopLeft(find.text('Bob Harris')).dx;
+    expect(tag, lessThan(name));
+  });
+
   testWidgets('an emoji status reads before the sender badge', (tester) async {
     await tester.pumpWidget(
       const Directionality(
@@ -234,7 +264,8 @@ void main() {
         child: Align(
           alignment: Alignment.topLeft,
           child: SenderIdentityPills(
-            readabilityMode: SenderNameReadabilityMode.background,
+            // Every mode but the continuous pill keeps the desktop ordering.
+            readabilityMode: SenderNameReadabilityMode.blend,
             bubbleColor: Color(0xFF223344),
             name: 'Bob Harris',
             nameStyle: TextStyle(fontSize: 12),
