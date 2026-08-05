@@ -525,6 +525,9 @@ class _ContactsViewState extends State<ContactsView> {
               context,
               userId: contact.id,
               name: contact.name,
+              // The contacts tab owns a detail pane; a window would leave it
+              // showing its "select a contact" placeholder.
+              preferInlinePane: widget.onOpenDetail != null,
               openFallback: () => _openDetail(
                 ProfileDetailView(
                   userId: contact.id,

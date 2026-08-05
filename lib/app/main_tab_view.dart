@@ -741,7 +741,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     );
     final languageOptions = [
       for (final option in AppLocaleController.options)
-        DesktopLanguageMenuOption(
+        DesktopMenuChoice(
           id: option.tag,
           label: option.label.l10n(context),
           selected:
@@ -750,6 +750,27 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
             appLocale.locale = option.locale;
             await DesktopChatWindowService.instance.notifyPresentationChanged();
           }()),
+        ),
+    ];
+    // Quick theme switching, so a look can be changed without walking into
+    // Settings › Appearance › Theme. It applies to the brightness on screen —
+    // switching a dark theme while in light mode would change nothing visible.
+    final themeBrightness = Theme.of(context).brightness;
+    final activeCloudTheme = theme.cloudThemeFor(themeBrightness);
+    final themeOptions = [
+      DesktopMenuChoice(
+        id: 'default',
+        label: AppStrings.t(AppStringKeys.globalThemeDefault),
+        selected: activeCloudTheme == null,
+        onTap: () => theme.clearCloudTheme(themeBrightness),
+      ),
+      for (final cloudTheme in theme.installedCloudThemes)
+        DesktopMenuChoice(
+          id: cloudTheme.slug,
+          label: cloudTheme.displayTitle,
+          selected: cloudTheme.slug == activeCloudTheme?.slug,
+          onTap: () =>
+              theme.installCloudTheme(cloudTheme, brightness: themeBrightness),
         ),
     ];
     return AnimatedBuilder(
@@ -808,6 +829,10 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
                           AppStringKeys.languageMithkaLanguage,
                         ),
                         languageOptions: languageOptions,
+                        themeMenuLabel: AppStrings.t(
+                          AppStringKeys.appearanceTheme,
+                        ),
+                        themeOptions: themeOptions,
                         applicationMenuQuickActions:
                             applicationMenuQuickActions,
                         applicationMenuActions: applicationMenuActions(),
