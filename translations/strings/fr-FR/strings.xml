@@ -390,8 +390,8 @@
     <string name="appearanceSenderNameBackground">Fond du nom de l’expéditeur</string>
     <string name="appearanceSenderNameReadability">Améliorer la lisibilité du nom</string>
     <string name="appearanceSenderNameReadabilityBackground">Ajouter un arrière-plan</string>
+    <string name="appearanceSenderNameReadabilityBlend">Mélanger la couleur</string>
     <string name="appearanceSenderNameReadabilityNone">Aucun</string>
-    <string name="appearanceSenderNameReadabilityShadow">Ajouter une ombre</string>
     <string name="appearanceShowChatListSearch">Recherche des chats</string>
     <string name="appearanceShowEditAndReadMarks">Afficher les marques de modification et de lecture</string>
     <string name="appearanceShowGroupMemberTitles">Afficher les titres des membres du groupe</string>
@@ -905,10 +905,22 @@
     <string name="chatSavedToPhotos">Enregistré dans Photos</string>
     <string name="chatSavedToSavedMessages">Enregistré dans Saved Messages</string>
     <string name="chatSavingToPhotos">Téléchargement du média original…</string>
+    <string name="chatSearchAllResults">Tous les résultats</string>
     <string name="chatSearchHistoryTitle">Rechercher dans l’historique</string>
+    <string name="chatSearchInThisChat">Rechercher dans la discussion</string>
+    <string name="chatSearchMatchCounter">{value1} sur {value2}</string>
     <string name="chatSearchMessagePlaceholder">Rechercher des messages dans cette discussion</string>
     <string name="chatSearchMessageResultLabel">[Message]</string>
+    <string name="chatSearchNewerMatch">Résultat plus récent</string>
     <string name="chatSearchNoMessagesFound">Aucun message trouvé</string>
+    <string name="chatSearchOlderMatch">Résultat plus ancien</string>
+    <plurals name="chatSearchResultCount">
+        <item quantity="one">{count} résultat</item>
+        <item quantity="other">{count} résultats</item>
+    </plurals>
+    <string name="chatSearchSearching">Recherche…</string>
+    <string name="chatSearchTokenFrom">de :</string>
+    <string name="chatSearchTokenHint">Essayez from: ou has:</string>
     <string name="chatSelectUntilHere">Sélectionner jusqu’ici</string>
     <string name="chatSelectedMessagesCount">{value1} messages sélectionnés</string>
     <string name="chatSendFailedBlocked">Ce message ne peut pas être envoyé, car l’une des deux personnes a bloqué l’autre.</string>
@@ -1118,6 +1130,9 @@
     <string name="desktopHotkeysTitle">Raccourcis clavier</string>
     <string name="desktopSearchAll">Tout rechercher</string>
     <string name="desktopSearchClear">Effacer la recherche</string>
+    <string name="desktopSearchScopeIn">dans :</string>
+    <string name="desktopSearchScopePlaceholder">Rechercher dans cette discussion</string>
+    <string name="desktopSearchScopeRemove">Rechercher dans toutes les discussions</string>
     <string name="desktopWindowClose">Fermer la fenêtre</string>
     <string name="desktopWindowMaximizeRestore">Agrandir ou restaurer</string>
     <string name="desktopWindowMinimize">Réduire</string>

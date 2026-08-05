@@ -853,7 +853,7 @@ class _MessageBubbleState extends State<MessageBubble>
                                   readabilityMode:
                                       theme.senderNameReadabilityMode,
                                   bubbleColor: _incomingBubbleColor,
-                                  shadowColor: _incomingThemeBubbleColor,
+                                  textColor: _incomingTextColor,
                                   name: message.senderName!,
                                   nameStyle: TextStyle(
                                     fontSize: 12,
@@ -867,17 +867,17 @@ class _MessageBubbleState extends State<MessageBubble>
                                       ? senderTitle
                                       : null,
                                   roleAfterName: isDesktopTargetPlatform(),
+                                  trailing: showStatus
+                                      ? StatusEmojiView(
+                                          id: message.senderEmojiStatusId,
+                                          size: 14,
+                                          color: senderNameColor,
+                                          animate:
+                                              theme.chatStatusEmojiMode.animate,
+                                        )
+                                      : null,
                                 ),
                               ),
-                              if (showStatus) ...[
-                                const SizedBox(width: 3),
-                                StatusEmojiView(
-                                  id: message.senderEmojiStatusId,
-                                  size: 14,
-                                  color: senderNameColor,
-                                  animate: theme.chatStatusEmojiMode.animate,
-                                ),
-                              ],
                               const SizedBox(width: 5),
                               SizedBox(
                                 width: 96,

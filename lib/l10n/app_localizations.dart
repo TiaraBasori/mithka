@@ -496,8 +496,8 @@ abstract final class AppStringKeys {
       'appearanceSenderNameReadability';
   static const appearanceSenderNameReadabilityBackground =
       'appearanceSenderNameReadabilityBackground';
-  static const appearanceSenderNameReadabilityShadow =
-      'appearanceSenderNameReadabilityShadow';
+  static const appearanceSenderNameReadabilityBlend =
+      'appearanceSenderNameReadabilityBlend';
   static const appearanceSenderNameReadabilityNone =
       'appearanceSenderNameReadabilityNone';
   static const appearanceShowChatListSearch = 'appearanceShowChatListSearch';
@@ -934,10 +934,19 @@ abstract final class AppStringKeys {
   static const chatSaveToPhotosPermissionDenied =
       'chatSaveToPhotosPermissionDenied';
   static const chatSavingToPhotos = 'chatSavingToPhotos';
+  static const chatSearchAllResults = 'chatSearchAllResults';
   static const chatSearchHistoryTitle = 'chatSearchHistoryTitle';
+  static const chatSearchInThisChat = 'chatSearchInThisChat';
+  static const chatSearchMatchCounter = 'chatSearchMatchCounter';
   static const chatSearchMessagePlaceholder = 'chatSearchMessagePlaceholder';
   static const chatSearchMessageResultLabel = 'chatSearchMessageResultLabel';
+  static const chatSearchNewerMatch = 'chatSearchNewerMatch';
   static const chatSearchNoMessagesFound = 'chatSearchNoMessagesFound';
+  static const chatSearchOlderMatch = 'chatSearchOlderMatch';
+  static const chatSearchResultCount = 'chatSearchResultCount';
+  static const chatSearchSearching = 'chatSearchSearching';
+  static const chatSearchTokenFrom = 'chatSearchTokenFrom';
+  static const chatSearchTokenHint = 'chatSearchTokenHint';
   static const chatSelectedMessagesCount = 'chatSelectedMessagesCount';
   static const chatSelectUntilHere = 'chatSelectUntilHere';
   static const chatsSearchBots = 'chatsSearchBots';
@@ -947,6 +956,9 @@ abstract final class AppStringKeys {
       'chatsSearchPublicGroupsAndChannels';
   static const desktopSearchAll = 'desktopSearchAll';
   static const desktopSearchClear = 'desktopSearchClear';
+  static const desktopSearchScopeIn = 'desktopSearchScopeIn';
+  static const desktopSearchScopePlaceholder = 'desktopSearchScopePlaceholder';
+  static const desktopSearchScopeRemove = 'desktopSearchScopeRemove';
   static const chatStickerAddSuccess = 'chatStickerAddSuccess';
   static const chatThemeApply = 'chatThemeApply';
   static const chatThemeChanged = 'chatThemeChanged';

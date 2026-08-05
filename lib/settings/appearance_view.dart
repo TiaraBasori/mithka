@@ -571,8 +571,8 @@ class SenderNameReadabilitySettingsView extends StatelessWidget {
                       switch (mode) {
                         SenderNameReadabilityMode.background =>
                           HeroAppIcons.idBadge.data,
-                        SenderNameReadabilityMode.shadow =>
-                          HeroAppIcons.wandMagicSparkles.data,
+                        SenderNameReadabilityMode.blend =>
+                          HeroAppIcons.droplet.data,
                         SenderNameReadabilityMode.none =>
                           HeroAppIcons.eyeSlash.data,
                       },
@@ -580,8 +580,8 @@ class SenderNameReadabilitySettingsView extends StatelessWidget {
                         SenderNameReadabilityMode.background =>
                           AppStringKeys
                               .appearanceSenderNameReadabilityBackground,
-                        SenderNameReadabilityMode.shadow =>
-                          AppStringKeys.appearanceSenderNameReadabilityShadow,
+                        SenderNameReadabilityMode.blend =>
+                          AppStringKeys.appearanceSenderNameReadabilityBlend,
                         SenderNameReadabilityMode.none =>
                           AppStringKeys.appearanceSenderNameReadabilityNone,
                       },
@@ -760,8 +760,8 @@ class ChatViewAppearanceSettingsView extends StatelessWidget {
           AppStrings.t(switch (theme.senderNameReadabilityMode) {
             SenderNameReadabilityMode.background =>
               AppStringKeys.appearanceSenderNameReadabilityBackground,
-            SenderNameReadabilityMode.shadow =>
-              AppStringKeys.appearanceSenderNameReadabilityShadow,
+            SenderNameReadabilityMode.blend =>
+              AppStringKeys.appearanceSenderNameReadabilityBlend,
             SenderNameReadabilityMode.none =>
               AppStringKeys.appearanceSenderNameReadabilityNone,
           }),

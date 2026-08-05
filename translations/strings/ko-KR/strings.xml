@@ -390,8 +390,8 @@
     <string name="appearanceSenderNameBackground">보낸 사람 이름 배경</string>
     <string name="appearanceSenderNameReadability">이름 가독성 향상</string>
     <string name="appearanceSenderNameReadabilityBackground">배경 추가</string>
+    <string name="appearanceSenderNameReadabilityBlend">색상 혼합</string>
     <string name="appearanceSenderNameReadabilityNone">없음</string>
-    <string name="appearanceSenderNameReadabilityShadow">그림자 추가</string>
     <string name="appearanceShowChatListSearch">채팅 목록 검색</string>
     <string name="appearanceShowEditAndReadMarks">수정 및 읽음 표시 보이기</string>
     <string name="appearanceShowGroupMemberTitles">그룹 멤버 직함 표시</string>
@@ -904,10 +904,21 @@
     <string name="chatSavedToPhotos">사진에 저장됨</string>
     <string name="chatSavedToSavedMessages">Saved Messages에 저장됨</string>
     <string name="chatSavingToPhotos">원본 미디어 다운로드 중…</string>
+    <string name="chatSearchAllResults">모든 결과</string>
     <string name="chatSearchHistoryTitle">채팅 기록 검색</string>
+    <string name="chatSearchInThisChat">대화에서 검색</string>
+    <string name="chatSearchMatchCounter">{value2}개 중 {value1}번째</string>
     <string name="chatSearchMessagePlaceholder">이 채팅의 메시지 검색</string>
     <string name="chatSearchMessageResultLabel">[메시지]</string>
+    <string name="chatSearchNewerMatch">최근 결과</string>
     <string name="chatSearchNoMessagesFound">관련 메시지를 찾을 수 없음</string>
+    <string name="chatSearchOlderMatch">이전 결과</string>
+    <plurals name="chatSearchResultCount">
+        <item quantity="other">결과 {count}개</item>
+    </plurals>
+    <string name="chatSearchSearching">검색 중…</string>
+    <string name="chatSearchTokenFrom">from:</string>
+    <string name="chatSearchTokenHint">from: 또는 has: 사용 가능</string>
     <string name="chatSelectUntilHere">여기까지 선택</string>
     <string name="chatSelectedMessagesCount">메시지 {value1}개 선택됨</string>
     <string name="chatSendFailedBlocked">한쪽이 상대방을 차단하여 이 메시지를 보낼 수 없습니다.</string>
@@ -1116,6 +1127,9 @@
     <string name="desktopHotkeysTitle">키보드 단축키</string>
     <string name="desktopSearchAll">전체 검색</string>
     <string name="desktopSearchClear">검색 지우기</string>
+    <string name="desktopSearchScopeIn">in:</string>
+    <string name="desktopSearchScopePlaceholder">이 대화 검색</string>
+    <string name="desktopSearchScopeRemove">모든 대화 검색</string>
     <string name="desktopWindowClose">창 닫기</string>
     <string name="desktopWindowMaximizeRestore">최대화 또는 복원</string>
     <string name="desktopWindowMinimize">최소화</string>

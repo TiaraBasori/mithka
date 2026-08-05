@@ -390,8 +390,8 @@
     <string name="appearanceSenderNameBackground">傳送者名稱背景</string>
     <string name="appearanceSenderNameReadability">改善名稱可讀性</string>
     <string name="appearanceSenderNameReadabilityBackground">加入背景</string>
+    <string name="appearanceSenderNameReadabilityBlend">混合顏色</string>
     <string name="appearanceSenderNameReadabilityNone">無</string>
-    <string name="appearanceSenderNameReadabilityShadow">增加陰影</string>
     <string name="appearanceShowChatListSearch">聊天列表搜尋</string>
     <string name="appearanceShowEditAndReadMarks">顯示編輯與已讀標記</string>
     <string name="appearanceShowGroupMemberTitles">顯示群組成員頭銜</string>
@@ -904,10 +904,21 @@
     <string name="chatSavedToPhotos">已儲存到相簿</string>
     <string name="chatSavedToSavedMessages">已儲存到 Saved Messages</string>
     <string name="chatSavingToPhotos">正在下載原始檔案…</string>
+    <string name="chatSearchAllResults">全部結果</string>
     <string name="chatSearchHistoryTitle">搜尋聊天記錄</string>
+    <string name="chatSearchInThisChat">在聊天中搜尋</string>
+    <string name="chatSearchMatchCounter">第 {value1} / {value2} 則</string>
     <string name="chatSearchMessagePlaceholder">搜尋此聊天的訊息</string>
     <string name="chatSearchMessageResultLabel">[訊息]</string>
+    <string name="chatSearchNewerMatch">較新的結果</string>
     <string name="chatSearchNoMessagesFound">找不到相關訊息</string>
+    <string name="chatSearchOlderMatch">較舊的結果</string>
+    <plurals name="chatSearchResultCount">
+        <item quantity="other">{count} 則結果</item>
+    </plurals>
+    <string name="chatSearchSearching">正在搜尋…</string>
+    <string name="chatSearchTokenFrom">來自:</string>
+    <string name="chatSearchTokenHint">試試 from: 或 has:</string>
     <string name="chatSelectUntilHere">選取到這裡</string>
     <string name="chatSelectedMessagesCount">已選取 {value1} 則訊息</string>
     <string name="chatSendFailedBlocked">由於一方已封鎖另一方，無法傳送此訊息。</string>
@@ -1116,6 +1127,9 @@
     <string name="desktopHotkeysTitle">鍵盤快速鍵</string>
     <string name="desktopSearchAll">搜尋全部</string>
     <string name="desktopSearchClear">清除搜尋</string>
+    <string name="desktopSearchScopeIn">在:</string>
+    <string name="desktopSearchScopePlaceholder">搜尋此聊天</string>
+    <string name="desktopSearchScopeRemove">搜尋所有聊天</string>
     <string name="desktopWindowClose">關閉視窗</string>
     <string name="desktopWindowMaximizeRestore">最大化或還原</string>
     <string name="desktopWindowMinimize">最小化</string>

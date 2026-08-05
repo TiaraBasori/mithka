@@ -390,8 +390,8 @@
     <string name="appearanceSenderNameBackground">Sender name background</string>
     <string name="appearanceSenderNameReadability">Improve Name Readability</string>
     <string name="appearanceSenderNameReadabilityBackground">Add Background</string>
+    <string name="appearanceSenderNameReadabilityBlend">Blend Color</string>
     <string name="appearanceSenderNameReadabilityNone">None</string>
-    <string name="appearanceSenderNameReadabilityShadow">Add Shadow</string>
     <string name="appearanceShowChatListSearch">Chat list search</string>
     <string name="appearanceShowEditAndReadMarks">Show Edit and Read Marks</string>
     <string name="appearanceShowGroupMemberTitles">Show Group Member Titles</string>
@@ -905,10 +905,22 @@
     <string name="chatSavedToPhotos">Saved to Photos</string>
     <string name="chatSavedToSavedMessages">Saved to Saved Messages</string>
     <string name="chatSavingToPhotos">Downloading original media…</string>
+    <string name="chatSearchAllResults">All results</string>
     <string name="chatSearchHistoryTitle">Search chat history</string>
+    <string name="chatSearchInThisChat">Search in chat</string>
+    <string name="chatSearchMatchCounter">{value1} of {value2}</string>
     <string name="chatSearchMessagePlaceholder">Search messages in this chat</string>
     <string name="chatSearchMessageResultLabel">[Message]</string>
+    <string name="chatSearchNewerMatch">Newer match</string>
     <string name="chatSearchNoMessagesFound">No messages found</string>
+    <string name="chatSearchOlderMatch">Older match</string>
+    <plurals name="chatSearchResultCount">
+        <item quantity="one">{count} result</item>
+        <item quantity="other">{count} results</item>
+    </plurals>
+    <string name="chatSearchSearching">Searching…</string>
+    <string name="chatSearchTokenFrom">from:</string>
+    <string name="chatSearchTokenHint">Try from: or has:</string>
     <string name="chatSelectUntilHere">Select up to here</string>
     <string name="chatSelectedMessagesCount">{value1} messages selected</string>
     <string name="chatSendFailedBlocked">This message can’t be sent because one side has blocked the other.</string>
@@ -1118,6 +1130,9 @@
     <string name="desktopHotkeysTitle">Keyboard Shortcuts</string>
     <string name="desktopSearchAll">Search all</string>
     <string name="desktopSearchClear">Clear search</string>
+    <string name="desktopSearchScopeIn">in:</string>
+    <string name="desktopSearchScopePlaceholder">Search this chat</string>
+    <string name="desktopSearchScopeRemove">Search all chats</string>
     <string name="desktopWindowClose">Close window</string>
     <string name="desktopWindowMaximizeRestore">Maximize or restore</string>
     <string name="desktopWindowMinimize">Minimize</string>
