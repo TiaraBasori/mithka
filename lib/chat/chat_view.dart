@@ -880,6 +880,7 @@ class _ChatViewState extends State<ChatView> {
   int? _selectionAnchorId;
   bool _selectionScrollingUp = false;
   double _lastScrollPixels = 0;
+  ScrollDirection _lastTranscriptUserScrollDirection = ScrollDirection.idle;
   bool _backSwipePopping = false;
   bool _loadingOlderFromScroll = false;
   final OldestHistoryPullController _olderHistoryPull =
@@ -1233,9 +1234,17 @@ class _ChatViewState extends State<ChatView> {
 
   bool _onTranscriptUserScroll(UserScrollNotification notification) {
     if (notification.direction == ScrollDirection.idle) {
-      _restoredPositionGuard.finishUserScroll();
+      final endedTowardLatest =
+          _lastTranscriptUserScrollDirection == ScrollDirection.reverse;
+      _lastTranscriptUserScrollDirection = ScrollDirection.idle;
+      final protectedRestoredPosition =
+          _restoredPositionGuard.finishUserScroll();
       _returnToLatestCoordinator.userDragEnded();
+      if (endedTowardLatest && !protectedRestoredPosition) {
+        _requestAutomaticReturnToLatestIfNearLatest();
+      }
     } else if (_initialTranscriptReady) {
+      _lastTranscriptUserScrollDirection = notification.direction;
       _restoredPositionGuard.noteUserScroll();
       _claimTranscriptViewport();
     }
@@ -1792,6 +1801,21 @@ class _ChatViewState extends State<ChatView> {
           ? ChatReturnToLatestSource.user
           : ChatReturnToLatestSource.automatic,
     );
+  }
+
+  void _requestAutomaticReturnToLatestIfNearLatest() {
+    if (!shouldRequestAutomaticReturnToLatest(
+      anchoredHistory: _vm.anchoredHistory,
+      restoredPositionProtected: _restoredPositionGuard.blocksAutomaticReturn,
+      pointerDown: _hasTranscriptPointerDown,
+      hasScrollTarget: _scrollTargetId != null,
+      hasScrollClients: _scroll.hasClients,
+      isNearLatestEdge:
+          _scroll.hasClients && isNearLatest(_scroll.position, threshold: 36),
+    )) {
+      return;
+    }
+    _requestReturnToLatest();
   }
 
   void _markReadAtBottomIfNeeded() {
