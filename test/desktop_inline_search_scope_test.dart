@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/app/active_conversation.dart';
+import 'package:mithka/chat/chat_search_query.dart';
 import 'package:mithka/chats/search_view.dart';
 import 'package:mithka/tdlib/td_client.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -180,6 +181,64 @@ void main() {
     await tester.pump();
     expect(controller.scope, isNull);
   });
+
+  testWidgets('an unscoped from: searches the chats shared with that person', (
+    tester,
+  ) async {
+    final controller = DesktopInlineSearchController(
+      miniAppSearch: (_) async => const [],
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(_harness(controller));
+
+    await _type(tester, 'from:@mao receipt');
+
+    // TDLib cannot filter a chat-list search by sender, so it runs per chat.
+    expect(
+      requests.where((request) => request['@type'] == 'searchMessages'),
+      isEmpty,
+    );
+    final scoped = requests
+        .where((request) => request['@type'] == 'searchChatMessages')
+        .toList();
+    expect(scoped, isNotEmpty);
+    final chatIds = scoped.map((request) => request['chat_id']).toSet();
+    // The private chat carries the user's own id, and the groups in common
+    // come from getGroupsInCommon.
+    expect(chatIds, containsAll(<int>[55, 900]));
+    expect(
+      scoped.every(
+        (request) =>
+            (request['sender_id'] as Map<String, dynamic>)['user_id'] == 55,
+      ),
+      isTrue,
+    );
+    expect(scoped.every((request) => request['query'] == 'receipt'), isTrue);
+  });
+
+  testWidgets('typing in: offers chats to pick from', (tester) async {
+    final controller = DesktopInlineSearchController(
+      miniAppSearch: (_) async => const [],
+    );
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(_harness(controller));
+
+    await _type(tester, 'in:need');
+
+    expect(controller.activeToken?.kind, ChatSearchTokenKind.chat);
+    expect(
+      find.byKey(const ValueKey('desktop-inline-search-token-suggestions')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('desktop-inline-search-token-100')),
+    );
+    await tester.pumpAndSettle();
+
+    // Picking rewrites the token, and the search narrows to that chat.
+    expect(controller.textController.text, startsWith('in:"Needle chat"'));
+    expect(controller.activeToken, isNull);
+  });
 }
 
 Future<void> _type(WidgetTester tester, String query) async {
@@ -222,13 +281,25 @@ Future<Map<String, dynamic>> _response(Map<String, dynamic> request) async {
       return {'@type': 'users', 'user_ids': <int>[]};
     case 'searchPublicChats':
       return {'@type': 'chats', 'chat_ids': <int>[]};
-    case 'searchPublicChat':
-      return {'@type': 'error', 'code': 404, 'message': 'not found'};
     case 'searchMessages':
     case 'searchChatMessages':
       return {
         '@type': 'foundMessages',
         'messages': [_message(1000)],
+      };
+    case 'getGroupsInCommon':
+      return {
+        '@type': 'chats',
+        'chat_ids': [900],
+      };
+    case 'searchPublicChat':
+      return {
+        '@type': 'chat',
+        'id': 55,
+        'title': 'Mao Contact',
+        'type': {'@type': 'chatTypePrivate', 'user_id': 55},
+        'positions': <Map<String, dynamic>>[],
+        'unread_count': 0,
       };
     case 'getChat':
       return {

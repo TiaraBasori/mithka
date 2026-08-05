@@ -15,6 +15,7 @@ import 'package:mithka/l10n/app_localizations.dart';
 import '../app/active_conversation.dart';
 import '../app/app_navigator.dart';
 import '../app/primary_chat_launcher.dart';
+import '../chat/chat_search_query.dart';
 import '../chat/chat_search_view.dart';
 import '../chat/telegram_mini_app_recents.dart';
 import '../chat/telegram_mini_app_view.dart';
@@ -32,6 +33,7 @@ import '../theme/date_text.dart';
 import 'chat_row_view.dart';
 import 'mini_apps_page.dart';
 import 'public_discovery_view.dart';
+import 'search_token_suggestions.dart';
 
 /// Shared state for the compact desktop title-bar search field and its
 /// anchored result panel.
@@ -73,12 +75,27 @@ class DesktopInlineSearchController extends ChangeNotifier {
   int _miniAppRunId = 0;
   List<TelegramMiniAppRecent> _miniApps = const [];
   ActiveConversationScope? _scope;
+  final ChatSearchTokenSuggester _suggester = ChatSearchTokenSuggester();
+  ChatSearchTokens _tokens = const ChatSearchTokens(text: '');
+  ChatSearchActiveToken? _activeToken;
+  List<ChatSearchTokenSuggestion> _suggestions = const [];
+  int _suggestRunId = 0;
+  ChatSearchTokenSuggestion? _resolvedSender;
+  ChatSearchTokenSuggestion? _resolvedChat;
+  bool _scopeFromToken = false;
 
   String get query => _query;
 
-  /// The `in: <chat>` filter, set when search is opened from a conversation.
-  /// While it is on, only that chat's messages are searched.
+  /// The `in: <chat>` filter, set when search is opened from a conversation
+  /// or by typing the token. While it is on, only that chat is searched.
   ActiveConversationScope? get scope => _scope;
+
+  /// The token the caret is in, if it is one that offers suggestions.
+  ChatSearchActiveToken? get activeToken => _activeToken;
+  List<ChatSearchTokenSuggestion> get suggestions => _suggestions;
+
+  /// The person a `from:` token resolved to, shown as a chip.
+  ChatSearchTokenSuggestion? get resolvedSender => _resolvedSender;
   bool get panelVisible => _panelVisible && _query.trim().isNotEmpty;
   bool get isLoading =>
       _debouncing || _miniAppsLoading || _activeTabs.any(_model.isLoading);
@@ -130,6 +147,7 @@ class DesktopInlineSearchController extends ChangeNotifier {
   /// describe a different corpus, so they are dropped rather than filtered.
   void _applyScope(ActiveConversationScope? scope) {
     _scope = scope;
+    _scopeFromToken = false;
     _model.scopeChatId = scope?.chatId;
     _debounce?.cancel();
     _model.clearTabs(_searchTabs);
@@ -139,34 +157,139 @@ class DesktopInlineSearchController extends ChangeNotifier {
     if (trimmed.isEmpty) return;
     _debounce = Timer(const Duration(milliseconds: 240), () {
       if (_disposed) return;
-      _debouncing = false;
-      _model.searchMany(trimmed, _activeTabs, resultLimitPerTab: 6);
-      if (_scope == null) _startMiniAppSearch(trimmed);
-      notifyListeners();
+      unawaited(_runSearch());
     });
   }
 
   void updateQuery(String value) {
     if (_disposed) return;
     _query = value;
-    _panelVisible = value.trim().isNotEmpty;
+    _tokens = parseChatSearchQuery(value);
+    final caret = textController.selection.baseOffset;
+    _activeToken = activeChatSearchToken(
+      value,
+      caret < 0 ? value.length : caret,
+    );
+    // A resolved token that no longer matches what is typed is stale.
+    if (_resolvedChat?.title != _tokens.inQuery) _resolvedChat = null;
+    if (_resolvedSender?.token != _tokens.fromQuery) _resolvedSender = null;
+    _panelVisible = _hasSearch;
     _debounce?.cancel();
     // Invalidate every in-flight category as soon as the text changes. The
     // next network fan-out remains debounced, but an older query can never
     // repopulate the panel during that debounce window.
     _model.clearTabs(_searchTabs);
     _invalidateMiniApps();
-    _debouncing = value.trim().isNotEmpty;
-    if (value.trim().isNotEmpty) {
+    _startSuggestions();
+    _debouncing = _hasSearch;
+    if (_hasSearch) {
       _debounce = Timer(const Duration(milliseconds: 240), () {
         if (_disposed) return;
-        final query = _query.trim();
-        _debouncing = false;
-        _model.searchMany(query, _activeTabs, resultLimitPerTab: 6);
-        if (_scope == null) _startMiniAppSearch(query);
+        unawaited(_runSearch());
       });
     }
     notifyListeners();
+  }
+
+  /// Whether the field asks for anything — words, or a token on its own.
+  bool get _hasSearch =>
+      _tokens.text.trim().isNotEmpty ||
+      _tokens.inQuery != null ||
+      _tokens.fromQuery != null;
+
+  Future<void> _runSearch() async {
+    final query = _tokens.text.trim();
+    await _resolveTokens();
+    if (_disposed) return;
+    _debouncing = false;
+    _model.searchMany(query, _activeTabs, resultLimitPerTab: 6);
+    if (_scope == null && _model.senderUserId == null && query.isNotEmpty) {
+      _startMiniAppSearch(query);
+    }
+    notifyListeners();
+  }
+
+  /// Turns typed tokens into the parameters the search runs with.
+  ///
+  /// `in:` wins over a scope inherited from an open chat, since typing it is
+  /// the more deliberate act.
+  Future<void> _resolveTokens() async {
+    final inQuery = _tokens.inQuery;
+    if (inQuery != null && _resolvedChat == null) {
+      final matches = await _suggester.suggest(
+        ChatSearchActiveToken(
+          kind: ChatSearchTokenKind.chat,
+          value: inQuery,
+          start: 0,
+          end: 0,
+        ),
+      );
+      if (_disposed) return;
+      _resolvedChat = matches.firstOrNull;
+    }
+    final resolvedChat = _resolvedChat;
+    if (inQuery != null && resolvedChat != null) {
+      _scope = ActiveConversationScope(
+        chatId: resolvedChat.id,
+        title: resolvedChat.title,
+      );
+    } else if (inQuery == null && _scopeFromToken) {
+      _scope = null;
+    }
+    _scopeFromToken = inQuery != null;
+    _model.scopeChatId = _scope?.chatId;
+
+    final fromQuery = _tokens.fromQuery;
+    if (fromQuery != null && _resolvedSender == null) {
+      final matches = await _suggester.suggest(
+        ChatSearchActiveToken(
+          kind: ChatSearchTokenKind.from,
+          value: fromQuery,
+          start: 0,
+          end: 0,
+        ),
+        scopeChatId: _scope?.chatId,
+      );
+      if (_disposed) return;
+      _resolvedSender = matches.firstOrNull;
+    }
+    _model.senderUserId = fromQuery == null ? null : _resolvedSender?.id;
+  }
+
+  void _startSuggestions() {
+    final token = _activeToken;
+    final runId = ++_suggestRunId;
+    if (token == null) {
+      _suggestions = const [];
+      return;
+    }
+    unawaited(() async {
+      final results = await _suggester.suggest(
+        token,
+        scopeChatId: _scope?.chatId,
+      );
+      if (_disposed || runId != _suggestRunId) return;
+      _suggestions = results;
+      notifyListeners();
+    }());
+  }
+
+  /// Replaces the token the caret is in with a picked suggestion.
+  void applySuggestion(ChatSearchTokenSuggestion suggestion) {
+    final token = _activeToken;
+    if (_disposed || token == null) return;
+    if (token.kind == ChatSearchTokenKind.chat) {
+      _resolvedChat = suggestion;
+    } else {
+      _resolvedSender = suggestion;
+    }
+    final applied = applyChatSearchToken(_query, token, suggestion.token);
+    textController.value = TextEditingValue(
+      text: applied.text,
+      selection: TextSelection.collapsed(offset: applied.caret),
+    );
+    focusNode.requestFocus();
+    updateQuery(applied.text);
   }
 
   void clear() {
@@ -174,6 +297,13 @@ class DesktopInlineSearchController extends ChangeNotifier {
     _debounce?.cancel();
     textController.clear();
     _query = '';
+    _tokens = const ChatSearchTokens(text: '');
+    _activeToken = null;
+    _suggestions = const [];
+    _suggestRunId++;
+    _resolvedChat = null;
+    _resolvedSender = null;
+    _model.senderUserId = null;
     _panelVisible = false;
     _debouncing = false;
     _model.clearTabs(_searchTabs);
@@ -189,7 +319,14 @@ class DesktopInlineSearchController extends ChangeNotifier {
     // The scope belongs to one search session. Keeping it would silently
     // narrow the next search, long after the chat that set it is gone.
     _scope = null;
+    _scopeFromToken = false;
+    _activeToken = null;
+    _suggestions = const [];
+    _suggestRunId++;
+    _resolvedChat = null;
+    _resolvedSender = null;
     _model.scopeChatId = null;
+    _model.senderUserId = null;
     focusNode.unfocus();
     notifyListeners();
   }
@@ -388,6 +525,88 @@ class DesktopInlineSearchField extends StatelessWidget {
   );
 }
 
+/// Chats or people offered while an `in:` or `from:` token is being typed.
+class _TokenSuggestionList extends StatelessWidget {
+  const _TokenSuggestionList({required this.controller});
+
+  final DesktopInlineSearchController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final suggestions = controller.suggestions;
+    if (suggestions.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+        child: Text(
+          AppStringKeys.chatsSearchNoResults.l10n(context),
+          style: TextStyle(fontSize: 13, color: c.textTertiary),
+        ),
+      );
+    }
+    return ListView.builder(
+      key: const ValueKey('desktop-inline-search-token-suggestions'),
+      shrinkWrap: true,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      itemCount: suggestions.length,
+      itemBuilder: (context, index) {
+        final suggestion = suggestions[index];
+        return AppInteractiveSurface(
+          key: ValueKey('desktop-inline-search-token-${suggestion.id}'),
+          semanticLabel: suggestion.title,
+          onTap: () => controller.applySuggestion(suggestion),
+          child: SizedBox(
+            height: 48,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Row(
+                children: [
+                  PhotoAvatar(
+                    title: suggestion.title,
+                    photo: suggestion.photo,
+                    size: 32,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          suggestion.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: c.textPrimary,
+                          ),
+                        ),
+                        if (suggestion.subtitle case final subtitle?) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: c.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 /// The `in: <chat>` token inside the search field.
 ///
 /// It reads as one filter rather than typed text: the whole chip is tinted,
@@ -524,6 +743,31 @@ class DesktopInlineSearchPanel extends StatelessWidget {
     unawaited(_openScopedChatSearch(host, scope, query));
   }
 
+  /// The panel's chrome, shared by the results list and the token suggestions
+  /// so a token being typed does not change the shape under the field.
+  Widget _panelShell(BuildContext context, {required Widget child}) {
+    final c = context.colors;
+    return Container(
+      key: const ValueKey('desktop-inline-search-panel'),
+      width: width,
+      constraints: const BoxConstraints(maxHeight: 540),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: c.background,
+        borderRadius: BorderRadius.circular(AppRadius.card),
+        border: Border.all(color: c.divider, width: 0.75),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF000000).withValues(alpha: 0.22),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: controller,
@@ -532,23 +776,17 @@ class DesktopInlineSearchPanel extends StatelessWidget {
       final c = context.colors;
       final sections = controller._visibleSections;
       final miniApps = controller._visibleMiniApps;
-      return Container(
-        key: const ValueKey('desktop-inline-search-panel'),
-        width: width,
-        constraints: const BoxConstraints(maxHeight: 540),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: c.background,
-          borderRadius: BorderRadius.circular(AppRadius.card),
-          border: Border.all(color: c.divider, width: 0.75),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF000000).withValues(alpha: 0.22),
-              blurRadius: 24,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
+      // A token being typed is a question about who or where, so the panel
+      // answers that one instead of showing results for a half-written filter.
+      final token = controller.activeToken;
+      if (token != null) {
+        return _panelShell(
+          context,
+          child: _TokenSuggestionList(controller: controller),
+        );
+      }
+      return _panelShell(
+        context,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -1586,6 +1824,16 @@ class _SearchViewModel extends ChangeNotifier {
   /// chat list — the `in: <chat>` scope of the desktop inline search.
   int? scopeChatId;
 
+  /// When set, only this user's messages count — the `from:` token.
+  ///
+  /// TDLib can filter by sender per chat but not across a chat list, so an
+  /// unscoped sender search runs over the chats that user and the account
+  /// actually share. That is a bounded set and each request is still filtered
+  /// by the server, so counts stay honest.
+  int? senderUserId;
+
+  final Map<int, List<int>> _commonChatCache = {};
+
   final Map<SearchTab, List<_SearchHit>> _results = {
     for (final tab in SearchTab.values) tab: <_SearchHit>[],
   };
@@ -1768,30 +2016,48 @@ class _SearchViewModel extends ChangeNotifier {
     final filter = tab.filter;
     if (filter == null) return;
     final scopeChatId = this.scopeChatId;
+    final senderUserId = this.senderUserId;
     try {
-      final pages = scopeChatId != null
-          ? [
-              await _searchMessagesInChat(
-                chatId: scopeChatId,
-                query: trimmed,
-                filter: filter,
-                limit: resultLimit,
-              ),
-            ]
-          : await Future.wait([
-              _searchMessagesInList(
-                query: trimmed,
-                filter: filter,
-                chatList: {'@type': 'chatListMain'},
-                limit: resultLimit,
-              ),
-              _searchMessagesInList(
-                query: trimmed,
-                filter: filter,
-                chatList: {'@type': 'chatListArchive'},
-                limit: resultLimit,
-              ),
-            ]);
+      final List<List<Map<String, dynamic>>> pages;
+      if (scopeChatId != null) {
+        pages = [
+          await _searchMessagesInChat(
+            chatId: scopeChatId,
+            query: trimmed,
+            filter: filter,
+            limit: resultLimit,
+            senderUserId: senderUserId,
+          ),
+        ];
+      } else if (senderUserId != null) {
+        final chatIds = await _commonChatIds(senderUserId);
+        if (!_isCurrent(tab, runId, trimmed)) return;
+        pages = await Future.wait([
+          for (final chatId in chatIds)
+            _searchMessagesInChat(
+              chatId: chatId,
+              query: trimmed,
+              filter: filter,
+              limit: resultLimit,
+              senderUserId: senderUserId,
+            ),
+        ]);
+      } else {
+        pages = await Future.wait([
+          _searchMessagesInList(
+            query: trimmed,
+            filter: filter,
+            chatList: {'@type': 'chatListMain'},
+            limit: resultLimit,
+          ),
+          _searchMessagesInList(
+            query: trimmed,
+            filter: filter,
+            chatList: {'@type': 'chatListArchive'},
+            limit: resultLimit,
+          ),
+        ]);
+      }
       if (!_isCurrent(tab, runId, trimmed)) return;
       final raw = <Map<String, dynamic>>[for (final page in pages) ...page]
         ..sort(
@@ -1817,18 +2083,44 @@ class _SearchViewModel extends ChangeNotifier {
     }
   }
 
+  /// Every chat the account and [userId] share, plus their private chat.
+  ///
+  /// A private chat's id is the user's own id in TDLib, so it needs no lookup.
+  Future<List<int>> _commonChatIds(int userId) async {
+    final cached = _commonChatCache[userId];
+    if (cached != null) return cached;
+    final ids = <int>[userId];
+    try {
+      final response = await TdClient.shared.query({
+        '@type': 'getGroupsInCommon',
+        'user_id': userId,
+        'offset_chat_id': 0,
+        'limit': 100,
+      });
+      ids.addAll(response.int64Array('chat_ids') ?? const <int>[]);
+    } catch (_) {
+      // No shared groups readable; the private chat alone is still a result.
+    }
+    final unique = List<int>.unmodifiable(ids.toSet());
+    _commonChatCache[userId] = unique;
+    return unique;
+  }
+
   Future<List<Map<String, dynamic>>> _searchMessagesInChat({
     required int chatId,
     required String query,
     required String filter,
     required int limit,
+    int? senderUserId,
   }) async {
     try {
       final res = await TdClient.shared.query({
         '@type': 'searchChatMessages',
         'chat_id': chatId,
         'query': query,
-        'sender_id': null,
+        'sender_id': senderUserId == null
+            ? null
+            : {'@type': 'messageSenderUser', 'user_id': senderUserId},
         'from_message_id': 0,
         'offset': 0,
         'limit': limit,
