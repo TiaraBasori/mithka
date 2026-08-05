@@ -1144,6 +1144,7 @@
     <string name="downloadsRemoveAndKeepCachedFile">Remove and keep cached file</string>
     <string name="downloadsRemoveFromDownloads">Remove from downloads?</string>
     <string name="downloadsSearchDownloads">Search downloads</string>
+    <string name="editProfileAddPhoto">Add photo</string>
     <string name="editProfileAnimatedAvatar">Animated avatar</string>
     <string name="editProfileAnimatedAvatarDescription">Use a short video, GIF, APNG, or Live Photo</string>
     <string name="editProfileAnimatedAvatarPremiumRequired">Animated avatars require Telegram Premium</string>
@@ -1168,11 +1169,17 @@
     <string name="editProfileNoBirthYear">No year</string>
     <string name="editProfileNotBound">Not linked</string>
     <string name="editProfilePhone">Phone</string>
+    <string name="editProfilePhotoCurrent">Current photo</string>
+    <string name="editProfilePhotoPublic">Public photo</string>
     <string name="editProfileProfileColor">Profile color</string>
     <string name="editProfileProfileColorDescription">Used for your profile page background.</string>
     <string name="editProfileProfileIcon">Profile icon</string>
     <string name="editProfileProfileIconEmpty">No profile icons are available</string>
     <string name="editProfileSaveFailed">Failed to save</string>
+    <string name="editProfileSectionAbout">About</string>
+    <string name="editProfileSectionAccount">Account</string>
+    <string name="editProfileSectionAppearance">Appearance</string>
+    <string name="editProfileSectionName">Name</string>
     <string name="editProfileSetUsername">Set username</string>
     <string name="editProfileStaticAvatar">Photo avatar</string>
     <string name="editProfileStaticAvatarDescription">Crop and upload a still image</string>

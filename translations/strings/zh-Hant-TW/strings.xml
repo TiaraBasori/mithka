@@ -1142,6 +1142,7 @@
     <string name="downloadsRemoveAndKeepCachedFile">刪除並保留快取文件</string>
     <string name="downloadsRemoveFromDownloads">從下載中刪除？</string>
     <string name="downloadsSearchDownloads">搜尋下載</string>
+    <string name="editProfileAddPhoto">新增照片</string>
     <string name="editProfileAnimatedAvatar">動態頭像</string>
     <string name="editProfileAnimatedAvatarDescription">支援短影片、GIF、APNG 或實況照片</string>
     <string name="editProfileAnimatedAvatarPremiumRequired">動態頭像需要 Telegram Premium</string>
@@ -1166,11 +1167,17 @@
     <string name="editProfileNoBirthYear">無年份</string>
     <string name="editProfileNotBound">未綁定</string>
     <string name="editProfilePhone">電話</string>
+    <string name="editProfilePhotoCurrent">目前大頭貼</string>
+    <string name="editProfilePhotoPublic">公開大頭貼</string>
     <string name="editProfileProfileColor">個人資料顏色</string>
     <string name="editProfileProfileColorDescription">用於你的個人資料頁背景的顏色。</string>
     <string name="editProfileProfileIcon">個人資料圖示</string>
     <string name="editProfileProfileIconEmpty">沒有可用的個人資料圖示</string>
     <string name="editProfileSaveFailed">儲存失敗</string>
+    <string name="editProfileSectionAbout">簡介</string>
+    <string name="editProfileSectionAccount">帳號</string>
+    <string name="editProfileSectionAppearance">外觀</string>
+    <string name="editProfileSectionName">姓名</string>
     <string name="editProfileSetUsername">設定使用者名稱</string>
     <string name="editProfileStaticAvatar">圖片頭像</string>
     <string name="editProfileStaticAvatarDescription">裁剪並上傳靜態圖片</string>

@@ -1304,6 +1304,7 @@ abstract final class AppStringKeys {
       'developerPerformanceWaitingForFrames';
   static const developerModeTitle = 'developerModeTitle';
   static const developerModeUnlocked = 'developerModeUnlocked';
+  static const editProfileAddPhoto = 'editProfileAddPhoto';
   static const editProfileAnimatedAvatar = 'editProfileAnimatedAvatar';
   static const editProfileAnimatedAvatarDescription =
       'editProfileAnimatedAvatarDescription';
@@ -1331,12 +1332,18 @@ abstract final class AppStringKeys {
   static const editProfileNoBirthYear = 'editProfileNoBirthYear';
   static const editProfileNotBound = 'editProfileNotBound';
   static const editProfilePhone = 'editProfilePhone';
+  static const editProfilePhotoCurrent = 'editProfilePhotoCurrent';
+  static const editProfilePhotoPublic = 'editProfilePhotoPublic';
   static const editProfileProfileColor = 'editProfileProfileColor';
   static const editProfileProfileColorDescription =
       'editProfileProfileColorDescription';
   static const editProfileProfileIcon = 'editProfileProfileIcon';
   static const editProfileProfileIconEmpty = 'editProfileProfileIconEmpty';
   static const editProfileSaveFailed = 'editProfileSaveFailed';
+  static const editProfileSectionAbout = 'editProfileSectionAbout';
+  static const editProfileSectionAccount = 'editProfileSectionAccount';
+  static const editProfileSectionAppearance = 'editProfileSectionAppearance';
+  static const editProfileSectionName = 'editProfileSectionName';
   static const editProfileSetUsername = 'editProfileSetUsername';
   static const editProfileStaticAvatar = 'editProfileStaticAvatar';
   static const editProfileStaticAvatarDescription =
