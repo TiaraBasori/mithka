@@ -5479,6 +5479,9 @@ class ChatViewModel extends ChangeNotifier {
       if ((media.videoDuration ?? 0) > 0) {
         target.videoDuration = media.videoDuration;
       }
+      if ((media.videoFileSize ?? 0) > 0) {
+        target.videoFileSize = media.videoFileSize;
+      }
     }
   }
 

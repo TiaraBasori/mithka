@@ -37,10 +37,13 @@ class DesktopVideoWindowService {
     try {
       final uri = await stream.start();
       if (uri == null) return false;
-      final prepared = await prepareDesktopVideoPlayback(
-        stream.prepareForPlayback,
+      // Binding the loopback server is quick; filling its bootstrap ranges is
+      // not. Start that in the background and open the window immediately so
+      // the player's own loading state stands in for the wait — waiting here
+      // would leave the chat looking like the tap did nothing.
+      stream.holdRequestsUntilPrepared(
+        prepareDesktopVideoPlayback(stream.prepareForPlayback),
       );
-      if (!prepared) return false;
       final windowId = await MithkaDesktopVideoWindows.instance.open(
         DesktopVideoWindowArguments(
           uri: uri,
