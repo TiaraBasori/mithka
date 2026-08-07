@@ -2121,7 +2121,7 @@ class _MessageBubbleState extends State<MessageBubble>
       width: block.imageWidth,
       height: block.imageHeight,
       maxWidth: maxWidth,
-      maxHeight: maxWidth,
+      maxHeight: _richMediaMaxHeight(maxWidth),
       fallback: Size(maxWidth, maxWidth * 0.72),
     );
     Widget media = GestureDetector(
@@ -2150,7 +2150,7 @@ class _MessageBubbleState extends State<MessageBubble>
       width: block.imageWidth,
       height: block.imageHeight,
       maxWidth: maxWidth,
-      maxHeight: maxWidth,
+      maxHeight: _richMediaMaxHeight(maxWidth),
       fallback: Size(maxWidth, maxWidth * 0.62),
     );
     Widget media = GestureDetector(
@@ -4671,6 +4671,11 @@ class _MessageBubbleState extends State<MessageBubble>
     final sourceAspect = w / h;
     return sourceAspect <= 0.68 && imageSize.width < maxWidth * 0.78;
   }
+
+  /// The height budget a rich block's media shares with ordinary chat media:
+  /// the 320 pixel box, and never taller than a narrow pane is wide.
+  double _richMediaMaxHeight(double maxWidth) =>
+      math.min(maxWidth, telegramChatMediaPreviewMaxHeight);
 
   Size _fitSize({
     required int? width,
