@@ -338,6 +338,17 @@ class ChatViewModel extends ChangeNotifier {
 
   List<ChatMessage> messages = [];
   List<ChatMessage> _allMessages = [];
+  // Lookup indexes over the two transcript lists, filled by the single pass in
+  // _applyKeywordFilter. Folding one update used to linear-scan the whole
+  // transcript several times (id lookups, sender patches); at a few thousand
+  // loaded messages that scanning dominated the incoming-update path.
+  final Map<int, ChatMessage> _messagesById = {};
+  final Map<int, ChatMessage> _allMessagesById = {};
+  final Map<int, List<ChatMessage>> _messagesBySenderId = {};
+  bool _messageIndexesDirty = true;
+  // A pending send makes compareChatMessagesChronologically non-total, so the
+  // order-preserving shortcuts below only run while there are none.
+  int _pendingMessageCount = 0;
   String peerTitle;
   TdFileRef? peerPhoto;
   ChatFirstContactInfo? firstContactInfo;
@@ -486,7 +497,7 @@ class ChatViewModel extends ChangeNotifier {
   final Map<int, _ChatActionInfo> _chatActions = {};
   Timer? _typingTimer;
   Timer? _draftSaveTimer;
-  Timer? _senderPatchTimer;
+  Timer? _coalescedNotifyTimer;
   String? _lastSavedDraftText;
 
   /// Header title: profile shows the member count in parentheses after a group name.
@@ -917,7 +928,7 @@ class ChatViewModel extends ChangeNotifier {
     _sub?.cancel();
     _typingTimer?.cancel();
     _draftSaveTimer?.cancel();
-    _senderPatchTimer?.cancel();
+    _coalescedNotifyTimer?.cancel();
     for (final waiter in _messageSendWaiters.values) {
       if (!waiter.isCompleted) {
         waiter.completeError(StateError('Chat view model was disposed'));
@@ -1489,6 +1500,7 @@ class ChatViewModel extends ChangeNotifier {
   void _discardPendingMessage(int pendingMessageId) {
     _acknowledgedPendingMessageIds.remove(pendingMessageId);
     _discardedPendingMessageIds.add(pendingMessageId);
+    _ignoredMergeMessageIdsCache = null;
     _removeMessages([pendingMessageId]);
     unawaited(_deleteDiscardedPendingMessage(pendingMessageId));
   }
@@ -4714,6 +4726,7 @@ class ChatViewModel extends ChangeNotifier {
         }
         _allMessages = [];
         messages = [];
+        _messageIndexesDirty = true;
         _hasOlderHistory = false;
         anchoredHistory = false;
         _historyAnchorMessageId = null;
@@ -4760,16 +4773,24 @@ class ChatViewModel extends ChangeNotifier {
         if (sid == null) return;
         final actionType = update.obj('action')?.type;
         if (actionType == 'chatActionCancel') {
-          _chatActions.remove(sid);
+          // Nothing rendered changes when the sender had no active action.
+          if (_chatActions.remove(sid) == null) return;
         } else {
-          _chatActions[sid] = _ChatActionInfo(
-            _senderCache[sid]?.name ?? '',
-            actionType ?? 'chatActionTyping',
-          );
-          if ((_senderCache[sid]?.name ?? '').isEmpty && isGroup && sid > 0) {
+          final name = _senderCache[sid]?.name ?? '';
+          final action = actionType ?? 'chatActionTyping';
+          final active = _chatActions[sid];
+          // TDLib re-sends the same action every few seconds while it lasts;
+          // notifying again rebuilds the whole screen for the same subtitle.
+          final unchanged =
+              active != null &&
+              active.actionType == action &&
+              active.name == name;
+          if (!unchanged) _chatActions[sid] = _ChatActionInfo(name, action);
+          if (name.isEmpty && isGroup && sid > 0) {
             _resolveSender(sid); // fills the name for the next render
           }
           _restartTypingTimer();
+          if (unchanged) return;
         }
         notifyListeners();
 
@@ -4844,15 +4865,23 @@ class ChatViewModel extends ChangeNotifier {
         if (update.int64('chat_id') != chatId) return;
         final mid = update.int64('message_id');
         if (mid == null) return;
-        final replyMarkup = update.obj('reply_markup');
-        _replaceButtonRows(mid, TDParse.messageButtonRows(replyMarkup));
+        final rows = TDParse.messageButtonRows(update.obj('reply_markup'));
         final targets = _messageRefs(mid);
-        if (targets.isNotEmpty) {
-          for (final message in targets) {
-            message.isEdited = true;
+        if (targets.isEmpty) return;
+        // One lookup and one notify for the whole edit: the button rows used
+        // to be applied through a second scan that notified on its own.
+        var edited = false;
+        for (final message in targets) {
+          if (!identical(message.buttonRows, rows)) {
+            message.buttonRows = rows;
+            edited = true;
           }
-          notifyListeners();
+          if (!message.isEdited) {
+            message.isEdited = true;
+            edited = true;
+          }
         }
+        if (edited) notifyListeners();
 
       case 'updateMessageInteractionInfo':
         if (update.int64('chat_id') != chatId) return;
@@ -5205,7 +5234,7 @@ class ChatViewModel extends ChangeNotifier {
               _applyReply(message, quoted);
               changed = true;
             }
-            if (changed) notifyListeners();
+            if (changed) _scheduleCoalescedNotify();
           })
           .catchError((_) {});
     }
@@ -5245,7 +5274,7 @@ class ChatViewModel extends ChangeNotifier {
     final existing = _senderCache[senderId];
     if (existing != null) {
       m.replyToSender = existing.name;
-      notifyListeners();
+      _scheduleCoalescedNotify();
       return;
     }
     String? name;
@@ -5266,7 +5295,7 @@ class ChatViewModel extends ChangeNotifier {
     } catch (_) {}
     if (name != null && name.isNotEmpty) {
       m.replyToSender = name;
-      notifyListeners();
+      _scheduleCoalescedNotify();
     }
   }
 
@@ -5313,53 +5342,91 @@ class ChatViewModel extends ChangeNotifier {
     return KeywordBlocker.shared.matches(message.text);
   }
 
+  /// Rebuilds `messages` from `_allMessages` and refreshes the lookup indexes.
+  ///
+  /// One pass does the filtering, the blocked-user marking and the index fill
+  /// that used to cost four separate walks plus a sort. `_allMessages` is kept
+  /// sorted by every writer, so re-sorting the filtered subsequence here was
+  /// pure cost on every incoming message.
   void _applyKeywordFilter() {
-    messages =
-        _allMessages.where((message) => !_isBlockedMessage(message)).toList()
-          ..sort(compareChatMessagesChronologically);
-    _markBlockedUserMessages();
-    _markBlockedMessagesReadThroughVisibleBoundary();
+    // The chat_view transcript memo relies on list identity to notice
+    // blocked-state changes, so the flags must be set before `messages` is
+    // published — never flip them outside this pass.
+    final blockedUserService = BlockedUserService.shared;
+    final marksBlockedUsers = blockedUserService.enabled;
+    final visible = <ChatMessage>[];
+    final blockedIds = <int>[];
+    _messagesById.clear();
+    _allMessagesById.clear();
+    _messagesBySenderId.clear();
+    _pendingMessageCount = 0;
+    for (final message in _allMessages) {
+      _allMessagesById[message.id] = message;
+      if (isPendingChatMessage(message)) ++_pendingMessageCount;
+      if (_isBlockedMessage(message)) {
+        blockedIds.add(message.id);
+        continue;
+      }
+      final senderId = message.senderId;
+      message.blockedByUser =
+          marksBlockedUsers &&
+          !message.isOutgoing &&
+          !message.isService &&
+          senderId != null &&
+          blockedUserService.isBlocked(senderId);
+      visible.add(message);
+      _messagesById[message.id] = message;
+      if (senderId != null) {
+        (_messagesBySenderId[senderId] ??= <ChatMessage>[]).add(message);
+      }
+    }
+    _messageIndexesDirty = false;
+    // Guards the dropped sort. With a pending send in the list the comparator
+    // is not a total order, so only the pure-id case can be checked.
+    assert(_pendingMessageCount > 0 || _isSortedById(_allMessages));
+    messages = visible;
+    _markBlockedMessagesReadThroughVisibleBoundary(blockedIds);
     notifyListeners();
   }
 
-  /// Mark messages from Telegram-blocked users so the renderer can show a
-  /// compact placeholder instead of the full bubble.
-  ///
-  /// Only ever called from _applyKeywordFilter (right after `messages` is
-  /// reassigned): the chat_view transcript memo relies on list identity to
-  /// notice blocked-state changes, so never flip these flags elsewhere.
-  void _markBlockedUserMessages() {
-    final svc = BlockedUserService.shared;
-    if (!svc.enabled) {
-      for (final m in messages) {
-        m.blockedByUser = false;
-      }
-      return;
+  bool _isSortedById(List<ChatMessage> list) {
+    for (var i = 1; i < list.length; i++) {
+      if (list[i - 1].id > list[i].id) return false;
     }
-    for (final m in messages) {
-      m.blockedByUser =
-          !m.isOutgoing &&
-          !m.isService &&
-          m.senderId != null &&
-          svc.isBlocked(m.senderId!);
-    }
+    return true;
   }
 
-  void _markBlockedMessagesReadThroughVisibleBoundary() {
-    if (_allMessages.isEmpty) return;
+  /// Refreshes the lookup indexes after a caller mutated either list without
+  /// going through `_applyKeywordFilter`.
+  void _ensureMessageIndexes() {
+    if (!_messageIndexesDirty) return;
+    _messagesById.clear();
+    _allMessagesById.clear();
+    _messagesBySenderId.clear();
+    _pendingMessageCount = 0;
+    for (final message in _allMessages) {
+      _allMessagesById[message.id] = message;
+      if (isPendingChatMessage(message)) ++_pendingMessageCount;
+    }
+    for (final message in messages) {
+      _messagesById[message.id] = message;
+      final senderId = message.senderId;
+      if (senderId != null) {
+        (_messagesBySenderId[senderId] ??= <ChatMessage>[]).add(message);
+      }
+    }
+    _messageIndexesDirty = false;
+  }
+
+  void _markBlockedMessagesReadThroughVisibleBoundary(List<int> blockedIds) {
+    if (blockedIds.isEmpty || _allMessages.isEmpty) return;
     final visibleMax = latestServerMessageReadBoundary(
       visibleMessages: messages,
       allMessages: _allMessages,
     );
     if (visibleMax <= 0) return;
-    final ids = _allMessages
-        .where(
-          (m) =>
-              m.id <= visibleMax &&
-              !_blockedReadIds.contains(m.id) &&
-              _isBlockedMessage(m),
-        )
-        .map((m) => m.id)
+    final ids = blockedIds
+        .where((id) => id <= visibleMax && !_blockedReadIds.contains(id))
         .toList();
     if (ids.isEmpty) return;
     _blockedReadIds.addAll(ids);
@@ -5385,16 +5452,43 @@ class ChatViewModel extends ChangeNotifier {
         message.containsUnreadMention = false;
       }
     }
-    _allMessages = mergeChatMessages(
-      _allMessages,
-      incoming,
-      ignoredMessageIds: {
-        ..._discardedPendingMessageIds,
-        ..._settledPendingMessageIds,
-      },
-    );
+    if (!_appendIfStrictlyNewest(incoming)) {
+      _allMessages = mergeChatMessages(
+        _allMessages,
+        incoming,
+        ignoredMessageIds: _ignoredMergeMessageIds,
+      );
+    }
     _applyKeywordFilter();
   }
+
+  /// A live message almost always arrives newer than everything loaded, where
+  /// the general merge still rebuilds a map of the whole transcript and
+  /// re-sorts it. Appending skips both — but only while the list holds no
+  /// pending send, because then the comparator is a plain ascending id order
+  /// and the tail is provably the largest element.
+  bool _appendIfStrictlyNewest(List<ChatMessage> incoming) {
+    if (incoming.length != 1 || _allMessages.isEmpty) return false;
+    final message = incoming.first;
+    if (isPendingChatMessage(message)) return false;
+    _ensureMessageIndexes();
+    if (_pendingMessageCount > 0) return false;
+    if (_allMessages.last.id >= message.id) return false;
+    if (_allMessagesById.containsKey(message.id)) return false;
+    if (_ignoredMergeMessageIds.contains(message.id)) return false;
+    _allMessages.add(message);
+    _messageIndexesDirty = true;
+    return true;
+  }
+
+  Set<int>? _ignoredMergeMessageIdsCache;
+
+  /// Union of the two pending-id sets. Building it inline allocated a fresh
+  /// set of up to 512 ids on every merge.
+  Set<int> get _ignoredMergeMessageIds => _ignoredMergeMessageIdsCache ??= {
+    ..._discardedPendingMessageIds,
+    ..._settledPendingMessageIds,
+  };
 
   void _mergeHistoryWindow(
     List<ChatMessage> incoming, {
@@ -5417,10 +5511,7 @@ class ChatViewModel extends ChangeNotifier {
       fetched: incoming,
       replaceCurrentWindow: replaceCurrentWindow,
       preserveLiveArrivals: preserveLiveArrivals,
-      ignoredMessageIds: {
-        ..._discardedPendingMessageIds,
-        ..._settledPendingMessageIds,
-      },
+      ignoredMessageIds: _ignoredMergeMessageIds,
     );
     _applyKeywordFilter();
   }
@@ -5430,6 +5521,7 @@ class ChatViewModel extends ChangeNotifier {
     while (_settledPendingMessageIds.length > 256) {
       _settledPendingMessageIds.remove(_settledPendingMessageIds.first);
     }
+    _ignoredMergeMessageIdsCache = null;
   }
 
   void _rememberAcknowledgedPendingMessageId(int messageId) {
@@ -5525,6 +5617,7 @@ class ChatViewModel extends ChangeNotifier {
   ) {
     _rememberSettledPendingMessageId(pendingMessageId);
     if (_discardedPendingMessageIds.remove(pendingMessageId)) {
+      _ignoredMergeMessageIdsCache = null;
       final sentMessageId = rawMessage.int64('id');
       if (sentMessageId != null) {
         _discardedPendingMessageIds.add(sentMessageId);
@@ -5535,27 +5628,16 @@ class ChatViewModel extends ChangeNotifier {
       }
       return;
     }
-    ChatMessage? pendingMessage;
-    for (final message in _allMessages) {
-      if (message.id == pendingMessageId) {
-        pendingMessage = message;
-        break;
-      }
-    }
-    if (pendingMessage == null) {
-      for (final message in messages) {
-        if (message.id == pendingMessageId) {
-          pendingMessage = message;
-          break;
-        }
-      }
-    }
+    _ensureMessageIndexes();
+    final pendingMessage =
+        _allMessagesById[pendingMessageId] ?? _messagesById[pendingMessageId];
     _allMessages.removeWhere((message) => message.id == pendingMessageId);
     // Reassigned (not mutated) so the transcript memo's identity check stays
     // valid even if a notify lands before the merge below.
     messages = messages
         .where((message) => message.id != pendingMessageId)
         .toList();
+    _messageIndexesDirty = true;
     final sentMessage = TDParse.message(rawMessage);
     if (sentMessage == null) {
       _applyKeywordFilter();
@@ -5622,22 +5704,13 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
-  void _replaceButtonRows(int messageId, List<List<MessageButton>> buttonRows) {
-    final targets = _messageRefs(messageId);
-    if (targets.isEmpty) return;
-    for (final message in targets) {
-      message.buttonRows = buttonRows;
-    }
-    notifyListeners();
-  }
-
   void _setTranslationLoading(int messageId, bool loading) {
     final target = _messageRefs(messageId);
     if (target.isEmpty) return;
     for (final message in target) {
       message.isTranslating = loading;
     }
-    notifyListeners();
+    _scheduleCoalescedNotify();
   }
 
   void _replaceTranslation(
@@ -5654,7 +5727,7 @@ class ChatViewModel extends ChangeNotifier {
       message.translationLanguageCode = languageCode;
       message.isTranslating = false;
     }
-    notifyListeners();
+    _scheduleCoalescedNotify();
   }
 
   void clearTranslations(Iterable<int> messageIds) {
@@ -5673,13 +5746,13 @@ class ChatViewModel extends ChangeNotifier {
   }
 
   List<ChatMessage> _messageRefs(int messageId) {
+    _ensureMessageIndexes();
     final refs = <ChatMessage>[];
-    final index = messages.indexWhere((m) => m.id == messageId);
-    final allIndex = _allMessages.indexWhere((m) => m.id == messageId);
-    if (index >= 0) refs.add(messages[index]);
-    if (allIndex >= 0 &&
-        (index < 0 || !identical(messages[index], _allMessages[allIndex]))) {
-      refs.add(_allMessages[allIndex]);
+    final visible = _messagesById[messageId];
+    final loaded = _allMessagesById[messageId];
+    if (visible != null) refs.add(visible);
+    if (loaded != null && (visible == null || !identical(visible, loaded))) {
+      refs.add(loaded);
     }
     final buffered = _latestHistoryLiveArrivals[messageId];
     if (buffered != null &&
@@ -5697,6 +5770,9 @@ class ChatViewModel extends ChangeNotifier {
     // caches on the list's identity, so an in-place removeWhere would keep
     // rendering the deleted message.
     messages = messages.where((m) => !removed.contains(m.id)).toList();
+    // This path bypasses _applyKeywordFilter, so the lookup indexes would
+    // otherwise keep handing out deleted messages.
+    _messageIndexesDirty = true;
     _blockedReadIds.removeWhere(removed.contains);
     if (replyTo != null && removed.contains(replyTo!.id)) replyTo = null;
     if (pinnedMessages.any((m) => removed.contains(m.id))) {
@@ -5721,32 +5797,37 @@ class ChatViewModel extends ChangeNotifier {
 
   void _patchSenders(Map<int, _SenderInfo> senders) {
     if (senders.isEmpty) return;
+    // Walk only the bubbles of the senders being patched. _resolveSender fires
+    // this twice per sender, so a whole-transcript walk per call was the bulk
+    // of the cost of opening or paging a busy group.
+    _ensureMessageIndexes();
     var changed = false;
-    for (final m in messages) {
-      final senderId = m.senderId;
-      if (senderId == null) continue;
-      final info = senders[senderId];
-      if (info == null) continue;
-      if (m.isOutgoing && !m.senderIsChat) continue;
-      if (m.senderName == info.name &&
-          _sameSenderPhoto(m.senderPhoto, info.photo) &&
-          m.senderRole == info.role &&
-          m.senderTitle == (info.title ?? m.senderTitle) &&
-          m.senderIsPremium == info.isPremium &&
-          m.senderAccentColorId == info.accentColorId &&
-          m.senderEmojiStatusId == info.emojiStatusId) {
-        continue;
+    for (final entry in senders.entries) {
+      final bucket = _messagesBySenderId[entry.key];
+      if (bucket == null) continue;
+      final info = entry.value;
+      for (final m in bucket) {
+        if (m.isOutgoing && !m.senderIsChat) continue;
+        if (m.senderName == info.name &&
+            _sameSenderPhoto(m.senderPhoto, info.photo) &&
+            m.senderRole == info.role &&
+            m.senderTitle == (info.title ?? m.senderTitle) &&
+            m.senderIsPremium == info.isPremium &&
+            m.senderAccentColorId == info.accentColorId &&
+            m.senderEmojiStatusId == info.emojiStatusId) {
+          continue;
+        }
+        m.senderName = info.name;
+        m.senderPhoto = info.photo;
+        m.senderRole = info.role;
+        m.senderTitle = info.title ?? m.senderTitle;
+        m.senderIsPremium = info.isPremium;
+        m.senderAccentColorId = info.accentColorId;
+        m.senderEmojiStatusId = info.emojiStatusId;
+        changed = true;
       }
-      m.senderName = info.name;
-      m.senderPhoto = info.photo;
-      m.senderRole = info.role;
-      m.senderTitle = info.title ?? m.senderTitle;
-      m.senderIsPremium = info.isPremium;
-      m.senderAccentColorId = info.accentColorId;
-      m.senderEmojiStatusId = info.emojiStatusId;
-      changed = true;
     }
-    if (changed) _scheduleSenderPatchNotify();
+    if (changed) _scheduleCoalescedNotify();
   }
 
   bool _sameSenderPhoto(TdFileRef? current, TdFileRef? next) {
@@ -5758,11 +5839,15 @@ class ChatViewModel extends ChangeNotifier {
         current.hasAnimation == next.hasAnimation;
   }
 
-  void _scheduleSenderPatchNotify() {
+  /// Folds a burst of background patches into one notify per frame. Every
+  /// notify drives a full chat-screen rebuild, and the per-message resolvers
+  /// (senders, replies, forwards, service text, translations) each complete on
+  /// their own round trip.
+  void _scheduleCoalescedNotify() {
     if (_isDisposed) return;
-    if (_senderPatchTimer != null) return;
-    _senderPatchTimer = Timer(const Duration(milliseconds: 16), () {
-      _senderPatchTimer = null;
+    if (_coalescedNotifyTimer != null) return;
+    _coalescedNotifyTimer = Timer(const Duration(milliseconds: 16), () {
+      _coalescedNotifyTimer = null;
       notifyListeners();
     });
   }
@@ -5843,13 +5928,9 @@ class ChatViewModel extends ChangeNotifier {
     if (!isGroup) return;
     final userId = user.int64('id');
     if (userId == null) return;
-    final isVisibleSender = messages.any(
-      (message) =>
-          message.senderId == userId &&
-          !(message.isOutgoing && !message.senderIsChat) &&
-          !message.isService,
-    );
-    if (!isVisibleSender && !_senderCache.containsKey(userId)) return;
+    // TDLib emits updateUser for every user the account learns about, so test
+    // the cheap cache before touching the transcript at all.
+    if (!_senderCache.containsKey(userId) && !_hasVisibleSender(userId)) return;
     final existing = _senderCache[userId];
     final info = _senderInfoFromUser(
       user,
@@ -5858,6 +5939,18 @@ class ChatViewModel extends ChangeNotifier {
     );
     _senderCache[userId] = info;
     _patchSender(info, userId);
+  }
+
+  bool _hasVisibleSender(int userId) {
+    _ensureMessageIndexes();
+    final bucket = _messagesBySenderId[userId];
+    if (bucket == null) return false;
+    for (final message in bucket) {
+      if (message.isOutgoing && !message.senderIsChat) continue;
+      if (message.isService) continue;
+      return true;
+    }
+    return false;
   }
 
   _SenderInfo _senderInfoFromUser(
@@ -5916,7 +6009,7 @@ class ChatViewModel extends ChangeNotifier {
         m.forwardOrigin = chat.str('title');
       }
       if (m.forwardOrigin != null && m.forwardOrigin!.isNotEmpty) {
-        notifyListeners();
+        _scheduleCoalescedNotify();
       }
     } catch (_) {}
   }
@@ -5960,10 +6053,11 @@ class ChatViewModel extends ChangeNotifier {
       'value1': names.join(AppStrings.t(AppStringKeys.listSeparator)),
       'value2': suffix,
     });
-    final index = messages.indexWhere((m) => m.id == message.id);
-    if (index < 0 || messages[index].text == text) return;
-    messages[index].text = text;
-    notifyListeners();
+    _ensureMessageIndexes();
+    final target = _messagesById[message.id];
+    if (target == null || target.text == text) return;
+    target.text = text;
+    _scheduleCoalescedNotify();
   }
 
   Future<void> _resolveBoostServiceText(ChatMessage message) async {
@@ -5978,10 +6072,11 @@ class ChatViewModel extends ChangeNotifier {
       final text = AppStrings.t(AppStringKeys.chatUserBoostedGroup, {
         'value1': name,
       });
-      final index = messages.indexWhere((m) => m.id == message.id);
-      if (index < 0 || messages[index].text == text) return;
-      messages[index].text = text;
-      notifyListeners();
+      _ensureMessageIndexes();
+      final target = _messagesById[message.id];
+      if (target == null || target.text == text) return;
+      target.text = text;
+      _scheduleCoalescedNotify();
     } catch (_) {}
   }
 
@@ -5997,10 +6092,11 @@ class ChatViewModel extends ChangeNotifier {
       final text = AppStrings.t(AppStringKeys.chatUserLeftGroup, {
         'value1': name,
       });
-      final index = messages.indexWhere((m) => m.id == message.id);
-      if (index < 0 || messages[index].text == text) return;
-      messages[index].text = text;
-      notifyListeners();
+      _ensureMessageIndexes();
+      final target = _messagesById[message.id];
+      if (target == null || target.text == text) return;
+      target.text = text;
+      _scheduleCoalescedNotify();
     } catch (_) {}
   }
 
