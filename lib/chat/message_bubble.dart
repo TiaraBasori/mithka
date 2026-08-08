@@ -645,17 +645,25 @@ class _MessageBubbleState extends State<MessageBubble>
           alignment: Alignment.centerRight,
           clipBehavior: Clip.none,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Opacity(
-                opacity: (math.min(1, math.max(0, -_swipeX) / 50)).toDouble(),
-                child: AppIcon(
-                  HeroAppIcons.reply,
-                  size: 18,
-                  color: AppTheme.brand,
+            // Every mounted bubble paid for this icon — an Icon is a glyph
+            // layout, and at rest it is invisible behind opacity 0. Swap in a
+            // const placeholder until a swipe actually starts. The child count
+            // stays the same so the sibling below keeps its element, and only
+            // this slot rebuilds when the swipe begins.
+            if (_swipeX == 0)
+              const SizedBox.shrink()
+            else
+              Padding(
+                padding: const EdgeInsets.only(right: 16),
+                child: Opacity(
+                  opacity: (math.min(1, math.max(0, -_swipeX) / 50)).toDouble(),
+                  child: AppIcon(
+                    HeroAppIcons.reply,
+                    size: 18,
+                    color: AppTheme.brand,
+                  ),
                 ),
               ),
-            ),
             Transform.translate(
               offset: Offset(_swipeX, 0),
               child: _row(
