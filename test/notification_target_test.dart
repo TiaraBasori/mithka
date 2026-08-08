@@ -72,6 +72,31 @@ void main() {
   });
 
   group('account slot', () {
+    test('the extension stamp is read back on tap', () {
+      final target = NotificationTarget.fromRemoteUserInfo({
+        'mithka_account_slot': 2,
+        'mithka_account_user_id': '4242',
+        'data': {
+          'custom': {'from_id': 777, 'msg_id': 9},
+        },
+      });
+
+      expect(target?.accountSlot, 2);
+      expect(target?.accountUserId, 4242);
+    });
+
+    test('the payload user id still wins over the stamped copy', () {
+      final target = NotificationTarget.fromRemoteUserInfo({
+        'mithka_account_user_id': '1',
+        'data': {
+          'user_id': 4242,
+          'custom': {'from_id': 777, 'msg_id': 9},
+        },
+      });
+
+      expect(target?.accountUserId, 4242);
+    });
+
     test('a remote payload arrives naming its account only by user id', () {
       final target = NotificationTarget.fromRemoteUserInfo({
         'data': {
