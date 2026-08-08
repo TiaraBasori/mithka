@@ -1237,8 +1237,8 @@ class _ChatViewState extends State<ChatView> {
       final endedTowardLatest =
           _lastTranscriptUserScrollDirection == ScrollDirection.reverse;
       _lastTranscriptUserScrollDirection = ScrollDirection.idle;
-      final protectedRestoredPosition =
-          _restoredPositionGuard.finishUserScroll();
+      final protectedRestoredPosition = _restoredPositionGuard
+          .finishUserScroll();
       _returnToLatestCoordinator.userDragEnded();
       if (endedTowardLatest && !protectedRestoredPosition) {
         _requestAutomaticReturnToLatestIfNearLatest();
@@ -3488,7 +3488,7 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _addPollOption(ChatMessage message) async {
     final value = await _promptChecklistTask(
       title: AppStrings.t(AppStringKeys.chatAddPollOption),
-      hint: 'New option',
+      hint: AppStrings.t(AppStringKeys.chatAddPollOptionHint),
     );
     if (value == null || value.trim().isEmpty || !mounted) return;
     try {
@@ -6087,11 +6087,13 @@ class _ChatViewState extends State<ChatView> {
               behavior: HitTestBehavior.opaque,
               onTap: _showBusinessBotControls,
               child: Text(
-                paused
-                    ? 'Business bot paused in this chat'
-                    : _vm.businessBotCanReply
-                    ? 'Business bot can reply in this chat'
-                    : 'Business bot has read-only access',
+                AppStrings.t(
+                  paused
+                      ? AppStringKeys.chatBusinessBotPaused
+                      : _vm.businessBotCanReply
+                      ? AppStringKeys.chatBusinessBotCanReply
+                      : AppStringKeys.chatBusinessBotReadOnly,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(fontSize: 13, color: c.textSecondary),
@@ -6123,7 +6125,7 @@ class _ChatViewState extends State<ChatView> {
       backgroundColor: Colors.transparent,
       builder: (_) => BusinessBotChatControlSheet(
         chatId: widget.chatId,
-        botName: 'Connected Business Bot',
+        botName: AppStrings.t(AppStringKeys.chatConnectedBusinessBot),
         paused: _vm.businessBotPaused,
       ),
     );

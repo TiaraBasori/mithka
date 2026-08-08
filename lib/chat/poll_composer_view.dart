@@ -293,14 +293,16 @@ class _PollComposerViewState extends State<PollComposerView> {
                   const InsetDivider(leadingInset: 16),
                   _field(
                     _description,
-                    'Description (optional)',
+                    AppStrings.t(AppStringKeys.pollComposerDescriptionOptional),
                     multiline: true,
                   ),
                   const InsetDivider(leadingInset: 16),
                   _mediaRow(
-                    title: _pollMediaPath == null
-                        ? 'Add poll media'
-                        : 'Poll media attached',
+                    title: AppStrings.t(
+                      _pollMediaPath == null
+                          ? AppStringKeys.pollComposerAddPollMedia
+                          : AppStringKeys.pollComposerPollMediaAttached,
+                    ),
                     path: _pollMediaPath,
                     onTap: _pickPollMedia,
                     onRemove: _pollMediaPath == null
@@ -335,16 +337,22 @@ class _PollComposerViewState extends State<PollComposerView> {
                 ),
                 const SizedBox(height: 14),
                 _card([
-                  _toggleRow('Quiz mode', _quiz, _setQuiz),
+                  _toggleRow(
+                    AppStrings.t(AppStringKeys.pollComposerQuizMode),
+                    _quiz,
+                    _setQuiz,
+                  ),
                   const InsetDivider(leadingInset: 16),
                   _toggleRow(
-                    'Multiple answers',
+                    AppStrings.t(
+                      AppStringKeys.pollComposerMultipleAnswersToggle,
+                    ),
                     _multiple,
                     _quiz ? null : (value) => setState(() => _multiple = value),
                   ),
                   const InsetDivider(leadingInset: 16),
                   _toggleRow(
-                    'Anonymous voting',
+                    AppStrings.t(AppStringKeys.pollComposerAnonymousVoting),
                     _anonymous,
                     (value) => setState(() {
                       _anonymous = value;
@@ -353,13 +361,13 @@ class _PollComposerViewState extends State<PollComposerView> {
                   ),
                   const InsetDivider(leadingInset: 16),
                   _toggleRow(
-                    'Allow revoting',
+                    AppStrings.t(AppStringKeys.pollComposerAllowRevoting),
                     _revoting,
                     (value) => setState(() => _revoting = value),
                   ),
                   const InsetDivider(leadingInset: 16),
                   _toggleRow(
-                    'Allow people to add options',
+                    AppStrings.t(AppStringKeys.pollComposerAllowAddingOptions),
                     _allowAdding,
                     _quiz || _anonymous
                         ? null
@@ -367,13 +375,15 @@ class _PollComposerViewState extends State<PollComposerView> {
                   ),
                   const InsetDivider(leadingInset: 16),
                   _toggleRow(
-                    'Shuffle options',
+                    AppStrings.t(AppStringKeys.pollComposerShuffleOptions),
                     _shuffle,
                     (value) => setState(() => _shuffle = value),
                   ),
                   const InsetDivider(leadingInset: 16),
                   _toggleRow(
-                    'Hide results until poll closes',
+                    AppStrings.t(
+                      AppStringKeys.pollComposerHideResultsUntilClosed,
+                    ),
                     _hideResults,
                     (value) => setState(() => _hideResults = value),
                   ),
@@ -385,7 +395,10 @@ class _PollComposerViewState extends State<PollComposerView> {
                   _card([
                     _field(
                       _explanation,
-                      'Explanation shown after an incorrect answer',
+                      AppStrings.t(
+                        AppStringKeys
+                            .pollComposerExplanationAfterIncorrectAnswer,
+                      ),
                       multiline: true,
                     ),
                   ]),
@@ -598,12 +611,12 @@ class _PollComposerViewState extends State<PollComposerView> {
 
   Widget _durationRow() {
     final c = context.colors;
-    const values = <(int, String)>[
-      (0, 'No timer'),
-      (300, '5 minutes'),
-      (3600, '1 hour'),
-      (86400, '1 day'),
-      (604800, '1 week'),
+    final values = <(int, String)>[
+      (0, AppStrings.t(AppStringKeys.pollComposerTimerNone)),
+      (300, AppStrings.t(AppStringKeys.pollComposerTimerFiveMinutes)),
+      (3600, AppStrings.t(AppStringKeys.pollComposerTimerOneHour)),
+      (86400, AppStrings.t(AppStringKeys.pollComposerTimerOneDay)),
+      (604800, AppStrings.t(AppStringKeys.pollComposerTimerOneWeek)),
     ];
     final selected = values.firstWhere((value) => value.$1 == _openPeriod);
     return Padding(

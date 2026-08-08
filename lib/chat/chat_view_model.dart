@@ -2838,8 +2838,8 @@ class ChatViewModel extends ChangeNotifier {
 
   void _requireAiReplyContextAccess() {
     if (_canLoadAiReplyContext) return;
-    throw const AiReplyPrivacyException(
-      'AI Reply context is no longer available for this account.',
+    throw AiReplyPrivacyException(
+      AppStrings.t(AppStringKeys.aiReplyContextUnavailable),
     );
   }
 
@@ -2904,14 +2904,14 @@ class ChatViewModel extends ChangeNotifier {
         }
         offset += senders.length;
       }
-      throw const AiReplyPrivacyException(
-        'The blocked-user list is too large to verify safely for AI Reply.',
+      throw AiReplyPrivacyException(
+        AppStrings.t(AppStringKeys.aiReplyBlockedListTooLarge),
       );
     } on AiReplyPrivacyException {
       rethrow;
     } catch (_) {
-      throw const AiReplyPrivacyException(
-        'Could not verify blocked users safely for AI Reply.',
+      throw AiReplyPrivacyException(
+        AppStrings.t(AppStringKeys.aiReplyBlockedCheckFailed),
       );
     }
   }

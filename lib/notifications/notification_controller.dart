@@ -97,12 +97,17 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
   NotificationController._();
   static final NotificationController shared = NotificationController._();
 
-  static const _androidChannel = AndroidNotificationChannel(
-    'messages',
-    'Messages',
-    description: 'Incoming Mithka messages',
-    importance: Importance.high,
-  );
+  // Built per call rather than held as a const: the channel name and
+  // description are shown in Android's own settings and follow the app locale.
+  static AndroidNotificationChannel get _androidChannel =>
+      AndroidNotificationChannel(
+        'messages',
+        AppStrings.t(AppStringKeys.notificationChannelMessagesName),
+        description: AppStrings.t(
+          AppStringKeys.notificationChannelMessagesDescription,
+        ),
+        importance: Importance.high,
+      );
   static const _notificationTapChannel = MethodChannel(
     'mithka/notification_tap',
   );

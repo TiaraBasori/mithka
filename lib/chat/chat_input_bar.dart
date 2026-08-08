@@ -3542,7 +3542,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
           entries.add((
             icon: HeroAppIcons.comments,
             title: AppStrings.t(AppStringKeys.chatInputBarCreateBotTopic),
-            subtitle: 'Start a named topic in this bot chat',
+            subtitle: AppStrings.t(
+              AppStringKeys.chatInputBarCreateBotTopicDetail,
+            ),
             onTap: () {
               Navigator.of(sheetContext).pop();
               unawaited(_createBotTopic());
@@ -3553,7 +3555,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
           entries.add((
             icon: HeroAppIcons.userPlus,
             title: AppStrings.t(AppStringKeys.chatInputBarCreateManagedBot),
-            subtitle: 'Create a bot managed by @${resolved!.username}',
+            subtitle: AppStrings.t(
+              AppStringKeys.chatInputBarCreateManagedBotDetailValue1,
+              {'value1': resolved!.username},
+            ),
             onTap: () {
               Navigator.of(sheetContext).pop();
               unawaited(_createManagedBot(resolved.userId));
@@ -3564,8 +3569,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
           entries.add((
             icon: HeroAppIcons.comments,
             title: AppStrings.t(AppStringKeys.chatInputBarGuestQueries),
-            subtitle:
-                '${_guestQueries.length} ${_guestQueries.length == 1 ? 'query' : 'queries'} waiting',
+            subtitle: AppStrings.plural(
+              AppStringKeys.chatInputBarGuestQueriesWaiting,
+              _guestQueries.length,
+            ),
             onTap: () {
               Navigator.of(sheetContext).pop();
               _showGuestQueries();
@@ -3576,7 +3583,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
           entries.add((
             icon: HeroAppIcons.gear,
             title: AppStrings.t(AppStringKeys.chatInputBarAutomationStatus),
-            subtitle: 'Report pending updates or a webhook error',
+            subtitle: AppStrings.t(
+              AppStringKeys.chatInputBarAutomationStatusDetail,
+            ),
             onTap: () {
               Navigator.of(sheetContext).pop();
               unawaited(_updateBotAutomationStatus());
@@ -3642,7 +3651,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final name = await _promptBotText(
       title: AppStrings.t(AppStringKeys.chatInputBarCreateBotTopic),
       label: AppStrings.t(AppStringKeys.chatInputBarTopicName),
-      actionLabel: 'Create',
+      actionLabel: AppStrings.t(AppStringKeys.chatInputBarCreateAction),
     );
     if (name == null) return;
     try {
@@ -3676,14 +3685,14 @@ class _ChatInputBarState extends State<ChatInputBar> {
       title: AppStrings.t(AppStringKeys.chatInputBarCreateManagedBot),
       label: AppStrings.t(AppStringKeys.chatInputBarBotName),
       initialValue: suggestedName,
-      actionLabel: 'Next',
+      actionLabel: AppStrings.t(AppStringKeys.chatInputBarNextAction),
     );
     if (name == null) return;
     final username = await _promptBotText(
       title: AppStrings.t(AppStringKeys.chatInputBarCreateManagedBot),
       label: AppStrings.t(AppStringKeys.editProfileUsername),
       initialValue: suggestedUsername,
-      actionLabel: 'Create',
+      actionLabel: AppStrings.t(AppStringKeys.chatInputBarCreateAction),
     );
     if (username == null) return;
     try {
@@ -3751,14 +3760,16 @@ class _ChatInputBarState extends State<ChatInputBar> {
     } catch (_) {
       // Fall back to the stable guest query identifier below.
     }
-    return 'Guest query ${query.id}';
+    return AppStrings.t(AppStringKeys.chatInputBarGuestQueryValue1, {
+      'value1': query.id,
+    });
   }
 
   Future<void> _replyToGuestQuery(BotGuestQuery query) async {
     final reply = await _promptBotText(
       title: AppStrings.t(AppStringKeys.chatInputBarAnswerGuestQuery),
       label: AppStrings.t(AppStringKeys.chatInputBarReply),
-      actionLabel: 'Send',
+      actionLabel: AppStrings.t(AppStringKeys.chatInputBarSendAction),
     );
     if (reply == null) return;
     try {
@@ -3802,7 +3813,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
       title: AppStrings.t(AppStringKeys.chatInputBarAutomationStatus),
       label: AppStrings.t(AppStringKeys.chatInputBarPendingUpdateCount),
       initialValue: '0',
-      actionLabel: 'Next',
+      actionLabel: AppStrings.t(AppStringKeys.chatInputBarNextAction),
       keyboardType: TextInputType.number,
     );
     if (pendingText == null) return;
@@ -3819,7 +3830,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     final errorMessage = await _promptBotText(
       title: AppStrings.t(AppStringKeys.chatInputBarAutomationStatus),
       label: AppStrings.t(AppStringKeys.chatInputBarErrorMessageOptional),
-      actionLabel: 'Report',
+      actionLabel: AppStrings.t(AppStringKeys.chatInputBarReportAction),
       allowEmpty: true,
     );
     if (errorMessage == null) return;
@@ -3858,7 +3869,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   void _showBotPlatformFailure(Object error) {
     if (!mounted) return;
-    final detail = error is TdError ? error.message : 'Action failed';
+    final detail = error is TdError
+        ? error.message
+        : AppStrings.t(AppStringKeys.chatInputBarActionFailed);
     showToast(context, detail);
   }
 
