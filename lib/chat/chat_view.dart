@@ -100,6 +100,7 @@ import 'message_action_menu.dart';
 import 'message_bubble.dart';
 import 'message_bubble_repository_view.dart';
 import 'message_replies_sheet.dart';
+import 'message_translation_cache.dart';
 import 'music_player_controller.dart';
 import 'openai_compatible_unread_summary_provider.dart';
 import 'outgoing_attachment.dart';
@@ -835,6 +836,7 @@ class _ChatViewState extends State<ChatView> {
   late int _historyWindowInvalidationRevision;
   final Set<int> _reportedVisibleMessageIds = <int>{};
   final Set<int> _expandedBlockedRunIds = <int>{};
+  final Set<int> _showOriginalTranslationMessageIds = <int>{};
   bool _unreadProgressUpdateScheduled = false;
   bool _viewTickerEnabled = true;
   bool _modelDirtyWhileInactive = false;
@@ -3445,6 +3447,8 @@ class _ChatViewState extends State<ChatView> {
       message: message,
       selected: _selectedMessageIds.contains(message.id),
       groupedMedia: groupedMedia,
+      translationDisplayStyle: _translation.displayStyle,
+      showOriginalTranslationMessageIds: _showOriginalTranslationMessageIds,
       peerTitle: _vm.peerTitle,
       peerPhoto: _vm.peerPhoto,
       isGroup: _vm.isGroup,
@@ -4064,6 +4068,10 @@ class _ChatViewState extends State<ChatView> {
         unawaited(_offerSuggestedPost(message));
       case MessageAction.translate:
         unawaited(_translateMessage(message));
+      case MessageAction.displayOriginal:
+        setState(() => _showOriginalTranslationMessageIds.add(message.id));
+      case MessageAction.displayTranslation:
+        setState(() => _showOriginalTranslationMessageIds.remove(message.id));
       case MessageAction.reply:
         _vm.setReply(message);
       case MessageAction.replies:
@@ -4466,45 +4474,69 @@ class _ChatViewState extends State<ChatView> {
     if (sourceText.trim().isEmpty) return true;
     final targetLanguage = _translationTargetLanguage(translation);
     try {
-      if (translation.aiTranslationEnabled) {
-        await _vm.translateMessageExternally(
-          message.id,
-          targetLanguage,
-          () => _translateTextWithAi(
-            text: sourceText,
-            sourceLanguageCode: sourceLanguageCode,
-            targetLanguageCode: targetLanguage,
-            priorMessages: _aiTranslationContextFor(message),
-          ),
-        );
-      } else if (translation.provider == TranslationProvider.iosSystem ||
-          translation.provider == TranslationProvider.androidMlKit) {
-        await _vm.translateMessageExternally(
-          message.id,
-          targetLanguage,
-          () => NativeTranslationApi.translate(
-            text: sourceText,
-            sourceLanguageCode: sourceLanguageCode,
-            targetLanguageCode: targetLanguage,
-          ),
-          showLoading: defaultTargetPlatform != TargetPlatform.iOS,
-        );
-      } else if (translation.provider == TranslationProvider.tdlib) {
-        await _vm.translateMessage(message.id, targetLanguage);
-      } else {
-        await _vm.translateMessageExternally(
-          message.id,
-          targetLanguage,
-          () => ThirdPartyTranslationApi.translate(
-            provider: translation.provider,
-            text: sourceText,
-            sourceLanguageCode: sourceLanguageCode,
-            targetLanguageCode: targetLanguage,
-            lingvaEndpoint: translation.lingvaEndpoint,
-            libreTranslateEndpoint: translation.libreTranslateEndpoint,
-            libreTranslateApiKey: translation.libreTranslateApiKey,
-          ),
-        );
+      final cached = await translation.messageCache.resolve(
+        MessageTranslationCacheKey(
+          accountSlot: _sessionKey.accountSlot,
+          chatId: widget.chatId,
+          messageId: message.id,
+          sourceText: sourceText,
+          targetLanguageCode: targetLanguage,
+        ),
+        () async {
+          final MessageTranslationResult result;
+          if (translation.aiTranslationEnabled) {
+            result = await _vm.translateMessageExternally(
+              message.id,
+              targetLanguage,
+              () => _translateTextWithAi(
+                text: sourceText,
+                sourceLanguageCode: sourceLanguageCode,
+                targetLanguageCode: targetLanguage,
+                priorMessages: _aiTranslationContextFor(message),
+              ),
+            );
+          } else if (translation.provider == TranslationProvider.iosSystem ||
+              translation.provider == TranslationProvider.androidMlKit) {
+            result = await _vm.translateMessageExternally(
+              message.id,
+              targetLanguage,
+              () => NativeTranslationApi.translate(
+                text: sourceText,
+                sourceLanguageCode: sourceLanguageCode,
+                targetLanguageCode: targetLanguage,
+              ),
+              showLoading: defaultTargetPlatform != TargetPlatform.iOS,
+            );
+          } else if (translation.provider == TranslationProvider.tdlib) {
+            result = await _vm.translateMessage(message.id, targetLanguage);
+          } else {
+            result = await _vm.translateMessageExternally(
+              message.id,
+              targetLanguage,
+              () => ThirdPartyTranslationApi.translate(
+                provider: translation.provider,
+                text: sourceText,
+                sourceLanguageCode: sourceLanguageCode,
+                targetLanguageCode: targetLanguage,
+                lingvaEndpoint: translation.lingvaEndpoint,
+                libreTranslateEndpoint: translation.libreTranslateEndpoint,
+                libreTranslateApiKey: translation.libreTranslateApiKey,
+              ),
+            );
+          }
+          return MessageTranslationValue(
+            text: result.text,
+            entities: result.entities,
+            languageCode: result.languageCode,
+          );
+        },
+      );
+      if (mounted) {
+        _vm.restoreMessageTranslation(message.id, (
+          text: cached.text,
+          entities: cached.entities,
+          languageCode: cached.languageCode,
+        ));
       }
       return true;
     } catch (e) {
@@ -4521,6 +4553,9 @@ class _ChatViewState extends State<ChatView> {
 
   void _onTranslationSettingsChanged() {
     if (!mounted) return;
+    if (_translation.displayStyle != TranslationDisplayStyle.translatedOnly) {
+      _showOriginalTranslationMessageIds.clear();
+    }
     _autoTranslationFailedMessageIds.clear();
     if (!_automaticTranslationEnabled && _autoTranslatedMessageIds.isNotEmpty) {
       _vm.clearTranslations(_autoTranslatedMessageIds);
@@ -8032,6 +8067,8 @@ class _ChatViewState extends State<ChatView> {
       incomingBubbleColor: _effectiveIncomingColor(),
       incomingBubbleTextColor: _effectiveIncomingTextColor(),
       messageColors: _effectiveMessageColors(),
+      translationDisplayStyle: _translation.displayStyle,
+      showOriginalTranslationMessageIds: _showOriginalTranslationMessageIds,
       onAvatarTap: _openSenderProfile,
       onAvatarLongPress: (message) {
         if (_vm.isGroup && (message.senderName?.isNotEmpty ?? false)) {
@@ -8099,6 +8136,9 @@ class _ChatViewState extends State<ChatView> {
       allowSuggestedPostOffer:
           _vm.isDirectMessagesGroup && !_vm.isAdministeredDirectMessagesGroup,
       source: _actionSource,
+      showingOriginalTranslation: _showOriginalTranslationMessageIds.contains(
+        _actionTarget!.id,
+      ),
       onSelect: (action) => _perform(action, _actionTarget!),
     );
 

@@ -44,6 +44,12 @@ import 'sticker_item.dart';
 import 'telegram_ai_service.dart';
 import 'unread_chat_summary_models.dart';
 
+typedef MessageTranslationResult = ({
+  String text,
+  List<MessageTextEntity> entities,
+  String languageCode,
+});
+
 class _SenderInfo {
   _SenderInfo(
     this.name,
@@ -2427,7 +2433,10 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> translateMessage(int messageId, String toLanguageCode) async {
+  Future<MessageTranslationResult> translateMessage(
+    int messageId,
+    String toLanguageCode,
+  ) async {
     _setTranslationLoading(messageId, true);
     try {
       final formatted = await _client.query({
@@ -2436,12 +2445,18 @@ class ChatViewModel extends ChangeNotifier {
         'message_id': messageId,
         'to_language_code': toLanguageCode,
       });
+      final result = (
+        text: formatted.str('text') ?? '',
+        entities: TDParse.textEntities(formatted),
+        languageCode: toLanguageCode,
+      );
       _replaceTranslation(
         messageId,
-        formatted.str('text') ?? '',
-        TDParse.textEntities(formatted),
-        toLanguageCode,
+        result.text,
+        result.entities,
+        result.languageCode,
       );
+      return result;
     } catch (_) {
       _setTranslationLoading(messageId, false);
       rethrow;
@@ -2499,7 +2514,7 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> translateMessageExternally(
+  Future<MessageTranslationResult> translateMessageExternally(
     int messageId,
     String toLanguageCode,
     Future<String> Function() translate, {
@@ -2509,6 +2524,11 @@ class ChatViewModel extends ChangeNotifier {
     try {
       final translated = await translate();
       _replaceTranslation(messageId, translated, const [], toLanguageCode);
+      return (
+        text: translated,
+        entities: const <MessageTextEntity>[],
+        languageCode: toLanguageCode,
+      );
     } catch (_) {
       if (showLoading) _setTranslationLoading(messageId, false);
       rethrow;
@@ -5861,6 +5881,18 @@ class ChatViewModel extends ChangeNotifier {
       message.isTranslating = false;
     }
     _scheduleCoalescedNotify();
+  }
+
+  void restoreMessageTranslation(
+    int messageId,
+    MessageTranslationResult translation,
+  ) {
+    _replaceTranslation(
+      messageId,
+      translation.text,
+      translation.entities,
+      translation.languageCode,
+    );
   }
 
   void clearTranslations(Iterable<int> messageIds) {

@@ -101,9 +101,11 @@ class DesktopInlineSearchController extends ChangeNotifier {
   ChatSearchActiveToken? get activeToken => _activeToken;
   List<ChatSearchTokenSuggestion> get suggestions => _suggestions;
 
-  /// The person a `from:` token resolved to, shown as a badge.
-  ChatSearchTokenSuggestion? get resolvedSender =>
-      _committedSender ?? _resolvedSender;
+  /// The person explicitly picked for a `from:` filter, shown as a badge.
+  ///
+  /// A typed token may still resolve internally so it can filter results, but
+  /// it remains editable text until the user chooses a suggestion.
+  ChatSearchTokenSuggestion? get resolvedSender => _committedSender;
 
   /// Whether the field is asking to be taught its syntax: focused, empty, and
   /// carrying no filters yet.
@@ -112,7 +114,8 @@ class DesktopInlineSearchController extends ChangeNotifier {
       _query.trim().isEmpty &&
       _scope == null &&
       resolvedSender == null;
-  bool get panelVisible => _panelVisible && _query.trim().isNotEmpty;
+  bool get panelVisible =>
+      showsTokenHints || (_panelVisible && _query.trim().isNotEmpty);
   bool get isLoading =>
       _debouncing || _miniAppsLoading || _activeTabs.any(_model.isLoading);
 
