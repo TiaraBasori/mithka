@@ -12,6 +12,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 
@@ -24,29 +25,200 @@ import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/theme_controller.dart';
 
-/// Clips its child to a circle or rounded square.
-class AvatarClip extends StatelessWidget {
-  const AvatarClip({
+/// Sizes its child to the avatar box, clips it to a circle or rounded square,
+/// and optionally fills the shape and centres the child inside it.
+///
+/// This is one render object where the composition it replaces — clip, sized
+/// box, coloured container, alignment — was four. Every chat row and every
+/// message carries an avatar, so those four were among the priciest widgets in
+/// the app by total count.
+class AvatarSurface extends SingleChildRenderObjectWidget {
+  const AvatarSurface({
     super.key,
-    required this.child,
+    required Widget super.child,
     required this.size,
     this.square = false,
+    this.background,
+    this.centerChild = false,
   });
-  final Widget child;
+
   final double size;
   final bool square;
 
+  /// Painted behind the child, inside the clip.
+  final Color? background;
+
+  /// Lay the child out loosely and centre it, instead of stretching it to fill.
+  final bool centerChild;
+
   @override
-  Widget build(BuildContext context) {
-    if (square) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(
-          size * AppTheme.groupAvatarCornerRatio,
-        ),
-        child: child,
+  RenderAvatarSurface createRenderObject(BuildContext context) =>
+      _configure(RenderAvatarSurface());
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderAvatarSurface renderObject,
+  ) => _configure(renderObject);
+
+  RenderAvatarSurface _configure(RenderAvatarSurface renderObject) =>
+      renderObject
+        ..avatarSize = size
+        ..square = square
+        ..background = background
+        ..centerChild = centerChild;
+}
+
+/// Render object behind [AvatarSurface].
+class RenderAvatarSurface extends RenderShiftedBox {
+  RenderAvatarSurface() : super(null);
+
+  double _avatarSize = 0;
+  double get avatarSize => _avatarSize;
+  set avatarSize(double value) {
+    if (_avatarSize == value) return;
+    _avatarSize = value;
+    _shapeBounds = null;
+    markNeedsLayout();
+  }
+
+  bool _square = false;
+  bool get square => _square;
+  set square(bool value) {
+    if (_square == value) return;
+    _square = value;
+    markNeedsPaint();
+  }
+
+  bool _centerChild = false;
+  bool get centerChild => _centerChild;
+  set centerChild(bool value) {
+    if (_centerChild == value) return;
+    _centerChild = value;
+    markNeedsLayout();
+  }
+
+  Color? _background;
+  Color? get background => _background;
+  set background(Color? value) {
+    if (_background == value) return;
+    _background = value;
+    _fill = value == null ? null : (Paint()..color = value);
+    markNeedsPaint();
+  }
+
+  final LayerHandle<ClipPathLayer> _ovalLayer = LayerHandle<ClipPathLayer>();
+  final LayerHandle<ClipRRectLayer> _roundedLayer =
+      LayerHandle<ClipRRectLayer>();
+
+  // A `Path` is a native allocation and a scrolling list repaints every avatar
+  // every frame, so the shape is built once per size like `RenderClipOval` does.
+  Rect? _shapeBounds;
+  Path? _ovalShape;
+  RRect? _roundedShape;
+  Paint? _fill;
+
+  void _updateShapes(Rect bounds) {
+    if (_shapeBounds == bounds) return;
+    _shapeBounds = bounds;
+    _ovalShape = Path()..addOval(bounds);
+    _roundedShape = RRect.fromRectAndRadius(
+      bounds,
+      Radius.circular(_avatarSize * AppTheme.groupAvatarCornerRatio),
+    );
+  }
+
+  @override
+  double computeMinIntrinsicWidth(double height) => _avatarSize;
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => _avatarSize;
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _avatarSize;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _avatarSize;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) =>
+      constraints.constrain(Size.square(_avatarSize));
+
+  @override
+  void performLayout() {
+    size = constraints.constrain(Size.square(_avatarSize));
+    final child = this.child;
+    if (child == null) return;
+    final childParentData = child.parentData! as BoxParentData;
+    if (_centerChild) {
+      child.layout(BoxConstraints.loose(size), parentUsesSize: true);
+      childParentData.offset = Alignment.center.alongOffset(
+        (size - child.size) as Offset,
+      );
+    } else {
+      child.layout(BoxConstraints.tight(size));
+      childParentData.offset = Offset.zero;
+    }
+  }
+
+  void _paintContents(PaintingContext context, Offset offset) {
+    final fill = _fill;
+    if (fill != null) context.canvas.drawRect(offset & size, fill);
+    super.paint(context, offset);
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final bounds = Offset.zero & size;
+    _updateShapes(bounds);
+    if (_square) {
+      _ovalLayer.layer = null;
+      _roundedLayer.layer = context.pushClipRRect(
+        needsCompositing,
+        offset,
+        bounds,
+        _roundedShape!,
+        _paintContents,
+        oldLayer: _roundedLayer.layer,
+      );
+    } else {
+      _roundedLayer.layer = null;
+      _ovalLayer.layer = context.pushClipPath(
+        needsCompositing,
+        offset,
+        bounds,
+        _ovalShape!,
+        _paintContents,
+        oldLayer: _ovalLayer.layer,
       );
     }
-    return ClipOval(child: child);
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    final bounds = Offset.zero & size;
+    _updateShapes(bounds);
+    if (_square) {
+      if (!_roundedShape!.contains(position)) return false;
+    } else {
+      final center = bounds.center;
+      final normalized = Offset(
+        (position.dx - center.dx) / bounds.width,
+        (position.dy - center.dy) / bounds.height,
+      );
+      if (normalized.distanceSquared > 0.25) return false;
+    }
+    return super.hitTest(result, position: position);
+  }
+
+  @override
+  Rect describeApproximatePaintClip(RenderObject child) => Offset.zero & size;
+
+  @override
+  void dispose() {
+    _ovalLayer.layer = null;
+    _roundedLayer.layer = null;
+    super.dispose();
   }
 }
 
@@ -186,6 +358,16 @@ class _PhotoAvatarState extends State<PhotoAvatar> with WidgetsBindingObserver {
       tickerEnabled: _tickerEnabled,
       appIsActive: _appIsActive,
     );
+    final photo = widget.photo;
+    // With nothing to play and nothing to tear down the async pass only
+    // re-reads the account slot, and every avatar in a list pays for it.
+    if (_animationController == null &&
+        !_animationLoadPending &&
+        (photo == null || !photo.hasAnimation)) {
+      _animateAvatars = enabled;
+      _animationSlot = TdClient.shared.activeSlot;
+      return;
+    }
     if (!forceReload && _animateAvatars == enabled) {
       if (enabled && _animationController == null && !_animationLoadPending) {
         unawaited(_syncAnimation());
@@ -307,14 +489,26 @@ class _PhotoAvatarState extends State<PhotoAvatar> with WidgetsBindingObserver {
     });
   }
 
+  /// True while nothing but the monogram can paint, which the surface can then
+  /// draw itself instead of stacking a fill and an alignment on top of it.
+  bool get _showsMonogramOnly {
+    final animation = _animationController;
+    if (animation != null && animation.value.isInitialized) return false;
+    return _file == null && widget.photo?.miniThumb == null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final size = widget.size;
-    Widget avatar = AvatarClip(
-      size: size,
-      square: widget.square,
-      child: SizedBox(width: size, height: size, child: _content()),
-    );
+    Widget avatar = _showsMonogramOnly
+        ? AvatarSurface(
+            size: size,
+            square: widget.square,
+            background: AppTheme.avatarColor(widget.title),
+            centerChild: true,
+            child: _monogram(),
+          )
+        : AvatarSurface(size: size, square: widget.square, child: _content());
 
     if (widget.showOnlineDot) {
       final dot = size * 0.26;
@@ -380,21 +574,21 @@ class _PhotoAvatarState extends State<PhotoAvatar> with WidgetsBindingObserver {
     return _placeholder();
   }
 
-  Widget _placeholder() {
-    final size = widget.size;
-    return Container(
-      color: AppTheme.avatarColor(widget.title),
-      alignment: Alignment.center,
-      child: Text(
-        _initial(widget.title),
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: size * 0.42,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
+  /// Used when an image fails to decode, so it has to fill the box itself.
+  Widget _placeholder() => Container(
+    color: AppTheme.avatarColor(widget.title),
+    alignment: Alignment.center,
+    child: _monogram(),
+  );
+
+  Widget _monogram() => Text(
+    _initial(widget.title),
+    style: TextStyle(
+      color: Colors.white,
+      fontSize: widget.size * 0.42,
+      fontWeight: FontWeight.w500,
+    ),
+  );
 }
 
 int _cacheSizePx(BuildContext context, double logicalSize) =>

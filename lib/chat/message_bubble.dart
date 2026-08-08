@@ -802,10 +802,8 @@ class _MessageBubbleState extends State<MessageBubble>
                       : Align(alignment: Alignment.centerRight, child: content),
                 ),
                 const SizedBox(width: 8),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => widget.onAvatarTap?.call(message),
-                  child: PhotoAvatar(
+                _avatarTapTarget(
+                  PhotoAvatar(
                     // Resolved here rather than up front: an incoming message
                     // never needs it, and the fallback runs a localisation
                     // lookup.
@@ -817,14 +815,12 @@ class _MessageBubbleState extends State<MessageBubble>
                         : widget.mePhoto,
                     size: 38,
                   ),
+                  withLongPress: false,
                 ),
               ]
             : [
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => widget.onAvatarTap?.call(message),
-                  onLongPress: () => widget.onAvatarLongPress?.call(message),
-                  child: PhotoAvatar(
+                _avatarTapTarget(
+                  PhotoAvatar(
                     title: widget.isGroup
                         ? (message.senderName ?? widget.peerTitle)
                         : widget.peerTitle,
@@ -833,6 +829,7 @@ class _MessageBubbleState extends State<MessageBubble>
                         : widget.peerPhoto,
                     size: 38,
                   ),
+                  withLongPress: true,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -971,6 +968,20 @@ class _MessageBubbleState extends State<MessageBubble>
           ),
         ],
       ),
+    );
+  }
+
+  /// The avatar only needs a recognizer when a caller actually wants the taps;
+  /// previews and tests pass neither.
+  Widget _avatarTapTarget(Widget avatar, {required bool withLongPress}) {
+    final onTap = widget.onAvatarTap;
+    final onLongPress = withLongPress ? widget.onAvatarLongPress : null;
+    if (onTap == null && onLongPress == null) return avatar;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap == null ? null : () => onTap(message),
+      onLongPress: onLongPress == null ? null : () => onLongPress(message),
+      child: avatar,
     );
   }
 
@@ -1440,20 +1451,17 @@ class _MessageBubbleState extends State<MessageBubble>
       padding: outgoing
           ? EdgeInsets.zero
           : const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (message.isEdited)
-            AppIcon(
+      // One glyph wide either way, so it needs no flex row to hold it.
+      child: message.isEdited
+          ? AppIcon(
               HeroAppIcons.penToSquare,
               key: const ValueKey('messageDeliveryEdited'),
               size: 10,
               color: faint,
             )
-          else if (outgoing)
-            _deliveryTick(),
-        ],
-      ),
+          : outgoing
+          ? _deliveryTick()
+          : const SizedBox.shrink(),
     );
     return IgnorePointer(
       child: outgoing
@@ -1748,113 +1756,113 @@ class _MessageBubbleState extends State<MessageBubble>
       1.0,
       _bubbleMaxWidth() - effectivePadding.horizontal,
     );
+    final parts = <Widget>[
+      if (includeForwardHeader && (message.forwardOrigin ?? '').isNotEmpty) ...[
+        _forwardHeader(outgoing),
+        const SizedBox(height: 3),
+      ],
+      if (includeReplyQuote && message.replyToPreview != null) ...[
+        _replyQuote(outgoing),
+        const SizedBox(height: 5),
+      ],
+      if (_activeLinkPreview?.showAboveText ?? false) ...[
+        _linkPreviewCard(
+          _activeLinkPreview!,
+          outgoing,
+          maxWidth: previewMaxWidth,
+        ),
+        if (text.isNotEmpty) const SizedBox(height: 6),
+      ],
+      ..._richTextWidgets(
+        text,
+        baseColor,
+        linkColor,
+        outgoing,
+        false,
+        _activeTextEntities,
+        textFontSize,
+      ),
+      if (_activeRichBlocks.isNotEmpty) ...[
+        if (text.isNotEmpty) const SizedBox(height: 8),
+        ..._richBlockWidgets(_activeRichBlocks, outgoing),
+      ],
+      if (_activeLinkPreview != null && !_activeLinkPreview!.showAboveText) ...[
+        if (text.isNotEmpty || _activeRichBlocks.isNotEmpty)
+          const SizedBox(height: 7),
+        _linkPreviewCard(
+          _activeLinkPreview!,
+          outgoing,
+          maxWidth: previewMaxWidth,
+        ),
+      ],
+      if (_showsTranslation) ...[
+        const SizedBox(height: 7),
+        _translationBlock(outgoing),
+      ],
+      if (_showsAiSummary) ...[
+        const SizedBox(height: 7),
+        _aiSummaryBlock(outgoing),
+      ] else if (message.summaryLanguageCode.isNotEmpty &&
+          widget.onSummarizeMessage != null) ...[
+        const SizedBox(height: 7),
+        GestureDetector(
+          key: const ValueKey('messageSummarizeAction'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => widget.onSummarizeMessage?.call(message),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: AppTheme.brand.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(AppRadius.control),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppIcon(
+                  HeroAppIcons.wandMagicSparkles,
+                  size: 15,
+                  color: AppTheme.brand,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  AppStrings.t(AppStringKeys.messageBubbleSummarize),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.brand,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ];
     return _bubbleBackground(
       key: ValueKey('messageTextBubble-${message.id}'),
       outgoing: outgoing,
       constraints: BoxConstraints(maxWidth: _bubbleMaxWidth()),
       padding: bubblePadding,
       borderRadius: _messageBorderRadius(6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (includeForwardHeader &&
-              (message.forwardOrigin ?? '').isNotEmpty) ...[
-            _forwardHeader(outgoing),
-            const SizedBox(height: 3),
-          ],
-          if (includeReplyQuote && message.replyToPreview != null) ...[
-            _replyQuote(outgoing),
-            const SizedBox(height: 5),
-          ],
-          if (_activeLinkPreview?.showAboveText ?? false) ...[
-            _linkPreviewCard(
-              _activeLinkPreview!,
-              outgoing,
-              maxWidth: previewMaxWidth,
+      // A plain text message is one span block; the column around it would
+      // only re-derive the size the child already has.
+      child: parts.length == 1
+          ? parts.first
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: parts,
             ),
-            if (text.isNotEmpty) const SizedBox(height: 6),
-          ],
-          ..._richTextWidgets(
-            text,
-            baseColor,
-            linkColor,
-            outgoing,
-            false,
-            _activeTextEntities,
-            textFontSize,
-          ),
-          if (_activeRichBlocks.isNotEmpty) ...[
-            if (text.isNotEmpty) const SizedBox(height: 8),
-            ..._richBlockWidgets(_activeRichBlocks, outgoing),
-          ],
-          if (_activeLinkPreview != null &&
-              !_activeLinkPreview!.showAboveText) ...[
-            if (text.isNotEmpty || _activeRichBlocks.isNotEmpty)
-              const SizedBox(height: 7),
-            _linkPreviewCard(
-              _activeLinkPreview!,
-              outgoing,
-              maxWidth: previewMaxWidth,
-            ),
-          ],
-          if (_showsTranslation) ...[
-            const SizedBox(height: 7),
-            _translationBlock(outgoing),
-          ],
-          if (_showsAiSummary) ...[
-            const SizedBox(height: 7),
-            _aiSummaryBlock(outgoing),
-          ] else if (message.summaryLanguageCode.isNotEmpty &&
-              widget.onSummarizeMessage != null) ...[
-            const SizedBox(height: 7),
-            GestureDetector(
-              key: const ValueKey('messageSummarizeAction'),
-              behavior: HitTestBehavior.opaque,
-              onTap: () => widget.onSummarizeMessage?.call(message),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.brand.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(AppRadius.control),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AppIcon(
-                      HeroAppIcons.wandMagicSparkles,
-                      size: 15,
-                      color: AppTheme.brand,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      AppStrings.t(AppStringKeys.messageBubbleSummarize),
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.brand,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
     );
   }
 
-  static final RegExp _whitespaceRegExp = RegExp(r'\s+');
   String? _emojiOnlyKey;
   bool _emojiOnlyValue = false;
 
+  /// The answer is nearly always "no" and never changes for a given message, so
+  /// it is memoised; the scan itself walks the source lazily and quits on the
+  /// first ordinary character instead of building a stripped copy first.
   bool _isEmojiOnlyText(String text) {
-    // Two full scans plus a string allocation for an answer that is nearly
-    // always "no" and never changes for a given message — memoise it.
     if (_emojiOnlyKey == text) return _emojiOnlyValue;
     _emojiOnlyKey = text;
     _emojiOnlyValue = _computeIsEmojiOnlyText(text);
@@ -1862,15 +1870,35 @@ class _MessageBubbleState extends State<MessageBubble>
   }
 
   bool _computeIsEmojiOnlyText(String text) {
-    final stripped = text.replaceAll(_whitespaceRegExp, '');
-    if (stripped.isEmpty) return false;
     var count = 0;
-    for (final cluster in stripped.characters) {
+    for (final cluster in text.characters) {
+      if (_isWhitespaceCluster(cluster)) continue;
       if (!_isEmojiCluster(cluster)) return false;
       count++;
     }
     return count > 1;
   }
+
+  bool _isWhitespaceCluster(String cluster) {
+    for (final rune in cluster.runes) {
+      if (!_isWhitespaceRune(rune)) return false;
+    }
+    return true;
+  }
+
+  /// The set `RegExp(r'\s')` matches, which is what this check used to strip.
+  bool _isWhitespaceRune(int rune) =>
+      rune == 0x20 ||
+      (rune >= 0x09 && rune <= 0x0D) ||
+      rune == 0xA0 ||
+      rune == 0x1680 ||
+      (rune >= 0x2000 && rune <= 0x200A) ||
+      rune == 0x2028 ||
+      rune == 0x2029 ||
+      rune == 0x202F ||
+      rune == 0x205F ||
+      rune == 0x3000 ||
+      rune == 0xFEFF;
 
   bool _isEmojiCluster(String cluster) {
     final runes = cluster.runes.toList();
@@ -3595,27 +3623,28 @@ class _MessageBubbleState extends State<MessageBubble>
   /// Trailing inline meta: delivery progress, replaced by edit status.
   InlineSpan _metaSpan(bool outgoing) {
     final faint = _messageTimeColor(outgoing);
+    // At most one glyph, so it needs no flex row to hold it.
+    final Widget glyph;
+    if (widget.message.isEdited) {
+      glyph = AppIcon(
+        HeroAppIcons.penToSquare,
+        key: const ValueKey('messageDeliveryEdited'),
+        size: 10,
+        color: faint,
+      );
+    } else if (outgoing) {
+      glyph = _deliveryTick(
+        sentColor: _showsMessageBubbleSurface
+            ? Colors.white
+            : _outgoingTextColor,
+      );
+    } else {
+      glyph = const SizedBox.shrink();
+    }
     return WidgetSpan(
       child: Padding(
         padding: const EdgeInsets.only(left: 6, top: 2),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (widget.message.isEdited)
-              AppIcon(
-                HeroAppIcons.penToSquare,
-                key: const ValueKey('messageDeliveryEdited'),
-                size: 10,
-                color: faint,
-              )
-            else if (outgoing)
-              _deliveryTick(
-                sentColor: _showsMessageBubbleSurface
-                    ? Colors.white
-                    : _outgoingTextColor,
-              ),
-          ],
-        ),
+        child: glyph,
       ),
     );
   }
