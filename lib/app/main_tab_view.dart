@@ -328,13 +328,19 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
 
   void _openMessageDeepLink(ChatDeepLinkRequest request) {
     final accounts = context.read<AccountStore>();
-    final requestedSlot =
-        request.accountSlot ??
-        accounts.summaries
-            .where((account) => account.userId == request.accountUserId)
-            .map((account) => account.slot)
-            .firstOrNull;
-    if (requestedSlot != null && requestedSlot != accounts.activeSlot) {
+    final requestedSlot = resolveDeepLinkAccountSlot(
+      requestedSlot: request.accountSlot,
+      requestedUserId: request.accountUserId,
+      activeSlot: accounts.activeSlot,
+      accounts: [
+        for (final account in accounts.summaries)
+          (slot: account.slot, userId: account.userId),
+      ],
+    );
+    // Nothing to place the chat id against safely; opening it here would show
+    // a different conversation with the same id.
+    if (requestedSlot == null) return;
+    if (requestedSlot != accounts.activeSlot) {
       accounts.switchTo(requestedSlot, context.read<AuthManager>());
       final controller = _chatDeepLinks;
       WidgetsBinding.instance.addPostFrameCallback((_) {
