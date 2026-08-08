@@ -46,10 +46,18 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
   int _requiredStarCount = 0;
   int? _agreedStarCount;
 
+  /// Whether the last query had any characters (the clear button) and any
+  /// non-blank ones (which empty-state copy to show). Those are the only two
+  /// things `build` reads off the query text.
+  bool _hadQueryText = false;
+  bool _hadQueryTerm = false;
+
   @override
   void initState() {
     super.initState();
     _searchController.text = widget.initialQuery;
+    _hadQueryText = widget.initialQuery.isNotEmpty;
+    _hadQueryTerm = widget.initialQuery.trim().isNotEmpty;
     unawaited(_run(reset: true));
   }
 
@@ -60,11 +68,19 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
     super.dispose();
   }
 
-  void _queryChanged(String _) {
+  void _queryChanged(String value) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 320), () {
       if (mounted) unawaited(_run(reset: true));
     });
+    // The field paints its own text, so a keystroke that changes neither of the
+    // two flags changes nothing on screen — and a rebuild here re-lays-out
+    // every result row.
+    final hasText = value.isNotEmpty;
+    final hasTerm = value.trim().isNotEmpty;
+    if (hasText == _hadQueryText && hasTerm == _hadQueryTerm) return;
+    _hadQueryText = hasText;
+    _hadQueryTerm = hasTerm;
     setState(() {});
   }
 

@@ -832,14 +832,17 @@ class ContactsViewModel extends ChangeNotifier {
       for (final id in ids) {
         if (_disposed) return;
         // getChats has no offset, so every pass returns the ids the previous
-        // pass already hydrated. Live edits arrive through _subscribe.
-        if (!_hydratedChats.add(id)) continue;
+        // pass already hydrated. Live edits arrive through _subscribe. Marked
+        // only once getChat has actually answered, or a chat whose fetch fails
+        // once would be skipped by every later pass and never appear at all.
+        if (_hydratedChats.contains(id)) continue;
         try {
           final chat = await TdClient.shared.query({
             '@type': 'getChat',
             'chat_id': id,
           });
           if (_disposed) return;
+          _hydratedChats.add(id);
           await _ingestChat(chat);
         } catch (_) {}
       }

@@ -143,9 +143,11 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
   final Map<int, Timer> _backlogTimers = {};
   final Set<int> _syncedClients = {};
 
-  /// Join status per (clientId, basic-group or supergroup id). Keyed by group
-  /// rather than chat because the invalidating update carries only the group.
-  final Map<(int, int), bool> _groupJoinCache = {};
+  /// Join status per (clientId, is-supergroup, group id). Keyed by group rather
+  /// than chat because the invalidating update carries only the group, and the
+  /// kind is part of the key because basic-group and supergroup identifiers are
+  /// separate TDLib id spaces whose values can collide.
+  final Map<(int, bool, int), bool> _groupJoinCache = {};
 
   bool get inAppBannersEnabled => _inAppBannersEnabled;
   InAppNotificationBannerData? get inAppBanner => _inAppBanner;
@@ -285,14 +287,17 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
     }
     if (update.type == 'updateBasicGroup' ||
         update.type == 'updateSupergroup') {
+      final isSupergroupUpdate = update.type == 'updateSupergroup';
       final group = update.obj(
-        update.type == 'updateBasicGroup' ? 'basic_group' : 'supergroup',
+        isSupergroupUpdate ? 'supergroup' : 'basic_group',
       );
       final joined = isJoinedMemberStatus(group?.obj('status'));
       // The update already carries the whole group, so membership never has to
       // be re-queried per incoming message once the group has been seen once.
       final groupId = group?.int64('id');
-      if (groupId != null) _groupJoinCache[(clientId, groupId)] = joined;
+      if (groupId != null) {
+        _groupJoinCache[(clientId, isSupergroupUpdate, groupId)] = joined;
+      }
       if (isActiveAccount && !joined) {
         unawaited(_dismissBannerIfNoLongerJoined(clientId: clientId));
       }
@@ -939,6 +944,7 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
     required int clientId,
   }) async {
     final type = chat.obj('type');
+    final isSupergroup = type?.type == 'chatTypeSupergroup';
     final groupId = switch (type?.type) {
       'chatTypeBasicGroup' => type?.int64('basic_group_id'),
       'chatTypeSupergroup' => type?.int64('supergroup_id'),
@@ -947,14 +953,15 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
     if (groupId == null) {
       return isJoinedGroupOrChannelChat(chatId, chat: chat, clientId: clientId);
     }
-    final cached = _groupJoinCache[(clientId, groupId)];
+    final key = (clientId, isSupergroup, groupId);
+    final cached = _groupJoinCache[key];
     if (cached != null) return cached;
     final joined = await isJoinedGroupOrChannelChat(
       chatId,
       chat: chat,
       clientId: clientId,
     );
-    _groupJoinCache[(clientId, groupId)] = joined;
+    _groupJoinCache[key] = joined;
     return joined;
   }
 

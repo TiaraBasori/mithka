@@ -495,6 +495,10 @@ class _MacosTitleBarAvatar extends StatelessWidget {
       key: const ValueKey('macos-title-bar-account-avatar-file'),
       width: size,
       height: size,
+      // The branch a signed-in user actually renders: a full-size profile
+      // photo for a 24 pt slot. Width only, so the aspect BoxFit.cover crops
+      // against is unchanged.
+      cacheWidth: (size * 4).round(),
       fit: BoxFit.cover,
       errorBuilder: (_, _, _) => _fallback(),
     );

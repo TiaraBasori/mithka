@@ -695,11 +695,15 @@ class GroupCallController extends ChangeNotifier {
     };
     // maxQuality is derived from the participant count, so it belongs in the
     // key: a 4→5 transition changes the request without changing the endpoints.
+    // audioSourceId is in it for the same reason — it is marshalled with every
+    // channel, so a participant that re-joins on a new audio source has to be
+    // re-sent even when its endpoint and source groups are unchanged.
     final channelSignature = [
       maxQuality.name,
       for (final participant in videoParticipants)
         [
           participant.videoEndpointId,
+          participant.audioSourceId,
           _participantId(participant),
           for (final group in participant.videoSourceGroups)
             '${group.semantics}=${group.sourceIds.join('.')}',

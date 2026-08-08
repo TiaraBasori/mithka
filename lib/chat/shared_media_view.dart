@@ -2148,54 +2148,116 @@ class _SharedMediaViewState extends State<SharedMediaView> {
     );
   }
 
+  /// One of these sits in the corner of every photo, video and grid tile. As a
+  /// `PopupMenuButton` it inflated ~25 elements — IconButton, InkResponse and
+  /// its Actions/Focus/MouseRegion/RawGestureDetector stack, plus a Tooltip —
+  /// on top of an ~8 element tile, and a fling recycles a screenful of tiles
+  /// every few frames. It is a painted circle now; the same two actions open in
+  /// the project's own sheet. (It was also Material, which the project bans.)
   Widget _overlayMenu(ChatMessage message) {
-    final c = context.colors;
-    final state = _stateFor(message);
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.42),
-        shape: BoxShape.circle,
+    return Semantics(
+      key: ValueKey(
+        'shared-media-overlay-menu-${_sourceChatIdFor(message)}-${message.id}',
       ),
-      child: PopupMenuButton<_SharedMediaMenuAction>(
-        padding: EdgeInsets.zero,
-        icon: const AppIcon(
-          HeroAppIcons.ellipsis,
-          size: 18,
-          color: Colors.white,
-        ),
-        color: c.background,
-        onSelected: (action) {
-          switch (action) {
-            case _SharedMediaMenuAction.openOriginal:
-              _openSourceMessage(message);
-            case _SharedMediaMenuAction.deleteCache:
-              _deleteLocalCache(message);
-          }
-        },
-        itemBuilder: (context) => [
-          PopupMenuItem(
-            enabled: _canOpenSourceMessage(message),
-            value: _SharedMediaMenuAction.openOriginal,
-            child: Text(AppStrings.t(AppStringKeys.momentsOpenOriginalMessage)),
+      // Its own node, as the button it replaces had — without this the label
+      // and the tap merge into the tile's node and swallow the tile's own.
+      container: true,
+      button: true,
+      label: AppStrings.t(AppStringKeys.momentsMore),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => unawaited(_showMediaActions(message)),
+        child: Container(
+          width: 30,
+          height: 30,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.42),
+            shape: BoxShape.circle,
           ),
-          if (_fileId(message) != null) ...[
-            const PopupMenuDivider(),
-            PopupMenuItem(
-              enabled: state?.hasLocalBytes == true,
-              value: _SharedMediaMenuAction.deleteCache,
-              child: Text(
-                AppStrings.t(AppStringKeys.sharedMediaDeleteLocalCache),
-                style: TextStyle(
-                  color: state?.hasLocalBytes == true
-                      ? Colors.redAccent
-                      : c.textTertiary,
-                ),
+          child: const AppIcon(
+            HeroAppIcons.ellipsis,
+            size: 18,
+            color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showMediaActions(ChatMessage message) async {
+    final state = _stateFor(message);
+    final canOpen = _canOpenSourceMessage(message);
+    final hasFile = _fileId(message) != null;
+    final canDelete = hasFile && state?.hasLocalBytes == true;
+    final action = await showAppModalSheet<_SharedMediaMenuAction>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => SafeArea(
+        top: false,
+        child: SettingsCard(
+          margin: const EdgeInsets.all(10),
+          children: [
+            _mediaActionRow(
+              sheetContext,
+              label: AppStrings.t(AppStringKeys.momentsOpenOriginalMessage),
+              enabled: canOpen,
+              action: _SharedMediaMenuAction.openOriginal,
+            ),
+            if (hasFile) ...[
+              const InsetDivider(leadingInset: 16),
+              _mediaActionRow(
+                sheetContext,
+                label: AppStrings.t(AppStringKeys.sharedMediaDeleteLocalCache),
+                enabled: canDelete,
+                destructive: true,
+                action: _SharedMediaMenuAction.deleteCache,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _SharedMediaMenuAction.openOriginal:
+        _openSourceMessage(message);
+      case _SharedMediaMenuAction.deleteCache:
+        unawaited(_deleteLocalCache(message));
+    }
+  }
+
+  Widget _mediaActionRow(
+    BuildContext sheetContext, {
+    required String label,
+    required bool enabled,
+    required _SharedMediaMenuAction action,
+    bool destructive = false,
+  }) {
+    final c = sheetContext.colors;
+    return AppInteractiveSurface(
+      onTap: enabled ? () => Navigator.of(sheetContext).pop(action) : null,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minHeight: AppMetric.settingsRowHeight,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 16,
+                color: !enabled
+                    ? c.textTertiary
+                    : destructive
+                    ? Colors.redAccent
+                    : c.textPrimary,
               ),
             ),
-          ],
-        ],
+          ),
+        ),
       ),
     );
   }

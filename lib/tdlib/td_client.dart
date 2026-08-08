@@ -1580,6 +1580,40 @@ class TdClient {
         sync: true,
       )).stream;
 
+  /// Updates of any of [types] from the active account, in arrival order.
+  ///
+  /// The same win as [updatesOf] for a consumer that needs several types: a
+  /// [subscribe] listener is woken for every event in the app — including the
+  /// highest-rate ones, `updateFile` during a chunked download and the login
+  /// sync burst — only to walk its own `switch` and return.
+  ///
+  /// Order is preserved because every controller on this path is synchronous,
+  /// so an event is forwarded and delivered before the next one is dispatched.
+  Stream<Map<String, dynamic>> updatesOfAny(Iterable<String> types) {
+    final wanted = types.toSet();
+    final subscriptions = <StreamSubscription<Map<String, dynamic>>>[];
+    // Lives exactly as long as the stream it hands back; the source
+    // subscriptions are dropped in onCancel, so nothing is retained after the
+    // consumer lets go.
+    // ignore: close_sinks
+    late final StreamController<Map<String, dynamic>> merged;
+    merged = StreamController<Map<String, dynamic>>.broadcast(
+      sync: true,
+      onListen: () {
+        for (final type in wanted) {
+          subscriptions.add(updatesOf(type).listen(merged.add));
+        }
+      },
+      onCancel: () {
+        for (final subscription in subscriptions) {
+          unawaited(subscription.cancel());
+        }
+        subscriptions.clear();
+      },
+    );
+    return merged.stream;
+  }
+
   final Map<String, StreamController<Map<String, dynamic>>> _typedUpdates = {};
 
   void _dispatchToActiveSubscribers(Map<String, dynamic> update) {

@@ -4485,8 +4485,49 @@ class ChatViewModel extends ChangeNotifier {
 
   // MARK: - Live updates
 
+  /// Every `@type` [_handle] has an arm for. Keep in sync with its switch: an
+  /// omission silently stops that arm from ever running.
+  static const _handledUpdateTypes = <String>[
+    'updateNewMessage',
+    'updateMessageContent',
+    'updateMessageSuggestedPostInfo',
+    'updateChatUnreadMentionCount',
+    'updateMessageSendSucceeded',
+    'updateMessageSendAcknowledged',
+    'updateMessageSendFailed',
+    'updateSecretChat',
+    'updateChat',
+    'updateChatActionBar',
+    'updateChatBusinessBotManageBar',
+    'updateChatHasProtectedContent',
+    'updateChatDraftMessage',
+    'updateChatMessageAutoDeleteTime',
+    'updateChatPaidMessageStarCount',
+    'updateDeleteMessages',
+    'mithkaChatHistoryCleared',
+    'mithkaChatLeft',
+    'updateChatReadOutbox',
+    'updateChatReadInbox',
+    'updateChatIsMarkedAsUnread',
+    'updateChatAction',
+    'updateChatMessageSender',
+    'updateUser',
+    'updateUserFullInfo',
+    'updateSupergroup',
+    'updateSupergroupFullInfo',
+    'updateBasicGroupFullInfo',
+    'updateUserStatus',
+    'updateMessageEdited',
+    'updateMessageInteractionInfo',
+    'updateAvailableMessageEffects',
+    'updateBlockMessageSender',
+  ];
+
   void _subscribeToUpdates() {
-    _sub ??= _client.subscribe().listen(_handle);
+    // An open chat used to be woken for every update in the app — including the
+    // `updateFile` storm of a chunked download — only to walk 33 cases and
+    // return. It now hears exactly the types it handles.
+    _sub ??= _client.updatesOfAny(_handledUpdateTypes).listen(_handle);
   }
 
   void _handle(Map<String, dynamic> update) {
@@ -5866,6 +5907,10 @@ class ChatViewModel extends ChangeNotifier {
     // otherwise keep handing out deleted messages.
     _messageIndexesDirty = true;
     _blockedReadIds.removeWhere(removed.contains);
+    // Same reason: the incremental append path hands this list straight to the
+    // read-boundary marker, so a deleted id left here is force-read again (and
+    // never dropped until the next full pass).
+    _blockedMessageIds.removeWhere(removed.contains);
     if (replyTo != null && removed.contains(replyTo!.id)) replyTo = null;
     if (pinnedMessages.any((m) => removed.contains(m.id))) {
       pinnedMessages = pinnedMessages

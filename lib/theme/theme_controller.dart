@@ -1232,6 +1232,8 @@ class ThemeController extends ChangeNotifier {
   late double _fontScale;
   late double _interfaceScale;
   Timer? _scalePersistTimer;
+  bool _fontScaleNeedsPersist = false;
+  bool _interfaceScaleNeedsPersist = false;
   late bool _circularGroupAvatars;
   late bool _animateAvatars;
   late bool _animateStatusEmoji;
@@ -2250,6 +2252,7 @@ class ThemeController extends ChangeNotifier {
     final next = value.clamp(minFontScale, maxFontScale);
     if (_fontScale == next) return;
     _fontScale = next;
+    _fontScaleNeedsPersist = true;
     _scheduleScalePersist();
     notifyListeners();
   }
@@ -2260,6 +2263,7 @@ class ThemeController extends ChangeNotifier {
     final next = math.sqrt(value.clamp(minInterfaceScale, maxInterfaceScale));
     if (_interfaceScale == next) return;
     _interfaceScale = next;
+    _interfaceScaleNeedsPersist = true;
     _scheduleScalePersist();
     notifyListeners();
   }
@@ -2277,10 +2281,20 @@ class ThemeController extends ChangeNotifier {
     );
   }
 
+  /// Only the scale that actually moved is written: on desktop the settings
+  /// window runs its own engine with its own controller, so writing back a
+  /// scale this instance never changed can push a stale cached value over one
+  /// the other window just stored.
   void _persistScales() {
     _scalePersistTimer = null;
-    _prefs.setDouble(_fontKey, _fontScale);
-    _prefs.setDouble(_interfaceScaleKey, _interfaceScale);
+    if (_fontScaleNeedsPersist) {
+      _fontScaleNeedsPersist = false;
+      _prefs.setDouble(_fontKey, _fontScale);
+    }
+    if (_interfaceScaleNeedsPersist) {
+      _interfaceScaleNeedsPersist = false;
+      _prefs.setDouble(_interfaceScaleKey, _interfaceScale);
+    }
   }
 
   @override
