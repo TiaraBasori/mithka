@@ -265,6 +265,7 @@ void main() {
       findsNothing,
     );
 
+    requests.clear();
     await tester.tap(find.byKey(const ValueKey('searchTokenSuggestion-55')));
     await tester.pump(const Duration(milliseconds: 241));
     await tester.pumpAndSettle();
@@ -274,6 +275,29 @@ void main() {
     expect(
       find.byKey(const ValueKey('desktop-title-bar-search-from')),
       findsOneWidget,
+    );
+    expect(controller.panelVisible, isTrue);
+    expect(
+      find.byKey(const ValueKey('desktop-inline-search-section-posts')),
+      findsOneWidget,
+    );
+
+    final senderSearches = requests
+        .where((request) => request['@type'] == 'searchChatMessages')
+        .toList();
+    expect(senderSearches, isNotEmpty);
+    expect(
+      senderSearches.map((request) => request['chat_id']).toSet(),
+      containsAll(<int>[55, 900]),
+      reason: 'sender-only search includes the private chat and shared groups',
+    );
+    expect(senderSearches.every((request) => request['query'] == ''), isTrue);
+    expect(
+      senderSearches.every(
+        (request) =>
+            (request['sender_id'] as Map<String, dynamic>)['user_id'] == 55,
+      ),
+      isTrue,
     );
   });
 

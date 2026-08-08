@@ -114,8 +114,7 @@ class DesktopInlineSearchController extends ChangeNotifier {
       _query.trim().isEmpty &&
       _scope == null &&
       resolvedSender == null;
-  bool get panelVisible =>
-      showsTokenHints || (_panelVisible && _query.trim().isNotEmpty);
+  bool get panelVisible => showsTokenHints || (_panelVisible && _hasSearch);
   bool get isLoading =>
       _debouncing || _miniAppsLoading || _activeTabs.any(_model.isLoading);
 
@@ -149,7 +148,7 @@ class DesktopInlineSearchController extends ChangeNotifier {
     focusNode.requestFocus();
     final scopeChanged = scope != null && scope != _scope;
     if (scopeChanged) _applyScope(scope);
-    final shouldShow = _query.trim().isNotEmpty;
+    final shouldShow = _hasSearch;
     if (_panelVisible == shouldShow && !scopeChanged) return;
     _panelVisible = shouldShow;
     notifyListeners();
@@ -171,9 +170,8 @@ class DesktopInlineSearchController extends ChangeNotifier {
     _debounce?.cancel();
     _model.clearTabs(_searchTabs);
     _invalidateMiniApps();
-    final trimmed = _query.trim();
-    _debouncing = trimmed.isNotEmpty;
-    if (trimmed.isEmpty) return;
+    _debouncing = _hasSearch;
+    if (!_hasSearch) return;
     _debounce = Timer(const Duration(milliseconds: 240), () {
       if (_disposed) return;
       unawaited(_runSearch());
