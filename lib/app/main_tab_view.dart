@@ -20,10 +20,13 @@ import '../channels/topic_channels_view.dart';
 import '../channels/topic_chat_view.dart';
 import '../chat/chat_info_view.dart';
 import '../chat/chat_members_view.dart';
+import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/desktop_chat_context_pane.dart';
 import '../chat/emoji_store.dart';
+import '../chat/media_send_preview_view.dart';
 import '../chat/music_player_controller.dart';
+import '../chat/outgoing_attachment.dart';
 import '../chats/archived_chats_view.dart';
 import '../chats/chat_list_view.dart';
 import '../communities/community_view.dart';
@@ -34,12 +37,14 @@ import '../contacts/contacts_view.dart';
 import '../l10n/app_locale_controller.dart';
 import '../l10n/app_localizations.dart';
 import '../moments/moments_view.dart';
+import '../platform/android_share_intent.dart';
 import '../profile/profile_view.dart';
 import '../settings/desktop_hotkey_controller.dart';
 import '../settings/topic_group_display_mode.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import '../tdlib/td_requests.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import '../theme/global_theme_view.dart';
@@ -53,6 +58,7 @@ import 'desktop_chat_window.dart';
 import 'desktop_navigation_rail.dart';
 import 'desktop_utility_window.dart';
 import 'detail_content_reveal.dart';
+import 'primary_chat_launcher.dart';
 import 'unread_badge_model.dart';
 
 @visibleForTesting
@@ -105,10 +111,20 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   bool _splitResizeHandleHovered = false;
   bool? _wasUsingSplitSelection;
   DesktopHotkeyRegistration? _newChatHotkeyRegistration;
+  final _androidShareIntent = AndroidShareIntentController.shared;
+  bool _presentingAndroidShare = false;
 
   @override
   void initState() {
     super.initState();
+    if (_androidShareIntent.supported) {
+      _androidShareIntent.addListener(_handleAndroidShareIntentChanged);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_androidShareIntent.start());
+        unawaited(_presentPendingAndroidShare());
+      });
+    }
     if (isDesktopTargetPlatform()) {
       unawaited(_restoreDesktopSidebarWidth());
       _newChatHotkeyRegistration = DesktopHotkeyRegistry.instance.register(
@@ -195,10 +211,106 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     _newChatHotkeyRegistration?.dispose();
     _observedAccounts?.removeListener(_handleAccountStoreChanged);
     _chatDeepLinks?.removeListener(_handlePendingChatDeepLink);
+    _androidShareIntent.removeListener(_handleAndroidShareIntentChanged);
     _chatListController.dispose();
     _unread.dispose();
     _tabBar.dispose();
     super.dispose();
+  }
+
+  void _handleAndroidShareIntentChanged() {
+    if (!mounted || !_androidShareIntent.hasPending) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_presentPendingAndroidShare());
+    });
+  }
+
+  Future<void> _presentPendingAndroidShare() async {
+    if (!mounted || !_androidShareIntent.supported || _presentingAndroidShare) {
+      return;
+    }
+    final payload = _androidShareIntent.takePending();
+    if (payload == null) return;
+    _presentingAndroidShare = true;
+    final copiedPaths = <String>[];
+    try {
+      final sharedFiles = await _androidShareIntent.copyFiles(payload.uris);
+      copiedPaths.addAll(sharedFiles.map((file) => file.path));
+      if (!mounted) return;
+      if (sharedFiles.isEmpty && payload.text.trim().isEmpty) return;
+
+      final picked = await Navigator.of(context, rootNavigator: true)
+          .push<ChatSummary>(
+            MaterialPageRoute(
+              builder: (_) =>
+                  const ChatPickerView(title: AppStringKeys.topicChatShare),
+            ),
+          );
+      if (!mounted || picked == null) return;
+
+      if (sharedFiles.isEmpty) {
+        await TdClient.shared.query(
+          setTextChatDraftRequest(
+            chatId: picked.id,
+            formattedText: {'@type': 'formattedText', 'text': payload.text},
+            date: DateTime.now().millisecondsSinceEpoch ~/ 1000,
+          ),
+        );
+        if (!mounted) return;
+        await openChatFromCurrentWindow(
+          context,
+          chatId: picked.id,
+          title: picked.title,
+        );
+        return;
+      }
+
+      final attachments = [
+        for (final file in sharedFiles)
+          OutgoingAttachment(
+            path: file.path,
+            kind: file.attachmentKind,
+            fileName: file.fileName,
+          ),
+      ];
+      final preview = await Navigator.of(context, rootNavigator: true)
+          .push<MediaSendPreviewResult>(
+            MaterialPageRoute(
+              fullscreenDialog: true,
+              builder: (_) => MediaSendPreviewView(
+                attachments: attachments,
+                initialCaption: payload.text,
+              ),
+            ),
+          );
+      if (!mounted || preview == null || preview.attachments.isEmpty) return;
+      final resolved = await resolveAttachmentListDimensions(
+        preview.attachments,
+      );
+      final requests = buildAttachmentSendRequests(
+        chatId: picked.id,
+        attachments: resolved,
+        caption: preview.caption,
+        sendConfiguration: preview.sendConfiguration,
+      );
+      for (final request in requests) {
+        await TdClient.shared.query(request);
+      }
+      if (!mounted) return;
+      await openChatFromCurrentWindow(
+        context,
+        chatId: picked.id,
+        title: picked.title,
+      );
+    } finally {
+      await _androidShareIntent.deleteFiles(copiedPaths);
+      _presentingAndroidShare = false;
+      if (mounted && _androidShareIntent.hasPending) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) unawaited(_presentPendingAndroidShare());
+        });
+      }
+    }
   }
 
   void _runChatListHotkey(VoidCallback action) {
