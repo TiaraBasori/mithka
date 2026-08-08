@@ -566,8 +566,24 @@ class ChatViewModel extends ChangeNotifier {
     activeAccountSlot: _client.activeSlot,
   );
 
+  int _composerRevision = 0;
+
+  /// Bumped by every notification except the handful proven not to touch
+  /// anything the composer renders, so the input bar can skip those rebuilds.
+  /// Bumping is the default: a path that forgets to opt out stays correct.
+  int get composerRevision => _composerRevision;
+
   @override
   void notifyListeners() {
+    if (_isDisposed) return;
+    _composerRevision++;
+    super.notifyListeners();
+  }
+
+  /// Notifies without bumping [composerRevision]. Only for state no composer
+  /// widget reads — the typing subtitle and the peer's online status, both of
+  /// which belong to the header.
+  void _notifyComposerNeutral() {
     if (_isDisposed) return;
     super.notifyListeners();
   }
@@ -4792,7 +4808,7 @@ class ChatViewModel extends ChangeNotifier {
           _restartTypingTimer();
           if (unchanged) return;
         }
-        notifyListeners();
+        _notifyComposerNeutral();
 
       case 'updateChatMessageSender':
         if (update.int64('chat_id') != chatId) return;
@@ -4859,7 +4875,7 @@ class ChatViewModel extends ChangeNotifier {
         peerStatusText = status == null
             ? ''
             : TDParse.userStatus({'status': status});
-        notifyListeners();
+        _notifyComposerNeutral();
 
       case 'updateMessageEdited':
         if (update.int64('chat_id') != chatId) return;
@@ -5112,7 +5128,7 @@ class ChatViewModel extends ChangeNotifier {
     _typingTimer = Timer(const Duration(seconds: 6), () {
       if (_chatActions.isNotEmpty) {
         _chatActions.clear();
-        notifyListeners();
+        _notifyComposerNeutral();
       }
     });
   }

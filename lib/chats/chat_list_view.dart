@@ -2006,17 +2006,17 @@ class _ChatListViewState extends State<ChatListView>
         child: child,
         builder: (context, child) {
           final progress = _folderTransition.value;
-          return Opacity(
-            opacity: 0.78 + 0.22 * progress,
-            child: Transform.translate(
-              offset: Offset(
-                _folderTransitionDirection *
-                    _folderTransitionDistance *
-                    (1 - progress),
-                0,
-              ),
-              child: child,
+          // Slide only: a fractional opacity here saveLayers the whole list
+          // every frame of the switch, and the fade it bought was imperceptible
+          // next to the 22px travel.
+          return Transform.translate(
+            offset: Offset(
+              _folderTransitionDirection *
+                  _folderTransitionDistance *
+                  (1 - progress),
+              0,
             ),
+            child: child,
           );
         },
       ),

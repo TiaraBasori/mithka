@@ -252,7 +252,9 @@ class TdClient {
       }
     }
     _allUpdates.add(object);
-    _updates.add(object);
+    // Same fan-out as the primary engine, so a secondary window's typed
+    // `updatesOf` listeners are fed too and not just `subscribe()`.
+    _dispatchToActiveSubscribers(object);
   }
 
   // MARK: - Lifecycle

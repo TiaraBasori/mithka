@@ -1063,16 +1063,19 @@ class _AppActivityIndicatorState extends State<AppActivityIndicator>
   @override
   Widget build(BuildContext context) => Semantics(
     label: AppStrings.t(AppStringKeys.topicChatLoading),
-    child: AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) => Transform.rotate(
-        angle: _controller.value * math.pi * 2,
-        child: child,
-      ),
-      child: AppIcon(
-        HeroAppIcons.arrowsRotate,
-        size: widget.size,
-        color: widget.color ?? context.colors.linkBlue,
+    // Own layer, or the 60 Hz spin repaints whatever list or button hosts it.
+    child: RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) => Transform.rotate(
+          angle: _controller.value * math.pi * 2,
+          child: child,
+        ),
+        child: AppIcon(
+          HeroAppIcons.arrowsRotate,
+          size: widget.size,
+          color: widget.color ?? context.colors.linkBlue,
+        ),
       ),
     ),
   );

@@ -515,6 +515,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   bool _desktopStickerPopoverVisible = false;
   bool _wasEditingMessage = false;
   int? _syncedEditingMessageId;
+  int _syncedComposerRevision = -1;
   _Panel _panel = _Panel.none;
   String _emojiTab = 'standard'; // 'standard' or a custom-emoji pack id
   int? _stickerPack; // active sticker pack id
@@ -632,9 +633,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
     EmojiStore.shared.addListener(_onStore);
     StickerStore.shared.addListener(_onStore);
     GifStore.shared.addListener(_onStore);
-    _botPlatformUpdates = TdClient.shared.subscribe().listen(
-      _handleBotPlatformUpdate,
-    );
+    _botPlatformUpdates = TdClient.shared
+        .updatesOf('updateNewGuestQuery')
+        .listen(_handleBotPlatformUpdate);
     if (widget.quickReplyLoader == null) {
       BusinessQuickReplyService.shared.addListener(_syncQuickReplyCache);
       _adoptQuickReplyCache(rebuild: false);
@@ -702,7 +703,6 @@ class _ChatInputBarState extends State<ChatInputBar> {
   }
 
   void _handleBotPlatformUpdate(Map<String, dynamic> update) {
-    if (update.type != 'updateNewGuestQuery') return;
     try {
       final query = BotGuestQuery.fromUpdate(update);
       if (!mounted) return;
@@ -971,6 +971,16 @@ class _ChatInputBarState extends State<ChatInputBar> {
   }
 
   void _syncFromVm() {
+    // A notification that changed only the typing subtitle or the peer's
+    // online status leaves the revision alone; nothing here renders either.
+    final revision = vm.composerRevision;
+    final revisionChanged = revision != _syncedComposerRevision;
+    _syncedComposerRevision = revision;
+    final hadText = _hasText;
+    final wasAiDraftEligible = _aiDraftEligible;
+    final hadQuickReplyContext = _quickReplyContextVisible;
+    final previousBotCommandQuery = _botCommandQuery;
+    final previousBotCommandCandidates = _botCommandCandidates;
     final workingTargetId = _aiReplyWorkingTargetId;
     final workingUsesExplicitTarget = _aiReplyWorkingUsesExplicitTarget;
     final workingTargetFingerprint = _aiReplyWorkingTargetFingerprint;
@@ -1035,7 +1045,14 @@ class _ChatInputBarState extends State<ChatInputBar> {
       _botCommandCandidates = const [];
     }
     _requestInitialFocusIfReady();
-    if (mounted) setState(() {});
+    final localChanged =
+        editingStateChanged ||
+        hadText != _hasText ||
+        wasAiDraftEligible != _aiDraftEligible ||
+        hadQuickReplyContext != _quickReplyContextVisible ||
+        !identical(previousBotCommandQuery, _botCommandQuery) ||
+        !identical(previousBotCommandCandidates, _botCommandCandidates);
+    if (mounted && (revisionChanged || localChanged)) setState(() {});
   }
 
   void _requestInitialFocusIfReady() {
