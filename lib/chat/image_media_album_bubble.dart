@@ -15,6 +15,7 @@ import '../theme/telegram_cloud_theme.dart';
 import '../theme/theme_controller.dart';
 import 'chat_appearance_preview.dart';
 import 'media_album_layout.dart';
+import 'media_preview_geometry.dart';
 import 'message_action_menu.dart';
 import 'telegram_rich_text.dart';
 
@@ -130,7 +131,12 @@ class ImageMediaAlbumBubble extends StatelessWidget {
           context,
           outgoing: outgoing,
           captionMessage: captionMessage,
-          maxWidth: math.max(1, chatWidth * 0.75),
+          // An album is chat media like any other: a wide transcript must not
+          // stretch it past the box a single photo would get.
+          maxWidth: math.max(
+            1.0,
+            math.min(chatWidth * 0.75, telegramDesktopMediaPreviewMaxSide),
+          ),
         );
         final body = outgoing
             ? gallery
@@ -303,6 +309,7 @@ class ImageMediaAlbumBubble extends StatelessWidget {
       maxSingleHeight: 300,
       minRowHeight: 82,
       maxRowHeight: 230,
+      maxHeight: telegramChatMediaPreviewMaxHeight,
     );
     final width = layout.width + padding * 2;
     final interactionOwner = selectMediaAlbumInteractionOwner(messages);
