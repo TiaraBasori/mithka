@@ -1087,8 +1087,9 @@ class _ChatListViewState extends State<ChatListView>
       final renderBox = ctx.findRenderObject() as RenderBox?;
       if (renderBox == null) return;
 
+      // Scrollable.of asserts rather than returning null, so the row is either
+      // inside a scrollable or this is a programming error worth surfacing.
       final scrollableState = Scrollable.of(ctx);
-      if (scrollableState == null) return;
       final viewportBox =
           scrollableState.context.findRenderObject() as RenderBox?;
       if (viewportBox == null) return;

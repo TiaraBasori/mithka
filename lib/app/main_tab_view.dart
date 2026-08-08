@@ -22,6 +22,7 @@ import '../chat/chat_info_view.dart';
 import '../chat/chat_members_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/desktop_chat_context_pane.dart';
+import '../chat/emoji_store.dart';
 import '../chat/music_player_controller.dart';
 import '../chats/archived_chats_view.dart';
 import '../chats/chat_list_view.dart';
@@ -53,7 +54,6 @@ import 'desktop_navigation_rail.dart';
 import 'desktop_utility_window.dart';
 import 'detail_content_reveal.dart';
 import 'unread_badge_model.dart';
-import '../chat/emoji_store.dart';
 
 @visibleForTesting
 bool desktopChatKindUsesContextPane(ChatKind? kind) =>
