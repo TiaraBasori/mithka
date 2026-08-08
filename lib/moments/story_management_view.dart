@@ -923,19 +923,38 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             ),
           ),
           _tabs(),
+          // Sliver grids, not shrink-wrapped ones: a shrink-wrapping viewport
+          // lays out — and decodes the artwork of — every archived story, and
+          // the archive pages in up to 10k of those.
           Expanded(
             child: _loading
                 ? const Center(child: StoryActivityIndicator())
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
-                    children: [
-                      _storySectionHeader(),
-                      const SizedBox(height: 10),
-                      if (_stories.isEmpty) _emptyStories() else _storyGrid(),
-                      const SizedBox(height: 24),
-                      _albumSectionHeader(),
-                      const SizedBox(height: 10),
-                      if (_albums.isEmpty) _emptyAlbums() else _albumGrid(),
+                : CustomScrollView(
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                        sliver: SliverToBoxAdapter(
+                          child: _storySectionHeader(),
+                        ),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        sliver: _stories.isEmpty
+                            ? SliverToBoxAdapter(child: _emptyStories())
+                            : _storyGrid(),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(12, 24, 12, 10),
+                        sliver: SliverToBoxAdapter(
+                          child: _albumSectionHeader(),
+                        ),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
+                        sliver: _albums.isEmpty
+                            ? SliverToBoxAdapter(child: _emptyAlbums())
+                            : _albumGrid(),
+                      ),
                     ],
                   ),
           ),
@@ -1044,10 +1063,8 @@ class _StoryManagementViewState extends State<StoryManagementView> {
     );
   }
 
-  Widget _storyGrid() => GridView.builder(
+  Widget _storyGrid() => SliverGrid.builder(
     key: ValueKey('story-grid-$_tab'),
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
     itemCount: _stories.length,
     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: 3,
@@ -1456,9 +1473,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
     ),
   );
 
-  Widget _albumGrid() => GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
+  Widget _albumGrid() => SliverGrid.builder(
     itemCount: _albums.length,
     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: 2,

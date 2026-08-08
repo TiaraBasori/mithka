@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 /// One locale's strings, loaded from `assets/l10n/<tag>.json`.
@@ -110,19 +111,27 @@ abstract final class LocaleCatalogues {
   /// True once [appKey] itself is in memory.
   static bool isLoaded(String appKey) => _loaded.containsKey(appKey);
 
-  /// Loads [appKey], and starts the English fallback in the background.
+  /// Loads [appKey], and queues the English fallback for an idle moment.
   ///
   /// Only [appKey] is awaited. `check.py` and `l10n_completeness_test.dart`
   /// both enforce that every locale declares the same keys as English, so the
   /// active catalogue alone resolves every lookup and the fallback is a net
   /// for a broken invariant, not part of the normal path. Awaiting it here
-  /// doubled the JSON the first frame waits on for seven of the eight locales.
+  /// doubled the JSON the first frame waits on for seven of the eight locales
+  /// — and starting it right away merely moved that 180-220 KB decode onto an
+  /// arbitrary frame in the first seconds of the session, so it waits for a gap
+  /// in the scheduler instead.
   ///
   /// Safe to call repeatedly and concurrently.
   static Future<void> ensureLoaded(String appKey) {
     if (appKey == fallbackAppKey) return _load(appKey);
     final active = _load(appKey);
-    unawaited(_load(fallbackAppKey));
+    unawaited(
+      SchedulerBinding.instance.scheduleTask(
+        () => _load(fallbackAppKey),
+        Priority.idle,
+      ),
+    );
     return active;
   }
 

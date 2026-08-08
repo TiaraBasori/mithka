@@ -3352,44 +3352,49 @@ class _ChatSwipeRowState extends State<ChatSwipeRow>
           : (details) => _settle(details.primaryVelocity ?? 0),
       child: widget.child,
     );
+    // At rest the row covers the blocks completely, so building them costs one
+    // text layout + one paint per action on every row of every list rebuild.
+    final actionsRevealed = _offset != 0 || widget.openRowId == widget.rowId;
     return ClipRect(
       child: Stack(
         children: [
           // Revealed action blocks behind the row.
           Positioned.fill(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: SizedBox(
-                width: _totalWidth,
-                child: Row(
-                  children: [
-                    for (final item in widget.actions)
-                      GestureDetector(
-                        onTap: () {
-                          item.onTap();
-                          setState(() => _offset = 0);
-                          if (widget.openRowId == widget.rowId) {
-                            widget.onOpenChanged(null);
-                          }
-                        },
-                        child: Container(
-                          width: _buttonWidth,
-                          color: item.color,
-                          alignment: Alignment.center,
-                          child: Text(
-                            item.title.l10n(context),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: AppTextSize.body,
-                              color: Colors.white,
+            child: !actionsRevealed
+                ? const SizedBox.shrink()
+                : Align(
+                    alignment: Alignment.centerRight,
+                    child: SizedBox(
+                      width: _totalWidth,
+                      child: Row(
+                        children: [
+                          for (final item in widget.actions)
+                            GestureDetector(
+                              onTap: () {
+                                item.onTap();
+                                setState(() => _offset = 0);
+                                if (widget.openRowId == widget.rowId) {
+                                  widget.onOpenChanged(null);
+                                }
+                              },
+                              child: Container(
+                                width: _buttonWidth,
+                                color: item.color,
+                                alignment: Alignment.center,
+                                child: Text(
+                                  item.title.l10n(context),
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: AppTextSize.body,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
+                        ],
                       ),
-                  ],
-                ),
-              ),
-            ),
+                    ),
+                  ),
           ),
           // The row, sliding left to uncover the blocks.
           Transform.translate(

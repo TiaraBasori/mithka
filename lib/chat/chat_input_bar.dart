@@ -172,6 +172,10 @@ bool isTelegramAiDraftEligible(String text) =>
 
 typedef _ClipboardImage = ({Uint8List data, String mimeType});
 
+/// The 10 Hz recorder tick, published to the waveform and the elapsed-time
+/// label alone so the whole composer does not rebuild with it.
+typedef _RecTick = ({double elapsed, List<double> levels});
+
 typedef AiReplyGenerator =
     Future<TelegramAiFormattedText> Function(AiReplyRequest request);
 
@@ -536,6 +540,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
   Timer? _recTimer;
   StreamSubscription<RecordingDisposition>? _recProgress;
   final List<double> _recLevels = [];
+  final ValueNotifier<_RecTick> _recTick = ValueNotifier((
+    elapsed: 0.0,
+    levels: const <double>[],
+  ));
   String? _recPath;
   late bool _hasText = vm.draft.trim().isNotEmpty;
   late bool _aiDraftEligible = isTelegramAiDraftEligible(vm.draft);
@@ -1138,6 +1146,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     _focus.dispose();
     _recTimer?.cancel();
     _recProgress?.cancel();
+    _recTick.dispose();
     _mentionSearchTimer?.cancel();
     _panelSearchTimer?.cancel();
     _inlineBotTimer?.cancel();
@@ -1455,6 +1464,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
     _recordingLocked = false;
     _elapsed = 0;
     _recLevels.clear();
+    _recTick.value = (elapsed: 0.0, levels: const <double>[]);
     try {
       await r.startRecorder(toFile: _recPath, codec: codec, sampleRate: 48000);
     } catch (_) {
@@ -1465,18 +1475,28 @@ class _ChatInputBarState extends State<ChatInputBar> {
     await _recProgress?.cancel();
     _recProgress = r.onProgress?.listen((event) {
       if (!mounted) return;
-      setState(() {
-        _elapsed = event.duration.inMilliseconds / 1000;
-        final level = event.decibels;
-        if (level != null && level.isFinite) {
-          _recLevels.add((level >= 0 ? level - 120 : level).clamp(-120.0, 0.0));
-        }
-      });
-    });
-    _recTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
-      if (mounted && !_recordingPaused && _elapsed == 0) {
-        setState(() => _elapsed += 0.1);
+      _elapsed = event.duration.inMilliseconds / 1000;
+      final level = event.decibels;
+      if (level != null && level.isFinite) {
+        _recLevels.add((level >= 0 ? level - 120 : level).clamp(-120.0, 0.0));
       }
+      _recTick.value = (
+        elapsed: _elapsed,
+        levels: _recLevels.reversed.take(36).toList().reversed.toList(),
+      );
+    });
+    _recTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (!mounted) return;
+      // Only here to move the clock until the recorder's own progress stream
+      // reports; once it has, the timer has nothing left to do.
+      if (_elapsed != 0) {
+        timer.cancel();
+        _recTimer = null;
+        return;
+      }
+      if (_recordingPaused) return;
+      _elapsed += 0.1;
+      _recTick.value = (elapsed: _elapsed, levels: _recTick.value.levels);
     });
   }
 
@@ -2460,7 +2480,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
         editingMessage == null &&
         (_panel != _Panel.none || replyKeyboardPanelVisible);
     final bottomSafeArea = MediaQuery.paddingOf(context).bottom;
-    return ColoredBox(
+    final bar = ColoredBox(
       key: const ValueKey('chat-input-safe-area-background'),
       color: c.inputBarBackground,
       child: Stack(
@@ -2544,6 +2564,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
         ],
       ),
     );
+    // Without its own layer the composer shares one with the chat wallpaper, so
+    // a keystroke or a typing update re-records the full-screen gradient too.
+    return RepaintBoundary(child: bar);
   }
 
   Widget _inlineBotResultMenu() {
@@ -2880,6 +2903,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   Widget _clipboardAttachmentStrip({required bool desktop}) {
     final c = context.colors;
+    // A pasted 12 MP photo decodes to ~48 MB of RGBA for a 58 px chip, which
+    // then evicts the rest of the image cache.
+    final tileCachePx = (58 * MediaQuery.devicePixelRatioOf(context)).ceil();
     return SizedBox(
       key: const ValueKey('clipboardAttachmentStrip'),
       height: 70,
@@ -2910,6 +2936,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       child: Image.file(
                         File(attachment.path),
                         fit: BoxFit.cover,
+                        cacheWidth: tileCachePx,
                         errorBuilder: (_, _, _) => Center(
                           child: AppIcon(
                             HeroAppIcons.image,
@@ -3939,6 +3966,9 @@ class _ChatInputBarState extends State<ChatInputBar> {
 
   _ReplyKeyboard? _activeReplyKeyboard() {
     for (final message in vm.messages.reversed) {
+      // Almost every message has no buttons; skipping them keeps this
+      // per-build whole-transcript walk allocation-free.
+      if (message.buttonRows.isEmpty) continue;
       final rows = message.buttonRows
           .map((row) => row.where((button) => button.isReplyKeyboard).toList())
           .where((row) => row.isNotEmpty)
@@ -6918,39 +6948,44 @@ class _ChatInputBarState extends State<ChatInputBar> {
             SizedBox(
               width: 220,
               height: 28,
-              child: Row(
-                children: [
-                  for (final level
-                      in _recLevels.reversed.take(36).toList().reversed)
-                    Expanded(
-                      child: Align(
-                        child: Container(
-                          width: 2,
-                          height:
-                              (4 + ((level.clamp(-60.0, 0.0) + 60) / 60) * 24)
-                                  .toDouble(),
-                          decoration: BoxDecoration(
-                            color: _recordingPaused
-                                ? c.textTertiary
-                                : AppTheme.brand,
-                            borderRadius: BorderRadius.circular(1),
+              child: ValueListenableBuilder<_RecTick>(
+                valueListenable: _recTick,
+                builder: (context, tick, _) => Row(
+                  children: [
+                    for (final level in tick.levels)
+                      Expanded(
+                        child: Align(
+                          child: Container(
+                            width: 2,
+                            height:
+                                (4 + ((level.clamp(-60.0, 0.0) + 60) / 60) * 24)
+                                    .toDouble(),
+                            decoration: BoxDecoration(
+                              color: _recordingPaused
+                                  ? c.textTertiary
+                                  : AppTheme.brand,
+                              borderRadius: BorderRadius.circular(1),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 6),
           ],
           Opacity(
             opacity: _recording ? 1 : 0.3,
-            child: Text(
-              _recTime(_elapsed),
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: c.textPrimary,
+            child: ValueListenableBuilder<_RecTick>(
+              valueListenable: _recTick,
+              builder: (context, tick, _) => Text(
+                _recTime(tick.elapsed),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: c.textPrimary,
+                ),
               ),
             ),
           ),

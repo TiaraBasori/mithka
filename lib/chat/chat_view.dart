@@ -7386,10 +7386,7 @@ class _ChatViewState extends State<ChatView> {
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   if (index < olderEntries.length) {
-                    return _buildTranscriptEntry(
-                      olderEntries[index],
-                      messages,
-                    );
+                    return _buildTranscriptEntry(olderEntries[index], messages);
                   }
                   if (firstContactBeforeCenter &&
                       index == olderEntries.length) {

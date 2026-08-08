@@ -63,14 +63,33 @@ class ChatListViewModel extends ChangeNotifier {
   List<ChatSummary> get chats => _chats;
   List<ChatSummary> get archived => _archived;
   List<ChatSummary> get filtered => _filtered;
+
+  /// The projection walks every chat in the account while the rest of a build
+  /// is O(visible rows), and it is asked for from inside a LayoutBuilder. It can
+  /// only change when the sort or the community grouping does, and both of those
+  /// run through `_scheduleResort`/`_resort`, which drop the cache.
+  List<CommunityChatListEntry>? _entriesCache;
+  bool _entriesCacheCommunitiesEnabled = true;
+
   List<CommunityChatListEntry> chatListEntries({
     bool communitiesEnabled = true,
-  }) => CommunityChatListProjection.build(
-    chats: _chats,
-    communityByChat: _communityByChat,
-    communities: _communities,
-    communitiesEnabled: communitiesEnabled,
-  );
+  }) {
+    final cached = _entriesCache;
+    if (cached != null &&
+        _entriesCacheCommunitiesEnabled == communitiesEnabled) {
+      return cached;
+    }
+    final entries = CommunityChatListProjection.build(
+      chats: _chats,
+      communityByChat: _communityByChat,
+      communities: _communities,
+      communitiesEnabled: communitiesEnabled,
+    );
+    _entriesCacheCommunitiesEnabled = communitiesEnabled;
+    _entriesCache = entries;
+    return entries;
+  }
+
   List<ChatFilterOption> get filters => _filters;
   ChatFilterOption get selectedFilter => _selectedFilter;
   bool get isAllFilter => _selectedFilter.isAll;
@@ -110,6 +129,7 @@ class ChatListViewModel extends ChangeNotifier {
   int? _meId;
   bool _prefetchingMain = false;
   final Set<String> _loadingChatLists = {};
+  final Map<String, int> _hydratingChatLists = {};
   final Set<String> _exhaustedChatLists = {};
   static const _pageSize = 100;
   static const _initialPageSize = 36;
@@ -402,6 +422,15 @@ class ChatListViewModel extends ChangeNotifier {
     required int limit,
   }) async {
     if (_disposed) return;
+    // loadMore() runs from a scroll listener, so near the end of the list this
+    // is asked for once per frame. Collapse the duplicates onto the in-flight
+    // round trip instead of decoding the same 100 ids on every frame of a fling.
+    // A request for more ids than are in flight still goes out, so the startup
+    // race between _loadChats and _prefetchMainChats keeps the wider page.
+    final key = _chatListKey(list);
+    final inFlight = _hydratingChatLists[key];
+    if (inFlight != null && inFlight >= limit) return;
+    _hydratingChatLists[key] = limit;
     try {
       final res = await _client.query({
         '@type': 'getChats',
@@ -416,6 +445,8 @@ class ChatListViewModel extends ChangeNotifier {
       }
     } catch (_) {
       _finishInitialLoadingIfNeeded(force: true);
+    } finally {
+      if (_hydratingChatLists[key] == limit) _hydratingChatLists.remove(key);
     }
   }
 
@@ -1195,6 +1226,7 @@ class ChatListViewModel extends ChangeNotifier {
           return b.id.compareTo(a.id);
         });
     }
+    _entriesCache = null;
     _finishInitialLoadingIfNeeded();
     stopwatch.stop();
     AppPerformanceMetrics.chatListResorted(
@@ -1208,6 +1240,9 @@ class ChatListViewModel extends ChangeNotifier {
 
   void _scheduleResort() {
     if (_disposed) return;
+    // Community grouping (collapse, access, membership) is mutated in place by
+    // callers that then schedule a resort, so drop the projection here too.
+    _entriesCache = null;
     _pendingResortSignals++;
     if (_resortTimer != null) return;
     // TDLib can deliver many dependent updates in one burst. A 50 ms window

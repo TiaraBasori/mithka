@@ -571,7 +571,9 @@ class _TDImageState extends State<TDImage> {
       // errorBuilder runs inside build, so the state change waits for the frame.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        unawaited(_reresolveMissingFile(file, target, isThumbnail: isThumbnail));
+        unawaited(
+          _reresolveMissingFile(file, target, isThumbnail: isThumbnail),
+        );
       });
     }
     final miniThumb = ref?.miniThumb;
@@ -612,67 +614,80 @@ class _TDImageState extends State<TDImage> {
 
   @override
   Widget build(BuildContext context) {
+    // Callers that already know their decode size skip the LayoutBuilder, whose
+    // performLayout re-enters the build phase on every relayout.
+    final Widget child = widget.cacheWidth != null && widget.cacheHeight != null
+        ? _image(context, widget.cacheWidth, widget.cacheHeight)
+        : LayoutBuilder(
+            builder: (context, constraints) => _image(
+              context,
+              widget.cacheWidth ??
+                  _cacheSizePxFromConstraint(context, constraints.maxWidth),
+              widget.cacheHeight ??
+                  _cacheSizePxFromConstraint(context, constraints.maxHeight),
+            ),
+          );
+    // A zero-radius ClipRRect still costs a clip op per paint, and 25 of the
+    // TDImage call sites ask for one.
+    if (widget.cornerRadius <= 0) return child;
     return ClipRRect(
       borderRadius: BorderRadius.circular(widget.cornerRadius),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final cacheSize = _boundedImageCacheSize(
-            widget.cacheWidth ??
-                _cacheSizePxFromConstraint(context, constraints.maxWidth),
-            widget.cacheHeight ??
-                _cacheSizePxFromConstraint(context, constraints.maxHeight),
-          );
-          final cacheWidth = cacheSize?.width;
-          final cacheHeight = cacheSize?.height;
-          Widget child;
-          if (_file != null) {
-            child = Image.file(
-              _file!,
-              fit: widget.fit,
-              cacheWidth: cacheWidth,
-              cacheHeight: cacheHeight,
-              gaplessPlayback: true,
-              errorBuilder: (context, _, _) =>
-                  _recoverFromUnreadableFile(_file!, isThumbnail: false),
-            );
-          } else if (_thumbnailFile != null) {
-            child = Image.file(
-              _thumbnailFile!,
-              fit: widget.fit,
-              cacheWidth: cacheWidth,
-              cacheHeight: cacheHeight,
-              gaplessPlayback: true,
-              errorBuilder: (context, _, _) =>
-                  _recoverFromUnreadableFile(_thumbnailFile!, isThumbnail: true),
-            );
-          } else if (widget.photo?.miniThumb != null) {
-            child = Image.memory(
-              widget.photo!.miniThumb!,
-              fit: widget.fit,
-              cacheWidth: cacheWidth,
-              cacheHeight: cacheHeight,
-              gaplessPlayback: true,
-            );
-          } else {
-            child = Container(color: context.colors.groupedBackground);
-          }
-          final showLoadingProgress =
-              widget.showProgress &&
-              _file == null &&
-              _progress?.isActive == true;
-          if (showLoadingProgress) {
-            child = Stack(
-              fit: StackFit.expand,
-              children: [
-                child,
-                _MediaLoadingProgress(progress: _progress),
-              ],
-            );
-          }
-          return child;
-        },
-      ),
+      child: child,
     );
+  }
+
+  Widget _image(
+    BuildContext context,
+    int? requestedWidth,
+    int? requestedHeight,
+  ) {
+    final cacheSize = _boundedImageCacheSize(requestedWidth, requestedHeight);
+    final cacheWidth = cacheSize?.width;
+    final cacheHeight = cacheSize?.height;
+    Widget child;
+    if (_file != null) {
+      child = Image.file(
+        _file!,
+        fit: widget.fit,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
+        gaplessPlayback: true,
+        errorBuilder: (context, _, _) =>
+            _recoverFromUnreadableFile(_file!, isThumbnail: false),
+      );
+    } else if (_thumbnailFile != null) {
+      child = Image.file(
+        _thumbnailFile!,
+        fit: widget.fit,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
+        gaplessPlayback: true,
+        errorBuilder: (context, _, _) =>
+            _recoverFromUnreadableFile(_thumbnailFile!, isThumbnail: true),
+      );
+    } else if (widget.photo?.miniThumb != null) {
+      child = Image.memory(
+        widget.photo!.miniThumb!,
+        fit: widget.fit,
+        cacheWidth: cacheWidth,
+        cacheHeight: cacheHeight,
+        gaplessPlayback: true,
+      );
+    } else {
+      child = Container(color: context.colors.groupedBackground);
+    }
+    final showLoadingProgress =
+        widget.showProgress && _file == null && _progress?.isActive == true;
+    if (showLoadingProgress) {
+      child = Stack(
+        fit: StackFit.expand,
+        children: [
+          child,
+          _MediaLoadingProgress(progress: _progress),
+        ],
+      );
+    }
+    return child;
   }
 }
 
@@ -723,37 +738,41 @@ class _MediaLoadingProgress extends StatelessWidget {
     final text = value == null || value <= 0 || value >= 1
         ? null
         : '${(value * 100).clamp(1, 99).round()}%';
-    return Center(
-      child: Container(
-        width: 58,
-        height: 58,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.38),
-          shape: BoxShape.circle,
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SizedBox(
-              width: 46,
-              height: 46,
-              child: CircularProgressIndicator(
-                value: value != null && value > 0 && value < 1 ? value : null,
-                strokeWidth: 3,
-                valueColor: const AlwaysStoppedAnimation(Colors.white),
-                backgroundColor: Colors.white.withValues(alpha: 0.24),
-              ),
-            ),
-            if (text != null)
-              Text(
-                text,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+    // Without a boundary the indeterminate sweep repaints the whole media
+    // bubble — decoded image, clip and blurred frame — on every frame.
+    return RepaintBoundary(
+      child: Center(
+        child: Container(
+          width: 58,
+          height: 58,
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.38),
+            shape: BoxShape.circle,
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                width: 46,
+                height: 46,
+                child: CircularProgressIndicator(
+                  value: value != null && value > 0 && value < 1 ? value : null,
+                  strokeWidth: 3,
+                  valueColor: const AlwaysStoppedAnimation(Colors.white),
+                  backgroundColor: Colors.white.withValues(alpha: 0.24),
                 ),
               ),
-          ],
+              if (text != null)
+                Text(
+                  text,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
