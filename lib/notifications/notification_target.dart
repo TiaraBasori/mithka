@@ -16,6 +16,19 @@ class NotificationTarget {
   final int? accountUserId;
   final int? accountSlot;
 
+  /// The same target, told which account slot it belongs to.
+  ///
+  /// A remote payload names its account by user id; the slot is Mithka's own
+  /// numbering, so it can only be attached once the client registry is at
+  /// hand.
+  NotificationTarget withAccountSlot(int slot) => NotificationTarget(
+    chatId: chatId,
+    messageId: messageId,
+    title: title,
+    accountUserId: accountUserId,
+    accountSlot: slot,
+  );
+
   /// Decodes the payload attached to a notification created by Mithka.
   static NotificationTarget? fromLocalPayload(String? payload) {
     if (payload == null || payload.trim().isEmpty) return null;

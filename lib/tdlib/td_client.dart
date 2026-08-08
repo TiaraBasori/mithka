@@ -177,6 +177,10 @@ class TdClient {
   List<int> get configuredSlots => List.unmodifiable(_slots);
   int? clientId(int slot) => _clientForSlot[slot];
   int? slotForClient(int clientId) => _slotForClient[clientId];
+
+  /// Every client currently registered, for callers that need to ask each
+  /// account something rather than only the active one.
+  Iterable<int> get registeredClientIds => _slotForClient.keys;
   Map<String, dynamic>? get latestChatFoldersUpdate =>
       _latestChatFoldersByClient[_activeClientId];
   Map<String, dynamic>? latestChatFoldersUpdateForClient(int clientId) =>

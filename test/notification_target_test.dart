@@ -70,4 +70,47 @@ void main() {
       expect(target?.messageId, 3 << 20);
     });
   });
+
+  group('account slot', () {
+    test('a remote payload arrives naming its account only by user id', () {
+      final target = NotificationTarget.fromRemoteUserInfo({
+        'data': {
+          'user_id': 4242,
+          'custom': {'from_id': 777, 'msg_id': 9},
+        },
+      });
+
+      expect(target, isNotNull);
+      expect(target!.accountUserId, 4242);
+      // Telegram's payload has no concept of Mithka's slot numbering, so the
+      // slot has to be attached later, where the client registry lives.
+      expect(target.accountSlot, isNull);
+    });
+
+    test('tagging a slot keeps everything else about the target', () {
+      const target = NotificationTarget(
+        chatId: -100,
+        messageId: 88,
+        title: 'Group',
+        accountUserId: 4242,
+      );
+
+      final tagged = target.withAccountSlot(2);
+      expect(tagged.accountSlot, 2);
+      expect(tagged.accountUserId, 4242);
+      expect(tagged.chatId, -100);
+      expect(tagged.messageId, 88);
+      expect(tagged.title, 'Group');
+    });
+
+    test('a local payload already knows its slot', () {
+      final target = NotificationTarget.fromLocalPayload(
+        '{"chat_id":-100,"message_id":88,"account_slot":3,'
+        '"account_user_id":4242}',
+      );
+
+      expect(target?.accountSlot, 3);
+      expect(target?.accountUserId, 4242);
+    });
+  });
 }
