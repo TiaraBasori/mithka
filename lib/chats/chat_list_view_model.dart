@@ -574,12 +574,16 @@ class ChatListViewModel extends ChangeNotifier {
     ChatSummary chat, {
     ChatDeleteScope scope = ChatDeleteScope.self,
   }) async {
-    if (shouldLeaveBeforeDeletingChat(chat.kind, scope)) {
+    final leavesChat = shouldLeaveBeforeDeletingChat(chat.kind, scope);
+    if (leavesChat) {
       await _client.query({'@type': 'leaveChat', 'chat_id': chat.id});
     }
     await _client.query(
       deleteChatHistoryRequest(chatId: chat.id, scope: scope),
     );
+    if (leavesChat) {
+      _client.emitLocalUpdate(chatLeftLocalUpdate(chat.id));
+    }
   }
 
   Future<void> clearSavedMessages(ChatSummary chat) async {
@@ -679,6 +683,20 @@ class ChatListViewModel extends ChangeNotifier {
           case 'chatListFolder':
             final folderId = list.integer('chat_folder_id');
             if (folderId != null) _folderOrders[folderId]?.remove(id);
+        }
+        _scheduleResort();
+
+      case 'mithkaChatLeft':
+        final id = update.int64('chat_id');
+        if (id == null) return;
+        _map.remove(id);
+        _communityDirectoryChats.remove(id);
+        _viewableCommunityChatIds.remove(id);
+        _checkingCommunityChatAccess.remove(id);
+        _joinedChatCache[id] = false;
+        _lastSenderKeys.remove(id);
+        for (final orders in _folderOrders.values) {
+          orders.remove(id);
         }
         _scheduleResort();
 
