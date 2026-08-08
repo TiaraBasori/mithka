@@ -609,16 +609,19 @@ class _PollComposerViewState extends State<PollComposerView> {
     );
   }
 
+  static const _durations = <(int, String)>[
+    (0, AppStringKeys.pollComposerTimerNone),
+    (300, AppStringKeys.pollComposerTimerFiveMinutes),
+    (3600, AppStringKeys.pollComposerTimerOneHour),
+    (86400, AppStringKeys.pollComposerTimerOneDay),
+    (604800, AppStringKeys.pollComposerTimerOneWeek),
+  ];
+
   Widget _durationRow() {
     final c = context.colors;
-    final values = <(int, String)>[
-      (0, AppStrings.t(AppStringKeys.pollComposerTimerNone)),
-      (300, AppStrings.t(AppStringKeys.pollComposerTimerFiveMinutes)),
-      (3600, AppStrings.t(AppStringKeys.pollComposerTimerOneHour)),
-      (86400, AppStrings.t(AppStringKeys.pollComposerTimerOneDay)),
-      (604800, AppStrings.t(AppStringKeys.pollComposerTimerOneWeek)),
-    ];
-    final selected = values.firstWhere((value) => value.$1 == _openPeriod);
+    final selected = _durations.firstWhere(
+      (duration) => duration.$1 == _openPeriod,
+    );
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 10, 10),
       child: Row(
@@ -632,7 +635,7 @@ class _PollComposerViewState extends State<PollComposerView> {
           GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () async {
-              final value = await _showDurationPicker(values);
+              final value = await _showDurationPicker();
               if (mounted && value != null) {
                 setState(() => _openPeriod = value);
               }
@@ -649,7 +652,7 @@ class _PollComposerViewState extends State<PollComposerView> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    selected.$2,
+                    AppStrings.t(selected.$2),
                     style: TextStyle(fontSize: 14, color: c.textPrimary),
                   ),
                   const SizedBox(width: 7),
@@ -667,80 +670,79 @@ class _PollComposerViewState extends State<PollComposerView> {
     );
   }
 
-  Future<int?> _showDurationPicker(List<(int, String)> values) =>
-      showAppModalSheet<int>(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (sheetContext) {
-          final c = sheetContext.colors;
-          return SafeArea(
-            top: false,
-            child: Container(
-              margin: const EdgeInsets.all(10),
-              padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
-              decoration: BoxDecoration(
-                color: c.card,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x33000000),
-                    blurRadius: 20,
-                    offset: Offset(0, 7),
-                  ),
-                ],
+  Future<int?> _showDurationPicker() => showAppModalSheet<int>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    builder: (sheetContext) {
+      final c = sheetContext.colors;
+      return SafeArea(
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.all(10),
+          padding: const EdgeInsets.fromLTRB(12, 14, 12, 10),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x33000000),
+                blurRadius: 20,
+                offset: Offset(0, 7),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 2, 8, 10),
-                    child: Text(
-                      AppStrings.t(
-                        AppStringKeys.pollComposerClosePollAutomatically,
-                      ),
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
-                      ),
-                    ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 2, 8, 10),
+                child: Text(
+                  AppStrings.t(
+                    AppStringKeys.pollComposerClosePollAutomatically,
                   ),
-                  for (final value in values)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => Navigator.of(sheetContext).pop(value.$1),
-                      child: SizedBox(
-                        height: 48,
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                value.$2,
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: c.textPrimary,
-                                ),
-                              ),
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: c.textPrimary,
+                  ),
+                ),
+              ),
+              for (final value in _durations)
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => Navigator.of(sheetContext).pop(value.$1),
+                  child: SizedBox(
+                    height: 48,
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            value.$2,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: c.textPrimary,
                             ),
-                            if (value.$1 == _openPeriod)
-                              AppIcon(
-                                HeroAppIcons.check,
-                                size: 18,
-                                color: AppTheme.brand,
-                              ),
-                            const SizedBox(width: 8),
-                          ],
+                          ),
                         ),
-                      ),
+                        if (value.$1 == _openPeriod)
+                          AppIcon(
+                            HeroAppIcons.check,
+                            size: 18,
+                            color: AppTheme.brand,
+                          ),
+                        const SizedBox(width: 8),
+                      ],
                     ),
-                ],
-              ),
-            ),
-          );
-        },
+                  ),
+                ),
+            ],
+          ),
+        ),
       );
+    },
+  );
 
   Widget _mediaRow({
     required String title,

@@ -4651,8 +4651,7 @@ class _AppLocalizationsDelegate
     // here would leave Localizations — and therefore the whole app — blank for
     // a frame on every locale change.
     final appKey = AppLocalizations.localeKeyFor(resolved);
-    if (LocaleCatalogues.isReady &&
-        LocaleCatalogues.forAppKey(appKey) != null) {
+    if (LocaleCatalogues.isLoaded(appKey)) {
       return SynchronousFuture(AppLocalizations(resolved));
     }
     return LocaleCatalogues.ensureLoaded(

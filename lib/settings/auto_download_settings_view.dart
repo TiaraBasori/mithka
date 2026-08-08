@@ -213,16 +213,12 @@ class _AutoDownloadSettingsViewState extends State<AutoDownloadSettingsView> {
       padding: const EdgeInsets.all(4),
       child: Row(
         children: [
-          for (final entry in {
-            'networkTypeMobile': AppStrings.t(
-              AppStringKeys.autoDownloadSettingsNetworkMobile,
-            ),
-            'networkTypeWiFi': AppStrings.t(
-              AppStringKeys.autoDownloadSettingsNetworkWiFi,
-            ),
-            'networkTypeMobileRoaming': AppStrings.t(
-              AppStringKeys.autoDownloadSettingsNetworkRoaming,
-            ),
+          for (final entry in const {
+            'networkTypeMobile':
+                AppStringKeys.autoDownloadSettingsNetworkMobile,
+            'networkTypeWiFi': AppStringKeys.autoDownloadSettingsNetworkWiFi,
+            'networkTypeMobileRoaming':
+                AppStringKeys.autoDownloadSettingsNetworkRoaming,
           }.entries)
             Expanded(
               child: GestureDetector(
@@ -239,7 +235,7 @@ class _AutoDownloadSettingsViewState extends State<AutoDownloadSettingsView> {
                     borderRadius: BorderRadius.circular(AppRadius.control),
                   ),
                   child: Text(
-                    entry.value,
+                    AppStrings.t(entry.value),
                     style: TextStyle(
                       color: _network == entry.key
                           ? AppTheme.brand
