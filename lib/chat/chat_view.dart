@@ -2892,6 +2892,7 @@ class _ChatViewState extends State<ChatView> {
       latestArmIsShort: _isTranscriptShort(),
       hasMessageOlderThanPivot: hasOlder,
       followingLatest: true,
+      hasExplicitMessageTarget: widget.initialMessageId != null,
     )) {
       return false;
     }
