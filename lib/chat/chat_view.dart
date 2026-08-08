@@ -826,7 +826,7 @@ class _ChatViewState extends State<ChatView> {
   final _transcriptViewportKey = GlobalKey();
   final _newerTranscriptSliverKey = GlobalKey();
   final _firstContactLayoutKey = GlobalKey();
-  final Map<int, GlobalKey> _entryVisibilityKeys = <int, GlobalKey>{};
+  Map<int, GlobalKey> _entryVisibilityKeys = <int, GlobalKey>{};
   Map<int, _TranscriptEntry> _trackedTranscriptEntries = const {};
   TranscriptPivot? _transcriptPivot;
   bool _transcriptPivotFrozen = false;
@@ -866,6 +866,10 @@ class _ChatViewState extends State<ChatView> {
   int? _entryFirstUnreadMessageId;
   bool _showEntryUnreadBanner = false;
   late final ChatMessageSearchController _search;
+
+  /// Mirrors `_search.isActive`, so the controller's per-keystroke
+  /// notifications only setState when the value this build reads changed.
+  bool _searchActive = false;
 
   /// Whether the last layout had room for the results pane. Read by callbacks
   /// that run outside build, where the constraints are no longer at hand.
@@ -2752,17 +2756,42 @@ class _ChatViewState extends State<ChatView> {
       }
     }
     if (targetEntry == null) return null;
-    final partition = _partitionTranscript(entries);
+    // The visibility retry loop calls this up to six times in a row, so it
+    // reuses the partition and key indexes _transcript() already cached rather
+    // than repartitioning the whole entry list and rescanning it per attempt.
+    // `older` holds beforePivot reversed, which is why it is walked forwards.
+    final List<_TranscriptEntry> older;
+    final List<_TranscriptEntry> newer;
+    final int olderIndex;
+    final int newerIndex;
+    if (identical(entries, _sliverCacheEntries) &&
+        identical(_transcriptPivot, _sliverCachePivot) &&
+        _sliverCacheInitialLoaded == _vm.initialLoaded &&
+        _sliverCacheLeadingItemCount >= 0) {
+      older = _sliverCacheOlderEntries!;
+      newer = _sliverCacheNewerEntries!;
+      olderIndex = _sliverCacheOlderIndexByKey![targetEntry.key] ?? -1;
+      // The newer map is offset by the leading first-contact card, which is not
+      // an entry.
+      final mapped = olderIndex >= 0
+          ? null
+          : _sliverCacheNewerIndexByKey![targetEntry.key];
+      newerIndex = mapped == null ? -1 : mapped - _sliverCacheLeadingItemCount;
+    } else {
+      final partition = _partitionTranscript(entries);
+      older = partition.beforePivot.reversed.toList(growable: false);
+      newer = partition.pivotAndAfter;
+      olderIndex = older.indexOf(targetEntry);
+      newerIndex = olderIndex >= 0 ? -1 : newer.indexOf(targetEntry);
+    }
     final messages = _transcriptCacheMessages ?? _vm.messages;
     final position = _scroll.position;
     final viewport = _scroll.position.viewportDimension;
-    final targetIsBeforePivot = partition.beforePivot.contains(targetEntry);
 
-    if (targetIsBeforePivot) {
-      final targetIndex = partition.beforePivot.indexOf(targetEntry);
+    if (olderIndex >= 0) {
       var targetTop = 0.0;
-      for (var i = targetIndex; i < partition.beforePivot.length; i++) {
-        targetTop -= _estimatedEntryExtent(partition.beforePivot[i]);
+      for (var i = 0; i <= olderIndex; i++) {
+        targetTop -= _estimatedEntryExtent(older[i]);
       }
       if (!beforeUnreadDivider &&
           _needsUnreadDivider(targetEntry.startIndex, messages: messages)) {
@@ -2771,10 +2800,9 @@ class _ChatViewState extends State<ChatView> {
       return clampScrollOffset(position, targetTop - viewport * alignment);
     }
 
-    final targetIndex = partition.pivotAndAfter.indexOf(targetEntry);
     var targetTop = 0.0;
-    for (var i = 0; i < targetIndex; i++) {
-      targetTop += _estimatedEntryExtent(partition.pivotAndAfter[i]);
+    for (var i = 0; i < newerIndex; i++) {
+      targetTop += _estimatedEntryExtent(newer[i]);
     }
     if (!beforeUnreadDivider &&
         _needsUnreadDivider(targetEntry.startIndex, messages: messages)) {
@@ -5487,13 +5515,17 @@ class _ChatViewState extends State<ChatView> {
           Positioned(right: 16, bottom: 12, child: _jumpToBottomButton()),
         // Without a pane to hold them, suggestions float over the transcript
         // rather than replacing it — the conversation stays in view while a
-        // sender is picked.
-        if (!searchPane && _searchOverlay != null)
+        // sender is picked. The AnimatedBuilder keeps a suggestion arriving
+        // from rebuilding every visible bubble underneath it.
+        if (!searchPane && _search.isActive)
           Positioned(
             top: AppSpacing.md,
             left: AppSpacing.lg,
             right: AppSpacing.lg,
-            child: _searchOverlay!,
+            child: AnimatedBuilder(
+              animation: _search,
+              builder: (_, _) => _searchOverlay ?? const SizedBox.shrink(),
+            ),
           ),
       ],
     );
@@ -7041,6 +7073,7 @@ class _ChatViewState extends State<ChatView> {
     bool pinnedJump = false,
     double? alignment,
     bool forceAlignment = false,
+    bool Function()? isCancelled,
   }) async {
     _cancelSessionReopenNavigation(userClaimedViewport: true);
     await _scrollToMessageAndReport(
@@ -7048,6 +7081,7 @@ class _ChatViewState extends State<ChatView> {
       pinnedJump: pinnedJump,
       alignment: alignment,
       forceAlignment: forceAlignment,
+      isCancelled: isCancelled,
     );
   }
 
@@ -7106,7 +7140,14 @@ class _ChatViewState extends State<ChatView> {
 
   // MARK: - In-chat search
 
+  /// The controller notifies per keystroke, per page and per resolved sender,
+  /// and every search surface already AnimatedBuilds on it. `isActive` is the
+  /// only value this build reads, so anything else would rebuild the whole
+  /// transcript for a repaint that happens elsewhere.
   void _onSearchChanged() {
+    final active = _search.isActive;
+    if (active == _searchActive) return;
+    _searchActive = active;
     if (mounted) setState(() {});
   }
 
@@ -7135,7 +7176,16 @@ class _ChatViewState extends State<ChatView> {
     // A query's own landing must not, or typing would close the keyboard on
     // every pause.
     if (!automatic && !_searchResultsPaneVisible) _search.focusNode.unfocus();
-    await _scrollToMessage(result.id, alignment: 0.38, forceAlignment: true);
+    await _scrollToMessage(
+      result.id,
+      alignment: 0.38,
+      forceAlignment: true,
+      // A query's own landing can outlive the query: the history fetch it may
+      // need takes longer than the next keystroke. Aborting it beats racing it.
+      isCancelled: automatic
+          ? () => _search.activeMessageId != result.id
+          : null,
+    );
   }
 
   bool _searchUsesResultsPane(double conversationWidth) =>
@@ -7764,7 +7814,9 @@ class _ChatViewState extends State<ChatView> {
     _transcriptCacheGrouped = groupImages;
     _transcriptCacheUnreadCount = _vm.unreadCount;
     _transcriptCacheLastReadInboxId = _vm.lastReadInboxId;
-    final previousVisibilityKeys = Map<int, GlobalKey>.of(_entryVisibilityKeys);
+    // Read in place rather than copied: nothing mutates the map between here
+    // and the swap below, and the copy was n-sized on every incoming message.
+    final previousVisibilityKeys = _entryVisibilityKeys;
     final nextVisibilityKeys = <int, GlobalKey>{};
     final usedVisibilityKeys = <GlobalKey>{};
     for (final entry in entries) {
@@ -7782,9 +7834,7 @@ class _ChatViewState extends State<ChatView> {
         nextVisibilityKeys[message.id] = visibilityKey;
       }
     }
-    _entryVisibilityKeys
-      ..clear()
-      ..addAll(nextVisibilityKeys);
+    _entryVisibilityKeys = nextVisibilityKeys;
     _trackedTranscriptEntries = {
       for (final entry in entries) entry.last.id: entry,
     };

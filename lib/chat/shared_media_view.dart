@@ -159,6 +159,7 @@ class _SharedMediaViewState extends State<SharedMediaView> {
   final Map<int, List<ChatMessage>> _cache = {};
   final Set<int> _loading = {};
   final Map<int, _SharedFileState> _files = {};
+  final Set<int> _watchedFiles = {};
   final Map<int, String> _sourceTitles = {};
   List<ChatMessage> _recentGlobalVideos = const [];
   final TextEditingController _search = TextEditingController();
@@ -399,7 +400,11 @@ class _SharedMediaViewState extends State<SharedMediaView> {
 
   void _applyFile(Map<String, dynamic> file) {
     final id = file.integer('id');
-    if (id == null) return;
+    // TDLib emits updateFile for every avatar, thumbnail and sticker in the
+    // app — dozens a second while anything downloads. Rebuilding this page for
+    // a file it has never shown means re-filtering and re-sorting the grid for
+    // nothing, so only the ids this screen actually renders get through.
+    if (id == null || !_watchedFiles.contains(id)) return;
     final local = file.obj('local');
     final expected = file.integer('expected_size') ?? 0;
     final size = file.integer('size') ?? 0;
@@ -429,7 +434,9 @@ class _SharedMediaViewState extends State<SharedMediaView> {
   void _primeFileStates(Iterable<ChatMessage> messages) {
     for (final message in messages) {
       final id = _fileId(message);
-      if (id == null || _files.containsKey(id)) continue;
+      if (id == null) continue;
+      _watchedFiles.add(id);
+      if (_files.containsKey(id)) continue;
       unawaited(_loadFileState(id));
     }
   }
