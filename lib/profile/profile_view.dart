@@ -391,6 +391,7 @@ class _ProfileViewState extends State<ProfileView> {
                   const SizedBox(width: 8),
                   // Edit profile — replaces the old duplicate 编辑资料 card.
                   GestureDetector(
+                    key: const ValueKey('profile-banner-edit'),
                     onTap: () => _root.push(
                       MaterialPageRoute(
                         builder: (_) => const EditProfileView(),
@@ -738,19 +739,6 @@ class _ProfileViewState extends State<ProfileView> {
           child: Row(
             children: [
               const SizedBox(width: 16),
-              // Profile sits before settings here as it does in the desktop
-              // application menu: it is a thing you own, not a preference.
-              GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _root.push(
-                  MaterialPageRoute(builder: (_) => const EditProfileView()),
-                ),
-                child: _barItem(
-                  HeroAppIcons.solidCircleUser,
-                  AppStrings.t(AppStringKeys.editProfileTitle),
-                ),
-              ),
-              const SizedBox(width: 24),
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () => _root.push(

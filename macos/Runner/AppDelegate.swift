@@ -26,7 +26,15 @@ class AppDelegate: FlutterAppDelegate {
     continue userActivity: NSUserActivity,
     restorationHandler: @escaping ([NSUserActivityRestoring]) -> Void
   ) -> Bool {
-    HandoffBridge.shared.accept(userActivity)
+    guard HandoffBridge.shared.accept(userActivity) else { return false }
+    application.activate(ignoringOtherApps: true)
+    if let primaryWindow = application.windows.first(
+      where: { $0 is MainFlutterWindow }
+    ) {
+      primaryWindow.deminiaturize(nil)
+      primaryWindow.makeKeyAndOrderFront(nil)
+    }
+    return true
   }
 
   private static func mirrorRightControlFlag(_ event: NSEvent) -> NSEvent {

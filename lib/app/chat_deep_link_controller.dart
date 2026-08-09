@@ -15,6 +15,14 @@ class ChatDeepLinkRequest {
   final int? accountUserId;
   final int? accountSlot;
 
+  ChatDeepLinkRequest scopedToAccountSlot(int slot) => ChatDeepLinkRequest(
+    chatId: chatId,
+    title: title,
+    messageId: messageId,
+    accountUserId: accountUserId,
+    accountSlot: slot,
+  );
+
   /// Presentation-only payload used when a registered desktop child asks the
   /// primary window to select a conversation. Account identity is never read
   /// from this map; the primary bridge supplies it from the authenticated

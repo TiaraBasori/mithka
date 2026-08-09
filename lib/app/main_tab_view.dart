@@ -469,10 +469,13 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       accounts.switchTo(requestedSlot, context.read<AuthManager>());
       final controller = _chatDeepLinks;
       WidgetsBinding.instance.addPostFrameCallback((_) {
+        final replay = request.scopedToAccountSlot(requestedSlot);
         controller?.openChat(
-          chatId: request.chatId,
-          title: request.title,
-          messageId: request.messageId,
+          chatId: replay.chatId,
+          title: replay.title,
+          messageId: replay.messageId,
+          accountUserId: replay.accountUserId,
+          accountSlot: replay.accountSlot,
         );
       });
       return;

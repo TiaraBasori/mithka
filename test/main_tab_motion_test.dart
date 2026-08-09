@@ -84,6 +84,8 @@ void main() {
       find.byType(ProfileView),
     );
     expect(drawerPosition.left, 0);
+    expect(find.byKey(const ValueKey('profile-banner-edit')), findsOneWidget);
+    expect(find.byTooltip('Edit profile'), findsNothing);
 
     harness.drawer.close();
     await tester.pump();
