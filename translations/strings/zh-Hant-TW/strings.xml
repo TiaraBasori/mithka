@@ -1732,6 +1732,13 @@
     <string name="locationPickerDragMapToChoose">拖曳地圖選擇位置</string>
     <string name="loginBackToAccount">返回 {value1}</string>
     <string name="loginBackToPreviousAccount">返回上一個帳號</string>
+    <string name="loginBotAccountDescription">機器人無法取得之前的訊息。登入後收到的新訊息將由 Mithka 儲存在此裝置上。</string>
+    <string name="loginBotAccountTitle">以機器人身分登入</string>
+    <string name="loginBotApiEndpoint">機器人 API 端點</string>
+    <string name="loginBotApiEndpointHint">僅填寫伺服器根網址。預設：https://api.telegram.org</string>
+    <string name="loginBotFailed">無法加入機器人帳號。</string>
+    <string name="loginBotSubmit">登入機器人</string>
+    <string name="loginBotToken">機器人權杖</string>
     <string name="loginCodeSentByEmail">請輸入傳送到信箱的驗證碼。</string>
     <string name="loginCodeSentByFirebase">請輸入系統驗證提示中的驗證碼。</string>
     <string name="loginCodeSentByFlashCall">請輸入來電號碼符合 {value1} 的驗證碼。</string>
@@ -1780,7 +1787,9 @@
     <string name="loginTwoStepPassword">兩步驟驗證密碼</string>
     <string name="loginVerificationCode">驗證碼</string>
     <string name="loginVerify">驗證</string>
+    <string name="loginWithBotToken">使用機器人權杖登入</string>
     <string name="loginWithPasskey">使用通行密鑰登入</string>
+    <string name="loginWithPhoneNumber">使用電話號碼登入</string>
     <string name="loginWithQrCode">使用 QR Code 登入</string>
     <string name="mainTabResizeSidebar">調整側欄寬度</string>
     <string name="markdownLabel">Markdown</string>
@@ -3075,6 +3084,10 @@
     <string name="telegramAiEditorToLanguage">翻譯成 {value1}</string>
     <string name="telegramAiEditorTranslate">翻譯</string>
     <string name="telegramAiEditorWritingStyle">寫作風格</string>
+    <string name="telegramAiDailyLimitMessage">訂閱 Telegram Premium，每天可多進行 50 倍的文字編輯。</string>
+    <string name="telegramAiDailyLimitReached">已達每日限額</string>
+    <string name="telegramAiIncreaseLimit">提高限額</string>
+    <string name="telegramAiIncreaseLimitValue">50 倍</string>
     <string name="telegramInvoiceCheckoutAcceptRecurringTerms">請先接受定期付款條款以繼續。</string>
     <string name="telegramInvoiceCheckoutAcceptTerms">請先接受付款條款以繼續。</string>
     <string name="telegramInvoiceCheckoutAddressLine2">地址行2</string>

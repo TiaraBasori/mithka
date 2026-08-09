@@ -1732,6 +1732,13 @@
     <string name="locationPickerDragMapToChoose">拖动地图选择位置</string>
     <string name="loginBackToAccount">返回 {value1}</string>
     <string name="loginBackToPreviousAccount">返回上一账号</string>
+    <string name="loginBotAccountDescription">机器人无法获取之前的消息。登录后收到的新消息将由 Mithka 保存在此设备上。</string>
+    <string name="loginBotAccountTitle">以机器人身份登录</string>
+    <string name="loginBotApiEndpoint">机器人 API 端点</string>
+    <string name="loginBotApiEndpointHint">仅填写服务器根地址。默认：https://api.telegram.org</string>
+    <string name="loginBotFailed">无法添加机器人账号。</string>
+    <string name="loginBotSubmit">登录机器人</string>
+    <string name="loginBotToken">机器人令牌</string>
     <string name="loginCodeSentByEmail">请输入发送到邮箱的验证码。</string>
     <string name="loginCodeSentByFirebase">请输入系统验证提示中的验证码。</string>
     <string name="loginCodeSentByFlashCall">请输入来电号码符合 {value1} 的验证码。</string>
@@ -1780,7 +1787,9 @@
     <string name="loginTwoStepPassword">两步验证密码</string>
     <string name="loginVerificationCode">验证码</string>
     <string name="loginVerify">验证</string>
+    <string name="loginWithBotToken">使用机器人令牌登录</string>
     <string name="loginWithPasskey">使用通行密钥登录</string>
+    <string name="loginWithPhoneNumber">使用手机号登录</string>
     <string name="loginWithQrCode">使用二维码登录</string>
     <string name="mainTabResizeSidebar">调整侧栏宽度</string>
     <string name="markdownLabel">Markdown</string>
@@ -3075,6 +3084,10 @@
     <string name="telegramAiEditorToLanguage">翻译成 {value1}</string>
     <string name="telegramAiEditorTranslate">翻译</string>
     <string name="telegramAiEditorWritingStyle">写作风格</string>
+    <string name="telegramAiDailyLimitMessage">开通 Telegram Premium，每天可多进行 50 倍的文本编辑。</string>
+    <string name="telegramAiDailyLimitReached">已达到每日限额</string>
+    <string name="telegramAiIncreaseLimit">提高限额</string>
+    <string name="telegramAiIncreaseLimitValue">50 倍</string>
     <string name="telegramInvoiceCheckoutAcceptRecurringTerms">请先接受周期性支付条款以继续。</string>
     <string name="telegramInvoiceCheckoutAcceptTerms">请先接受支付条款以继续。</string>
     <string name="telegramInvoiceCheckoutAddressLine2">地址行2</string>

@@ -1736,6 +1736,13 @@
     <string name="locationPickerDragMapToChoose">Karte ziehen, um Standort auszuwählen</string>
     <string name="loginBackToAccount">Zurück zu {value1}</string>
     <string name="loginBackToPreviousAccount">Zurück zum vorherigen Konto</string>
+    <string name="loginBotAccountDescription">Bots können keine älteren Nachrichten abrufen. Mithka speichert neue Nachrichten, die nach der Anmeldung eingehen, auf diesem Gerät.</string>
+    <string name="loginBotAccountTitle">Als Bot anmelden</string>
+    <string name="loginBotApiEndpoint">Bot-API-Endpunkt</string>
+    <string name="loginBotApiEndpointHint">Nur Server-Stammadresse. Standard: https://api.telegram.org</string>
+    <string name="loginBotFailed">Das Bot-Konto konnte nicht hinzugefügt werden.</string>
+    <string name="loginBotSubmit">Bot anmelden</string>
+    <string name="loginBotToken">Bot-Token</string>
     <string name="loginCodeSentByEmail">Gib den Code ein, der an deine E-Mail gesendet wurde.</string>
     <string name="loginCodeSentByFirebase">Gib den Code aus der Systembestätigung ein.</string>
     <string name="loginCodeSentByFlashCall">Gib den Code aus dem eingehenden Anruf ein, der {value1} entspricht.</string>
@@ -1784,7 +1791,9 @@
     <string name="loginTwoStepPassword">Passwort für zweistufige Verifizierung</string>
     <string name="loginVerificationCode">Bestätigungscode</string>
     <string name="loginVerify">Bestätigen</string>
+    <string name="loginWithBotToken">Mit Bot-Token anmelden</string>
     <string name="loginWithPasskey">Mit Passkey anmelden</string>
+    <string name="loginWithPhoneNumber">Mit Telefonnummer anmelden</string>
     <string name="loginWithQrCode">Mit QR-Code anmelden</string>
     <string name="mainTabResizeSidebar">Seitenleiste anpassen</string>
     <string name="markdownLabel">Markdown</string>
@@ -3083,6 +3092,10 @@
     <string name="telegramAiEditorToLanguage">Auf {value1}</string>
     <string name="telegramAiEditorTranslate">Übersetzen</string>
     <string name="telegramAiEditorWritingStyle">Schreibstil</string>
+    <string name="telegramAiDailyLimitMessage">Mit Telegram Premium erhältst du 50× mehr Textbearbeitungen pro Tag.</string>
+    <string name="telegramAiDailyLimitReached">Tageslimit erreicht</string>
+    <string name="telegramAiIncreaseLimit">Limit erhöhen</string>
+    <string name="telegramAiIncreaseLimitValue">50×</string>
     <string name="telegramInvoiceCheckoutAcceptRecurringTerms">Akzeptiere die Bedingungen für wiederkehrende Zahlungen, um fortzufahren.</string>
     <string name="telegramInvoiceCheckoutAcceptTerms">Akzeptiere die Zahlungsbedingungen, um fortzufahren.</string>
     <string name="telegramInvoiceCheckoutAddressLine2">Adresszeile 2</string>

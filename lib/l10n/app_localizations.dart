@@ -1666,6 +1666,13 @@ abstract final class AppStringKeys {
   static const locationPickerDragMapToChoose = 'locationPickerDragMapToChoose';
   static const loginBackToAccount = 'loginBackToAccount';
   static const loginBackToPreviousAccount = 'loginBackToPreviousAccount';
+  static const loginBotAccountDescription = 'loginBotAccountDescription';
+  static const loginBotAccountTitle = 'loginBotAccountTitle';
+  static const loginBotApiEndpoint = 'loginBotApiEndpoint';
+  static const loginBotApiEndpointHint = 'loginBotApiEndpointHint';
+  static const loginBotFailed = 'loginBotFailed';
+  static const loginBotSubmit = 'loginBotSubmit';
+  static const loginBotToken = 'loginBotToken';
   static const loginCodeSentByEmail = 'loginCodeSentByEmail';
   static const loginCodeSentByFirebase = 'loginCodeSentByFirebase';
   static const loginCodeSentByFlashCall = 'loginCodeSentByFlashCall';
@@ -1711,7 +1718,9 @@ abstract final class AppStringKeys {
   static const loginVerificationCode = 'loginVerificationCode';
   static const loginVerify = 'loginVerify';
   static const loginWithQrCode = 'loginWithQrCode';
+  static const loginWithBotToken = 'loginWithBotToken';
   static const loginWithPasskey = 'loginWithPasskey';
+  static const loginWithPhoneNumber = 'loginWithPhoneNumber';
   static const markdownLabel = 'markdownLabel';
   static const mediaSendPreviewTitle = 'mediaSendPreviewTitle';
   static const messageActionBlock = 'messageActionBlock';
@@ -3638,6 +3647,10 @@ abstract final class AppStringKeys {
   static const telegramAiEditorTelegramStyle = 'telegramAiEditorTelegramStyle';
   static const telegramAiEditorToLanguage = 'telegramAiEditorToLanguage';
   static const telegramAiEditorTranslate = 'telegramAiEditorTranslate';
+  static const telegramAiDailyLimitMessage = 'telegramAiDailyLimitMessage';
+  static const telegramAiDailyLimitReached = 'telegramAiDailyLimitReached';
+  static const telegramAiIncreaseLimit = 'telegramAiIncreaseLimit';
+  static const telegramAiIncreaseLimitValue = 'telegramAiIncreaseLimitValue';
   static const telegramInvoiceCheckoutAddressLine2 =
       'telegramInvoiceCheckoutAddressLine2';
   static const telegramInvoiceCheckoutBillingCountryCode =

@@ -109,6 +109,7 @@ import 'quick_reaction_choice.dart';
 import 'shared_contact_sheet.dart';
 import 'sticker_set_detail_view.dart';
 import 'sticker_viewer.dart';
+import 'telegram_ai_service.dart';
 import 'telegram_cocoon_unread_summary_provider.dart';
 import 'telegram_mini_app_view.dart';
 import 'transcript_pivot_partition.dart';
@@ -4449,7 +4450,10 @@ class _ChatViewState extends State<ChatView> {
       if (mounted) {
         showToast(
           context,
-          AppStrings.t(AppStringKeys.chatTranslateFailed, {'value1': e}),
+          _translationFailureMessage(e),
+          visibleFor: isTelegramAiPremiumFlood(e)
+              ? const Duration(seconds: 4)
+              : const Duration(milliseconds: 1400),
         );
       }
       return null;
@@ -4572,11 +4576,22 @@ class _ChatViewState extends State<ChatView> {
       if (showErrors) {
         showToast(
           context,
-          AppStrings.t(AppStringKeys.chatTranslateFailed, {'value1': e}),
+          _translationFailureMessage(e),
+          visibleFor: isTelegramAiPremiumFlood(e)
+              ? const Duration(seconds: 4)
+              : const Duration(milliseconds: 1400),
         );
       }
       return false;
     }
+  }
+
+  String _translationFailureMessage(Object error) {
+    if (isTelegramAiPremiumFlood(error)) {
+      return '${AppStrings.t(AppStringKeys.telegramAiDailyLimitReached)}\n'
+          '${AppStrings.t(AppStringKeys.telegramAiDailyLimitMessage)}';
+    }
+    return AppStrings.t(AppStringKeys.chatTranslateFailed, {'value1': error});
   }
 
   void _onTranslationSettingsChanged() {

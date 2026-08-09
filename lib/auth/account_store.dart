@@ -27,12 +27,16 @@ class AccountSummary {
     required this.name,
     required this.phone,
     this.avatarPath,
+    this.isBotApi = false,
+    this.botApiEndpoint,
   });
   final int slot;
   final int userId;
   final String name;
   final String phone;
   final String? avatarPath; // resolved via this account's OWN TDLib client
+  final bool isBotApi;
+  final Uri? botApiEndpoint;
 }
 
 class AccountStore extends ChangeNotifier {
@@ -93,6 +97,7 @@ class AccountStore extends ChangeNotifier {
 
   int get activeSlot => _activeSlot;
   List<AccountSummary> get summaries => _summaries;
+  bool get activeIsBotApi => TdClient.shared.isBotApiSlot(_activeSlot);
   int? get activeUserId {
     for (final summary in _summaries) {
       if (summary.slot == _activeSlot) return summary.userId;
@@ -207,7 +212,14 @@ class AccountStore extends ChangeNotifier {
       final parsedName = me != null ? TDParse.userName(me) : '';
       if (me == null || selfId == null || parsedName.isEmpty) continue;
       final name = parsedName;
-      final phone = TDParse.formatPhone(me.str('phone_number'));
+      final botApiAccount = TdClient.shared.botApiAccount(slot);
+      final phone = botApiAccount == null
+          ? TDParse.formatPhone(me.str('phone_number'))
+          : [
+              if (botApiAccount.username.isNotEmpty)
+                '@${botApiAccount.username}',
+              botApiAccount.endpoint.host,
+            ].join(' · ');
 
       String? avatarPath;
       final fileId = me.obj('profile_photo')?.obj('small')?.integer('id');
@@ -232,6 +244,8 @@ class AccountStore extends ChangeNotifier {
           name: name,
           phone: phone,
           avatarPath: avatarPath,
+          isBotApi: botApiAccount != null,
+          botApiEndpoint: botApiAccount?.endpoint,
         ),
       );
     }
@@ -263,6 +277,39 @@ class AccountStore extends ChangeNotifier {
     notifyListeners();
     auth.reloadAuthState();
     refresh();
+  }
+
+  /// Adds a Telegram Bot API account and switches to it after token validation.
+  /// A transient native login slot is discarded; an existing signed-in user
+  /// account remains configured alongside the bot.
+  Future<int> addBotAccount({
+    required String token,
+    required String endpoint,
+    required AuthManager auth,
+  }) async {
+    final sourceSlot = _activeSlot;
+    final sourceWasReady = await _slotIsReady(sourceSlot);
+    final slot = await TdClient.shared.addBotApiAccount(
+      token: token,
+      endpoint: endpoint,
+    );
+    _activeAccountChanged();
+    _activeSlot = slot;
+    if (!sourceWasReady &&
+        sourceSlot != slot &&
+        !TdClient.shared.isBotApiSlot(sourceSlot) &&
+        TdClient.shared.configuredSlots.contains(sourceSlot)) {
+      if (sourceSlot == _pendingSlot) {
+        _pendingSlot = null;
+        _persistPending();
+      }
+      TdClient.shared.removeSlot(sourceSlot);
+      await TdClient.shared.deleteSlotData(sourceSlot);
+    }
+    notifyListeners();
+    auth.reloadAuthState();
+    await refresh();
+    return slot;
   }
 
   Future<TdFreshSessionResult> createFreshSessionFromRestoredSlot(
@@ -385,7 +432,7 @@ class AccountStore extends ChangeNotifier {
       auth.reloadAuthState();
     }
 
-    if (oldClientId != null) {
+    if (oldClientId != null && !TdClient.shared.isBotApiSlot(slot)) {
       try {
         await TdClient.shared
             .queryTo({'@type': 'logOut'}, oldClientId)

@@ -1736,6 +1736,13 @@
     <string name="locationPickerDragMapToChoose">Drag the map to choose a location</string>
     <string name="loginBackToAccount">Back to {value1}</string>
     <string name="loginBackToPreviousAccount">Back to previous account</string>
+    <string name="loginBotAccountDescription">Bots cannot fetch earlier messages. Mithka saves new messages received after login on this device.</string>
+    <string name="loginBotAccountTitle">Log in as a bot</string>
+    <string name="loginBotApiEndpoint">Bot API endpoint</string>
+    <string name="loginBotApiEndpointHint">Server root only. Default: https://api.telegram.org</string>
+    <string name="loginBotFailed">The bot account could not be added.</string>
+    <string name="loginBotSubmit">Log in as bot</string>
+    <string name="loginBotToken">Bot token</string>
     <string name="loginCodeSentByEmail">Enter the code sent to your email.</string>
     <string name="loginCodeSentByFirebase">Enter the code from the system verification prompt.</string>
     <string name="loginCodeSentByFlashCall">Enter the code from the incoming call matching {value1}.</string>
@@ -1784,7 +1791,9 @@
     <string name="loginTwoStepPassword">Two-step verification password</string>
     <string name="loginVerificationCode">Verification code</string>
     <string name="loginVerify">Verify</string>
+    <string name="loginWithBotToken">Log in with bot token</string>
     <string name="loginWithPasskey">Log in with a passkey</string>
+    <string name="loginWithPhoneNumber">Log in with phone number</string>
     <string name="loginWithQrCode">Log in with QR code</string>
     <string name="mainTabResizeSidebar">Resize sidebar</string>
     <string name="markdownLabel">Markdown</string>
@@ -3083,6 +3092,10 @@
     <string name="telegramAiEditorToLanguage">To {value1}</string>
     <string name="telegramAiEditorTranslate">Translate</string>
     <string name="telegramAiEditorWritingStyle">Writing style</string>
+    <string name="telegramAiDailyLimitMessage">Get Telegram Premium for 50× more text edits per day.</string>
+    <string name="telegramAiDailyLimitReached">Daily limit reached</string>
+    <string name="telegramAiIncreaseLimit">Increase Limit</string>
+    <string name="telegramAiIncreaseLimitValue">50×</string>
     <string name="telegramInvoiceCheckoutAcceptRecurringTerms">Accept the recurring payment terms to continue.</string>
     <string name="telegramInvoiceCheckoutAcceptTerms">Accept the payment terms to continue.</string>
     <string name="telegramInvoiceCheckoutAddressLine2">Address line 2</string>

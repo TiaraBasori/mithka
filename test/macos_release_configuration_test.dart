@@ -93,7 +93,7 @@ void main() {
             (pin['state']! as Map<String, Object?>)['version']! as String,
     };
 
-    expect(versions['firebase-ios-sdk'], '12.15.0');
+    expect(versions['firebase-ios-sdk'], '12.17.0');
     expect(versions['sentry-cocoa'], '8.58.4');
   });
 }

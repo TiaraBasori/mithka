@@ -1736,6 +1736,13 @@
     <string name="locationPickerDragMapToChoose">Arrastra el mapa para elegir una ubicación</string>
     <string name="loginBackToAccount">Volver a {value1}</string>
     <string name="loginBackToPreviousAccount">Volver a la cuenta anterior</string>
+    <string name="loginBotAccountDescription">Los bots no pueden recuperar mensajes anteriores. Mithka guarda en este dispositivo los mensajes nuevos recibidos después de iniciar sesión.</string>
+    <string name="loginBotAccountTitle">Iniciar sesión como bot</string>
+    <string name="loginBotApiEndpoint">Endpoint de la API de bots</string>
+    <string name="loginBotApiEndpointHint">Solo la raíz del servidor. Predeterminado: https://api.telegram.org</string>
+    <string name="loginBotFailed">No se pudo añadir la cuenta del bot.</string>
+    <string name="loginBotSubmit">Iniciar sesión como bot</string>
+    <string name="loginBotToken">Token del bot</string>
     <string name="loginCodeSentByEmail">Introduce el código enviado a tu correo electrónico.</string>
     <string name="loginCodeSentByFirebase">Introduce el código de la verificación del sistema.</string>
     <string name="loginCodeSentByFlashCall">Introduce el código de la llamada entrante que coincida con {value1}.</string>
@@ -1784,7 +1791,9 @@
     <string name="loginTwoStepPassword">Contraseña de verificación en dos pasos</string>
     <string name="loginVerificationCode">Código de verificación</string>
     <string name="loginVerify">Verificar</string>
+    <string name="loginWithBotToken">Iniciar sesión con token de bot</string>
     <string name="loginWithPasskey">Iniciar sesión con una llave de acceso</string>
+    <string name="loginWithPhoneNumber">Iniciar sesión con número de teléfono</string>
     <string name="loginWithQrCode">Iniciar sesión con código QR</string>
     <string name="mainTabResizeSidebar">Cambiar tamaño de la barra lateral</string>
     <string name="markdownLabel">Markdown</string>
@@ -3083,6 +3092,10 @@
     <string name="telegramAiEditorToLanguage">A {value1}</string>
     <string name="telegramAiEditorTranslate">Traducir</string>
     <string name="telegramAiEditorWritingStyle">Estilo de escritura</string>
+    <string name="telegramAiDailyLimitMessage">Obtén Telegram Premium para hacer 50× más ediciones de texto al día.</string>
+    <string name="telegramAiDailyLimitReached">Límite diario alcanzado</string>
+    <string name="telegramAiIncreaseLimit">Aumentar límite</string>
+    <string name="telegramAiIncreaseLimitValue">50×</string>
     <string name="telegramInvoiceCheckoutAcceptRecurringTerms">Acepta los términos de pago recurrente para continuar.</string>
     <string name="telegramInvoiceCheckoutAcceptTerms">Acepta los términos de pago para continuar.</string>
     <string name="telegramInvoiceCheckoutAddressLine2">Línea de dirección 2</string>
