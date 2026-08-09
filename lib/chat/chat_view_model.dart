@@ -1431,7 +1431,8 @@ class ChatViewModel extends ChangeNotifier {
     List<RichMessageSendFile> files = const [],
     List<Map<String, dynamic>> blocks = const [],
   }) async {
-    if (blocks.isEmpty) {
+    final botApiDirect = await _client.activeAccountUsesBotApi();
+    if (!botApiDirect && blocks.isEmpty) {
       throw StateError('Rich message blocks are required for user accounts');
     }
     for (final file in files) {
@@ -1445,7 +1446,9 @@ class ChatViewModel extends ChangeNotifier {
     final request = <String, dynamic>{
       '@type': 'sendMessage',
       'chat_id': chatId,
-      'input_message_content': richMessageInputContent(blocks),
+      'input_message_content': botApiDirect
+          ? botApiDirectRichMessageInputContent(html, files)
+          : richMessageInputContent(blocks),
     };
     if (replyTo != null) {
       request['reply_to'] = {

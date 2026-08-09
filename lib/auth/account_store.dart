@@ -20,6 +20,23 @@ import '../tdlib/td_models.dart';
 import 'account_backup_service.dart';
 import 'auth_manager.dart';
 
+/// Runs work that happens after a Bot API account has already been committed.
+///
+/// Cleanup and presentation refresh failures must not be surfaced as a failed
+/// token login: by this point the account is saved, active, and usable.
+@visibleForTesting
+Future<void> guardBotAccountPostAddStep(
+  FutureOr<void> Function() operation,
+) async {
+  try {
+    await operation();
+  } catch (error) {
+    // Only the type is safe to report. Platform/file errors may contain local
+    // paths, while HTTP errors can contain a credential-bearing request URI.
+    debugPrint('Bot account post-add step failed: ${error.runtimeType}');
+  }
+}
+
 class AccountSummary {
   AccountSummary({
     required this.slot,
@@ -295,20 +312,22 @@ class AccountStore extends ChangeNotifier {
     );
     _activeAccountChanged();
     _activeSlot = slot;
-    if (!sourceWasReady &&
-        sourceSlot != slot &&
-        !TdClient.shared.isBotApiSlot(sourceSlot) &&
-        TdClient.shared.configuredSlots.contains(sourceSlot)) {
-      if (sourceSlot == _pendingSlot) {
-        _pendingSlot = null;
-        _persistPending();
+    await guardBotAccountPostAddStep(() async {
+      if (!sourceWasReady &&
+          sourceSlot != slot &&
+          !TdClient.shared.isBotApiSlot(sourceSlot) &&
+          TdClient.shared.configuredSlots.contains(sourceSlot)) {
+        if (sourceSlot == _pendingSlot) {
+          _pendingSlot = null;
+          _persistPending();
+        }
+        TdClient.shared.removeSlot(sourceSlot);
+        await TdClient.shared.deleteSlotData(sourceSlot);
       }
-      TdClient.shared.removeSlot(sourceSlot);
-      await TdClient.shared.deleteSlotData(sourceSlot);
-    }
+    });
     notifyListeners();
     auth.reloadAuthState();
-    await refresh();
+    await guardBotAccountPostAddStep(refresh);
     return slot;
   }
 

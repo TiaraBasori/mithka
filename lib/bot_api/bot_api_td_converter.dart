@@ -23,10 +23,20 @@ class BotApiTdConverter {
 
   int get botId => _int(bot['id']) ?? 0;
 
+  int rememberExternalId(String kind, String value) {
+    final id = _stableId(value);
+    if (id != 0) store.setMetadata('external_id.$kind.$id', value);
+    return id;
+  }
+
+  String? externalId(String kind, int id) =>
+      store.metadata('external_id.$kind.$id');
+
   Map<String, dynamic> user(Map<String, dynamic> source) {
     final id = _int(source['id']) ?? 0;
     final username = _string(source['username']);
     final isBot = source['is_bot'] == true;
+    final photo = profilePhoto(_map(source['photo']));
     return {
       '@type': 'user',
       'id': id,
@@ -43,7 +53,7 @@ class BotApiTdConverter {
         '@type': isBot ? 'userStatusOnline' : 'userStatusRecently',
         if (isBot) 'expires': 0,
       },
-      'profile_photo': null,
+      'profile_photo': photo,
       'is_contact': false,
       'is_mutual_contact': false,
       'is_close_friend': false,
@@ -71,6 +81,55 @@ class BotApiTdConverter {
           : const {'@type': 'userTypeRegular'},
       'language_code': _string(source['language_code']),
       'added_to_attachment_menu': source['added_to_attachment_menu'] == true,
+    };
+  }
+
+  Map<String, dynamic>? profilePhoto(Map<String, dynamic>? source) {
+    final info = _chatPhoto(source);
+    if (info == null) return null;
+    final uniqueId = _string(source?['small_file_unique_id']);
+    final identity = uniqueId.isNotEmpty
+        ? uniqueId
+        : _string(source?['small_file_id']);
+    return {
+      ...info,
+      '@type': 'profilePhoto',
+      'id': rememberExternalId('profile_photo', identity),
+    };
+  }
+
+  Map<String, dynamic> userProfilePhotos(Object? source) {
+    final value = _map(source);
+    final photos = <Map<String, dynamic>>[];
+    for (final rawPhoto in _list(value?['photos'])) {
+      final sourceSizes = _list(
+        rawPhoto,
+      ).map(_map).whereType<Map<String, dynamic>>().toList();
+      if (sourceSizes.isEmpty) continue;
+      final largest = sourceSizes.reduce(
+        (a, b) =>
+            ((_int(a['width']) ?? 0) * (_int(a['height']) ?? 0)) >=
+                ((_int(b['width']) ?? 0) * (_int(b['height']) ?? 0))
+            ? a
+            : b,
+      );
+      final uniqueId = _string(largest['file_unique_id']);
+      final identity = uniqueId.isNotEmpty
+          ? uniqueId
+          : _string(largest['file_id']);
+      photos.add({
+        '@type': 'chatPhoto',
+        'id': rememberExternalId('profile_photo', identity),
+        'added_date': 0,
+        'minithumbnail': null,
+        'sizes': [for (final size in sourceSizes) _photoSize(size)],
+        'animation': null,
+      });
+    }
+    return {
+      '@type': 'chatPhotos',
+      'total_count': _int(value?['total_count']) ?? photos.length,
+      'photos': photos,
     };
   }
 
@@ -716,7 +775,7 @@ class BotApiTdConverter {
     if (custom.isNotEmpty) {
       return {
         '@type': 'reactionTypeCustomEmoji',
-        'custom_emoji_id': _stableId(custom),
+        'custom_emoji_id': rememberExternalId('custom_emoji', custom),
       };
     }
     return {'@type': 'reactionTypeEmoji', 'emoji': _string(type?['emoji'])};
@@ -831,7 +890,10 @@ class BotApiTdConverter {
       },
       'custom_emoji' => {
         '@type': 'textEntityTypeCustomEmoji',
-        'custom_emoji_id': _stableId(_string(source['custom_emoji_id'])),
+        'custom_emoji_id': rememberExternalId(
+          'custom_emoji',
+          _string(source['custom_emoji_id']),
+        ),
       },
       _ => const {'@type': 'textEntityTypeCode'},
     };
@@ -895,13 +957,17 @@ class BotApiTdConverter {
     'document': file(source),
   };
 
+  Map<String, dynamic> sticker(Map<String, dynamic> source) => _sticker(source);
+
   Map<String, dynamic> _sticker(Map<String, dynamic> source) {
     final animated = source['is_animated'] == true;
     final video = source['is_video'] == true;
+    final setName = _string(source['set_name']);
+    final customEmoji = _string(source['custom_emoji_id']);
     return {
       '@type': 'sticker',
       'id': _stableId(_string(source['file_unique_id'])),
-      'set_id': 0,
+      'set_id': rememberExternalId('sticker_set', setName),
       'width': _int(source['width']) ?? 0,
       'height': _int(source['height']) ?? 0,
       'emoji': _string(source['emoji']),
@@ -912,10 +978,19 @@ class BotApiTdConverter {
             ? 'stickerFormatTgs'
             : 'stickerFormatWebp',
       },
-      'full_type': const {
-        '@type': 'stickerFullTypeRegular',
-        'premium_animation': null,
-      },
+      'full_type': customEmoji.isNotEmpty
+          ? {
+              '@type': 'stickerFullTypeCustomEmoji',
+              'custom_emoji_id': rememberExternalId(
+                'custom_emoji',
+                customEmoji,
+              ),
+              'needs_repainting': source['needs_repainting'] == true,
+            }
+          : const {
+              '@type': 'stickerFullTypeRegular',
+              'premium_animation': null,
+            },
       'outline': const <Map<String, dynamic>>[],
       'thumbnail': _thumbnail(_map(source['thumbnail'])),
       'sticker': file(source),

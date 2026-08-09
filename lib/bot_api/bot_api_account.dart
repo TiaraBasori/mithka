@@ -20,6 +20,13 @@ class BotApiAccount {
   final Uri endpoint;
   final Map<String, dynamic> bot;
 
+  BotApiAccount copyWith({Uri? endpoint, Map<String, dynamic>? bot}) =>
+      BotApiAccount(
+        slot: slot,
+        endpoint: endpoint ?? this.endpoint,
+        bot: bot ?? this.bot,
+      );
+
   int get botId => _int(bot['id']) ?? 0;
   String get username => (bot['username'] as String?)?.trim() ?? '';
   String get displayName {
@@ -61,6 +68,16 @@ class BotApiAccount {
     if (value is String) return int.tryParse(value);
     return null;
   }
+}
+
+/// A secret-safe failure while persisting a Bot API credential.
+class BotApiCredentialStoreException implements Exception {
+  const BotApiCredentialStoreException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 /// Validates and canonicalizes a Bot API server root.
@@ -132,7 +149,13 @@ String normalizeBotToken(String value) {
 abstract final class BotApiAccountRegistry {
   static const metadataKey = 'mithka.bot_api.accounts.v1';
   static const _tokenPrefix = 'mithka.bot_api.token.';
-  static const _secureStorage = FlutterSecureStorage();
+  static const _secureStorage = FlutterSecureStorage(
+    // The macOS data-protection Keychain requires a provisioning-authorized
+    // sharing entitlement, which makes local ad-hoc debug builds unsignable.
+    // Bot tokens are device-local and never shared with another app, so use
+    // the file-based macOS Keychain instead. Other platforms ignore this.
+    mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+  );
 
   static List<BotApiAccount> load(SharedPreferences preferences) {
     final values = preferences.getStringList(metadataKey) ?? const [];
@@ -148,6 +171,13 @@ abstract final class BotApiAccountRegistry {
     accounts.sort((a, b) => a.slot.compareTo(b.slot));
     return accounts;
   }
+
+  static Future<void> replaceMetadata(
+    SharedPreferences preferences,
+    Iterable<BotApiAccount> accounts,
+  ) => preferences.setStringList(metadataKey, [
+    for (final account in accounts) jsonEncode(account.toJson()),
+  ]);
 
   static Future<void> save(
     SharedPreferences preferences,
@@ -201,9 +231,13 @@ abstract final class BotApiAccountRegistry {
     try {
       await _secureStorage.write(key: '$_tokenPrefix$slot', value: token);
     } on MissingPluginException {
-      throw StateError('Secure storage is unavailable on this device.');
+      throw const BotApiCredentialStoreException(
+        'Mithka could not save the bot token securely on this device.',
+      );
     } on PlatformException {
-      throw StateError('Secure storage is unavailable on this device.');
+      throw const BotApiCredentialStoreException(
+        'Mithka could not save the bot token securely on this device.',
+      );
     }
   }
 }

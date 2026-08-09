@@ -961,7 +961,13 @@ class _SettingsViewState extends State<SettingsView> {
         icon: HeroAppIcons.objectGroup,
         color: const Color(0xFF16B0A0),
         destination: () => const AdvancedSettingsView(),
-        searchTerms: const ['advanced', 'relay', 'transfer boost'],
+        searchTerms: const [
+          'advanced',
+          'relay',
+          'transfer boost',
+          'bot api',
+          'telegram api endpoint',
+        ],
       ),
       if (developer.unlocked)
         _SettingsDestination(

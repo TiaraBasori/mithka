@@ -16,8 +16,11 @@ import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../bot_api/bot_api_account.dart';
 import '../bot_api/bot_api_client.dart';
+import '../bot_api/bot_api_endpoint_config.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/country_flag.dart';
@@ -76,6 +79,7 @@ class _LoginViewState extends State<LoginView> {
   void initState() {
     super.initState();
     _loadProxy();
+    unawaited(_loadBotEndpoint());
     if (Platform.isIOS || Platform.isAndroid) {
       unawaited(_initializeBackupConsent());
       unawaited(_loadRestorableBackupCount());
@@ -103,6 +107,16 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _loadProxy() async {
     final proxy = await ProxyConfig.load();
     if (mounted) setState(() => _proxy = proxy);
+  }
+
+  Future<void> _loadBotEndpoint() async {
+    final preferences = await SharedPreferences.getInstance();
+    final endpoint = BotApiEndpointConfig.load(
+      preferences,
+      legacyFallback: TdClient.shared.botApiEndpoint,
+    );
+    if (!mounted || _botEndpoint.text != 'https://api.telegram.org') return;
+    _botEndpoint.text = endpoint.toString();
   }
 
   Future<void> _loadRestorableBackupCount() async {
@@ -736,6 +750,8 @@ class _LoginViewState extends State<LoginView> {
     } on BotApiException catch (error) {
       if (mounted) setState(() => _botError = error.message);
     } on FormatException catch (error) {
+      if (mounted) setState(() => _botError = error.message);
+    } on BotApiCredentialStoreException catch (error) {
       if (mounted) setState(() => _botError = error.message);
     } catch (_) {
       if (mounted) {

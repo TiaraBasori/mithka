@@ -43,6 +43,7 @@ class BotApiTdBackend {
   bool _webhookConflict = false;
   String _connectionError = '';
   int _pollGeneration = 0;
+  final Set<String> _avatarRequests = <String>{};
 
   bool get webhookConflict => _webhookConflict;
   String get connectionError => _connectionError;
@@ -59,10 +60,14 @@ class BotApiTdBackend {
     for (final user in _store.users()) {
       if (_int(user['id']) == account.botId) continue;
       _emit({'@type': 'updateUser', 'user': user});
+      _scheduleUserAvatar(_int(user['id']) ?? 0);
     }
     for (final chat in _store.chats(limit: 1000)) {
       _emit({'@type': 'updateNewChat', 'chat': chat});
+      _scheduleChatAvatar(_int(chat['id']) ?? 0);
     }
+    _scheduleUserAvatar(account.botId);
+    unawaited(_refreshBotIdentity());
     unawaited(_preparePolling());
   }
 
@@ -107,7 +112,7 @@ class BotApiTdBackend {
       case 'getAuthorizationState':
         return const {'@type': 'authorizationStateReady'};
       case 'getMe':
-        return _converter.user(account.bot);
+        return _getUser(account.botId);
       case 'getConnectionState':
         return {
           '@type': _connectionError.isEmpty
@@ -172,10 +177,27 @@ class BotApiTdBackend {
         return _searchMessages(request);
       case 'getUser':
         final userId = _requiredInt(request, 'user_id');
-        return _store.user(userId) ??
-            (userId == account.botId
-                ? _converter.user(account.bot)
-                : _error(404, 'User is not available in on-device history.'));
+        return _getUser(userId);
+      case 'getUserFullInfo':
+        return _getUserFullInfo(_requiredInt(request, 'user_id'));
+      case 'getUserProfilePhotos':
+        return _getUserProfilePhotos(request);
+      case 'setName':
+        return _setMyName(request);
+      case 'setBio':
+        return _setMyBio(request);
+      case 'setProfilePhoto':
+        return _setMyProfilePhoto(request);
+      case 'deleteProfilePhoto':
+        return _removeMyProfilePhoto(request);
+      case 'getRecentStickers':
+        return _getRecentStickers();
+      case 'getInstalledStickerSets':
+        return _getObservedStickerSets(request);
+      case 'getStickerSet':
+        return _getStickerSet(request);
+      case 'getCustomEmojiStickers':
+        return _getCustomEmojiStickers(request);
       case 'getBasicGroup':
         return _groupObject(request, supergroup: false);
       case 'getSupergroup':
@@ -360,6 +382,14 @@ class BotApiTdBackend {
     });
     for (final event in emitted) {
       _emit(event);
+      final userId = _int((_map(event['user']))?['id']);
+      if (event['@type'] == 'updateUser' && userId != null) {
+        _scheduleUserAvatar(userId);
+      }
+      final chatId = _int((_map(event['chat']))?['id']);
+      if (event['@type'] == 'updateNewChat' && chatId != null) {
+        _scheduleChatAvatar(chatId);
+      }
     }
   }
 
@@ -537,9 +567,428 @@ class BotApiTdBackend {
     return events;
   }
 
+  Future<Map<String, dynamic>> _getUser(int userId) async {
+    var user = _store.user(userId);
+    if (user == null && userId == account.botId) {
+      user = _converter.user(account.bot);
+      _store.upsertUser(user);
+    }
+    if (user == null) {
+      return _error(404, 'User is not available in on-device history.');
+    }
+    if (user['profile_photo'] == null) {
+      await _refreshUserAvatar(userId);
+      user = _store.user(userId) ?? user;
+    }
+    return user;
+  }
+
+  Future<void> _refreshBotIdentity() async {
+    try {
+      final source = _map(await _client.call('getMe'));
+      if (source == null) return;
+      final current = _store.user(account.botId);
+      final updated = _converter.user(source);
+      // getMe doesn't carry profile photos; keep the separately resolved one.
+      updated['profile_photo'] = current?['profile_photo'];
+      _store.upsertUser(updated);
+      _emit({'@type': 'updateUser', 'user': updated});
+    } on BotApiException {
+      // The locally saved identity remains usable while the endpoint is down.
+    }
+  }
+
+  void _scheduleUserAvatar(int userId) {
+    if (userId == 0) return;
+    unawaited(_refreshUserAvatar(userId));
+  }
+
+  Future<void> _refreshUserAvatar(int userId) async {
+    final key = 'user:$userId';
+    final user = _store.user(userId);
+    if (user == null || user['profile_photo'] != null) return;
+    if (_store.metadata('avatar.resolved.$key') == '1') return;
+    if (!_avatarRequests.add(key)) return;
+    try {
+      final result = await _client.call('getUserProfilePhotos', {
+        'user_id': userId,
+        'offset': 0,
+        'limit': 1,
+      });
+      final photos = _converter.userProfilePhotos(result);
+      final photo = _profilePhotoFromChatPhotos(photos);
+      final updated = {...user, 'profile_photo': photo};
+      _store.upsertUser(updated);
+      _store.setMetadata('avatar.resolved.$key', '1');
+      _emit({'@type': 'updateUser', 'user': updated});
+    } on BotApiException {
+      // A private user may not expose a photo to this bot. Leave it unresolved
+      // so a later observed update can try again.
+    } finally {
+      _avatarRequests.remove(key);
+    }
+  }
+
+  void _scheduleChatAvatar(int chatId) {
+    if (chatId == 0) return;
+    unawaited(_refreshChatAvatar(chatId));
+  }
+
+  Future<void> _refreshChatAvatar(int chatId) async {
+    final key = 'chat:$chatId';
+    final existing = _store.chat(chatId);
+    if (existing == null || existing['photo'] != null) return;
+    if (_store.metadata('avatar.resolved.$key') == '1') return;
+    if (!_avatarRequests.add(key)) return;
+    try {
+      final value = await _client.call('getChat', {'chat_id': chatId});
+      final source = _map(value);
+      if (source == null) return;
+      final chat = _converter.chat(
+        source,
+        lastMessage: _map(existing['last_message']),
+        unreadCount: _int(existing['unread_count']) ?? 0,
+      );
+      _store.upsertChat(chat);
+      _store.setMetadata('avatar.resolved.$key', '1');
+      _emit({
+        '@type': 'updateChatPhoto',
+        'chat_id': chatId,
+        'photo': chat['photo'],
+      });
+      if (_string(source['type']) == 'private') {
+        final previousUser = _store.user(chatId);
+        final user = _converter.user({
+          ...?previousUser,
+          ...source,
+          'is_bot':
+              previousUser?['type'] is Map &&
+              _map(previousUser?['type'])?['@type'] == 'userTypeBot',
+        });
+        _store.upsertUser(user);
+        _emit({'@type': 'updateUser', 'user': user});
+      }
+    } on BotApiException {
+      // Keep the locally observed chat even if Telegram no longer grants a
+      // fresh getChat lookup for it.
+    } finally {
+      _avatarRequests.remove(key);
+    }
+  }
+
+  Future<Map<String, dynamic>> _getUserProfilePhotos(
+    Map<String, dynamic> request,
+  ) async {
+    final userId = _requiredInt(request, 'user_id');
+    final result = await _client.call('getUserProfilePhotos', {
+      'user_id': userId,
+      'offset': _int(request['offset']) ?? 0,
+      'limit': (_int(request['limit']) ?? 100).clamp(1, 100),
+    });
+    final photos = _converter.userProfilePhotos(result);
+    final user = _store.user(userId);
+    if (user != null) {
+      final updated = {
+        ...user,
+        'profile_photo': _profilePhotoFromChatPhotos(photos),
+      };
+      _store.upsertUser(updated);
+      _store.setMetadata('avatar.resolved.user:$userId', '1');
+      _emit({'@type': 'updateUser', 'user': updated});
+    }
+    return photos;
+  }
+
+  Map<String, dynamic>? _profilePhotoFromChatPhotos(
+    Map<String, dynamic> response,
+  ) {
+    final photos = _list(response['photos']);
+    if (photos.isEmpty) return null;
+    final photo = _map(photos.first);
+    final sizes = _list(
+      photo?['sizes'],
+    ).map(_map).whereType<Map<String, dynamic>>().toList();
+    if (sizes.isEmpty) return null;
+    sizes.sort(
+      (a, b) => ((_int(a['width']) ?? 0) * (_int(a['height']) ?? 0)).compareTo(
+        (_int(b['width']) ?? 0) * (_int(b['height']) ?? 0),
+      ),
+    );
+    return {
+      '@type': 'profilePhoto',
+      'id': _int(photo?['id']) ?? 0,
+      'small': _map(sizes.first['photo']),
+      'big': _map(sizes.last['photo']),
+      'minithumbnail': null,
+      'has_animation': false,
+      'is_personal': false,
+    };
+  }
+
+  Future<Map<String, dynamic>> _getUserFullInfo(int userId) async {
+    var bio = '';
+    if (userId == account.botId) {
+      final value = _map(await _client.call('getMyShortDescription'));
+      bio = _string(value?['short_description']);
+    } else {
+      try {
+        final value = _map(await _client.call('getChat', {'chat_id': userId}));
+        bio = _string(value?['bio']);
+      } on BotApiException {
+        // Full profile text is optional for locally observed users.
+      }
+    }
+    final user = await _getUser(userId);
+    final photo = user['@type'] == 'error' ? null : user['profile_photo'];
+    return {
+      '@type': 'userFullInfo',
+      'bio': {'@type': 'formattedText', 'text': bio, 'entities': const []},
+      'birthdate': null,
+      'personal_photo': null,
+      'photo': photo,
+      'public_photo': null,
+      'need_phone_number_privacy_exception': false,
+      'note': const {'@type': 'formattedText', 'text': '', 'entities': []},
+      'personal_chat_id': 0,
+      'gift_count': 0,
+    };
+  }
+
+  Future<Map<String, dynamic>> _setMyName(Map<String, dynamic> request) async {
+    final name = [
+      _string(request['first_name']).trim(),
+      _string(request['last_name']).trim(),
+    ].where((part) => part.isNotEmpty).join(' ');
+    await _client.call('setMyName', {'name': name});
+    final current = _store.user(account.botId) ?? _converter.user(account.bot);
+    final updated = {...current, 'first_name': name, 'last_name': ''};
+    _store.upsertUser(updated);
+    _emit({'@type': 'updateUser', 'user': updated});
+    return _ok;
+  }
+
+  Future<Map<String, dynamic>> _setMyBio(Map<String, dynamic> request) async {
+    final bio = _string(request['bio']);
+    await _client.call('setMyShortDescription', {'short_description': bio});
+    await _client.call('setMyDescription', {'description': bio});
+    return _ok;
+  }
+
+  Future<Map<String, dynamic>> _setMyProfilePhoto(
+    Map<String, dynamic> request,
+  ) async {
+    final photo = _map(request['photo']);
+    if (photo == null) return _error(400, 'A profile photo is required.');
+    final animated = photo['@type'] == 'inputChatPhotoAnimation';
+    final field = animated ? 'profile_animation' : 'profile_photo';
+    final upload = _inputUpload(
+      animated ? photo['animation'] : photo['photo'],
+      field,
+    );
+    if (upload.path == null) {
+      return _error(400, 'Bot profile photos must be uploaded as a new file.');
+    }
+    final input = animated
+        ? {
+            'type': 'animated',
+            'animation': 'attach://$field',
+            if ((_double(photo['main_frame_timestamp']) ?? 0) > 0)
+              'main_frame_timestamp': photo['main_frame_timestamp'],
+          }
+        : {'type': 'static', 'photo': 'attach://$field'};
+    await _client.callMultipart(
+      'setMyProfilePhoto',
+      fields: {'photo': jsonEncode(input)},
+      files: {field: upload.path!},
+    );
+    _store.setMetadata('avatar.resolved.user:${account.botId}', '0');
+    final current = _store.user(account.botId);
+    if (current != null) _store.upsertUser({...current, 'profile_photo': null});
+    await _refreshUserAvatar(account.botId);
+    return _ok;
+  }
+
+  Future<Map<String, dynamic>> _removeMyProfilePhoto(
+    Map<String, dynamic> request,
+  ) async {
+    await _client.call('removeMyProfilePhoto');
+    _store.setMetadata('avatar.resolved.user:${account.botId}', '0');
+    final current = _store.user(account.botId);
+    if (current != null) _store.upsertUser({...current, 'profile_photo': null});
+    await _refreshUserAvatar(account.botId);
+    return _ok;
+  }
+
+  Map<String, dynamic> _getRecentStickers() {
+    final stickers = <Map<String, dynamic>>[];
+    final remoteIds = <String>{};
+    for (final message in _store.searchMessages(
+      query: '',
+      limit: 100,
+      contentTypes: const {'messageSticker'},
+    )) {
+      final sticker = _map((_map(message['content']))?['sticker']);
+      final remoteId = _string(
+        (_map((_map(sticker?['sticker']))?['remote']))?['id'],
+      );
+      if (sticker != null && remoteId.isNotEmpty && remoteIds.add(remoteId)) {
+        stickers.add(sticker);
+      }
+    }
+    return {'@type': 'stickers', 'stickers': stickers};
+  }
+
+  Future<Map<String, dynamic>> _getObservedStickerSets(
+    Map<String, dynamic> request,
+  ) async {
+    final type = _string((_map(request['sticker_type']))?['@type']);
+    final stickers = <Map<String, dynamic>>[];
+    if (type == 'stickerTypeCustomEmoji') {
+      final customIds = <int>{};
+      for (final message in _store.searchMessages(query: '', limit: 100)) {
+        _collectCustomEmojiIds(message, customIds);
+      }
+      if (customIds.isNotEmpty) {
+        final response = await _getCustomEmojiStickers({
+          'custom_emoji_ids': [for (final id in customIds) '$id'],
+        });
+        stickers.addAll(
+          _list(
+            response['stickers'],
+          ).map(_map).whereType<Map<String, dynamic>>(),
+        );
+      }
+    } else {
+      stickers.addAll(
+        _list(
+          _getRecentStickers()['stickers'],
+        ).map(_map).whereType<Map<String, dynamic>>(),
+      );
+    }
+
+    final grouped = <int, List<Map<String, dynamic>>>{};
+    for (final sticker in stickers) {
+      final setId = _int(sticker['set_id']) ?? 0;
+      if (setId != 0) grouped.putIfAbsent(setId, () => []).add(sticker);
+    }
+    return {
+      '@type': 'stickerSets',
+      'total_count': grouped.length,
+      'sets': [
+        for (final entry in grouped.entries)
+          {
+            '@type': 'stickerSetInfo',
+            'id': entry.key,
+            'title':
+                _converter.externalId('sticker_set', entry.key) ?? 'Recent',
+            'name': _converter.externalId('sticker_set', entry.key) ?? '',
+            'thumbnail': entry.value.first['thumbnail'],
+            'thumbnail_outline': const <Map<String, dynamic>>[],
+            'is_owned': false,
+            'is_installed': false,
+            'is_archived': false,
+            'is_official': false,
+            'sticker_type': {
+              '@type': type == 'stickerTypeCustomEmoji'
+                  ? 'stickerTypeCustomEmoji'
+                  : 'stickerTypeRegular',
+            },
+            'needs_repainting': false,
+            'is_viewed': true,
+            'size': entry.value.length,
+            'covers': [entry.value.first],
+          },
+      ],
+    };
+  }
+
+  Future<Map<String, dynamic>> _getStickerSet(
+    Map<String, dynamic> request,
+  ) async {
+    final setId = _requiredInt(request, 'set_id');
+    final name = _converter.externalId('sticker_set', setId);
+    if (name == null || name.isEmpty) {
+      return _error(404, 'Sticker set is not in on-device history.');
+    }
+    final source = _map(await _client.call('getStickerSet', {'name': name}));
+    if (source == null) return _error(502, 'Telegram returned an invalid set.');
+    final stickers = <Map<String, dynamic>>[
+      for (final raw in _list(source['stickers']))
+        if (_map(raw) case final sticker?) _converter.sticker(sticker),
+    ];
+    final botType = _string(source['sticker_type']);
+    return {
+      '@type': 'stickerSet',
+      'id': setId,
+      'title': _string(source['title']),
+      'name': name,
+      'thumbnail': null,
+      'thumbnail_outline': const <Map<String, dynamic>>[],
+      'is_owned': false,
+      'is_installed': false,
+      'is_archived': false,
+      'is_official': false,
+      'sticker_type': {
+        '@type': botType == 'custom_emoji'
+            ? 'stickerTypeCustomEmoji'
+            : 'stickerTypeRegular',
+      },
+      'needs_repainting': false,
+      'is_viewed': true,
+      'stickers': stickers,
+      'emojis': const <Map<String, dynamic>>[],
+    };
+  }
+
+  Future<Map<String, dynamic>> _getCustomEmojiStickers(
+    Map<String, dynamic> request,
+  ) async {
+    final ids = <String>[];
+    for (final raw in _list(request['custom_emoji_ids'])) {
+      final stableId = _int(raw);
+      final external = stableId == null
+          ? null
+          : _converter.externalId('custom_emoji', stableId);
+      if (external != null && external.isNotEmpty) ids.add(external);
+    }
+    if (ids.isEmpty) return const {'@type': 'stickers', 'stickers': []};
+    final result = await _client.call('getCustomEmojiStickers', {
+      'custom_emoji_ids': ids.take(200).toList(),
+    });
+    return {
+      '@type': 'stickers',
+      'stickers': [
+        for (final raw in _list(result))
+          if (_map(raw) case final sticker?) _converter.sticker(sticker),
+      ],
+    };
+  }
+
+  void _collectCustomEmojiIds(Object? value, Set<int> target) {
+    if (value is Map) {
+      final map = Map<String, dynamic>.from(value);
+      if (map['@type'] == 'textEntityTypeCustomEmoji' ||
+          map['@type'] == 'reactionTypeCustomEmoji' ||
+          map['@type'] == 'stickerFullTypeCustomEmoji') {
+        final id = _int(map['custom_emoji_id']);
+        if (id != null && id != 0) target.add(id);
+      }
+      for (final child in map.values) {
+        _collectCustomEmojiIds(child, target);
+      }
+    } else if (value is List) {
+      for (final child in value) {
+        _collectCustomEmojiIds(child, target);
+      }
+    }
+  }
+
   Future<Map<String, dynamic>> _getChat(int chatId) async {
     final existing = _store.chat(chatId);
-    if (existing != null) return existing;
+    if (existing != null) {
+      if (existing['photo'] == null) await _refreshChatAvatar(chatId);
+      return _store.chat(chatId) ?? existing;
+    }
     final value = await _client.call('getChat', {'chat_id': chatId});
     final source = _map(value);
     if (source == null) {
@@ -817,6 +1266,7 @@ class BotApiTdBackend {
     late final String method;
     late final Map<String, dynamic> parameters;
     _Upload? upload;
+    final additionalUploads = <String, String>{};
     switch (content['@type']) {
       case 'inputMessageText':
         final text = _map(content['text']);
@@ -1001,6 +1451,15 @@ class BotApiTdBackend {
         };
       case 'inputMessageRichMessage':
         method = 'sendRichMessage';
+        for (final raw in _list(content['bot_api_files'])) {
+          final file = _map(raw);
+          final field = _string(file?['field']);
+          final path = _string(file?['path']);
+          if (!RegExp(r'^rich_media_\d+$').hasMatch(field) || path.isEmpty) {
+            return _error(400, 'Rich message media is invalid.');
+          }
+          additionalUploads[field] = path;
+        }
         parameters = {
           ...common,
           'rich_message': content['message'] ?? content['rich_message'] ?? {},
@@ -1008,11 +1467,14 @@ class BotApiTdBackend {
       default:
         return _error(400, 'BOT_API_UNSUPPORTED: ${content['@type']}');
     }
-    final result = upload?.path != null
+    if (upload?.path != null) {
+      additionalUploads[upload!.field] = upload.path!;
+    }
+    final result = additionalUploads.isNotEmpty
         ? await _client.callMultipart(
             method,
             fields: _multipartFields(parameters),
-            files: {upload!.field: upload.path!},
+            files: additionalUploads,
           )
         : await _client.call(method, parameters);
     return _persistSentResult(result);
@@ -1403,7 +1865,12 @@ class BotApiTdBackend {
       },
       'textEntityTypeCustomEmoji' => {
         'type': 'custom_emoji',
-        'custom_emoji_id': '${type?['custom_emoji_id'] ?? ''}',
+        'custom_emoji_id':
+            _converter.externalId(
+              'custom_emoji',
+              _int(type?['custom_emoji_id']) ?? 0,
+            ) ??
+            '${type?['custom_emoji_id'] ?? ''}',
       },
       _ => const {'type': 'code'},
     };
@@ -1553,7 +2020,10 @@ class BotApiTdBackend {
     return switch (_string(source?['type'])) {
       'custom_emoji' => {
         '@type': 'reactionTypeCustomEmoji',
-        'custom_emoji_id': _stableId(_string(source?['custom_emoji_id'])),
+        'custom_emoji_id': _converter.rememberExternalId(
+          'custom_emoji',
+          _string(source?['custom_emoji_id']),
+        ),
       },
       'paid' => const {'@type': 'reactionTypePaid'},
       _ => {'@type': 'reactionTypeEmoji', 'emoji': _string(source?['emoji'])},
@@ -1564,7 +2034,12 @@ class BotApiTdBackend {
     return switch (source['@type']) {
       'reactionTypeCustomEmoji' => {
         'type': 'custom_emoji',
-        'custom_emoji_id': '${source['custom_emoji_id'] ?? ''}',
+        'custom_emoji_id':
+            _converter.externalId(
+              'custom_emoji',
+              _int(source['custom_emoji_id']) ?? 0,
+            ) ??
+            '${source['custom_emoji_id'] ?? ''}',
       },
       'reactionTypePaid' => const {'type': 'paid'},
       _ => {'type': 'emoji', 'emoji': _string(source['emoji'])},
@@ -1782,14 +2257,4 @@ String _safeExtension(String path) {
   if (dot < 0) return '';
   final extension = leaf.substring(dot).toLowerCase();
   return RegExp(r'^\.[a-z0-9]{1,10}$').hasMatch(extension) ? extension : '';
-}
-
-int _stableId(String value) {
-  if (value.isEmpty) return 0;
-  var hash = 0xcbf29ce484222325;
-  for (final byte in value.codeUnits) {
-    hash ^= byte;
-    hash = (hash * 0x100000001b3) & 0x7fffffffffffffff;
-  }
-  return hash;
 }

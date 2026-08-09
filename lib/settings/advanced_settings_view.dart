@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import '../tdlib/td_client.dart';
+import 'bot_api_endpoint_view.dart';
 import 'rich_message_relay_config.dart';
 import 'rich_message_relay_view.dart';
 import 'transfer_boost_config.dart';
@@ -18,12 +20,14 @@ class AdvancedSettingsView extends StatefulWidget {
 class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
   bool _relayConfigured = false;
   bool _transferBoostEnabled = false;
+  String _botApiEndpoint = 'https://api.telegram.org';
 
   @override
   void initState() {
     super.initState();
     _refreshRelayStatus();
     _refreshTransferBoostStatus();
+    _refreshBotApiEndpoint();
   }
 
   Future<void> _refreshRelayStatus() async {
@@ -48,6 +52,22 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
       context,
     ).push<void>(MaterialPageRoute(builder: (_) => const TransferBoostView()));
     await _refreshTransferBoostStatus();
+  }
+
+  Future<void> _refreshBotApiEndpoint() async {
+    try {
+      final endpoint = await TdClient.shared.configuredBotApiEndpoint();
+      if (mounted) setState(() => _botApiEndpoint = endpoint.toString());
+    } on Object {
+      // Keep the public default if a detached account transport is closing.
+    }
+  }
+
+  Future<void> _openBotApiEndpointSettings() async {
+    await Navigator.of(
+      context,
+    ).push<void>(MaterialPageRoute(builder: (_) => const BotApiEndpointView()));
+    await _refreshBotApiEndpoint();
   }
 
   @override
@@ -75,6 +95,12 @@ class _AdvancedSettingsViewState extends State<AdvancedSettingsView> {
           SettingsSection(
             titleKey: AppStringKeys.advancedNetwork,
             rows: [
+              SettingsRow(
+                title: AppStringKeys.loginBotApiEndpoint,
+                value: _botApiEndpoint,
+                leading: const SettingsLeadingIcon(icon: HeroAppIcons.server),
+                onTap: _openBotApiEndpointSettings,
+              ),
               SettingsRow(
                 title: AppStringKeys.transferBoostTitle,
                 value:

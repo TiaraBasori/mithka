@@ -29,6 +29,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../app/diagnostic_breadcrumbs.dart';
 import '../bot_api/bot_api_account.dart';
 import '../bot_api/bot_api_client.dart';
+import '../bot_api/bot_api_endpoint_config.dart';
 import '../bot_api/bot_api_td_backend.dart';
 import '../config/secrets.dart';
 import '../settings/api_credentials_config.dart';
@@ -268,6 +269,7 @@ class TdClient {
 
   late SharedPreferences _prefs;
   String _supportDir = '';
+  Uri _botApiEndpoint = BotApiEndpointConfig.defaultEndpoint;
 
   static const _slotsKey = 'drachma.accountSlots';
   static const _activeKey = 'drachma.activeSlot';
@@ -282,8 +284,50 @@ class TdClient {
   int? slotForClient(int clientId) => _slotForClient[clientId];
   bool isBotApiSlot(int slot) => _botApiAccountForSlot.containsKey(slot);
   bool get activeIsBotApi => isBotApiSlot(_activeSlot);
+
+  /// Returns whether the active account is backed by the Bot API.
+  ///
+  /// Detached desktop windows proxy requests to the primary engine and don't
+  /// own its account registry, so they ask the compatible backend directly.
+  Future<bool> activeAccountUsesBotApi() async {
+    if (activeIsBotApi) return true;
+    if (_proxyTransport == null) return false;
+    try {
+      final info = await query({'@type': 'getBotApiAccountInfo'});
+      return info.type == 'botApiAccountInfo';
+    } on TdError {
+      return false;
+    }
+  }
+
+  /// Reads the one Bot API server root shared by every bot account.
+  Future<Uri> configuredBotApiEndpoint() async {
+    if (_proxyTransport == null) {
+      if (!_isRunning) await start();
+      return _botApiEndpoint;
+    }
+    final result = await query({'@type': 'getBotApiEndpointConfiguration'});
+    return normalizeBotApiEndpoint(result.str('endpoint') ?? '');
+  }
+
+  /// Validates and applies a Bot API server root to every bot account.
+  Future<Uri> setBotApiEndpoint(String endpoint) async {
+    final normalized = normalizeBotApiEndpoint(endpoint);
+    if (_proxyTransport != null) {
+      final result = await query({
+        '@type': 'setBotApiEndpointConfiguration',
+        'endpoint': normalized.toString(),
+      });
+      return normalizeBotApiEndpoint(result.str('endpoint') ?? '');
+    }
+    if (!_isRunning) await start();
+    await _replaceGlobalBotApiEndpoint(normalized);
+    return _botApiEndpoint;
+  }
+
   BotApiAccount? botApiAccount(int slot) => _botApiAccountForSlot[slot];
   Uri? get activeBotApiEndpoint => botApiAccount(_activeSlot)?.endpoint;
+  Uri get botApiEndpoint => _botApiEndpoint;
 
   /// Every client currently registered, for callers that need to ask each
   /// account something rather than only the active one.
@@ -402,7 +446,27 @@ class TdClient {
     _supportDir = supportDir.path;
     if (kDebugMode) await _closeStaleDebugClients();
 
-    final botApiAccounts = BotApiAccountRegistry.load(_prefs);
+    final storedBotApiAccounts = BotApiAccountRegistry.load(_prefs);
+    _botApiEndpoint = BotApiEndpointConfig.load(
+      _prefs,
+      legacyFallback: storedBotApiAccounts.firstOrNull?.endpoint,
+    );
+    final botApiAccounts = [
+      for (final account in storedBotApiAccounts)
+        account.copyWith(endpoint: _botApiEndpoint),
+    ];
+    if (_prefs.getString(BotApiEndpointConfig.preferenceKey) == null) {
+      await BotApiEndpointConfig.save(_prefs, _botApiEndpoint.toString());
+    }
+    if (botApiAccounts.any(
+      (account) =>
+          storedBotApiAccounts
+              .firstWhere((stored) => stored.slot == account.slot)
+              .endpoint !=
+          account.endpoint,
+    )) {
+      await BotApiAccountRegistry.replaceMetadata(_prefs, botApiAccounts);
+    }
     final botApiMetadataSlots = botApiAccounts
         .map((account) => account.slot)
         .toSet();
@@ -593,6 +657,8 @@ class TdClient {
       validationClient.close();
     }
 
+    await _replaceGlobalBotApiEndpoint(normalizedEndpoint);
+
     final previousSlot = _activeSlot;
     final slot = _nextSlot();
     final account = BotApiAccount(
@@ -639,6 +705,60 @@ class TdClient {
       mediaDirectory: '$directory/files',
       emit: (update) => _route({...update, '@client_id': clientId}),
     );
+  }
+
+  Future<void> _replaceGlobalBotApiEndpoint(Uri endpoint) async {
+    if (endpoint == _botApiEndpoint) return;
+    final replacementAccounts = <int, BotApiAccount>{};
+    final replacementBackends = <int, BotApiTdBackend>{};
+
+    // Validate every existing token against the proposed root before changing
+    // any live account. A typo must not disconnect already-working bots.
+    for (final entry in _botApiAccountForSlot.entries) {
+      final token = await BotApiAccountRegistry.readToken(entry.key);
+      final clientId = _clientForSlot[entry.key];
+      if (token == null || clientId == null) continue;
+      final validation = BotApiClient(token: token, endpoint: endpoint);
+      try {
+        final result = await validation.call('getMe');
+        final returnedId = result is Map
+            ? Map<String, dynamic>.from(result).int64('id')
+            : null;
+        if (returnedId != entry.value.botId) {
+          throw const BotApiException(
+            409,
+            'The Bot API endpoint returned a different bot account.',
+          );
+        }
+      } finally {
+        validation.close();
+      }
+      final account = entry.value.copyWith(endpoint: endpoint);
+      replacementAccounts[entry.key] = account;
+      replacementBackends[clientId] = _createBotApiBackend(
+        account,
+        token,
+        clientId,
+      );
+    }
+
+    await BotApiEndpointConfig.save(_prefs, endpoint.toString());
+    final metadata = [
+      for (final account in _botApiAccountForSlot.values)
+        replacementAccounts[account.slot] ??
+            account.copyWith(endpoint: endpoint),
+    ];
+    await BotApiAccountRegistry.replaceMetadata(_prefs, metadata);
+
+    for (final entry in replacementBackends.entries) {
+      await _botApiBackendForClient[entry.key]?.close();
+    }
+    _botApiEndpoint = endpoint;
+    _botApiAccountForSlot.addAll(replacementAccounts);
+    _botApiBackendForClient.addAll(replacementBackends);
+    for (final backend in replacementBackends.values) {
+      await backend.start();
+    }
   }
 
   int _syntheticBotApiClientId(int slot) => -1000000 - slot;
@@ -1723,6 +1843,20 @@ class TdClient {
       return result;
     }
     final requestType = request.type ?? 'unknown';
+    if (requestType == 'getBotApiEndpointConfiguration') {
+      return {
+        '@type': 'botApiEndpointConfiguration',
+        'endpoint': _botApiEndpoint.toString(),
+      };
+    }
+    if (requestType == 'setBotApiEndpointConfiguration') {
+      final endpoint = normalizeBotApiEndpoint(request.str('endpoint') ?? '');
+      await _replaceGlobalBotApiEndpoint(endpoint);
+      return {
+        '@type': 'botApiEndpointConfiguration',
+        'endpoint': _botApiEndpoint.toString(),
+      };
+    }
     final stopwatch = Stopwatch()..start();
     final botApiBackend = _botApiBackendForClient[clientId];
     if (botApiBackend != null) {
