@@ -15,7 +15,6 @@ import 'package:provider/provider.dart';
 
 import '../auth/telegram_passkey_service.dart';
 import '../components/app_icons.dart';
-import '../components/desktop_content_constraint.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../tdlib/json_helpers.dart';
@@ -237,115 +236,84 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     final sensitiveContent = context.watch<SensitiveContentController>();
-    return Scaffold(
-      backgroundColor: c.groupedBackground,
-      body: Column(
+    return SettingsPageScaffold(
+      title: AppStrings.t(AppStringKeys.privacySecurityTitle),
+      onBack: () => Navigator.of(context).pop(),
+      child: SettingsListView(
         children: [
-          NavHeader(
-            title: AppStrings.t(AppStringKeys.privacySecurityTitle),
-            onBack: () => Navigator.of(context).pop(),
-          ),
-          Expanded(
-            child: DesktopContentConstraint(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(12, 14, 12, 24),
-                children: [
-                  _group(AppStrings.t(AppStringKeys.privacySectionTitle), [
-                    for (final entry in _privacyRules)
-                      _Row(
-                        entry.icon,
-                        AppStrings.t(entry.title),
-                        _ruleValue[entry.setting] ?? '',
-                        () {
-                          unawaited(
-                            _open(
-                              PrivacyRuleView(
-                                title: entry.title,
-                                setting: entry.setting,
-                              ),
-                            ).then((_) => _loadRule(entry.setting)),
-                          );
-                        },
+          _group(AppStrings.t(AppStringKeys.privacySectionTitle), [
+            for (final entry in _privacyRules)
+              _Row(
+                entry.icon,
+                AppStrings.t(entry.title),
+                _ruleValue[entry.setting] ?? '',
+                () {
+                  unawaited(
+                    _open(
+                      PrivacyRuleView(
+                        title: entry.title,
+                        setting: entry.setting,
                       ),
-                  ]),
-                  _group(
-                    AppStrings.t(AppStringKeys.privacySecuritySectionTitle),
-                    [
-                      _Row(
-                        HeroAppIcons.lock,
-                        AppStrings.t(AppStringKeys.privacyTwoStepVerification),
-                        _twoStep,
-                        () => _open(
-                          const TwoStepPasswordView(),
-                        ).then((_) => _load()),
-                      ),
-                      _Row(
-                        HeroAppIcons.phone,
-                        AppStrings.t(
-                          AppStringKeys.accountSecurityChangePhoneNumber,
-                        ),
-                        '',
-                        () => _open(const ChangePhoneNumberView()),
-                      ),
-                      _Row(
-                        HeroAppIcons.networkWired,
-                        AppStrings.t(AppStringKeys.privacyLoggedInDevices),
-                        '',
-                        () => _open(const ActiveSessionsView()),
-                      ),
-                      if (_passkeyCount != null)
-                        _Row(
-                          HeroAppIcons.key,
-                          AppStrings.t(AppStringKeys.passkeysTitle),
-                          '$_passkeyCount',
-                          () => _open(
-                            const PasskeysView(),
-                          ).then((_) => _loadPasskeys()),
-                        ),
-                      if (sensitiveContent.shouldShowToggle)
-                        _SwitchRow(
-                          HeroAppIcons.eye,
-                          AppStrings.t(AppStringKeys.privacySensitiveContent),
-                          sensitiveContent.enabled,
-                          (value) =>
-                              unawaited(_setSensitiveContentEnabled(value)),
-                        ),
-                      _Row(
-                        HeroAppIcons.stopwatch,
-                        AppStringKeys.chatInfoAutoDeleteMessages,
-                        '',
-                        () => _open(const AutoDeleteView()),
-                      ),
-                    ],
-                  ),
-                  _group(
-                    AppStrings.t(AppStringKeys.privacyDangerZone),
-                    [
-                      _Row(
-                        HeroAppIcons.stopwatch,
-                        AppStrings.t(
-                          AppStringKeys.accountSecurityDeleteAccountIfAwayFor,
-                        ),
-                        '',
-                        () => _open(const AccountInactivityView()),
-                      ),
-                      _Row(
-                        HeroAppIcons.trash,
-                        AppStrings.t(
-                          AppStringKeys.privacyDeleteTelegramAccount,
-                        ),
-                        '',
-                        () => _open(const DeleteTelegramAccountView()),
-                      ),
-                    ],
-                    destructive: true,
-                  ),
-                ],
+                    ).then((_) => _loadRule(entry.setting)),
+                  );
+                },
               ),
+          ]),
+          _group(AppStrings.t(AppStringKeys.privacySecuritySectionTitle), [
+            _Row(
+              HeroAppIcons.lock,
+              AppStrings.t(AppStringKeys.privacyTwoStepVerification),
+              _twoStep,
+              () => _open(const TwoStepPasswordView()).then((_) => _load()),
             ),
-          ),
+            _Row(
+              HeroAppIcons.phone,
+              AppStrings.t(AppStringKeys.accountSecurityChangePhoneNumber),
+              '',
+              () => _open(const ChangePhoneNumberView()),
+            ),
+            _Row(
+              HeroAppIcons.networkWired,
+              AppStrings.t(AppStringKeys.privacyLoggedInDevices),
+              '',
+              () => _open(const ActiveSessionsView()),
+            ),
+            if (_passkeyCount != null)
+              _Row(
+                HeroAppIcons.key,
+                AppStrings.t(AppStringKeys.passkeysTitle),
+                '$_passkeyCount',
+                () => _open(const PasskeysView()).then((_) => _loadPasskeys()),
+              ),
+            if (sensitiveContent.shouldShowToggle)
+              _SwitchRow(
+                HeroAppIcons.eye,
+                AppStrings.t(AppStringKeys.privacySensitiveContent),
+                sensitiveContent.enabled,
+                (value) => unawaited(_setSensitiveContentEnabled(value)),
+              ),
+            _Row(
+              HeroAppIcons.stopwatch,
+              AppStringKeys.chatInfoAutoDeleteMessages,
+              '',
+              () => _open(const AutoDeleteView()),
+            ),
+          ]),
+          _group(AppStrings.t(AppStringKeys.privacyDangerZone), [
+            _Row(
+              HeroAppIcons.stopwatch,
+              AppStrings.t(AppStringKeys.accountSecurityDeleteAccountIfAwayFor),
+              '',
+              () => _open(const AccountInactivityView()),
+            ),
+            _Row(
+              HeroAppIcons.trash,
+              AppStrings.t(AppStringKeys.privacyDeleteTelegramAccount),
+              '',
+              () => _open(const DeleteTelegramAccountView()),
+            ),
+          ], destructive: true),
         ],
       ),
     );
@@ -356,25 +324,12 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
     List<_SettingsEntry> rows, {
     bool destructive = false,
   }) {
-    return Column(
+    return SettingsSection(
       key: destructive ? const ValueKey('privacy-danger-zone') : null,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SettingsSectionHeader.text(
-          title,
-          color: destructive ? AppTheme.tagRed : null,
-        ),
-        SettingsCard(
-          children: [
-            for (var i = 0; i < rows.length; i++) ...[
-              _settingsRow(rows[i], destructive: destructive),
-              if (i < rows.length - 1)
-                const InsetDivider(
-                  leadingInset: AppMetric.settingsIconDividerInset,
-                ),
-            ],
-          ],
-        ),
+      title: title,
+      headerColor: destructive ? AppTheme.tagRed : null,
+      rows: [
+        for (final row in rows) _settingsRow(row, destructive: destructive),
       ],
     );
   }

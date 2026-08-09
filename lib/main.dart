@@ -116,7 +116,10 @@ Future<void> main(List<String> arguments) async {
       final launch = await DesktopMiniAppWindowService.instance
           .configureChildProxy(miniAppArguments);
       final prefs = await SharedPreferences.getInstance();
-      await _preloadLocaleCatalogue(prefs);
+      await Future.wait<void>([
+        _preloadLocaleCatalogue(prefs),
+        ThemeController.preloadCachedEmojiFont(prefs),
+      ]);
       runApp(DesktopMiniAppWindowApp(launch: launch, prefs: prefs));
       return;
     }
@@ -138,7 +141,10 @@ Future<void> main(List<String> arguments) async {
       );
       final prefs = await SharedPreferences.getInstance();
       DesktopHotkeyController.initializeShared(prefs, replace: true);
-      await _preloadLocaleCatalogue(prefs);
+      await Future.wait<void>([
+        _preloadLocaleCatalogue(prefs),
+        ThemeController.preloadCachedEmojiFont(prefs),
+      ]);
       runApp(
         DesktopUtilityWindowApp(arguments: utilityArguments, prefs: prefs),
       );
@@ -154,7 +160,10 @@ Future<void> main(List<String> arguments) async {
         chatArguments,
       );
       final prefs = await SharedPreferences.getInstance();
-      await _preloadLocaleCatalogue(prefs);
+      await Future.wait<void>([
+        _preloadLocaleCatalogue(prefs),
+        ThemeController.preloadCachedEmojiFont(prefs),
+      ]);
       runApp(DesktopChatWindowApp(arguments: chatArguments, prefs: prefs));
       return;
     }
@@ -211,6 +220,7 @@ Future<void> _bootstrapAndRunApp() async {
   await Future.wait<void>([
     _preloadLocaleCatalogue(prefs),
     LocalAppLockController.shared.initialize(),
+    ThemeController.preloadCachedEmojiFont(prefs),
   ]);
   DesktopHotkeyController.initializeShared(prefs, replace: true);
   KeywordBlocker.shared.initialize(prefs);
