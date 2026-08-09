@@ -19,6 +19,8 @@ class TdFileRef {
   TdFileRef({
     required this.id,
     this.localPath,
+    this.fileName,
+    this.mimeType,
     this.miniThumb,
     this.thumbnail,
     this.hasAnimation = false,
@@ -26,6 +28,8 @@ class TdFileRef {
   });
   final int id;
   final String? localPath;
+  final String? fileName;
+  final String? mimeType;
   final bool hasAnimation;
   final int? photoId;
   Uint8List? miniThumb; // decoded JPEG for instant placeholder
@@ -35,6 +39,8 @@ class TdFileRef {
     return TdFileRef(
       id: id,
       localPath: _usablePath(localPath) ?? _usablePath(previous?.localPath),
+      fileName: _usablePath(fileName) ?? _usablePath(previous?.fileName),
+      mimeType: _usablePath(mimeType) ?? _usablePath(previous?.mimeType),
       miniThumb: miniThumb ?? previous?.miniThumb,
       hasAnimation: hasAnimation || (previous?.hasAnimation ?? false),
       photoId: photoId ?? previous?.photoId,
@@ -1772,7 +1778,11 @@ abstract final class TDParse {
     final mini = decodeMiniThumb(video.obj('minithumbnail'));
     return MediaAttachment(
       image: fileRef(video.obj('thumbnail')?.obj('file'), miniThumb: mini),
-      video: fileRef(video.obj('video')),
+      video: fileRef(
+        video.obj('video'),
+        fileName: video.str('file_name'),
+        mimeType: video.str('mime_type'),
+      ),
       videoDuration: video.integer('duration') ?? fallback?.integer('duration'),
       width: video.integer('width') ?? fallback?.integer('width'),
       height: video.integer('height') ?? fallback?.integer('height'),
@@ -3362,7 +3372,12 @@ abstract final class TDParse {
           final thumb =
               fileRef(anim.obj('thumbnail')?.obj('file'), miniThumb: mini) ??
               fileRef(anim.obj('animation'), miniThumb: mini);
-          final animation = fileRef(anim.obj('animation'), miniThumb: mini);
+          final animation = fileRef(
+            anim.obj('animation'),
+            fileName: anim.str('file_name'),
+            mimeType: anim.str('mime_type'),
+            miniThumb: mini,
+          );
           return MediaAttachment(
             image: thumb,
             video: animation,
@@ -3381,7 +3396,11 @@ abstract final class TDParse {
               video.obj('thumbnail')?.obj('file'),
               miniThumb: mini,
             ),
-            video: fileRef(video.obj('video')),
+            video: fileRef(
+              video.obj('video'),
+              fileName: video.str('file_name'),
+              mimeType: video.str('mime_type'),
+            ),
             videoDuration: video.integer('duration'),
             videoFileSize: _fileSize(video.obj('video')),
             width: video.integer('width'),
@@ -3826,6 +3845,8 @@ abstract final class TDParse {
 
   static TdFileRef? fileRef(
     Map<String, dynamic>? file, {
+    String? fileName,
+    String? mimeType,
     Uint8List? miniThumb,
     TdFileRef? thumbnail,
   }) {
@@ -3835,6 +3856,8 @@ abstract final class TDParse {
     return TdFileRef(
       id: id,
       localPath: file.obj('local')?.str('path'),
+      fileName: fileName,
+      mimeType: mimeType,
       miniThumb: miniThumb,
       thumbnail: normalizedThumbnail,
     );
