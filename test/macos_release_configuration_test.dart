@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('macOS builds avoid restricted Keychain Sharing entitlements', () {
+  test('macOS local builds avoid restricted sharing entitlements', () {
     for (final path in [
       'macos/Runner/DebugProfile.entitlements',
       'macos/Runner/Release.entitlements',
@@ -14,8 +14,9 @@ void main() {
         entitlements,
         isNot(contains('<key>keychain-access-groups</key>')),
         reason:
-            '$path must remain compatible with local ad-hoc signing; bot '
-            'credentials use the non-sharing macOS Keychain.',
+            '$path must remain compatible with local ad-hoc signing; App Store '
+            'provisioning supplies the app-ID access group used by the '
+            'data-protection Keychain.',
       );
     }
   });

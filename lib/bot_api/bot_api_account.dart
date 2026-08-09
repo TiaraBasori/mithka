@@ -150,11 +150,12 @@ abstract final class BotApiAccountRegistry {
   static const metadataKey = 'mithka.bot_api.accounts.v1';
   static const _tokenPrefix = 'mithka.bot_api.token.';
   static const _secureStorage = FlutterSecureStorage(
-    // The macOS data-protection Keychain requires a provisioning-authorized
-    // sharing entitlement, which makes local ad-hoc debug builds unsignable.
-    // Bot tokens are device-local and never shared with another app, so use
-    // the file-based macOS Keychain instead. Other platforms ignore this.
-    mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+    // The legacy file-based macOS Keychain applies per-signature ACLs and can
+    // show a login-keychain password dialog after an App Store update. Keep
+    // release credentials in Mithka's provisioned data-protection Keychain
+    // (the MacOsOptions default), under an app-owned service name. Other
+    // platforms ignore this option.
+    mOptions: MacOsOptions(accountName: 'ad.neko.mithka.bot-api'),
   );
 
   static List<BotApiAccount> load(SharedPreferences preferences) {

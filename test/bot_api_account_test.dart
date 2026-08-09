@@ -197,18 +197,20 @@ void main() {
     },
   );
 
-  test('uses the non-sharing macOS Keychain for bot tokens', () async {
+  test('uses the data-protection macOS Keychain for bot tokens', () async {
     const secureStorage = MethodChannel(
       'plugins.it_nomads.com/flutter_secure_storage',
     );
     SharedPreferences.setMockInitialValues({});
     debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
-    Map<Object?, Object?>? writeArguments;
+    final operationOptions = <String, Map<String, String>>{};
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(secureStorage, (call) async {
-          if (call.method == 'write') {
-            writeArguments = (call.arguments as Map).cast<Object?, Object?>();
+          if (call.method == 'write' || call.method == 'read') {
+            final arguments = (call.arguments as Map).cast<Object?, Object?>();
+            operationOptions[call.method] = (arguments['options'] as Map)
+                .cast<String, String>();
           }
           return null;
         });
@@ -228,9 +230,11 @@ void main() {
       account,
       '654321:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef',
     );
+    await BotApiAccountRegistry.readToken(account.slot);
 
-    final options = (writeArguments?['options'] as Map?)
-        ?.cast<String, String>();
-    expect(options?['usesDataProtectionKeychain'], 'false');
+    expect(operationOptions['write']?['usesDataProtectionKeychain'], 'true');
+    expect(operationOptions['read']?['usesDataProtectionKeychain'], 'true');
+    expect(operationOptions['write']?['accountName'], 'ad.neko.mithka.bot-api');
+    expect(operationOptions['read']?['accountName'], 'ad.neko.mithka.bot-api');
   });
 }
