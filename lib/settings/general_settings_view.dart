@@ -339,9 +339,6 @@ class ChatBehaviorSettingsView extends StatefulWidget {
 }
 
 class _ChatBehaviorSettingsViewState extends State<ChatBehaviorSettingsView> {
-  SettingsIconTile _icon(AppIconData icon, Color color) =>
-      SettingsIconTile(icon: icon, backgroundColor: color);
-
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
@@ -365,53 +362,56 @@ class _ChatBehaviorSettingsViewState extends State<ChatBehaviorSettingsView> {
                         key: const ValueKey('chat-behavior-enter-to-send'),
                         title: AppStringKeys.generalSendMessageWithEnter,
                         value: theme.enterToSend,
-                        leading: _icon(
-                          HeroAppIcons.reply,
-                          const Color(0xFF3C8CF0),
+                        leading: const SettingsLeadingIcon(
+                          icon: HeroAppIcons.reply,
                         ),
                         onChanged: (value) => theme.enterToSend = value,
                       ),
-                      const InsetDivider(leadingInset: 56),
+                      const InsetDivider(
+                        leadingInset: AppMetric.settingsIconDividerInset,
+                      ),
                       SettingsSwitchRow(
                         key: const ValueKey('chat-behavior-open-at-latest'),
                         title: AppStringKeys.generalOpenChatAtLatestMessage,
                         value: theme.openChatsAtLatest,
-                        leading: _icon(
-                          HeroAppIcons.download,
-                          const Color(0xFF3C8CF0),
+                        leading: const SettingsLeadingIcon(
+                          icon: HeroAppIcons.download,
                         ),
                         onChanged: (value) => theme.openChatsAtLatest = value,
                       ),
-                      const InsetDivider(leadingInset: 56),
+                      const InsetDivider(
+                        leadingInset: AppMetric.settingsIconDividerInset,
+                      ),
                       SettingsSwitchRow(
                         key: const ValueKey('chat-behavior-preserve-sender'),
                         title: AppStringKeys.generalRepeatPreserveSender,
                         value: theme.preserveSenderWhenRepeating,
-                        leading: _icon(
-                          HeroAppIcons.arrowsRotate,
-                          const Color(0xFF16B0A0),
+                        leading: const SettingsLeadingIcon(
+                          icon: HeroAppIcons.arrowsRotate,
                         ),
                         onChanged: (value) =>
                             theme.preserveSenderWhenRepeating = value,
                       ),
-                      const InsetDivider(leadingInset: 56),
+                      const InsetDivider(
+                        leadingInset: AppMetric.settingsIconDividerInset,
+                      ),
                       SettingsSwitchRow(
                         key: const ValueKey('chat-behavior-quick-replies'),
                         title: AppStringKeys.businessToolsQuickReplies,
                         value: theme.quickRepliesEnabled,
-                        leading: _icon(
-                          HeroAppIcons.solidMessage,
-                          const Color(0xFF34C759),
+                        leading: const SettingsLeadingIcon(
+                          icon: HeroAppIcons.solidMessage,
                         ),
                         onChanged: (value) => theme.quickRepliesEnabled = value,
                       ),
-                      const InsetDivider(leadingInset: 56),
+                      const InsetDivider(
+                        leadingInset: AppMetric.settingsIconDividerInset,
+                      ),
                       SettingsRow(
                         key: const ValueKey('chat-behavior-video-playback'),
                         title: AppStringKeys.videoPlaybackSettingsTitle,
-                        leading: _icon(
-                          HeroAppIcons.video,
-                          const Color(0xFFAF52DE),
+                        leading: const SettingsLeadingIcon(
+                          icon: HeroAppIcons.video,
                         ),
                         onTap: () => Navigator.of(context).push(
                           MaterialPageRoute<void>(

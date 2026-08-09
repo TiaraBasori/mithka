@@ -5,7 +5,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:math' as math;
 
 //  外观 is the hub for theme, interface, font, and app-icon settings. Each
 //  interface surface owns its controls and a live account-backed preview.
@@ -99,7 +98,6 @@ class AppearanceView extends StatelessWidget {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: AppSpacing.xl),
                   _label(
                     context,
                     AppStrings.t(AppStringKeys.appearanceSectionText),
@@ -135,7 +133,6 @@ class AppearanceView extends StatelessWidget {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: AppSpacing.xl),
                   _label(
                     context,
                     AppStrings.t(AppStringKeys.appearanceSectionChat),
@@ -160,13 +157,11 @@ class AppearanceView extends StatelessWidget {
                       ),
                     ),
                   ]),
-                  const SizedBox(height: AppSpacing.xl),
                   _label(
                     context,
                     AppStrings.t(AppStringKeys.appearanceSectionChatList),
                   ),
                   _card(context, _chatListNavigationRows(context)),
-                  const SizedBox(height: AppSpacing.xl),
                   _label(
                     context,
                     AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
@@ -224,7 +219,6 @@ class ThemeSettingsView extends StatelessWidget {
                   ),
                 ]),
                 if (theme.themingEnabled) ...[
-                  const SizedBox(height: AppSpacing.xl),
                   appearance._label(
                     context,
                     AppStrings.t(AppStringKeys.appearanceTheme),
@@ -305,7 +299,6 @@ class ThemeSettingsView extends StatelessWidget {
                     ),
                   ]),
                 ],
-                const SizedBox(height: AppSpacing.xl),
                 appearance._label(
                   context,
                   AppStrings.t(AppStringKeys.appearanceMode),
@@ -723,7 +716,6 @@ class DisplaySettingsView extends StatelessWidget {
                 appearance._card(context, [
                   appearance._chatViewNavigationRow(context),
                 ]),
-                const SizedBox(height: AppSpacing.xl),
                 appearance._label(
                   context,
                   AppStrings.t(AppStringKeys.appearanceSectionChatList),
@@ -732,7 +724,6 @@ class DisplaySettingsView extends StatelessWidget {
                   context,
                   appearance._chatListNavigationRows(context),
                 ),
-                const SizedBox(height: AppSpacing.xl),
                 appearance._label(
                   context,
                   AppStrings.t(AppStringKeys.appearanceAvatarsAndSidebar),
@@ -914,7 +905,6 @@ class ChatListAppearanceSettingsView extends StatelessWidget {
               icon: HeroAppIcons.wandMagicSparkles.data,
             ),
           ]),
-          const SizedBox(height: AppSpacing.xl),
           appearance._label(
             context,
             AppStrings.t(AppStringKeys.appearanceUnreadBadge),
@@ -1465,7 +1455,6 @@ class NameColorSettingsView extends StatelessWidget {
                       },
                     ),
                 ]),
-                const SizedBox(height: AppSpacing.xl),
                 const AppearanceView()._label(
                   context,
                   AppStrings.t(AppStringKeys.appearanceStatusDisplay),
@@ -2140,69 +2129,41 @@ extension _DisplayAppearanceHelpers on AppearanceView {
     );
   }
 
-  Widget _label(BuildContext context, String t) => Padding(
-    padding: const EdgeInsets.only(left: AppSpacing.xxl, bottom: AppSpacing.sm),
-    child: Text(
-      t,
-      style: TextStyle(
-        fontSize: AppTextSize.footnote,
-        color: context.colors.textTertiary,
-      ),
-    ),
-  );
+  Widget _label(BuildContext _, String t) => SettingsSectionHeader.text(t);
 
-  Widget _card(BuildContext context, List<Widget> rows) {
+  Widget _card(BuildContext _, List<Widget> rows) {
     return SettingsCard(
       children: [
         for (var i = 0; i < rows.length; i++) ...[
           rows[i],
-          if (i < rows.length - 1) const InsetDivider(leadingInset: 52),
+          if (i < rows.length - 1)
+            const InsetDivider(
+              leadingInset: AppMetric.settingsIconDividerInset,
+            ),
         ],
       ],
     );
   }
 
   Widget _choiceRow(
-    BuildContext context,
+    BuildContext _,
     IconData icon,
     String label,
     bool selected,
     VoidCallback onTap,
   ) {
-    final c = context.colors;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    return SettingsRow(
+      title: label,
+      leading: SettingsLeadingIcon(icon: AppIconData(icon)),
       onTap: onTap,
-      child: SizedBox(
-        height: AppMetric.menuRowHeight + AppSpacing.xxs,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-          child: Row(
-            children: [
-              Icon(icon, size: AppIconSize.xl, color: AppTheme.brand),
-              const SizedBox(width: AppSpacing.xl),
-              Expanded(
-                child: Text(
-                  label.l10n(context),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppTextSize.bodyLarge,
-                    color: c.textPrimary,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              if (selected)
-                AppIcon(
-                  HeroAppIcons.check,
-                  size: AppIconSize.lg,
-                  color: AppTheme.brand,
-                ),
-            ],
-          ),
-        ),
-      ),
+      showChevron: false,
+      trailing: selected
+          ? AppIcon(
+              HeroAppIcons.check,
+              size: AppIconSize.lg,
+              color: AppTheme.brand,
+            )
+          : null,
     );
   }
 
@@ -2213,113 +2174,41 @@ extension _DisplayAppearanceHelpers on AppearanceView {
     bool value,
     ValueChanged<bool>? onChanged,
   ) {
-    final c = context.colors;
     final enabled = onChanged != null;
-    return SizedBox(
-      height: AppMetric.menuRowHeight + AppSpacing.xxs,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: AppIconSize.xl,
-              color: enabled ? AppTheme.brand : c.textTertiary,
-            ),
-            const SizedBox(width: AppSpacing.xl),
-            Expanded(
-              child: Text(
-                label,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: AppTextSize.bodyLarge,
-                  color: enabled ? c.textPrimary : c.textTertiary,
-                ),
-              ),
-            ),
-            const SizedBox(width: AppSpacing.md),
-            AppSwitch(
-              value: value,
-              enabled: enabled,
-              onChanged: onChanged ?? (_) {},
-            ),
-          ],
-        ),
+    return SettingsSwitchRow(
+      title: label,
+      value: value,
+      leading: SettingsLeadingIcon(
+        icon: AppIconData(icon),
+        color: enabled ? AppTheme.brand : context.colors.textTertiary,
       ),
+      enabled: enabled,
+      onChanged: onChanged ?? (_) {},
     );
   }
 
   Widget _navigationRow(
-    BuildContext context,
+    BuildContext _,
     String label,
     String? value,
     VoidCallback onTap, {
     IconData? icon,
     Widget? preview,
   }) {
-    final c = context.colors;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
+    Widget? leading;
+    if (icon != null) {
+      leading = SettingsLeadingIcon(icon: AppIconData(icon));
+    } else if (preview != null) {
+      leading = ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: preview,
+      );
+    }
+    return SettingsRow(
+      title: label,
+      value: value ?? '',
+      leading: leading,
       onTap: onTap,
-      child: SizedBox(
-        height: AppMetric.menuRowHeight + AppSpacing.xxs,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
-          child: Row(
-            children: [
-              if (icon != null) ...[
-                Icon(icon, size: AppIconSize.xl, color: AppTheme.brand),
-                const SizedBox(width: AppSpacing.xl),
-              ] else if (preview != null) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: preview,
-                ),
-                const SizedBox(width: AppSpacing.xl),
-              ],
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: value == null ? 2 : 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppTextSize.bodyLarge,
-                    color: c.textPrimary,
-                  ),
-                ),
-              ),
-              if (value != null) ...[
-                const SizedBox(width: AppSpacing.lg),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxWidth: math.min(
-                      MediaQuery.sizeOf(context).width * 0.42,
-                      190,
-                    ),
-                  ),
-                  child: Text(
-                    value,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      fontSize: AppTextSize.body,
-                      color: c.textTertiary,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(width: AppSpacing.sm),
-              AppIcon(
-                HeroAppIcons.chevronRight,
-                size: AppIconSize.lg,
-                color: c.textTertiary,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

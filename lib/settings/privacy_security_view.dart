@@ -270,7 +270,6 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                         },
                       ),
                   ]),
-                  const SizedBox(height: 14),
                   _group(
                     AppStrings.t(AppStringKeys.privacySecuritySectionTitle),
                     [
@@ -321,7 +320,6 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
                   _group(
                     AppStrings.t(AppStringKeys.privacyDangerZone),
                     [
@@ -358,100 +356,49 @@ class _PrivacySecurityViewState extends State<PrivacySecurityView> {
     List<_SettingsEntry> rows, {
     bool destructive = false,
   }) {
-    final c = context.colors;
     return Column(
       key: destructive ? const ValueKey('privacy-danger-zone') : null,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 16, bottom: 6),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontSize: 13,
-              color: destructive ? AppTheme.tagRed : c.textTertiary,
-            ),
-          ),
+        SettingsSectionHeader.text(
+          title,
+          color: destructive ? AppTheme.tagRed : null,
         ),
-        SettingsPanel(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            children: [
-              for (final row in rows) ...[
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: row.onTap,
-                  child: SizedBox(
-                    height: 52,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Row(
-                        children: [
-                          AppIcon(
-                            row.icon,
-                            size: 20,
-                            color: destructive
-                                ? AppTheme.tagRed
-                                : AppTheme.brand,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Text(
-                              row.title.l10n(context),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: destructive
-                                    ? AppTheme.tagRed
-                                    : c.textPrimary,
-                              ),
-                            ),
-                          ),
-                          if (row is _SwitchRow) ...[
-                            const SizedBox(width: 12),
-                            IgnorePointer(
-                              child: AppSwitch(
-                                value: row.value,
-                                onChanged: row.onChanged,
-                              ),
-                            ),
-                          ] else if (row is _Row && row.value.isNotEmpty) ...[
-                            const SizedBox(width: 12),
-                            ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 150),
-                              child: Text(
-                                row.value.l10n(context),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.right,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: c.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ],
-                          if (row is _Row && row.onTap != null) ...[
-                            const SizedBox(width: 6),
-                            AppIcon(
-                              HeroAppIcons.chevronRight,
-                              size: 14,
-                              color: c.textTertiary,
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
+        SettingsCard(
+          children: [
+            for (var i = 0; i < rows.length; i++) ...[
+              _settingsRow(rows[i], destructive: destructive),
+              if (i < rows.length - 1)
+                const InsetDivider(
+                  leadingInset: AppMetric.settingsIconDividerInset,
                 ),
-                if (row != rows.last) const InsetDivider(leadingInset: 50),
-              ],
             ],
-          ),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _settingsRow(_SettingsEntry row, {required bool destructive}) {
+    final foreground = destructive ? AppTheme.tagRed : AppTheme.brand;
+    final leading = SettingsLeadingIcon(icon: row.icon, color: foreground);
+    if (row is _SwitchRow) {
+      return SettingsSwitchRow(
+        title: row.title,
+        value: row.value,
+        leading: leading,
+        titleColor: destructive ? AppTheme.tagRed : null,
+        onChanged: row.onChanged,
+      );
+    }
+    final navigationRow = row as _Row;
+    return SettingsRow(
+      title: navigationRow.title,
+      value: navigationRow.value,
+      leading: leading,
+      onTap: navigationRow.onTap,
+      showChevron: navigationRow.onTap != null,
+      titleColor: destructive ? AppTheme.tagRed : null,
     );
   }
 }

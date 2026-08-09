@@ -451,18 +451,19 @@ class InsetDivider extends StatelessWidget {
 /// uppercased its text. This is the one shape they all share.
 class SettingsSectionHeader extends StatelessWidget {
   /// [titleKey] is an `AppStringKeys` constant.
-  const SettingsSectionHeader(this.titleKey, {super.key, this.text})
+  const SettingsSectionHeader(this.titleKey, {super.key, this.text, this.color})
     : assert(
         titleKey != null || text != null,
         'a section header needs a key or literal text',
       );
 
   /// For a label that is data rather than copy — a folder name, say.
-  const SettingsSectionHeader.text(String this.text, {super.key})
+  const SettingsSectionHeader.text(String this.text, {super.key, this.color})
     : titleKey = null;
 
   final String? titleKey;
   final String? text;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -479,7 +480,7 @@ class SettingsSectionHeader extends StatelessWidget {
           text ?? AppStrings.t(titleKey!),
           style: TextStyle(
             fontSize: AppTextSize.footnote,
-            color: context.colors.textTertiary,
+            color: color ?? context.colors.textTertiary,
           ),
         ),
       ),
@@ -546,6 +547,22 @@ class SettingsPanel extends StatelessWidget {
   }
 }
 
+/// Standard line icon for a settings row.
+///
+/// Detail screens use one accent-coloured glyph treatment. The coloured tile
+/// remains available for the top-level settings index, where it distinguishes
+/// destinations rather than controls within one screen.
+class SettingsLeadingIcon extends StatelessWidget {
+  const SettingsLeadingIcon({super.key, required this.icon, this.color});
+
+  final AppIconData icon;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) =>
+      AppIcon(icon, size: AppIconSize.xl, color: color ?? AppTheme.brand);
+}
+
 /// Colored settings glyph tile used by the main settings list and nested
 /// settings menus. The 28 px tile has a 7 px radius and a centered 15 px white
 /// glyph, including on yellow and other light backgrounds.
@@ -599,6 +616,7 @@ class SettingsRow extends StatelessWidget {
     this.height = AppMetric.settingsRowHeight,
     this.leadingInset = AppMetric.settingsLeadingInset,
     this.trailing,
+    this.titleColor,
   });
 
   final String title;
@@ -609,6 +627,7 @@ class SettingsRow extends StatelessWidget {
   final double height;
   final double leadingInset;
   final Widget? trailing;
+  final Color? titleColor;
 
   @override
   Widget build(BuildContext context) {
@@ -653,8 +672,8 @@ class SettingsRow extends StatelessWidget {
                 child: Text(
                   title.l10n(context),
                   style: pointerDense
-                      ? AppTextStyle.callout(c.textPrimary)
-                      : AppTextStyle.body(c.textPrimary),
+                      ? AppTextStyle.callout(titleColor ?? c.textPrimary)
+                      : AppTextStyle.body(titleColor ?? c.textPrimary),
                 ),
               ),
               if (trailing != null || value.isNotEmpty) ...[
@@ -936,6 +955,7 @@ class SettingsSwitchRow extends StatelessWidget {
     this.enabled = true,
     this.height = AppMetric.settingsRowHeight,
     this.leadingInset = AppMetric.settingsLeadingInset,
+    this.titleColor,
   });
 
   final String title;
@@ -953,6 +973,7 @@ class SettingsSwitchRow extends StatelessWidget {
 
   final double height;
   final double leadingInset;
+  final Color? titleColor;
 
   @override
   Widget build(BuildContext context) {
@@ -999,10 +1020,14 @@ class SettingsSwitchRow extends StatelessWidget {
                       title.l10n(context),
                       style: pointerDense
                           ? AppTextStyle.callout(
-                              enabled ? c.textPrimary : c.textTertiary,
+                              enabled
+                                  ? titleColor ?? c.textPrimary
+                                  : c.textTertiary,
                             )
                           : AppTextStyle.body(
-                              enabled ? c.textPrimary : c.textTertiary,
+                              enabled
+                                  ? titleColor ?? c.textPrimary
+                                  : c.textTertiary,
                             ),
                     ),
                     if (subtitle != null && subtitle!.isNotEmpty) ...[
