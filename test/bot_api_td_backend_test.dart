@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/testing.dart';
 import 'package:mithka/bot_api/bot_api_account.dart';
 import 'package:mithka/bot_api/bot_api_client.dart';
+import 'package:mithka/bot_api/bot_api_store.dart';
 import 'package:mithka/bot_api/bot_api_td_backend.dart';
 import 'package:mithka/chat/outgoing_attachment.dart';
 import 'package:mithka/chat/rich_message_source.dart';
@@ -142,6 +143,354 @@ void main() {
     await backend.close();
   });
 
+  test('retries avatars cached as missing by the previous resolver', () async {
+    final store = BotApiStore('${temporaryDirectory.path}/history.sqlite3');
+    await store.open();
+    store.upsertUser({
+      '@type': 'user',
+      'id': 123,
+      'first_name': 'Ada',
+      'last_name': '',
+      'profile_photo': null,
+      'type': const {'@type': 'userTypeRegular'},
+    });
+    store.setMetadata('avatar.resolved.user:123', '1');
+    store.close();
+
+    final hydrated = Completer<void>();
+    final api = _FakeBotApiClient((method, parameters) {
+      switch (method) {
+        case 'getWebhookInfo':
+          return <String, dynamic>{'url': 'https://example.test/webhook'};
+        case 'getUserProfilePhotos':
+          if (parameters['user_id'] != 123) {
+            return <String, dynamic>{'total_count': 0, 'photos': <Object>[]};
+          }
+          return <String, dynamic>{
+            'total_count': 1,
+            'photos': [
+              [
+                {
+                  'file_id': 'repaired-avatar-file',
+                  'file_unique_id': 'repaired-avatar-unique',
+                  'width': 160,
+                  'height': 160,
+                },
+              ],
+            ],
+          };
+        default:
+          throw BotApiException(400, 'Unexpected $method');
+      }
+    });
+    final backend = _backend(
+      temporaryDirectory,
+      api,
+      emit: (update) {
+        final user = update['user'];
+        if (update['@type'] == 'updateUser' &&
+            user is Map &&
+            user['id'] == 123 &&
+            user['profile_photo'] != null &&
+            !hydrated.isCompleted) {
+          hydrated.complete();
+        }
+      },
+    );
+
+    await backend.start();
+    await hydrated.future.timeout(const Duration(seconds: 2));
+    final user = await backend.query({'@type': 'getUser', 'user_id': 123});
+
+    expect(user['profile_photo'], isNotNull);
+    expect(api.methods, contains('getUserProfilePhotos'));
+    await backend.close();
+  });
+
+  test('repairs service placeholders already saved in local history', () async {
+    const rawMessage = <String, dynamic>{
+      'message_id': 7,
+      'date': 1700000399,
+      'from': {'id': 500, 'is_bot': false, 'first_name': 'Admin'},
+      'chat': {'id': -10077, 'type': 'supergroup', 'title': 'Saved group'},
+      'new_chat_participant': {
+        'id': 124,
+        'is_bot': false,
+        'first_name': 'Grace',
+      },
+    };
+    final legacyMessage = <String, dynamic>{
+      '@type': 'message',
+      'id': 7,
+      'chat_id': -10077,
+      'date': 1700000399,
+      'sender_id': const {'@type': 'messageSenderUser', 'user_id': 500},
+      'content': const {
+        '@type': 'messageText',
+        'text': {
+          '@type': 'formattedText',
+          'text': '[new_chat_participant]',
+          'entities': <Object>[],
+        },
+        'link_preview': null,
+      },
+    };
+    final store = BotApiStore('${temporaryDirectory.path}/history.sqlite3');
+    await store.open();
+    store.saveRawUpdate(99, const {'update_id': 99, 'message': rawMessage});
+    store.upsertMessage(legacyMessage);
+    store.upsertChat({
+      '@type': 'chat',
+      'id': -10077,
+      'type': const {
+        '@type': 'chatTypeSupergroup',
+        'supergroup_id': 77,
+        'is_channel': false,
+      },
+      'title': 'Saved group',
+      'photo': null,
+      'last_message': legacyMessage,
+      'unread_count': 0,
+      'positions': const <Object>[],
+    });
+    store.close();
+
+    final api = _FakeBotApiClient((method, _) {
+      switch (method) {
+        case 'getWebhookInfo':
+          return <String, dynamic>{'url': 'https://example.test/webhook'};
+        case 'getUserProfilePhotos':
+          return <String, dynamic>{'total_count': 0, 'photos': <Object>[]};
+        case 'getChat':
+          return <String, dynamic>{
+            'id': -10077,
+            'type': 'supergroup',
+            'title': 'Saved group',
+          };
+        default:
+          throw BotApiException(400, 'Unexpected $method');
+      }
+    });
+    final backend = _backend(temporaryDirectory, api, emit: (_) {});
+
+    await backend.start();
+    final history = await backend.query({
+      '@type': 'getChatHistory',
+      'chat_id': -10077,
+      'from_message_id': 0,
+      'offset': 0,
+      'limit': 20,
+    });
+    final storedMessage = (history['messages'] as List).single as Map;
+    final storedUser = await backend.query({
+      '@type': 'getUser',
+      'user_id': 124,
+    });
+
+    expect((storedMessage['content'] as Map)['@type'], 'messageChatAddMembers');
+    expect((storedMessage['content'] as Map)['member_user_ids'], [124]);
+    expect(storedUser['first_name'], 'Grace');
+    expect(jsonEncode(history), isNot(contains('[new_chat_participant]')));
+    await backend.close();
+  });
+
+  test(
+    'converts current and compatible service fields without raw labels',
+    () async {
+      final waitForSecondPoll = Completer<Object?>();
+      final receivedLastMessage = Completer<void>();
+      var pollingStarted = false;
+      final api = _FakeBotApiClient(
+        (method, parameters) {
+          switch (method) {
+            case 'getWebhookInfo':
+              return <String, dynamic>{'url': ''};
+            case 'getUpdates':
+              if (pollingStarted) return waitForSecondPoll.future;
+              pollingStarted = true;
+              const chat = {
+                'id': -10077,
+                'type': 'supergroup',
+                'title': 'Service test',
+              };
+              const actor = {'id': 500, 'is_bot': false, 'first_name': 'Admin'};
+              return [
+                {
+                  'update_id': 101,
+                  'message': {
+                    'message_id': 1,
+                    'date': 1700000401,
+                    'from': actor,
+                    'chat': chat,
+                    'new_chat_members': [
+                      {'id': 123, 'is_bot': false, 'first_name': 'Ada'},
+                    ],
+                  },
+                },
+                {
+                  'update_id': 102,
+                  'message': {
+                    'message_id': 2,
+                    'date': 1700000402,
+                    'from': actor,
+                    'chat': chat,
+                    'new_chat_participant': {
+                      'id': 124,
+                      'is_bot': false,
+                      'first_name': 'Grace',
+                    },
+                  },
+                },
+                {
+                  'update_id': 103,
+                  'message': {
+                    'message_id': 3,
+                    'date': 1700000403,
+                    'from': actor,
+                    'chat': chat,
+                    'left_chat_participant': {
+                      'id': 123,
+                      'is_bot': false,
+                      'first_name': 'Ada',
+                    },
+                  },
+                },
+                {
+                  'update_id': 104,
+                  'message': {
+                    'message_id': 4,
+                    'date': 1700000404,
+                    'from': actor,
+                    'chat': chat,
+                    'new_chat_title': 'Renamed service test',
+                  },
+                },
+                {
+                  'update_id': 105,
+                  'message': {
+                    'message_id': 5,
+                    'date': 1700000405,
+                    'from': {
+                      'id': 321,
+                      'is_bot': true,
+                      'first_name': 'Peer Bot',
+                    },
+                    'chat': chat,
+                    'text': 'bot-to-bot observed',
+                  },
+                },
+                {
+                  'update_id': 106,
+                  'message': {
+                    'message_id': 6,
+                    'date': 1700000406,
+                    'from': actor,
+                    'chat': chat,
+                    'community_chat_removed': <String, dynamic>{},
+                  },
+                },
+                {
+                  'update_id': 107,
+                  'message': {
+                    'message_id': 7,
+                    'date': 1700000407,
+                    'from': actor,
+                    'chat': chat,
+                    'community_chat_added': {
+                      'community': {'id': 77, 'name': 'Neko'},
+                    },
+                  },
+                },
+              ];
+            case 'getUserProfilePhotos':
+              return <String, dynamic>{'total_count': 0, 'photos': <Object>[]};
+            case 'getChat':
+              return <String, dynamic>{
+                'id': -10077,
+                'type': 'supergroup',
+                'title': 'Renamed service test',
+              };
+            default:
+              throw BotApiException(400, 'Unexpected $method');
+          }
+        },
+        onClose: () {
+          if (!waitForSecondPoll.isCompleted) {
+            waitForSecondPoll.complete(const []);
+          }
+        },
+      );
+      final backend = _backend(
+        temporaryDirectory,
+        api,
+        bot: const {
+          'id': 999,
+          'is_bot': true,
+          'first_name': 'Mithka Test Bot',
+          'username': 'mithka_test_bot',
+          'can_read_all_group_messages': true,
+        },
+        emit: (update) {
+          final message = update['message'];
+          if (update['@type'] == 'updateNewMessage' &&
+              message is Map &&
+              message['id'] == 7 &&
+              !receivedLastMessage.isCompleted) {
+            receivedLastMessage.complete();
+          }
+        },
+      );
+
+      await backend.start();
+      await receivedLastMessage.future.timeout(const Duration(seconds: 2));
+      final history = await backend.query({
+        '@type': 'getChatHistory',
+        'chat_id': -10077,
+        'from_message_id': 0,
+        'offset': 0,
+        'limit': 20,
+      });
+      final messages = (history['messages'] as List).cast<Map>();
+      final contentTypes = {
+        for (final message in messages)
+          (message['content'] as Map)['@type'] as String,
+      };
+      final joined = messages.firstWhere((message) => message['id'] == 2);
+      final left = messages.firstWhere((message) => message['id'] == 3);
+      final removed = messages.firstWhere((message) => message['id'] == 6);
+      final added = messages.firstWhere((message) => message['id'] == 7);
+      final user = await backend.query({'@type': 'getUser', 'user_id': 124});
+      final info = await backend.query({'@type': 'getBotApiAccountInfo'});
+
+      expect(
+        contentTypes,
+        containsAll({
+          'messageChatAddMembers',
+          'messageChatDeleteMember',
+          'messageChatChangeTitle',
+          'messageText',
+        }),
+      );
+      expect((joined['content'] as Map)['member_user_ids'], [124]);
+      expect((left['content'] as Map)['user_id'], 123);
+      expect(
+        (removed['content'] as Map)['@type'],
+        'messageChatRemovedFromCommunity',
+      );
+      expect((added['content'] as Map), {
+        '@type': 'messageChatAddedToCommunity',
+        'community_id': 77,
+        'community_name': 'Neko',
+      });
+      expect(user['first_name'], 'Grace');
+      expect(jsonEncode(history), isNot(contains('[new_chat_')));
+      expect(info['can_read_all_group_messages'], isTrue);
+      expect(info['bot_to_bot_access_observed'], isTrue);
+
+      await backend.close();
+    },
+  );
+
   test('sends native rich messages directly through the active bot', () async {
     final api = _FakeBotApiClient((method, _) {
       switch (method) {
@@ -202,6 +551,7 @@ void main() {
     () async {
       final waitForSecondPoll = Completer<Object?>();
       final hydrated = Completer<void>();
+      final chatHydrated = Completer<void>();
       var updateDelivered = false;
       final api = _FakeBotApiClient(
         (method, parameters) {
@@ -265,6 +615,31 @@ void main() {
                 'id': 123,
                 'type': 'private',
                 'first_name': 'Ada',
+                'photo': {
+                  'small_file_id': 'chat-avatar-small',
+                  'small_file_unique_id': 'chat-avatar-small-unique',
+                  'big_file_id': 'chat-avatar-big',
+                  'big_file_unique_id': 'chat-avatar-big-unique',
+                },
+              };
+            case 'getChatAdministrators':
+              return [
+                {
+                  'user': {'id': 123, 'is_bot': false, 'first_name': 'Ada'},
+                  'status': 'administrator',
+                },
+              ];
+            case 'sendMessage':
+              return <String, dynamic>{
+                'message_id': 10,
+                'date': 1700000201,
+                'from': {
+                  'id': 999,
+                  'is_bot': true,
+                  'first_name': 'Mithka Test Bot',
+                },
+                'chat': {'id': 123, 'type': 'private', 'first_name': 'Ada'},
+                'text': 'lightweight update',
               };
             case 'getStickerSet':
               return <String, dynamic>{
@@ -307,11 +682,20 @@ void main() {
               !hydrated.isCompleted) {
             hydrated.complete();
           }
+          if (update['@type'] == 'updateChatPhoto' &&
+              update['chat_id'] == 123 &&
+              update['photo'] != null &&
+              !chatHydrated.isCompleted) {
+            chatHydrated.complete();
+          }
         },
       );
 
       await backend.start();
-      await hydrated.future.timeout(const Duration(seconds: 2));
+      await Future.wait([
+        hydrated.future,
+        chatHydrated.future,
+      ]).timeout(const Duration(seconds: 2));
       final recent = await backend.query({
         '@type': 'getRecentStickers',
         'is_attached': false,
@@ -325,11 +709,34 @@ void main() {
         '@type': 'getStickerSet',
         'set_id': setId,
       });
+      await backend.query({'@type': 'getChatAdministrators', 'chat_id': 123});
+      await backend.query({
+        '@type': 'sendMessage',
+        'chat_id': 123,
+        'input_message_content': {
+          '@type': 'inputMessageText',
+          'text': {
+            '@type': 'formattedText',
+            'text': 'lightweight update',
+            'entities': <Object>[],
+          },
+        },
+      });
+      final hydratedUser = await backend.query({
+        '@type': 'getUser',
+        'user_id': 123,
+      });
+      final hydratedChat = await backend.query({
+        '@type': 'getChat',
+        'chat_id': 123,
+      });
 
       expect(recent['stickers'], hasLength(1));
       expect(sets['sets'], hasLength(1));
       expect(set['name'], 'ObservedPack');
       expect(set['stickers'], hasLength(1));
+      expect(hydratedUser['profile_photo'], isNotNull);
+      expect(hydratedChat['photo'], isNotNull);
 
       await backend.close();
     },
@@ -549,17 +956,20 @@ BotApiTdBackend _backend(
   Directory root,
   BotApiClient client, {
   required void Function(Map<String, dynamic>) emit,
+  Map<String, dynamic>? bot,
 }) {
   return BotApiTdBackend(
     account: BotApiAccount(
       slot: 3,
       endpoint: Uri.parse('https://bots.example.test'),
-      bot: const {
-        'id': 999,
-        'is_bot': true,
-        'first_name': 'Mithka Test Bot',
-        'username': 'mithka_test_bot',
-      },
+      bot:
+          bot ??
+          const {
+            'id': 999,
+            'is_bot': true,
+            'first_name': 'Mithka Test Bot',
+            'username': 'mithka_test_bot',
+          },
     ),
     token: '999:ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghij',
     databasePath: '${root.path}/history.sqlite3',

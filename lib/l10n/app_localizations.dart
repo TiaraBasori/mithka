@@ -1036,8 +1036,10 @@ abstract final class AppStringKeys {
   static const cloudThemeOfficialDescription = 'cloudThemeOfficialDescription';
   static const cloudThemePreviewTitle = 'cloudThemePreviewTitle';
   static const communityChatAddedService = 'communityChatAddedService';
+  static const communityChatAddedByService = 'communityChatAddedByService';
   static const communityChatCount = 'communityChatCount';
   static const communityChatRemovedService = 'communityChatRemovedService';
+  static const communityChatRemovedByService = 'communityChatRemovedByService';
   static const communityChatsYouAreIn = 'communityChatsYouAreIn';
   static const communityChatsYouCanView = 'communityChatsYouCanView';
   static const communityNoChats = 'communityNoChats';
@@ -1045,6 +1047,7 @@ abstract final class AppStringKeys {
   static const communityShowAsOneChatDescription =
       'communityShowAsOneChatDescription';
   static const communityTitle = 'communityTitle';
+  static const communityViewAction = 'communityViewAction';
   static const commonUiDraftBadge = 'commonUiDraftBadge';
   static const commonUiGroupOwner = 'commonUiGroupOwner';
   static const commonUiMentionedBySomeoneBadge =
@@ -1664,6 +1667,9 @@ abstract final class AppStringKeys {
   static const locationDetailFetchingLocation =
       'locationDetailFetchingLocation';
   static const locationPickerDragMapToChoose = 'locationPickerDragMapToChoose';
+  static const botApiPrivacyWarning = 'botApiPrivacyWarning';
+  static const botApiBotToBotWarning = 'botApiBotToBotWarning';
+  static const botApiWarningDismiss = 'botApiWarningDismiss';
   static const loginBackToAccount = 'loginBackToAccount';
   static const loginBackToPreviousAccount = 'loginBackToPreviousAccount';
   static const loginBotAccountDescription = 'loginBotAccountDescription';
@@ -2781,6 +2787,12 @@ abstract final class AppStringKeys {
   static const translationSettingsLanguageCount =
       'translationSettingsLanguageCount';
   static const translationSettingsNone = 'translationSettingsNone';
+  static const translationSettingsFallbackDescription =
+      'translationSettingsFallbackDescription';
+  static const translationSettingsOptionsSection =
+      'translationSettingsOptionsSection';
+  static const translationSettingsOptionUnavailable =
+      'translationSettingsOptionUnavailable';
   static const translationSettingsTargetLanguage =
       'translationSettingsTargetLanguage';
   static const translationSettingsStandardSection =

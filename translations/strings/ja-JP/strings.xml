@@ -1137,16 +1137,19 @@
     <string name="commonUiMentionedBySomeoneBadge">[メンションあり]</string>
     <string name="commonUiNewFileBadge">[新しいファイル]</string>
     <string name="communityChatAddedService">このチャットはコミュニティに追加されました</string>
+    <string name="communityChatAddedByService">{value1}がこのグループを「{value2}」コミュニティに追加しました。</string>
     <plurals name="communityChatCount">
         <item quantity="other">{count}件のチャット</item>
     </plurals>
     <string name="communityChatRemovedService">このチャットはコミュニティから削除されました</string>
+    <string name="communityChatRemovedByService">{value1}がこのグループをコミュニティから削除しました。</string>
     <string name="communityChatsYouAreIn">参加中のチャット</string>
     <string name="communityChatsYouCanView">閲覧できるチャット</string>
     <string name="communityNoChats">一致するコミュニティチャットはありません</string>
     <string name="communityShowAsOneChat">1つのチャットとして表示</string>
     <string name="communityShowAsOneChatDescription">このコミュニティをチャット一覧の1つの展開可能な項目にまとめます。</string>
     <string name="communityTitle">コミュニティ</string>
+    <string name="communityViewAction">表示</string>
     <string name="composerAnimatedEmojiPreview">[アニメーション絵文字]</string>
     <string name="composerAudio">音声</string>
     <string name="composerCamera">カメラ</string>
@@ -1732,6 +1735,9 @@
     <string name="locationPickerDragMapToChoose">地図をドラッグして位置を選択</string>
     <string name="loginBackToAccount">{value1} に戻る</string>
     <string name="loginBackToPreviousAccount">前のアカウントに戻る</string>
+    <string name="botApiPrivacyWarning">グループプライバシーが有効です。このボットが管理者でない場合、通常のグループメッセージを受信できないことがあります。</string>
+    <string name="botApiBotToBotWarning">ボット間通信モードを確認できません。@BotFather で無効になっている場合、他のボットからのメッセージは表示されません。</string>
+    <string name="botApiWarningDismiss">警告を閉じる</string>
     <string name="loginBotAccountDescription">Bot は過去のメッセージを取得できません。ログイン後に受信した新しいメッセージは Mithka がこの端末に保存します。</string>
     <string name="loginBotAccountTitle">Bot としてログイン</string>
     <string name="loginBotApiEndpoint">Bot API エンドポイント</string>
@@ -3256,10 +3262,13 @@
     <string name="translationSettingsAiPromptSave">プロンプトを保存</string>
     <string name="translationSettingsAiProvider">AI プロバイダー</string>
     <string name="translationSettingsAiSection">AI 翻訳</string>
+    <string name="translationSettingsFallbackDescription">有効なオプションを上から順に試します。</string>
     <string name="translationSettingsDoNotTranslate">翻訳しない</string>
     <string name="translationSettingsDisplayStyle">翻訳の表示</string>
     <string name="translationSettingsLanguageCount">{value1}言語</string>
     <string name="translationSettingsNone">なし</string>
+    <string name="translationSettingsOptionsSection">翻訳オプション</string>
+    <string name="translationSettingsOptionUnavailable">設定されるか、このデバイスでサポートされるまで利用できません。</string>
     <string name="translationSettingsService">翻訳サービス</string>
     <string name="translationSettingsShowTranslateButton">翻訳ボタンを表示</string>
     <string name="translationSettingsStandardSection">標準翻訳</string>

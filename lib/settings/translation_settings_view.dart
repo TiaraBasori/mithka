@@ -14,7 +14,6 @@ import '../components/ui_components.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import 'ai_settings_controller.dart';
-import 'ai_settings_view.dart';
 import 'ai_translation_prompt.dart';
 import 'translation_api.dart';
 import 'translation_controller.dart';
@@ -168,6 +167,22 @@ class _AiTranslationPromptEditorViewState
   }
 }
 
+class _TranslationOptionDescriptor {
+  const _TranslationOptionDescriptor({
+    required this.id,
+    required this.title,
+    required this.icon,
+    required this.available,
+    this.subtitle,
+  });
+
+  final String id;
+  final String title;
+  final String? subtitle;
+  final AppIconData icon;
+  final bool available;
+}
+
 class _TranslationSettingsViewState extends State<TranslationSettingsView> {
   late final Future<Set<TranslationProvider>> _availableProvidersFuture =
       NativeTranslationApi.availableProviders();
@@ -207,35 +222,23 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
                 value: translation.displayStyleLabel,
                 onTap: () => _showDisplayStylePicker(context),
               ),
-            ],
-          ),
-          SettingsSection(
-            titleKey: AppStringKeys.translationSettingsAiSection,
-            rows: [
-              SettingsSwitchRow(
-                leading: const SettingsLeadingIcon(icon: HeroAppIcons.cpuChip),
-                title: AppStringKeys.translationSettingsAiEnabled.l10n(context),
-                value: translation.aiTranslationEnabled,
-                onChanged: (value) => translation.aiTranslationEnabled = value,
-              ),
               SettingsRow(
-                leading: SettingsLeadingIcon(
-                  icon: switch (ai.translationModelCandidate.kind) {
-                    AiModelCandidateKind.applePcc => HeroAppIcons.cloud,
-                    AiModelCandidateKind.appleOnDevice => HeroAppIcons.cpuChip,
-                    AiModelCandidateKind.server => HeroAppIcons.cube,
-                    AiModelCandidateKind.telegramCocoon =>
-                      HeroAppIcons.wandMagicSparkles,
-                  },
+                leading: const SettingsLeadingIcon(icon: HeroAppIcons.globe),
+                title: AppStrings.t(
+                  AppStringKeys.translationSettingsTargetLanguage,
                 ),
-                title: AppStringKeys.aiTranslateUsing.l10n(context),
-                value: _aiModelLabel(context, ai.translationModelCandidate),
-                onTap: () => showAiFeatureModelPicker(
-                  context,
-                  settings: ai,
-                  feature: AiFeature.translation,
-                ),
+                value: translation.targetLanguageLabel,
+                onTap: () => _showTargetPicker(context),
               ),
+              if (translation.enabled || translation.translateChats)
+                SettingsRow(
+                  leading: const SettingsLeadingIcon(icon: HeroAppIcons.ban),
+                  title: AppStrings.t(
+                    AppStringKeys.translationSettingsDoNotTranslate,
+                  ),
+                  value: _ignoredLanguagesSummary(translation),
+                  onTap: () => _showIgnoredLanguagesPicker(context),
+                ),
               SettingsRow(
                 leading: const SettingsLeadingIcon(
                   icon: HeroAppIcons.penToSquare,
@@ -256,102 +259,214 @@ class _TranslationSettingsViewState extends State<TranslationSettingsView> {
               ),
             ],
           ),
-          SettingsNote(
-            text: AppStringKeys.translationSettingsAiDescription.l10n(context),
+          const SettingsSectionHeader(
+            AppStringKeys.translationSettingsOptionsSection,
           ),
-          SettingsSection(
-            titleKey: AppStringKeys.translationSettingsStandardSection,
-            rows: [
-              SettingsRow(
-                leading: const SettingsLeadingIcon(icon: HeroAppIcons.server),
-                title: AppStrings.t(AppStringKeys.translationSettingsService),
-                value: translation.providerLabel,
-                onTap: () => _showProviderPicker(context),
-              ),
-              SettingsRow(
-                leading: const SettingsLeadingIcon(icon: HeroAppIcons.globe),
-                title: AppStrings.t(
-                  AppStringKeys.translationSettingsTargetLanguage,
-                ),
-                value: translation.targetLanguageLabel,
-                onTap: () => _showTargetPicker(context),
-              ),
-              if (translation.enabled || translation.translateChats) ...[
-                SettingsRow(
-                  leading: const SettingsLeadingIcon(icon: HeroAppIcons.ban),
-                  title: AppStrings.t(
-                    AppStringKeys.translationSettingsDoNotTranslate,
-                  ),
-                  value: _ignoredLanguagesSummary(translation),
-                  onTap: () => _showIgnoredLanguagesPicker(context),
-                ),
-              ],
-            ],
+          FutureBuilder<Set<TranslationProvider>>(
+            future: _availableProvidersFuture,
+            builder: (context, snapshot) => _translationOptionsPanel(
+              context,
+              translation,
+              ai,
+              snapshot.data ?? const <TranslationProvider>{},
+            ),
+          ),
+          SettingsNote(
+            key: const ValueKey('translation-fallback-description'),
+            text: AppStringKeys.translationSettingsFallbackDescription.l10n(
+              context,
+            ),
           ),
         ],
       ),
     );
   }
 
-  void _showProviderPicker(BuildContext context) {
-    showAppModalSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        final translation = context.watch<TranslationController>();
-        return SafeArea(
-          child: SettingsPanel(
-            margin: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
-              0,
-              AppSpacing.lg,
-              AppSpacing.lg,
+  Widget _translationOptionsPanel(
+    BuildContext context,
+    TranslationController translation,
+    AiSettingsController ai,
+    Set<TranslationProvider> nativeProviders,
+  ) {
+    final options = _translationOptions(
+      context,
+      translation,
+      ai,
+      nativeProviders,
+    );
+    return SettingsPanel(
+      clipBehavior: Clip.antiAlias,
+      child: ReorderableListView.builder(
+        key: const ValueKey('translation-options-list'),
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        buildDefaultDragHandles: false,
+        itemCount: options.length,
+        onReorderItem: (oldIndex, newIndex) =>
+            translation.reorderTranslationOptions(
+              options.map((option) => option.id).toList(growable: false),
+              oldIndex,
+              newIndex,
             ),
-            clipBehavior: Clip.antiAlias,
-            child: FutureBuilder<Set<TranslationProvider>>(
-              future: _availableProvidersFuture,
-              builder: (context, snapshot) {
-                final nativeProviders =
-                    snapshot.data ?? const <TranslationProvider>{};
-                final providers = TranslationProvider.selectableProviders
-                    .where(
-                      (provider) =>
-                          !provider.isNative ||
-                          nativeProviders.contains(provider),
-                    )
-                    .toList();
-                return ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: providers.length,
-                  separatorBuilder: (_, _) => const SettingsDivider(),
-                  itemBuilder: (context, i) {
-                    final provider = providers[i];
-                    final selected = translation.provider == provider;
-                    return SettingsRow(
-                      title: provider.label,
-                      leading: const SettingsLeadingIcon(
-                        icon: HeroAppIcons.server,
-                      ),
-                      showChevron: false,
-                      trailing: selected
-                          ? AppIcon(
-                              HeroAppIcons.check,
-                              size: AppIconSize.lg,
-                              color: AppTheme.brand,
-                            )
-                          : null,
-                      onTap: () {
-                        translation.provider = provider;
-                        Navigator.of(context).pop();
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-          ),
-        );
+        itemBuilder: (context, index) {
+          final option = options[index];
+          return Column(
+            key: ValueKey('translation-option-${option.id}'),
+            children: [
+              _translationOptionRow(context, translation, option, index),
+              if (index < options.length - 1) const SettingsDivider.text(),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  List<_TranslationOptionDescriptor> _translationOptions(
+    BuildContext context,
+    TranslationController translation,
+    AiSettingsController ai,
+    Set<TranslationProvider> nativeProviders,
+  ) {
+    _TranslationOptionDescriptor provider(
+      TranslationProvider value,
+      AppIconData icon, {
+      bool available = true,
+    }) => _TranslationOptionDescriptor(
+      id: TranslationOptionIds.provider(value),
+      title: value.label.l10n(context),
+      icon: icon,
+      available: available,
+      subtitle: available
+          ? null
+          : AppStringKeys.translationSettingsOptionUnavailable.l10n(context),
+    );
+
+    final all = <_TranslationOptionDescriptor>[
+      provider(TranslationProvider.tdlib, HeroAppIcons.paperPlane),
+      for (final candidate in ai.modelCandidatesForFeature(
+        AiFeature.translation,
+      ))
+        _aiTranslationOption(context, ai, candidate),
+      for (final native in nativeProviders)
+        provider(native, HeroAppIcons.cpuChip),
+      provider(TranslationProvider.myMemory, HeroAppIcons.globe),
+      provider(TranslationProvider.lingva, HeroAppIcons.globe),
+      provider(
+        TranslationProvider.libreTranslate,
+        HeroAppIcons.server,
+        available: translation.libreTranslateEndpoint.isNotEmpty,
+      ),
+    ];
+    final byId = {for (final option in all) option.id: option};
+    return translation
+        .orderedTranslationOptions(byId.keys)
+        .map((id) => byId[id]!)
+        .toList(growable: false);
+  }
+
+  _TranslationOptionDescriptor _aiTranslationOption(
+    BuildContext context,
+    AiSettingsController ai,
+    AiModelCandidate candidate,
+  ) {
+    final available = ai.isConfiguredCandidate(candidate);
+    final title = _aiModelLabel(context, candidate);
+    final providerName = candidate.serverProvider?.name.trim() ?? '';
+    return _TranslationOptionDescriptor(
+      id: TranslationOptionIds.ai(candidate.id),
+      title: title,
+      subtitle: available
+          ? (providerName.isEmpty ? null : providerName)
+          : AppStringKeys.translationSettingsOptionUnavailable.l10n(context),
+      icon: switch (candidate.kind) {
+        AiModelCandidateKind.applePcc => HeroAppIcons.cloud,
+        AiModelCandidateKind.appleOnDevice => HeroAppIcons.cpuChip,
+        AiModelCandidateKind.server => HeroAppIcons.cube,
+        AiModelCandidateKind.telegramCocoon => HeroAppIcons.wandMagicSparkles,
       },
+      available: available,
+    );
+  }
+
+  Widget _translationOptionRow(
+    BuildContext context,
+    TranslationController translation,
+    _TranslationOptionDescriptor option,
+    int index,
+  ) {
+    final colors = context.colors;
+    final enabled = translation.isTranslationOptionEnabled(option.id);
+    return SizedBox(
+      height: option.subtitle == null ? 58 : 68,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xxl),
+        child: Row(
+          children: [
+            ReorderableDragStartListener(
+              index: index,
+              child: SizedBox(
+                width: 30,
+                height: 44,
+                child: Center(
+                  child: AppIcon(
+                    HeroAppIcons.bars,
+                    size: AppIconSize.lg,
+                    color: colors.textTertiary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            AppIcon(
+              option.icon,
+              size: AppIconSize.lg,
+              color: option.available
+                  ? colors.textSecondary
+                  : colors.textTertiary,
+            ),
+            const SizedBox(width: AppSpacing.lg),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    option.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: option.available
+                          ? colors.textPrimary
+                          : colors.textTertiary,
+                      fontSize: AppTextSize.body,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (option.subtitle case final subtitle?) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyle.footnote(colors.textTertiary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            AppSwitch(
+              key: ValueKey('translation-option-switch-${option.id}'),
+              value: enabled,
+              enabled: option.available,
+              semanticLabel: option.title,
+              onChanged: (value) =>
+                  translation.setTranslationOptionEnabled(option.id, value),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

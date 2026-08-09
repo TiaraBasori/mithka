@@ -173,6 +173,15 @@ class BotApiStore {
     return rows.isNotEmpty;
   }
 
+  /// Returns the original Bot API payloads for one-time compatibility
+  /// migrations. Normal history reads continue to use the converted tables.
+  List<Map<String, dynamic>> rawUpdates() => [
+    for (final row in _db.select(
+      'SELECT payload_json FROM raw_updates ORDER BY update_id',
+    ))
+      ?_decodeJson(row['payload_json']),
+  ];
+
   void upsertUser(Map<String, dynamic> user) {
     final id = _int(user['id']);
     if (id == null) return;

@@ -143,6 +143,9 @@ class BotApiTdConverter {
     final senderChat = _map(source['sender_chat']);
     final users = <Map<String, dynamic>>[];
     if (from != null) users.add(user(from));
+    for (final serviceUser in _serviceUsers(source)) {
+      users.add(user(serviceUser));
+    }
     if (sourceChat['type'] == 'private' && sourceChat['id'] != botId) {
       users.add(user({...sourceChat, 'is_bot': false}));
     }
@@ -249,6 +252,8 @@ class BotApiTdConverter {
       message?['is_outgoing'] == true ? _int(message?['id']) ?? 0 : 0;
 
   Map<String, dynamic> content(Map<String, dynamic> message) {
+    final service = _serviceContent(message);
+    if (service != null) return service;
     if (message['text'] is String) {
       return {
         '@type': 'messageText',
@@ -456,12 +461,213 @@ class BotApiTdConverter {
         'message': {...rich, 'is_full': true},
       };
     }
-    return {
-      '@type': 'messageText',
-      'text': formattedText(_unsupportedLabel(message), null),
-      'link_preview': null,
-    };
+    return {'@type': 'messageUnsupported'};
   }
+
+  /// Converts Bot API service-message fields to the TDLib content names the
+  /// rest of Mithka already localizes and renders as centered system events.
+  ///
+  /// Some compatible endpoints still emit the pre-1.0 singular participant
+  /// aliases, so keep those alongside the current `new_chat_members` and
+  /// `left_chat_member` fields instead of leaking raw `[field_name]` text.
+  Map<String, dynamic>? _serviceContent(Map<String, dynamic> message) {
+    final addedUsers = _addedChatUsers(message);
+    if (addedUsers.isNotEmpty) {
+      return {
+        '@type': 'messageChatAddMembers',
+        'member_user_ids': [
+          for (final member in addedUsers) ?_int(member['id']),
+        ],
+      };
+    }
+
+    final removedUser =
+        _map(message['left_chat_member']) ??
+        _map(message['left_chat_participant']);
+    if (removedUser != null) {
+      return {
+        '@type': 'messageChatDeleteMember',
+        'user_id': _int(removedUser['id']) ?? 0,
+      };
+    }
+
+    if (message['new_chat_title'] is String) {
+      return {
+        '@type': 'messageChatChangeTitle',
+        'title': _string(message['new_chat_title']),
+      };
+    }
+    if (message['new_chat_photo'] is List) {
+      return const {'@type': 'messageChatChangePhoto', 'photo': null};
+    }
+    if (message['delete_chat_photo'] == true) {
+      return const {'@type': 'messageChatDeletePhoto'};
+    }
+    if (message['group_chat_created'] == true) {
+      return {
+        '@type': 'messageBasicGroupChatCreate',
+        'title': _string((_map(message['chat']))?['title']),
+        'member_user_ids': const <int>[],
+      };
+    }
+    if (message['supergroup_chat_created'] == true ||
+        message['channel_chat_created'] == true) {
+      return {
+        '@type': 'messageSupergroupChatCreate',
+        'title': _string((_map(message['chat']))?['title']),
+      };
+    }
+    if (_int(message['migrate_to_chat_id']) case final chatId?) {
+      return {
+        '@type': 'messageChatUpgradeTo',
+        'supergroup_id': _peerId(chatId),
+      };
+    }
+    if (_int(message['migrate_from_chat_id']) case final chatId?) {
+      return {
+        '@type': 'messageChatUpgradeFrom',
+        'basic_group_id': _peerId(chatId),
+      };
+    }
+
+    final pinned = _map(message['pinned_message']);
+    if (pinned != null) {
+      return {
+        '@type': 'messagePinMessage',
+        'message_id': _int(pinned['message_id']) ?? 0,
+      };
+    }
+
+    final autoDelete = _map(message['message_auto_delete_timer_changed']);
+    if (autoDelete != null) {
+      return {
+        '@type': 'messageChatSetMessageAutoDeleteTime',
+        'message_auto_delete_time':
+            _int(autoDelete['message_auto_delete_time']) ?? 0,
+        'from_user_id': 0,
+      };
+    }
+    if (message.containsKey('video_chat_started')) {
+      return const {'@type': 'messageVideoChatStarted', 'group_call_id': 0};
+    }
+    final videoChatEnded = _map(message['video_chat_ended']);
+    if (videoChatEnded != null) {
+      return {
+        '@type': 'messageVideoChatEnded',
+        'duration': _int(videoChatEnded['duration']) ?? 0,
+      };
+    }
+
+    final topicCreated = _map(message['forum_topic_created']);
+    if (topicCreated != null) {
+      return {
+        '@type': 'messageForumTopicCreated',
+        'name': _string(topicCreated['name']),
+        'icon': {
+          '@type': 'forumTopicIcon',
+          'color': _int(topicCreated['icon_color']) ?? 0,
+          'custom_emoji_id': rememberExternalId(
+            'custom_emoji',
+            _string(topicCreated['icon_custom_emoji_id']),
+          ),
+        },
+      };
+    }
+    final topicEdited = _map(message['forum_topic_edited']);
+    if (topicEdited != null) {
+      return {
+        '@type': 'messageForumTopicEdited',
+        'name': _string(topicEdited['name']),
+        'edit_icon_custom_emoji_id': topicEdited.containsKey(
+          'icon_custom_emoji_id',
+        ),
+        'icon_custom_emoji_id': rememberExternalId(
+          'custom_emoji',
+          _string(topicEdited['icon_custom_emoji_id']),
+        ),
+      };
+    }
+    if (message.containsKey('forum_topic_closed')) {
+      return const {
+        '@type': 'messageForumTopicIsClosedToggled',
+        'is_closed': true,
+      };
+    }
+    if (message.containsKey('forum_topic_reopened')) {
+      return const {
+        '@type': 'messageForumTopicIsClosedToggled',
+        'is_closed': false,
+      };
+    }
+
+    final boost = _map(message['boost_added']);
+    if (boost != null) {
+      return {
+        '@type': 'messageChatBoost',
+        'boost_count': _int(boost['boost_count']) ?? 1,
+      };
+    }
+    if (message.containsKey('chat_background_set')) {
+      return const {'@type': 'messageChatSetBackground', 'background': null};
+    }
+    final communityAdded = _map(message['community_chat_added']);
+    if (communityAdded != null) {
+      final community = _map(communityAdded['community']);
+      return {
+        '@type': 'messageChatAddedToCommunity',
+        // Bot API 10.2 exposes only the stable id and display name here. Keep
+        // both on the TD-shaped content so the transcript can render the rich
+        // service card without reaching back into the transport payload.
+        'community_id': _int(community?['id']) ?? 0,
+        'community_name': _string(community?['name']),
+      };
+    }
+    if (message.containsKey('community_chat_removed')) {
+      return const {'@type': 'messageChatRemovedFromCommunity'};
+    }
+
+    final paidPrice = _map(message['paid_message_price_changed']);
+    if (paidPrice != null) {
+      return {
+        '@type': 'messagePaidMessagePriceChanged',
+        'paid_message_star_count':
+            _int(paidPrice['paid_message_star_count']) ??
+            _int(paidPrice['star_count']) ??
+            0,
+      };
+    }
+    final directPrice = _map(message['direct_message_price_changed']);
+    if (directPrice != null) {
+      return {
+        '@type': 'messageDirectMessagePriceChanged',
+        'star_count': _int(directPrice['star_count']) ?? 0,
+      };
+    }
+
+    // The Bot API adds service fields regularly. Keep new ones in the service
+    // lane with a localized "System message" fallback until an exact TDLib
+    // mapping is added; never expose a transport field name to the user.
+    if (_botApiServiceFields.any(message.containsKey)) {
+      return const {'@type': 'messageCustomServiceAction', 'text': ''};
+    }
+    return null;
+  }
+
+  List<Map<String, dynamic>> _serviceUsers(Map<String, dynamic> message) => [
+    ..._addedChatUsers(message),
+    for (final key in const ['left_chat_member', 'left_chat_participant'])
+      ?_map(message[key]),
+    for (final raw in _list(
+      (_map(message['video_chat_participants_invited']))?['users'],
+    ))
+      ?_map(raw),
+  ];
+
+  List<Map<String, dynamic>> _addedChatUsers(Map<String, dynamic> message) => [
+    for (final raw in _list(message['new_chat_members'])) ?_map(raw),
+    for (final key in const ['new_chat_participant', 'new_chat_member'])
+      ?_map(message[key]),
+  ];
 
   Map<String, dynamic> pollObject(Map<String, dynamic> source) {
     final botPollId = _string(source['id']);
@@ -1144,41 +1350,69 @@ int _peerId(int chatId) {
   return absolute >= 1000000000000 ? absolute - 1000000000000 : absolute;
 }
 
-String _unsupportedLabel(Map<String, dynamic> message) {
-  const knownMetadata = {
-    'message_id',
-    'message_thread_id',
-    'from',
-    'sender_chat',
-    'sender_boost_count',
-    'sender_business_bot',
-    'date',
-    'business_connection_id',
-    'chat',
-    'forward_origin',
-    'forward_date',
-    'is_topic_message',
-    'is_automatic_forward',
-    'reply_to_message',
-    'external_reply',
-    'quote',
-    'reply_to_story',
-    'via_bot',
-    'edit_date',
-    'has_protected_content',
-    'is_from_offline',
-    'media_group_id',
-    'author_signature',
-    'paid_star_count',
-    'effect_id',
-    'reply_markup',
-  };
-  final type = message.keys.firstWhere(
-    (key) => !knownMetadata.contains(key),
-    orElse: () => 'message',
-  );
-  return '[$type]';
-}
+/// Bot API fields whose presence makes a message a service event.
+///
+/// Keep the legacy singular participant names for compatible endpoints even
+/// though Telegram's current API uses `new_chat_members` and
+/// `left_chat_member`.
+const _botApiServiceFields = <String>{
+  'new_chat_members',
+  'new_chat_participant',
+  'new_chat_member',
+  'left_chat_member',
+  'left_chat_participant',
+  'chat_owner_left',
+  'chat_owner_changed',
+  'new_chat_title',
+  'new_chat_photo',
+  'delete_chat_photo',
+  'group_chat_created',
+  'supergroup_chat_created',
+  'channel_chat_created',
+  'message_auto_delete_timer_changed',
+  'migrate_to_chat_id',
+  'migrate_from_chat_id',
+  'pinned_message',
+  'successful_payment',
+  'refunded_payment',
+  'users_shared',
+  'chat_shared',
+  'gift',
+  'unique_gift',
+  'gift_upgrade_sent',
+  'connected_website',
+  'write_access_allowed',
+  'proximity_alert_triggered',
+  'boost_added',
+  'chat_background_set',
+  'checklist_tasks_done',
+  'checklist_tasks_added',
+  'community_chat_added',
+  'community_chat_removed',
+  'direct_message_price_changed',
+  'forum_topic_created',
+  'forum_topic_edited',
+  'forum_topic_closed',
+  'forum_topic_reopened',
+  'general_forum_topic_hidden',
+  'general_forum_topic_unhidden',
+  'giveaway_created',
+  'giveaway_completed',
+  'managed_bot_created',
+  'paid_message_price_changed',
+  'poll_option_added',
+  'poll_option_deleted',
+  'suggested_post_approved',
+  'suggested_post_approval_failed',
+  'suggested_post_declined',
+  'suggested_post_paid',
+  'suggested_post_refunded',
+  'video_chat_scheduled',
+  'video_chat_started',
+  'video_chat_ended',
+  'video_chat_participants_invited',
+  'web_app_data',
+};
 
 int _stableId(String value) {
   if (value.isEmpty) return 0;

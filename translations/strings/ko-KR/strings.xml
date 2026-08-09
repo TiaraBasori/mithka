@@ -1137,16 +1137,19 @@
     <string name="commonUiMentionedBySomeoneBadge">[누군가 나를 멘션함]</string>
     <string name="commonUiNewFileBadge">[새 파일 있음]</string>
     <string name="communityChatAddedService">이 채팅이 커뮤니티에 추가되었습니다</string>
+    <string name="communityChatAddedByService">{value1}님이 이 그룹을 {value2} 커뮤니티에 추가했습니다.</string>
     <plurals name="communityChatCount">
         <item quantity="other">채팅 {count}개</item>
     </plurals>
     <string name="communityChatRemovedService">이 채팅이 커뮤니티에서 삭제되었습니다</string>
+    <string name="communityChatRemovedByService">{value1}님이 이 그룹을 커뮤니티에서 삭제했습니다.</string>
     <string name="communityChatsYouAreIn">참여 중인 채팅</string>
     <string name="communityChatsYouCanView">볼 수 있는 채팅</string>
     <string name="communityNoChats">검색과 일치하는 커뮤니티 채팅이 없습니다</string>
     <string name="communityShowAsOneChat">하나의 채팅으로 표시</string>
     <string name="communityShowAsOneChatDescription">이 커뮤니티를 채팅 목록의 확장 가능한 항목 하나로 표시합니다.</string>
     <string name="communityTitle">커뮤니티</string>
+    <string name="communityViewAction">보기</string>
     <string name="composerAnimatedEmojiPreview">[애니메이션 emoji]</string>
     <string name="composerAudio">오디오</string>
     <string name="composerCamera">카메라</string>
@@ -1732,6 +1735,9 @@
     <string name="locationPickerDragMapToChoose">지도를 드래그해 위치 선택</string>
     <string name="loginBackToAccount">{value1}(으)로 돌아가기</string>
     <string name="loginBackToPreviousAccount">이전 계정으로 돌아가기</string>
+    <string name="botApiPrivacyWarning">그룹 개인정보 보호 모드가 켜져 있습니다. 이 봇이 관리자가 아니면 일반 그룹 메시지를 받지 못할 수 있습니다.</string>
+    <string name="botApiBotToBotWarning">봇 간 통신 모드를 확인할 수 없습니다. @BotFather에서 꺼져 있으면 다른 봇의 메시지가 표시되지 않습니다.</string>
+    <string name="botApiWarningDismiss">경고 닫기</string>
     <string name="loginBotAccountDescription">봇은 이전 메시지를 가져올 수 없습니다. 로그인 후 받은 새 메시지는 Mithka가 이 기기에 저장합니다.</string>
     <string name="loginBotAccountTitle">봇으로 로그인</string>
     <string name="loginBotApiEndpoint">봇 API 엔드포인트</string>
@@ -3256,10 +3262,13 @@
     <string name="translationSettingsAiPromptSave">프롬프트 저장</string>
     <string name="translationSettingsAiProvider">AI 제공자</string>
     <string name="translationSettingsAiSection">AI 번역</string>
+    <string name="translationSettingsFallbackDescription">사용 설정된 옵션을 위에서부터 순서대로 시도합니다.</string>
     <string name="translationSettingsDoNotTranslate">번역하지 않음</string>
     <string name="translationSettingsDisplayStyle">번역 표시 방식</string>
     <string name="translationSettingsLanguageCount">{value1}개 언어</string>
     <string name="translationSettingsNone">없음</string>
+    <string name="translationSettingsOptionsSection">번역 옵션</string>
+    <string name="translationSettingsOptionUnavailable">구성되거나 이 기기에서 지원될 때까지 사용할 수 없습니다.</string>
     <string name="translationSettingsService">번역 서비스</string>
     <string name="translationSettingsShowTranslateButton">번역 버튼 표시</string>
     <string name="translationSettingsStandardSection">표준 번역</string>

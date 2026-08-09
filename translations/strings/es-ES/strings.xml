@@ -1140,17 +1140,20 @@
     <string name="commonUiMentionedBySomeoneBadge">[Me mencionaron]</string>
     <string name="commonUiNewFileBadge">[Archivo nuevo]</string>
     <string name="communityChatAddedService">Este chat se añadió a una comunidad</string>
+    <string name="communityChatAddedByService">{value1} añadió este grupo a la comunidad {value2}.</string>
     <plurals name="communityChatCount">
         <item quantity="one">{count} chat</item>
         <item quantity="other">{count} chats</item>
     </plurals>
     <string name="communityChatRemovedService">Este chat se eliminó de su comunidad</string>
+    <string name="communityChatRemovedByService">{value1} eliminó este grupo de la comunidad.</string>
     <string name="communityChatsYouAreIn">CHATS EN LOS QUE ESTÁS</string>
     <string name="communityChatsYouCanView">CHATS QUE PUEDES VER</string>
     <string name="communityNoChats">No hay chats de la comunidad que coincidan</string>
     <string name="communityShowAsOneChat">Mostrar como un chat</string>
     <string name="communityShowAsOneChatDescription">Mantén esta comunidad en un único elemento desplegable de la lista.</string>
     <string name="communityTitle">Comunidad</string>
+    <string name="communityViewAction">Ver</string>
     <string name="composerAnimatedEmojiPreview">[Emoji animado]</string>
     <string name="composerAudio">Audio</string>
     <string name="composerCamera">Cámara</string>
@@ -1736,6 +1739,9 @@
     <string name="locationPickerDragMapToChoose">Arrastra el mapa para elegir una ubicación</string>
     <string name="loginBackToAccount">Volver a {value1}</string>
     <string name="loginBackToPreviousAccount">Volver a la cuenta anterior</string>
+    <string name="botApiPrivacyWarning">La privacidad de grupo está activada. A menos que el bot sea administrador, puede que no reciba los mensajes normales del grupo.</string>
+    <string name="botApiBotToBotWarning">No se puede verificar el modo de comunicación entre bots. Si está desactivado en @BotFather, no aparecerán los mensajes de otros bots.</string>
+    <string name="botApiWarningDismiss">Descartar aviso</string>
     <string name="loginBotAccountDescription">Los bots no pueden recuperar mensajes anteriores. Mithka guarda en este dispositivo los mensajes nuevos recibidos después de iniciar sesión.</string>
     <string name="loginBotAccountTitle">Iniciar sesión como bot</string>
     <string name="loginBotApiEndpoint">Endpoint de la API de bots</string>
@@ -3264,10 +3270,13 @@
     <string name="translationSettingsAiPromptSave">Guardar instrucciones</string>
     <string name="translationSettingsAiProvider">Proveedor de IA</string>
     <string name="translationSettingsAiSection">Traducción con IA</string>
+    <string name="translationSettingsFallbackDescription">Las opciones activadas se prueban de arriba abajo.</string>
     <string name="translationSettingsDoNotTranslate">No traducir</string>
     <string name="translationSettingsDisplayStyle">Visualización de traducción</string>
     <string name="translationSettingsLanguageCount">{value1} idiomas</string>
     <string name="translationSettingsNone">Ninguno</string>
+    <string name="translationSettingsOptionsSection">Opciones de traducción</string>
+    <string name="translationSettingsOptionUnavailable">No disponible hasta que se configure o sea compatible con este dispositivo.</string>
     <string name="translationSettingsService">Servicio de traducción</string>
     <string name="translationSettingsShowTranslateButton">Mostrar botón Traducir</string>
     <string name="translationSettingsStandardSection">Traducción estándar</string>

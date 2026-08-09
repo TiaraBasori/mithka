@@ -16,6 +16,8 @@ typedef BotApiTdUpdateSink = void Function(Map<String, dynamic> update);
 /// never fabricated: getChatHistory and search read only the SQLite updates this
 /// device has already received.
 class BotApiTdBackend {
+  static const _avatarResolutionVersion = 'v2';
+
   BotApiTdBackend({
     required this.account,
     required String token,
@@ -52,7 +54,9 @@ class BotApiTdBackend {
     if (_started || _closed) return;
     _started = true;
     await _store.open();
+    _migrateLegacyTransportPlaceholders();
     final me = _converter.user(account.bot);
+    _preserveObservedUserPhoto(me);
     _store.upsertUser(me);
     _emit({'@type': 'updateUser', 'user': me});
     _emit(_authorizationUpdate('authorizationStateReady'));
@@ -124,7 +128,11 @@ class BotApiTdBackend {
           '@type': 'updates',
           'updates': [
             _authorizationUpdate('authorizationStateReady'),
-            {'@type': 'updateUser', 'user': _converter.user(account.bot)},
+            {
+              '@type': 'updateUser',
+              'user':
+                  _store.user(account.botId) ?? _converter.user(account.bot),
+            },
             for (final chat in _store.chats(limit: 1000))
               {'@type': 'updateNewChat', 'chat': chat},
           ],
@@ -139,6 +147,10 @@ class BotApiTdBackend {
           'has_webhook_conflict': _webhookConflict,
           'connection_error': _connectionError,
           'next_update_offset': _store.nextUpdateOffset,
+          'can_read_all_group_messages':
+              account.bot['can_read_all_group_messages'] == true,
+          'bot_to_bot_access_observed':
+              _store.metadata('bot_to_bot_message_observed') == '1',
         };
       case 'restartBotApiPolling':
         await resume();
@@ -425,11 +437,29 @@ class BotApiTdBackend {
       previousChat: previous,
       incrementUnread: !edited,
     );
+    final sourceSender = _map(source['from']);
+    if (sourceSender?['is_bot'] == true &&
+        _int(sourceSender?['id']) != account.botId) {
+      _store.setMetadata('bot_to_bot_message_observed', '1');
+    }
     for (final user in converted.users) {
+      _preserveObservedUserPhoto(user);
       _store.upsertUser(user);
     }
+    final changesChatPhoto = source['new_chat_photo'] is List;
+    final deletesChatPhoto = source['delete_chat_photo'] == true;
+    _preserveObservedChatPhoto(
+      converted.chat,
+      clearPhoto: changesChatPhoto || deletesChatPhoto,
+    );
     _store.upsertMessage(converted.message);
     _store.upsertChat(converted.chat);
+    if (changesChatPhoto) {
+      _store.setMetadata(_avatarResolvedKey('chat:$chatId'), '0');
+      _scheduleChatAvatar(chatId);
+    } else if (deletesChatPhoto) {
+      _store.setMetadata(_avatarResolvedKey('chat:$chatId'), '1');
+    }
     final events = <Map<String, dynamic>>[
       for (final user in converted.users) {'@type': 'updateUser', 'user': user},
       if (previous == null) {'@type': 'updateNewChat', 'chat': converted.chat},
@@ -548,6 +578,7 @@ class BotApiTdBackend {
     for (final source in [from, memberUser]) {
       if (source == null) continue;
       final user = _converter.user(source);
+      _preserveObservedUserPhoto(user);
       _store.upsertUser(user);
       events.add({'@type': 'updateUser', 'user': user});
     }
@@ -559,6 +590,7 @@ class BotApiTdBackend {
         lastMessage: _map(previous?['last_message']),
         unreadCount: _int(previous?['unread_count']) ?? 0,
       );
+      _preserveObservedChatPhoto(chat);
       _store.upsertChat(chat);
       if (previous == null) {
         events.add({'@type': 'updateNewChat', 'chat': chat});
@@ -571,6 +603,7 @@ class BotApiTdBackend {
     var user = _store.user(userId);
     if (user == null && userId == account.botId) {
       user = _converter.user(account.bot);
+      _preserveObservedUserPhoto(user);
       _store.upsertUser(user);
     }
     if (user == null) {
@@ -598,6 +631,84 @@ class BotApiTdBackend {
     }
   }
 
+  void _migrateLegacyTransportPlaceholders() {
+    const marker = 'migration.bot_api_service_content.v3';
+    if (_store.metadata(marker) == '1') return;
+    _store.transaction(() {
+      for (final update in _store.rawUpdates()) {
+        for (final key in [..._newMessageKeys, ..._editedMessageKeys]) {
+          final source = _map(update[key]);
+          if (source != null) _migrateLegacyStoredMessage(source);
+        }
+      }
+      _store.setMetadata(marker, '1');
+    });
+  }
+
+  void _migrateLegacyStoredMessage(Map<String, dynamic> source) {
+    final chatId = _int((_map(source['chat']))?['id']);
+    final messageId = _int(source['message_id']);
+    if (chatId == null || messageId == null) return;
+    final stored = _store.message(chatId, messageId);
+    final content = _map(stored?['content']);
+    final placeholder = _string((_map(content?['text']))?['text']);
+    final isLegacyPlaceholder =
+        content?['@type'] == 'messageText' &&
+        _legacyTransportPlaceholder.hasMatch(placeholder);
+    final needsCommunityPayload =
+        content?['@type'] == 'messageChatAddedToCommunity' &&
+        ((content?.containsKey('community_id') ?? false) == false ||
+            (content?.containsKey('community_name') ?? false) == false);
+    if (stored == null || (!isLegacyPlaceholder && !needsCommunityPayload)) {
+      return;
+    }
+
+    final converted = _converter.message(
+      source,
+      previousChat: _store.chat(chatId),
+      incrementUnread: false,
+    );
+    final nextContent = _map(converted.message['content']);
+    if (nextContent == null || jsonEncode(nextContent) == jsonEncode(content)) {
+      return;
+    }
+    for (final user in converted.users) {
+      _preserveObservedUserPhoto(user);
+      _store.upsertUser(user);
+    }
+    stored['content'] = nextContent;
+    _store.upsertMessage(stored);
+
+    final chat = _store.chat(chatId);
+    final lastMessage = _map(chat?['last_message']);
+    if (chat != null && _int(lastMessage?['id']) == messageId) {
+      chat['last_message'] = stored;
+      _store.upsertChat(chat);
+    }
+  }
+
+  String _avatarResolvedKey(String target) =>
+      'avatar.resolved.$_avatarResolutionVersion.$target';
+
+  void _preserveObservedUserPhoto(Map<String, dynamic> user) {
+    if (user['profile_photo'] != null) return;
+    final userId = _int(user['id']);
+    if (userId == null) return;
+    final previousPhoto = _store.user(userId)?['profile_photo'];
+    if (previousPhoto != null) user['profile_photo'] = previousPhoto;
+  }
+
+  void _preserveObservedChatPhoto(
+    Map<String, dynamic> chat, {
+    bool clearPhoto = false,
+  }) {
+    if (clearPhoto || chat['photo'] != null) return;
+    final chatId = _int(chat['id']);
+    if (chatId == null) return;
+    final previousPhoto = _store.chat(chatId)?['photo'];
+    if (previousPhoto != null) chat['photo'] = previousPhoto;
+  }
+
   void _scheduleUserAvatar(int userId) {
     if (userId == 0) return;
     unawaited(_refreshUserAvatar(userId));
@@ -607,7 +718,7 @@ class BotApiTdBackend {
     final key = 'user:$userId';
     final user = _store.user(userId);
     if (user == null || user['profile_photo'] != null) return;
-    if (_store.metadata('avatar.resolved.$key') == '1') return;
+    if (_store.metadata(_avatarResolvedKey(key)) == '1') return;
     if (!_avatarRequests.add(key)) return;
     try {
       final result = await _client.call('getUserProfilePhotos', {
@@ -619,7 +730,7 @@ class BotApiTdBackend {
       final photo = _profilePhotoFromChatPhotos(photos);
       final updated = {...user, 'profile_photo': photo};
       _store.upsertUser(updated);
-      _store.setMetadata('avatar.resolved.$key', '1');
+      _store.setMetadata(_avatarResolvedKey(key), '1');
       _emit({'@type': 'updateUser', 'user': updated});
     } on BotApiException {
       // A private user may not expose a photo to this bot. Leave it unresolved
@@ -638,7 +749,7 @@ class BotApiTdBackend {
     final key = 'chat:$chatId';
     final existing = _store.chat(chatId);
     if (existing == null || existing['photo'] != null) return;
-    if (_store.metadata('avatar.resolved.$key') == '1') return;
+    if (_store.metadata(_avatarResolvedKey(key)) == '1') return;
     if (!_avatarRequests.add(key)) return;
     try {
       final value = await _client.call('getChat', {'chat_id': chatId});
@@ -650,7 +761,7 @@ class BotApiTdBackend {
         unreadCount: _int(existing['unread_count']) ?? 0,
       );
       _store.upsertChat(chat);
-      _store.setMetadata('avatar.resolved.$key', '1');
+      _store.setMetadata(_avatarResolvedKey(key), '1');
       _emit({
         '@type': 'updateChatPhoto',
         'chat_id': chatId,
@@ -665,8 +776,10 @@ class BotApiTdBackend {
               previousUser?['type'] is Map &&
               _map(previousUser?['type'])?['@type'] == 'userTypeBot',
         });
+        _preserveObservedUserPhoto(user);
         _store.upsertUser(user);
         _emit({'@type': 'updateUser', 'user': user});
+        _scheduleUserAvatar(chatId);
       }
     } on BotApiException {
       // Keep the locally observed chat even if Telegram no longer grants a
@@ -693,7 +806,7 @@ class BotApiTdBackend {
         'profile_photo': _profilePhotoFromChatPhotos(photos),
       };
       _store.upsertUser(updated);
-      _store.setMetadata('avatar.resolved.user:$userId', '1');
+      _store.setMetadata(_avatarResolvedKey('user:$userId'), '1');
       _emit({'@type': 'updateUser', 'user': updated});
     }
     return photos;
@@ -801,7 +914,7 @@ class BotApiTdBackend {
       fields: {'photo': jsonEncode(input)},
       files: {field: upload.path!},
     );
-    _store.setMetadata('avatar.resolved.user:${account.botId}', '0');
+    _store.setMetadata(_avatarResolvedKey('user:${account.botId}'), '0');
     final current = _store.user(account.botId);
     if (current != null) _store.upsertUser({...current, 'profile_photo': null});
     await _refreshUserAvatar(account.botId);
@@ -812,7 +925,7 @@ class BotApiTdBackend {
     Map<String, dynamic> request,
   ) async {
     await _client.call('removeMyProfilePhoto');
-    _store.setMetadata('avatar.resolved.user:${account.botId}', '0');
+    _store.setMetadata(_avatarResolvedKey('user:${account.botId}'), '0');
     final current = _store.user(account.botId);
     if (current != null) _store.upsertUser({...current, 'profile_photo': null});
     await _refreshUserAvatar(account.botId);
@@ -998,10 +1111,13 @@ class BotApiTdBackend {
     _store.upsertChat(chat);
     if (_string(source['type']) == 'private') {
       final user = _converter.user({...source, 'is_bot': false});
+      _preserveObservedUserPhoto(user);
       _store.upsertUser(user);
       _emit({'@type': 'updateUser', 'user': user});
+      _scheduleUserAvatar(_int(user['id']) ?? 0);
     }
     _emit({'@type': 'updateNewChat', 'chat': chat});
+    _scheduleChatAvatar(chatId);
     return chat;
   }
 
@@ -1199,8 +1315,10 @@ class BotApiTdBackend {
       return _error(502, 'The Bot API returned an invalid member.');
     }
     final user = _converter.user(sourceUser);
+    _preserveObservedUserPhoto(user);
     _store.upsertUser(user);
     _emit({'@type': 'updateUser', 'user': user});
+    _scheduleUserAvatar(_int(user['id']) ?? 0);
     return {
       '@type': 'chatMember',
       'member_id': {'@type': 'messageSenderUser', 'user_id': user['id']},
@@ -2185,6 +2303,8 @@ const List<String> _editedMessageKeys = [
   'edited_business_message',
   'edited_guest_message',
 ];
+
+final RegExp _legacyTransportPlaceholder = RegExp(r'^\[[a-z][a-z0-9_]*\]$');
 
 Map<String, dynamic> _error(int code, String message) => {
   '@type': 'error',
