@@ -229,6 +229,13 @@ void main() {
         expect(download, findsNothing);
         expect(saveToPhotos, findsNothing);
         expect(share, findsNothing);
+        expect(_semanticsWidget('Pause'), findsNothing);
+        expect(_semanticsWidget('Previous video'), findsNothing);
+        expect(_semanticsWidget('More'), findsNothing);
+
+        await tester.tapAt(const Offset(195, 200));
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(_semanticsWidget('Pause'), findsOneWidget);
 
         await tester.tap(_semanticsWidget('Previous video'));
         await tester.tap(_semanticsWidget('Next video'));
@@ -581,6 +588,17 @@ void main() {
         modeButtonSemantics = tester.widget<Semantics>(modeButton);
         expect(modeButtonSemantics.properties.value, 'Split Screen');
         expect(_selectedSemanticsWidget('Split Screen'), findsOneWidget);
+
+        await tester.tapAt(const Offset(20, 200));
+        await tester.pump();
+        expect(_selectedSemanticsWidget('Split Screen'), findsNothing);
+        expect(modeButton, findsNothing);
+
+        await tester.tapAt(const Offset(195, 200));
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(modeButton, findsOneWidget);
+        await tester.tap(modeButton);
+        await tester.pump(const Duration(milliseconds: 140));
 
         await tester.tap(_semanticsWidget('Picture in Picture'));
         await tester.pump();

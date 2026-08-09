@@ -1870,8 +1870,14 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         if (_showCompletionPrompt) _completionPrompt(),
         if (controlsVisible) _closeButton(),
         if (controlsVisible) _topOverflowButton(),
-        if (_moreMenuVisible) _moreMenuOverlay(),
-        if (_modeMenuVisible) _modeMenuOverlay(),
+        if (_moreMenuVisible)
+          _moreMenuOverlay(
+            onTapOutside: () => _dismissMenusAndControls(scope: scope),
+          ),
+        if (_modeMenuVisible)
+          _modeMenuOverlay(
+            onTapOutside: () => _dismissMenusAndControls(scope: scope),
+          ),
       ],
     );
   }
@@ -1941,8 +1947,10 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                     ? _pipTopBar()
                     : _closeButton(),
               if (ready && _controlsVisible) _topOverflowButton(),
-              if (_moreMenuVisible) _moreMenuOverlay(),
-              if (_modeMenuVisible) _modeMenuOverlay(),
+              if (_moreMenuVisible)
+                _moreMenuOverlay(onTapOutside: _dismissMenusAndControls),
+              if (_modeMenuVisible)
+                _modeMenuOverlay(onTapOutside: _dismissMenusAndControls),
             ],
           ),
         ),
@@ -2761,7 +2769,19 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     action();
   }
 
-  Widget _moreMenuOverlay() {
+  void _dismissMenusAndControls({MithkaVideoChromeScope? scope}) {
+    _hideTimer?.cancel();
+    FocusManager.instance.primaryFocus?.unfocus();
+    final hideReusableControls = scope?.snapshot.controlsVisible == true;
+    setState(() {
+      _moreMenuVisible = false;
+      _modeMenuVisible = false;
+      if (scope == null) _controlsVisible = false;
+    });
+    if (hideReusableControls) scope!.actions.toggleControls();
+  }
+
+  Widget _moreMenuOverlay({required VoidCallback onTapOutside}) {
     final media = MediaQuery.of(context);
     final phoneFullscreen = _usesPhoneFullscreen(context);
     final menuWidth = math.min(212.0, media.size.width - 24);
@@ -2775,7 +2795,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               excludeFromSemantics: true,
-              onTap: _closeMoreMenu,
+              onTap: onTapOutside,
             ),
           ),
           PositionedDirectional(
@@ -2912,7 +2932,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     _scheduleHide();
   }
 
-  Widget _modeMenuOverlay() {
+  Widget _modeMenuOverlay({required VoidCallback onTapOutside}) {
     final media = MediaQuery.of(context);
     final menuWidth = math.min(220.0, media.size.width - 24);
     final rtl = Directionality.of(context) == TextDirection.rtl;
@@ -2946,7 +2966,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               excludeFromSemantics: true,
-              onTap: _closeModeMenu,
+              onTap: onTapOutside,
             ),
           ),
           CompositedTransformFollower(
