@@ -40,6 +40,7 @@ import 'app/desktop_utility_window.dart';
 import 'app/desktop_video_window.dart';
 import 'app/desktop_window_controls.dart';
 import 'app/global_video_split_host.dart';
+import 'app/handoff_service.dart';
 import 'app/telemetry_config.dart';
 import 'auth/account_store.dart';
 import 'auth/auth_manager.dart';
@@ -442,6 +443,11 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     _autoDownload.initialize(widget.prefs);
     _auth.start();
     DeepLinkService.shared.start();
+    HandoffService.shared.start(
+      accounts: _accounts,
+      auth: _auth,
+      appLock: _appLock,
+    );
     DesktopMiniAppWindowService.instance.attachMainProxy();
     DesktopChatWindowService.instance.attachMainProxy(
       accountUserIdForSlot: _accountUserIdForSlot,
@@ -480,6 +486,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     DesktopMiniAppWindowService.instance.detachMainProxy();
     DesktopChatWindowService.instance.detachMainProxy();
     DesktopUtilityWindowService.instance.detachMainProxy();
+    unawaited(HandoffService.shared.stop());
     _calls.dispose();
     super.dispose();
   }

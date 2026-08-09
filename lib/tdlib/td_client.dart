@@ -981,6 +981,12 @@ class TdClient {
     return null;
   }
 
+  /// Returns a locally authorized slot for [userId], if this device has one.
+  ///
+  /// Handoff uses the Telegram user id instead of a slot because slot numbers
+  /// are installation-local and have no meaning on the receiving device.
+  Future<int?> readySlotForUserId(int userId) => _readySlotForUserId(userId);
+
   static _TdSessionStringInfo _decodeSessionString(String sessionString) {
     final normalized = sessionString.trim();
     if (normalized.isEmpty) {

@@ -853,6 +853,7 @@ class _ChatViewState extends State<ChatView> {
   bool _bannerDismissed = false; // "N条新消息" banner dismissed / caught up
   Timer? _bannerTimer; // auto-hides the banner a few seconds after it appears
   Timer? _readSyncTimer;
+  Timer? _handoffUpdateTimer;
   int? _scrollTargetId;
   int? _lastNewestMessageId;
   int? _lastOldestMessageId;
@@ -1195,8 +1196,32 @@ class _ChatViewState extends State<ChatView> {
         chatId: widget.chatId,
         title: () => _vm.peerTitle.isEmpty ? widget.title : _vm.peerTitle,
         isVisible: isVisible,
+        accountSlot: _sessionKey.accountSlot,
+        messageId: _handoffMessageId,
       );
     }
+    _scheduleHandoffRefresh();
+  }
+
+  int? _handoffMessageId() {
+    if (!_initialTranscriptReady || _vm.messages.isEmpty) {
+      final messageId = widget.initialMessageId;
+      return messageId != null && messageId > 0 ? messageId : null;
+    }
+    if (_scroll.hasClients && _isAtLoadedBottom(80)) {
+      final messageId = _latestServerMessage(_vm.messages)?.id;
+      return messageId != null && messageId > 0 ? messageId : null;
+    }
+    final messageId =
+        _captureSessionScrollAnchor()?.messageId ?? widget.initialMessageId;
+    return messageId != null && messageId > 0 ? messageId : null;
+  }
+
+  void _scheduleHandoffRefresh() {
+    _handoffUpdateTimer?.cancel();
+    _handoffUpdateTimer = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) ActiveConversation.shared.refresh();
+    });
   }
 
   bool get _shouldRestoreSessionScroll {
@@ -1305,6 +1330,7 @@ class _ChatViewState extends State<ChatView> {
       _olderHistoryPull.reset();
       _scheduleLoadedOlderReveal();
       _saveSessionScrollSnapshot();
+      _scheduleHandoffRefresh();
     }
     return false;
   }
@@ -2202,6 +2228,7 @@ class _ChatViewState extends State<ChatView> {
       return;
     }
     _modelDirtyWhileInactive = false;
+    _scheduleHandoffRefresh();
     if (!_sendFailureDialogVisible) {
       final failure = _vm.consumeSendFailure();
       if (failure != null) _scheduleSendFailureDialog(failure);
@@ -3336,6 +3363,7 @@ class _ChatViewState extends State<ChatView> {
     _wallpaperController.removeListener(_onWallpaperChanged);
     _bannerTimer?.cancel();
     _readSyncTimer?.cancel();
+    _handoffUpdateTimer?.cancel();
     _translation.removeListener(_onTranslationSettingsChanged);
     _search
       ..removeListener(_onSearchChanged)
