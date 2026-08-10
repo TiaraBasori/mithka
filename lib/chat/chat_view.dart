@@ -992,6 +992,7 @@ class _ChatViewState extends State<ChatView> {
       _unreadProgress.badgeCount(entryUnreadCount: _entryUnreadCount);
   int _entryUnreadCount = 0;
   int _entryLastReadInboxId = 0;
+  int _entryLatestMessageId = 0;
   int? _entryFirstUnreadMessageId;
   bool _showEntryUnreadBanner = false;
   late final ChatMessageSearchController _search;
@@ -1764,7 +1765,7 @@ class _ChatViewState extends State<ChatView> {
         if (message.isOutgoing || message.isService) continue;
         final observation = _unreadProgress.observeVisibleIncoming(
           messageId: message.id,
-          initialUnread: message.id > _entryLastReadInboxId,
+          initialUnread: _isEntryUnreadMessage(message.id),
         );
         if (observation.shouldReportViewed) {
           newlyVisible.add(message);
@@ -2102,9 +2103,29 @@ class _ChatViewState extends State<ChatView> {
     _onComposerMessageSent();
   }
 
+  void _captureEntryUnreadState() {
+    _entryUnreadCount = _vm.unreadCount;
+    _entryLastReadInboxId = _vm.lastReadInboxId;
+    _entryLatestMessageId = resolveCapturedEntryLatestMessageId(
+      knownLatestMessageId: _vm.knownLatestMessageId,
+      loadedLatestMessageId: _latestServerMessage(_vm.messages)?.id ?? 0,
+    );
+  }
+
+  bool _isEntryUnreadMessage(int messageId) => isCapturedEntryUnreadMessage(
+    messageId: messageId,
+    lastReadInboxId: _entryLastReadInboxId,
+    latestMessageId: _entryLatestMessageId,
+  );
+
   int? _firstLoadedEntryUnreadMessageId() => firstUnreadMessageIdAfterBoundary(
     incomingMessageIds: _vm.messages
-        .where((message) => !message.isOutgoing && !message.isService)
+        .where(
+          (message) =>
+              !message.isOutgoing &&
+              !message.isService &&
+              _isEntryUnreadMessage(message.id),
+        )
         .map((message) => message.id),
     lastReadInboxId: _entryLastReadInboxId,
   );
@@ -2332,8 +2353,7 @@ class _ChatViewState extends State<ChatView> {
     _cancelBottomFollow();
     _stopActiveTranscriptScroll();
     _resetTranscriptPivot();
-    _entryUnreadCount = _vm.unreadCount;
-    _entryLastReadInboxId = _vm.lastReadInboxId;
+    _captureEntryUnreadState();
     _entryFirstUnreadMessageId = _entryLastReadInboxId == 0
         ? confirmedUnreadMessageId
         : _firstLoadedEntryUnreadMessageId();
@@ -2546,15 +2566,14 @@ class _ChatViewState extends State<ChatView> {
     // boundary) is loaded, jump to the first unread message — or stay at the
     // bottom when caught up. Runs exactly once per chat open.
     if (!_didInitialScroll && _vm.initialLoaded) {
-      _entryUnreadCount = _vm.unreadCount;
-      _entryLastReadInboxId = _vm.lastReadInboxId;
+      _captureEntryUnreadState();
       final firstEntryUnreadMessageId = _firstLoadedEntryUnreadMessageId();
       final loadedIncomingUnreadCount = _vm.messages
           .where(
             (message) =>
                 !message.isOutgoing &&
                 !message.isService &&
-                message.id > _entryLastReadInboxId,
+                _isEntryUnreadMessage(message.id),
           )
           .length;
       final entryBoundaryIsLoaded =

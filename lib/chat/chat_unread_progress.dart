@@ -125,6 +125,21 @@ int? firstUnreadMessageIdAfterBoundary({
   return earliest;
 }
 
+/// Whether [messageId] belonged to the unread range captured when the chat
+/// entry state was recorded. The upper bound prevents later auto-followed
+/// arrivals from consuming the fixed entry unread count after their live-ID
+/// marker has already been cleared.
+bool isCapturedEntryUnreadMessage({
+  required int messageId,
+  required int lastReadInboxId,
+  required int latestMessageId,
+}) => messageId > lastReadInboxId && messageId <= latestMessageId;
+
+int resolveCapturedEntryLatestMessageId({
+  required int knownLatestMessageId,
+  required int loadedLatestMessageId,
+}) => knownLatestMessageId > 0 ? knownLatestMessageId : loadedLatestMessageId;
+
 class ChatUnreadProgress {
   final Set<int> _seenInitialMessageIds = <int>{};
   final Set<int> _liveMessageIds = <int>{};
