@@ -6,6 +6,10 @@ import multi_window_manager
 class AppDelegate: FlutterAppDelegate {
   private var rightControlMonitor: Any?
   private var statusItem: NSStatusItem?
+  /// Keep the original Flutter engine/window alive while the app is hidden in
+  /// the menu bar. Recreating it on every Dock launch can race the still-live
+  /// TDLib process and its database locks.
+  private var retainedMainWindow: MainFlutterWindow?
 
   override func applicationDidFinishLaunching(_ notification: Notification) {
     // Flutter's macOS engine tracks right-Control with device bit 0x200, but
@@ -20,7 +24,24 @@ class AppDelegate: FlutterAppDelegate {
       Self.mirrorRightControlFlag(event)
     }
     super.applicationDidFinishLaunching(notification)
+    _ = resolveMainWindow()
     installStatusItem()
+  }
+
+  private func resolveMainWindow() -> MainFlutterWindow? {
+    if let retainedMainWindow {
+      return retainedMainWindow
+    }
+    guard
+      let window = mainFlutterWindow as? MainFlutterWindow
+        ?? NSApp.windows.first(where: { $0 is MainFlutterWindow })
+          as? MainFlutterWindow
+    else {
+      return nil
+    }
+    window.isReleasedWhenClosed = false
+    retainedMainWindow = window
+    return window
   }
 
   private func installStatusItem() {
@@ -95,15 +116,22 @@ class AppDelegate: FlutterAppDelegate {
     return image
   }
 
-  @objc private func showMainWindow() {
-    guard
-      let primaryWindow = NSApp.windows.first(
-        where: { $0 is MainFlutterWindow }
-      )
-    else { return }
-    primaryWindow.deminiaturize(nil)
+  @discardableResult
+  private func bringMainWindowToFront(
+    using application: NSApplication = NSApp
+  ) -> Bool {
+    guard let primaryWindow = resolveMainWindow() else { return false }
+    application.unhide(nil)
+    if primaryWindow.isMiniaturized {
+      primaryWindow.deminiaturize(nil)
+    }
     primaryWindow.makeKeyAndOrderFront(nil)
-    NSApp.activate(ignoringOtherApps: true)
+    application.activate(ignoringOtherApps: true)
+    return true
+  }
+
+  @objc private func showMainWindow() {
+    bringMainWindowToFront()
   }
 
   @objc private func quitApplication() {
@@ -116,14 +144,20 @@ class AppDelegate: FlutterAppDelegate {
     restorationHandler: @escaping ([NSUserActivityRestoring]) -> Void
   ) -> Bool {
     guard HandoffBridge.shared.accept(userActivity) else { return false }
-    application.activate(ignoringOtherApps: true)
-    if let primaryWindow = application.windows.first(
-      where: { $0 is MainFlutterWindow }
-    ) {
-      primaryWindow.deminiaturize(nil)
-      primaryWindow.makeKeyAndOrderFront(nil)
-    }
+    bringMainWindowToFront(using: application)
     return true
+  }
+
+  override func applicationShouldHandleReopen(
+    _ sender: NSApplication,
+    hasVisibleWindows flag: Bool
+  ) -> Bool {
+    // A Dock click always restores the retained engine/window. Never create a
+    // replacement window or a second TDLib client just because it was hidden.
+    bringMainWindowToFront(using: sender)
+    // The reopen AppleEvent is fully handled above. Returning false prevents
+    // AppKit from following up with its default untitled-window creation.
+    return false
   }
 
   private static func mirrorRightControlFlag(_ event: NSEvent) -> NSEvent {

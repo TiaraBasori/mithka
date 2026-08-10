@@ -3,6 +3,16 @@ import FlutterMacOS
 import multi_window_manager
 
 class MainFlutterWindow: NSWindow {
+  /// Closing or minimizing the primary window hides it in the menu bar while
+  /// its Flutter engine and background services continue running.
+  override func close() {
+    orderOut(nil)
+  }
+
+  override func miniaturize(_ sender: Any?) {
+    orderOut(sender)
+  }
+
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
@@ -34,6 +44,7 @@ class MainFlutterWindow: NSWindow {
     titleVisibility = .hidden
     titlebarAppearsTransparent = true
     styleMask.insert(.fullSizeContentView)
+    isReleasedWhenClosed = false
     minSize = NSSize(width: 820, height: 560)
     if #available(macOS 11.0, *) {
       titlebarSeparatorStyle = .none
