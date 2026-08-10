@@ -60,7 +60,7 @@ void main() {
   );
 
   test(
-    'different-chat links request adaptive replacement, not a route push',
+    'different-chat links request adaptive navigation preserving the source',
     () async {
       final controller = ChatDeepLinkController.shared;
       controller.consumePending();
@@ -80,13 +80,14 @@ void main() {
 
       expect(
         disposition,
-        InternalChatLinkDisposition.requestedAdaptiveReplacement,
+        InternalChatLinkDisposition.requestedAdaptiveNavigation,
       );
       final request = controller.consumePending();
       expect(request?.chatId, 84);
       expect(request?.title, 'Replacement chat');
       expect(request?.messageId, 700);
       expect(request?.accountSlot, 3);
+      expect(request?.preserveChatStack, isTrue);
       expect(controller.consumePending(), isNull);
     },
   );

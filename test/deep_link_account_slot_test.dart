@@ -61,6 +61,7 @@ void main() {
       title: 'Project room',
       messageId: 88,
       accountUserId: 222,
+      preserveChatStack: true,
     );
 
     final replay = request.scopedToAccountSlot(1);
@@ -70,5 +71,6 @@ void main() {
     expect(replay.messageId, request.messageId);
     expect(replay.accountUserId, request.accountUserId);
     expect(replay.accountSlot, 1);
+    expect(replay.preserveChatStack, isTrue);
   });
 }

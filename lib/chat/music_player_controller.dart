@@ -2141,6 +2141,7 @@ void _openOriginal(ChatMessage message) {
     chatId: chatId,
     title: message.senderName ?? '',
     messageId: message.id,
+    preserveChatStack: true,
   );
 }
 

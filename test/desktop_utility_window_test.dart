@@ -66,11 +66,13 @@ void main() {
       messageId: 77,
       accountSlot: 9,
       accountUserId: 88,
+      preserveChatStack: true,
     ).toDesktopIpcJson();
 
     expect(encoded, {'chatId': -10042, 'title': 'Group Name', 'messageId': 77});
     expect(encoded, isNot(contains('accountSlot')));
     expect(encoded, isNot(contains('accountUserId')));
+    expect(encoded, isNot(contains('preserveChatStack')));
 
     final parsed = ChatDeepLinkRequest.tryParseDesktopIpc(encoded);
     expect(parsed?.chatId, -10042);
@@ -78,6 +80,7 @@ void main() {
     expect(parsed?.messageId, 77);
     expect(parsed?.accountSlot, isNull);
     expect(parsed?.accountUserId, isNull);
+    expect(parsed?.preserveChatStack, isFalse);
 
     expect(
       ChatDeepLinkRequest.tryParseDesktopIpc({

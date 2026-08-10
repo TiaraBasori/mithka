@@ -470,6 +470,9 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
       final controller = _chatDeepLinks;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final replay = request.scopedToAccountSlot(requestedSlot);
+        // A conversation from another account cannot remain a valid back
+        // destination after the account-keyed app subtree is rebuilt, so the
+        // replay intentionally uses the default replacement policy.
         controller?.openChat(
           chatId: replay.chatId,
           title: replay.title,
@@ -499,7 +502,9 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final navigator = Navigator.of(context, rootNavigator: true);
-      navigator.popUntil((route) => route.isFirst);
+      if (!request.preserveChatStack) {
+        navigator.popUntil((route) => route.isFirst);
+      }
       navigator.push(
         AppChatPageRoute(
           builder: (_) => ChatView(

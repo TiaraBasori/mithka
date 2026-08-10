@@ -41,14 +41,15 @@ class InternalChatLinkScope extends InheritedWidget {
 enum InternalChatLinkDisposition {
   scrolledWithinCurrentChat,
   keptCurrentChat,
-  requestedAdaptiveReplacement,
+  requestedAdaptiveNavigation,
 }
 
-/// Routes a TDLib-resolved chat link without stacking a second conversation.
+/// Routes a TDLib-resolved chat link using the platform's conversation model.
 ///
 /// Current-chat message links stay inside the owning transcript. Every other
 /// chat is handed to the app-level deep-link controller, whose adaptive parent
-/// replaces the selected detail pane (or the phone conversation route).
+/// replaces the selected detail pane on wide layouts and preserves the source
+/// conversation beneath the destination on phones.
 Future<InternalChatLinkDisposition> routeResolvedInternalChatLink({
   required int chatId,
   required String title,
@@ -70,6 +71,7 @@ Future<InternalChatLinkDisposition> routeResolvedInternalChatLink({
     title: title,
     messageId: targetMessageId,
     accountSlot: source?.accountSlot,
+    preserveChatStack: source != null,
   );
-  return InternalChatLinkDisposition.requestedAdaptiveReplacement;
+  return InternalChatLinkDisposition.requestedAdaptiveNavigation;
 }
