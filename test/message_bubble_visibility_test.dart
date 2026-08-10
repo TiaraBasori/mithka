@@ -21,6 +21,18 @@ Iterable<TextSpan> _textSpans(InlineSpan span) sync* {
   }
 }
 
+double _contrastRatio(Color first, Color second) {
+  final firstLuminance = first.computeLuminance();
+  final secondLuminance = second.computeLuminance();
+  final lighter = firstLuminance > secondLuminance
+      ? firstLuminance
+      : secondLuminance;
+  final darker = firstLuminance < secondLuminance
+      ? firstLuminance
+      : secondLuminance;
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -312,6 +324,48 @@ void main() {
     expect(surface.background, MessageBubbleBackgroundSpec.standard);
     expect(tester.takeException(), isNull);
   });
+
+  for (final outgoing in <bool>[false, true]) {
+    testWidgets(
+      'disabled theming keeps ${outgoing ? 'outgoing' : 'incoming'} links distinct and readable',
+      (tester) async {
+        final id = outgoing ? 419 : 420;
+        final direction = outgoing ? 'Outgoing' : 'Incoming';
+        await pumpMessage(
+          tester,
+          ChatMessage(
+            id: id,
+            isOutgoing: outgoing,
+            text: '$direction body https://example.com',
+            date: 1,
+          ),
+          bubblesEnabled: false,
+          themingEnabled: false,
+        );
+
+        final bubble = tester.widget<StretchableMessageBubbleBackground>(
+          find.byKey(ValueKey('messageTextBubble-$id')),
+        );
+        final richText = tester
+            .widgetList<RichText>(find.byType(RichText))
+            .singleWhere(
+              (widget) => widget.text.toPlainText().contains('$direction body'),
+            );
+        final bodyColor = (richText.text as TextSpan).style!.color!;
+        final linkColor = _textSpans(richText.text)
+            .singleWhere((span) => span.text == 'https://example.com')
+            .style!
+            .color!;
+
+        expect(linkColor, isNot(bodyColor));
+        expect(
+          _contrastRatio(linkColor, bubble.fallbackColor),
+          greaterThanOrEqualTo(4.5),
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('enabled bubbles continue to render the selected surface', (
     tester,

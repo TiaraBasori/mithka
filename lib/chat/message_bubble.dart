@@ -478,6 +478,12 @@ class _MessageBubbleState extends State<MessageBubble>
       color.withValues(alpha: color.a * _messageAccentFillOpacity);
 
   Color _messageLinkColor(bool outgoing) {
+    if (!_theme.themingEnabled) {
+      return readableLinkColor(
+        background: outgoing ? _outgoingBubbleColor : _incomingBubbleColor,
+        preferred: _colors.linkBlue,
+      );
+    }
     if (!_showsMessageBubbleSurface) return _colors.linkBlue;
     final base = outgoing ? _outgoingTextColor : _incomingTextColor;
     if (_usesDecorativeBubbleBackground) return base;

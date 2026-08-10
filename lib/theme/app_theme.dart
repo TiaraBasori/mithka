@@ -673,6 +673,57 @@ Color readableForeground(Color background) {
   return contrast(dark) >= contrast(light) ? dark : light;
 }
 
+/// Keeps a body-sized link readable against [background] while retaining as
+/// much of the owned [preferred] link hue as the contrast threshold permits.
+///
+/// Unlike [readableForeground], this is deliberately threshold-based: a link
+/// must remain recognisably different from the surrounding body text, so it
+/// moves from the strongest neutral back towards the palette colour until the
+/// WCAG contrast floor would be crossed.
+Color readableLinkColor({
+  required Color background,
+  required Color preferred,
+  double minimumContrast = 4.5,
+}) {
+  assert(minimumContrast > 1);
+
+  double contrast(Color first, Color second) {
+    final firstLuminance = first.computeLuminance();
+    final secondLuminance = second.computeLuminance();
+    final lighter = math.max(firstLuminance, secondLuminance);
+    final darker = math.min(firstLuminance, secondLuminance);
+    return (lighter + 0.05) / (darker + 0.05);
+  }
+
+  Color opaque(Color color) => Color(color.toARGB32() | 0xFF000000);
+
+  final surface = opaque(background);
+  final desired = opaque(Color.alphaBlend(preferred, surface));
+  if (contrast(desired, surface) >= minimumContrast) return desired;
+
+  const dark = Color(0xFF000000);
+  const light = Color(0xFFFFFFFF);
+  final anchor = contrast(dark, surface) >= contrast(light, surface)
+      ? dark
+      : light;
+  if (contrast(anchor, surface) < minimumContrast) return anchor;
+
+  var valid = anchor;
+  var lower = 0.0;
+  var upper = 1.0;
+  for (var iteration = 0; iteration < 16; iteration++) {
+    final amount = (lower + upper) / 2;
+    final candidate = opaque(Color.lerp(anchor, desired, amount)!);
+    if (contrast(candidate, surface) >= minimumContrast) {
+      valid = candidate;
+      lower = amount;
+    } else {
+      upper = amount;
+    }
+  }
+  return valid;
+}
+
 extension AppColorsContext on BuildContext {
   /// Resolved adaptive tokens for the active brightness.
   AppColors get colors =>
