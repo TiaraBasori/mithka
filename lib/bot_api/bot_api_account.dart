@@ -149,13 +149,21 @@ String normalizeBotToken(String value) {
 abstract final class BotApiAccountRegistry {
   static const metadataKey = 'mithka.bot_api.accounts.v1';
   static const _tokenPrefix = 'mithka.bot_api.token.';
+  static const _appleKeychainService = 'ad.neko.mithka.bot-api';
   static const _secureStorage = FlutterSecureStorage(
-    // The legacy file-based macOS Keychain applies per-signature ACLs and can
-    // show a login-keychain password dialog after an App Store update. Keep
-    // release credentials in Mithka's provisioned data-protection Keychain
-    // (the MacOsOptions default), under an app-owned service name. Other
-    // platforms ignore this option.
-    mOptions: MacOsOptions(accountName: 'ad.neko.mithka.bot-api'),
+    // The signed iOS and macOS targets use the same bundle identifier, so both
+    // receive the same team-prefixed default Keychain access group. Leaving
+    // groupId unset selects that shared group. Synchronizable stores the token
+    // in iCloud Keychain, while macOS's data-protection Keychain avoids the
+    // legacy per-signature ACL that can show a login-keychain password dialog.
+    iOptions: IOSOptions(
+      accountName: _appleKeychainService,
+      synchronizable: true,
+    ),
+    mOptions: MacOsOptions(
+      accountName: _appleKeychainService,
+      synchronizable: true,
+    ),
   );
 
   static List<BotApiAccount> load(SharedPreferences preferences) {
