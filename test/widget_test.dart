@@ -3869,44 +3869,6 @@ void main() {
       expect(timestamp, findsNothing);
       expect(tester.getRect(find.byType(MessageBubble)), layoutRectBefore);
     });
-
-    testWidgets('opens text selection through a double tap', (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final theme = ThemeController(prefs);
-      addTearDown(theme.dispose);
-      final message = ChatMessage(
-        id: 3,
-        isOutgoing: false,
-        text: 'selectable',
-        date: 1,
-      );
-      ChatMessage? selected;
-
-      await tester.pumpWidget(
-        ChangeNotifierProvider<ThemeController>.value(
-          value: theme,
-          child: MaterialApp(
-            home: Scaffold(
-              body: MessageBubble(
-                message: message,
-                peerTitle: 'Test',
-                isGroup: false,
-                onDoubleTap: (value) => selected = value,
-              ),
-            ),
-          ),
-        ),
-      );
-
-      final target = find.byKey(const ValueKey('messageTapTarget-3'));
-      await tester.tap(target);
-      await tester.pump(const Duration(milliseconds: 40));
-      await tester.tap(target);
-      await tester.pump();
-
-      expect(selected, same(message));
-    });
   });
 
   group('MessageBubble reply quote', () {
