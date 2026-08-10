@@ -2,6 +2,174 @@ import Cocoa
 import FlutterMacOS
 import multi_window_manager
 
+/// Owns the cancelable AppKit termination handshake for the primary engine.
+///
+/// Method channels are scoped to a Flutter engine. Pinning this bridge to the
+/// first primary view controller prevents a later child-window engine from
+/// acknowledging readiness or replacing the shutdown handler.
+final class ApplicationTerminationBridge {
+  static let shared = ApplicationTerminationBridge()
+  static let channelName = "mithka/application_lifecycle"
+  // Dart may spend up to 3s joining startup, 16s closing an existing client,
+  // and 3s joining the receive isolate. Keep the native deadline outside that
+  // bounded window so AppKit never cancels an otherwise healthy shutdown.
+  static let timeoutSeconds: TimeInterval = 25
+
+  typealias ExitRequest = (@escaping FlutterResult) -> Void
+
+  private let timeoutSeconds: TimeInterval
+  private let timeoutQueue: DispatchQueue
+  private var primaryOwnerIdentifier: ObjectIdentifier?
+  private var channel: FlutterMethodChannel?
+  private var requestExit: ExitRequest?
+  private var isReady = false
+  private var nextAttemptID: UInt64 = 0
+  private var pendingAttemptID: UInt64?
+  private var pendingReply: ((Bool) -> Void)?
+  private var timeoutWorkItem: DispatchWorkItem?
+  private var terminationApproved = false
+
+  init(
+    timeoutSeconds: TimeInterval = ApplicationTerminationBridge.timeoutSeconds,
+    timeoutQueue: DispatchQueue = .main
+  ) {
+    self.timeoutSeconds = timeoutSeconds
+    self.timeoutQueue = timeoutQueue
+  }
+
+  @discardableResult
+  func registerPrimary(viewController: FlutterViewController) -> Bool {
+    let ownerIdentifier = ObjectIdentifier(viewController)
+    let channel = FlutterMethodChannel(
+      name: Self.channelName,
+      binaryMessenger: viewController.engine.binaryMessenger
+    )
+    guard bindPrimary(owner: viewController, requestExit: { [weak channel] result in
+      guard let channel else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      channel.invokeMethod("requestExit", arguments: nil, result: result)
+    }) else {
+      return false
+    }
+    guard self.channel == nil else { return true }
+
+    self.channel = channel
+    channel.setMethodCallHandler { [weak self] call, result in
+      let handle = {
+        guard call.method == "ready" else {
+          result(FlutterMethodNotImplemented)
+          return
+        }
+        guard self?.acknowledgeReady(from: ownerIdentifier) == true else {
+          result(
+            FlutterError(
+              code: "PRIMARY_ENGINE_MISMATCH",
+              message: "Only Mithka's primary engine can own app termination",
+              details: nil
+            )
+          )
+          return
+        }
+        result(true)
+      }
+      if Thread.isMainThread {
+        handle()
+      } else {
+        DispatchQueue.main.async(execute: handle)
+      }
+    }
+    return true
+  }
+
+  /// Binds the first engine permanently. Re-registering that same owner is
+  /// idempotent; a different (child-window) owner can never replace it.
+  @discardableResult
+  func bindPrimary(
+    owner: AnyObject,
+    requestExit: @escaping ExitRequest
+  ) -> Bool {
+    let identifier = ObjectIdentifier(owner)
+    if let primaryOwnerIdentifier {
+      return primaryOwnerIdentifier == identifier
+    }
+    primaryOwnerIdentifier = identifier
+    self.requestExit = requestExit
+    return true
+  }
+
+  @discardableResult
+  func acknowledgeReady(from owner: AnyObject) -> Bool {
+    acknowledgeReady(from: ObjectIdentifier(owner))
+  }
+
+  /// Returns `.terminateLater` exactly once per active attempt. Duplicate Quit
+  /// requests share that attempt and cannot invoke Dart shutdown twice.
+  func requestTermination(
+    reply: @escaping (Bool) -> Void
+  ) -> NSApplication.TerminateReply {
+    if terminationApproved { return .terminateNow }
+    if pendingAttemptID != nil { return .terminateLater }
+    // Dart awaits the ready acknowledgement before it starts TDLib. If startup
+    // has not reached that point, there is no native Telegram runtime to drain
+    // and an immediate Cmd-Q remains both safe and responsive.
+    guard isReady, let requestExit else { return .terminateNow }
+
+    nextAttemptID &+= 1
+    let attemptID = nextAttemptID
+    pendingAttemptID = attemptID
+    pendingReply = reply
+
+    let timeout = DispatchWorkItem { [weak self] in
+      self?.complete(attemptID: attemptID, allowTermination: false)
+    }
+    timeoutWorkItem = timeout
+    timeoutQueue.asyncAfter(
+      deadline: .now() + timeoutSeconds,
+      execute: timeout
+    )
+
+    requestExit { [weak self] result in
+      let finish: () -> Void = { [weak self] in
+        guard let self else { return }
+        self.complete(
+          attemptID: attemptID,
+          allowTermination: (result as? Bool) == true
+        )
+      }
+      if Thread.isMainThread {
+        finish()
+      } else {
+        DispatchQueue.main.async(execute: finish)
+      }
+    }
+    return .terminateLater
+  }
+
+  private func acknowledgeReady(from ownerIdentifier: ObjectIdentifier) -> Bool {
+    guard
+      primaryOwnerIdentifier == ownerIdentifier,
+      requestExit != nil
+    else {
+      return false
+    }
+    isReady = true
+    return true
+  }
+
+  private func complete(attemptID: UInt64, allowTermination: Bool) {
+    guard pendingAttemptID == attemptID else { return }
+    timeoutWorkItem?.cancel()
+    timeoutWorkItem = nil
+    pendingAttemptID = nil
+    let reply = pendingReply
+    pendingReply = nil
+    terminationApproved = allowTermination
+    reply?(allowTermination)
+  }
+}
+
 @main
 class AppDelegate: FlutterAppDelegate {
   private var rightControlMonitor: Any?
@@ -23,7 +191,6 @@ class AppDelegate: FlutterAppDelegate {
     ) { event in
       Self.mirrorRightControlFlag(event)
     }
-    super.applicationDidFinishLaunching(notification)
     _ = resolveMainWindow()
     installStatusItem()
   }
@@ -136,6 +303,19 @@ class AppDelegate: FlutterAppDelegate {
 
   @objc private func quitApplication() {
     NSApp.terminate(nil)
+  }
+
+  override func applicationShouldTerminate(
+    _ sender: NSApplication
+  ) -> NSApplication.TerminateReply {
+    // Application-hosted native tests deliberately never start Flutter/TDLib.
+    // Let XCTest tear down its inert host without waiting on a missing channel.
+    if MainFlutterWindow.isNativeTestHost() {
+      return .terminateNow
+    }
+    return ApplicationTerminationBridge.shared.requestTermination { allowed in
+      sender.reply(toApplicationShouldTerminate: allowed)
+    }
   }
 
   override func application(

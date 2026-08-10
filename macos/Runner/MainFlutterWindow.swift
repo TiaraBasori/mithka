@@ -3,6 +3,17 @@ import FlutterMacOS
 import multi_window_manager
 
 class MainFlutterWindow: NSWindow {
+  /// Native RunnerTests are application-hosted so they can exercise the real
+  /// AppDelegate and primary window. Starting Flutter here would also start
+  /// TDLib, whose native worker threads outlive XCTest's abrupt host teardown
+  /// and can abort while C++ statics are being destroyed.
+  static func isNativeTestHost(
+    environment: [String: String] = ProcessInfo.processInfo.environment,
+    isXCTestLoaded: Bool = NSClassFromString("XCTestCase") != nil
+  ) -> Bool {
+    environment["XCTestConfigurationFilePath"] != nil || isXCTestLoaded
+  }
+
   /// Closing or minimizing the primary window hides it in the menu bar while
   /// its Flutter engine and background services continue running.
   override func close() {
@@ -14,8 +25,21 @@ class MainFlutterWindow: NSWindow {
   }
 
   override func awakeFromNib() {
-    let flutterViewController = FlutterViewController()
     let windowFrame = self.frame
+    if Self.isNativeTestHost() {
+      contentViewController = NSViewController()
+      setFrame(windowFrame, display: true)
+      super.awakeFromNib()
+      configurePrimaryWindow()
+      return
+    }
+
+    let flutterViewController = FlutterViewController()
+    // Bind the termination channel before attaching the controller (and before
+    // Dart can start TDLib). Child engines created below never register it.
+    ApplicationTerminationBridge.shared.registerPrimary(
+      viewController: flutterViewController
+    )
     self.contentViewController = flutterViewController
     self.setFrame(windowFrame, display: true)
 
@@ -41,6 +65,10 @@ class MainFlutterWindow: NSWindow {
 
     super.awakeFromNib()
 
+    configurePrimaryWindow()
+  }
+
+  private func configurePrimaryWindow() {
     titleVisibility = .hidden
     titlebarAppearsTransparent = true
     styleMask.insert(.fullSizeContentView)
