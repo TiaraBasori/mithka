@@ -5,6 +5,7 @@ import multi_window_manager
 @main
 class AppDelegate: FlutterAppDelegate {
   private var rightControlMonitor: Any?
+  private var statusItem: NSStatusItem?
 
   override func applicationDidFinishLaunching(_ notification: Notification) {
     // Flutter's macOS engine tracks right-Control with device bit 0x200, but
@@ -19,6 +20,94 @@ class AppDelegate: FlutterAppDelegate {
       Self.mirrorRightControlFlag(event)
     }
     super.applicationDidFinishLaunching(notification)
+    installStatusItem()
+  }
+
+  private func installStatusItem() {
+    guard statusItem == nil else { return }
+    let item = NSStatusBar.system.statusItem(
+      withLength: NSStatusItem.squareLength
+    )
+    if let button = item.button {
+      button.image = Self.makeStatusItemImage()
+      button.image?.accessibilityDescription = "Mithka"
+      button.toolTip = "Mithka"
+    }
+
+    let menu = NSMenu()
+    let showItem = NSMenuItem(
+      title: NSLocalizedString(
+        "Show Mithka",
+        comment: "Menu bar action that reopens Mithka's main window"
+      ),
+      action: #selector(showMainWindow),
+      keyEquivalent: ""
+    )
+    showItem.target = self
+    menu.addItem(showItem)
+    menu.addItem(.separator())
+    let quitItem = NSMenuItem(
+      title: NSLocalizedString(
+        "Quit Mithka",
+        comment: "Menu bar action that terminates Mithka"
+      ),
+      action: #selector(quitApplication),
+      keyEquivalent: "q"
+    )
+    quitItem.target = self
+    menu.addItem(quitItem)
+    item.menu = menu
+    statusItem = item
+  }
+
+  /// An owned monochrome speech-mark keeps the status item legible in both
+  /// menu-bar appearances without depending on a platform icon catalogue.
+  private static func makeStatusItemImage() -> NSImage {
+    let image = NSImage(size: NSSize(width: 18, height: 18))
+    image.lockFocus()
+    NSColor.black.setStroke()
+    NSColor.black.setFill()
+
+    let bubble = NSBezierPath(
+      roundedRect: NSRect(x: 1.75, y: 3.75, width: 14.5, height: 10.5),
+      xRadius: 4,
+      yRadius: 4
+    )
+    bubble.lineWidth = 1.55
+    bubble.stroke()
+
+    let tail = NSBezierPath()
+    tail.move(to: NSPoint(x: 5.25, y: 4.15))
+    tail.line(to: NSPoint(x: 3.45, y: 1.9))
+    tail.line(to: NSPoint(x: 7.1, y: 4.05))
+    tail.lineWidth = 1.55
+    tail.lineJoinStyle = .round
+    tail.lineCapStyle = .round
+    tail.stroke()
+
+    for x in [6.0, 9.0, 12.0] {
+      NSBezierPath(
+        ovalIn: NSRect(x: x - 0.8, y: 8.2, width: 1.6, height: 1.6)
+      ).fill()
+    }
+    image.unlockFocus()
+    image.isTemplate = true
+    return image
+  }
+
+  @objc private func showMainWindow() {
+    guard
+      let primaryWindow = NSApp.windows.first(
+        where: { $0 is MainFlutterWindow }
+      )
+    else { return }
+    primaryWindow.deminiaturize(nil)
+    primaryWindow.makeKeyAndOrderFront(nil)
+    NSApp.activate(ignoringOtherApps: true)
+  }
+
+  @objc private func quitApplication() {
+    NSApp.terminate(nil)
   }
 
   override func application(
@@ -62,7 +151,9 @@ class AppDelegate: FlutterAppDelegate {
   }
 
   override func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-    return !NSApp.windows.contains(where: { $0 is MainFlutterWindow && $0.isVisible })
+    // The menu-bar item remains available to reopen the retained main window.
+    // Explicit Quit in either native menu still terminates normally.
+    return false
   }
 
   override func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {

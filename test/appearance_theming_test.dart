@@ -455,39 +455,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('desktop hides mobile-only appearance controls', (tester) async {
-    final controller = await _pumpAppearance(
-      tester,
-      themingEnabled: true,
-      platform: TargetPlatform.macOS,
-    );
-    controller.archivedChatsDisplayMode = ArchivedChatsDisplayMode.pullDown;
-    await tester.pump();
+  testWidgets(
+    'desktop keeps the Dock icon picker and hides touch-only controls',
+    (tester) async {
+      final controller = await _pumpAppearance(
+        tester,
+        themingEnabled: true,
+        platform: TargetPlatform.macOS,
+      );
+      controller.archivedChatsDisplayMode = ArchivedChatsDisplayMode.pullDown;
+      await tester.pump();
 
-    expect(find.text('App Icon'), findsNothing);
+      expect(find.text('App Icon'), findsOneWidget);
 
-    final chatListRow = find.byKey(const ValueKey('chat-list-settings-row'));
-    await tester.ensureVisible(chatListRow);
-    await tester.tap(chatListRow);
-    await tester.pumpAndSettle();
+      final chatListRow = find.byKey(const ValueKey('chat-list-settings-row'));
+      await tester.ensureVisible(chatListRow);
+      await tester.tap(chatListRow);
+      await tester.pumpAndSettle();
 
-    expect(find.byType(ChatListAppearanceSettingsView), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('chat-list-swipe-settings-row')),
-      findsNothing,
-    );
-    expect(find.text('Chat List Search'), findsNothing);
-    expect(find.text('Show on Pull Down'), findsNothing);
-    expect(find.text('First position (not sticky)'), findsOneWidget);
+      expect(find.byType(ChatListAppearanceSettingsView), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('chat-list-swipe-settings-row')),
+        findsNothing,
+      );
+      expect(find.text('Chat List Search'), findsNothing);
+      expect(find.text('Show on Pull Down'), findsNothing);
+      expect(find.text('First position (not sticky)'), findsOneWidget);
 
-    await tester.tap(find.text('Archived Chats'));
-    await tester.pumpAndSettle();
-    expect(find.byType(ArchivedChatsSettingsView), findsOneWidget);
-    expect(find.text('Show on Pull Down'), findsNothing);
-    expect(find.text('First position (not sticky)'), findsOneWidget);
-    expect(find.text('First on second screen'), findsOneWidget);
-    expect(find.text('Do Not Show'), findsOneWidget);
-  });
+      await tester.tap(find.text('Archived Chats'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ArchivedChatsSettingsView), findsOneWidget);
+      expect(find.text('Show on Pull Down'), findsNothing);
+      expect(find.text('First position (not sticky)'), findsOneWidget);
+      expect(find.text('First on second screen'), findsOneWidget);
+      expect(find.text('Do Not Show'), findsOneWidget);
+    },
+  );
 
   testWidgets('chat and chat-list name color pages use separate defaults', (
     tester,

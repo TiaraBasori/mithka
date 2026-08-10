@@ -10,6 +10,9 @@ class MainFlutterWindow: NSWindow {
     self.setFrame(windowFrame, display: true)
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    MacOSAppIconPlugin.register(
+      with: flutterViewController.registrar(forPlugin: "MacOSAppIconPlugin")
+    )
     HandoffBridge.shared.register(
       messenger: flutterViewController.engine.binaryMessenger
     )
@@ -18,6 +21,9 @@ class MainFlutterWindow: NSWindow {
     )
     MultiWindowManagerPlugin.RegisterGeneratedPlugins = { registry in
       RegisterGeneratedPlugins(registry: registry)
+      MacOSAppIconPlugin.register(
+        with: registry.registrar(forPlugin: "MacOSAppIconPlugin")
+      )
       DesktopClipboardImagesPlugin.register(
         with: registry.registrar(forPlugin: "DesktopClipboardImagesPlugin")
       )

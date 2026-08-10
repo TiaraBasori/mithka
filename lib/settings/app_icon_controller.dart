@@ -74,6 +74,20 @@ enum AppIconVariant {
   );
 }
 
+bool appIconPickerAvailableForPlatform(
+  TargetPlatform platform, {
+  bool isWeb = kIsWeb,
+}) =>
+    !isWeb &&
+    switch (platform) {
+      TargetPlatform.android ||
+      TargetPlatform.iOS ||
+      TargetPlatform.macOS => true,
+      TargetPlatform.fuchsia ||
+      TargetPlatform.linux ||
+      TargetPlatform.windows => false,
+    };
+
 class AppIconController extends ChangeNotifier {
   AppIconController(this._prefs);
 

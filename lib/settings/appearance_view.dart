@@ -51,8 +51,11 @@ class AppearanceView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = context.watch<ThemeController>();
-    final desktop = isDesktopTargetPlatform(Theme.of(context).platform);
-    final appIcons = desktop ? null : context.watch<AppIconController>();
+    final platform = Theme.of(context).platform;
+    final showAppIconPicker = appIconPickerAvailableForPlatform(platform);
+    final appIcons = showAppIconPicker
+        ? context.watch<AppIconController>()
+        : null;
     // The icon assets are 1024x1024; the row preview is 22 px wide, so the
     // undecoded-size default would hold a 4 MiB bitmap in the image cache.
     final appIconPreviewPx =
@@ -65,7 +68,7 @@ class AppearanceView extends StatelessWidget {
           // What the app looks like as a whole. No heading: it is the
           // first card, and a "Theme" heading over a "Theme" row only
           // says it twice.
-          if (!desktop)
+          if (showAppIconPicker)
             _card(context, [
               _navigationRow(
                 context,
