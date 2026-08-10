@@ -10,6 +10,7 @@ void main() {
     late BuildContext linkContext;
     final target = InternalChatLinkTarget(
       chatId: 42,
+      accountSlot: 3,
       openMessage: (_) async {},
     );
     await tester.pumpWidget(
@@ -43,6 +44,7 @@ void main() {
         messageId: 9001,
         source: InternalChatLinkTarget(
           chatId: 42,
+          accountSlot: 3,
           openMessage: (messageId) async => openedMessageId = messageId,
         ),
         controller: controller,
@@ -70,6 +72,7 @@ void main() {
         messageId: 700,
         source: InternalChatLinkTarget(
           chatId: 42,
+          accountSlot: 3,
           openMessage: (_) async => fail('must not scroll the old transcript'),
         ),
         controller: controller,
@@ -83,6 +86,7 @@ void main() {
       expect(request?.chatId, 84);
       expect(request?.title, 'Replacement chat');
       expect(request?.messageId, 700);
+      expect(request?.accountSlot, 3);
       expect(controller.consumePending(), isNull);
     },
   );

@@ -5530,6 +5530,7 @@ class _ChatViewState extends State<ChatView> {
     Widget withInternalLinkRouting(Widget child) => InternalChatLinkScope(
       target: InternalChatLinkTarget(
         chatId: widget.chatId,
+        accountSlot: _sessionKey.accountSlot,
         openMessage: _scrollToMessage,
       ),
       child: child,

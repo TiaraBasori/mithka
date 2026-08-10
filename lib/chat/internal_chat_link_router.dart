@@ -10,10 +10,12 @@ typedef InternalChatMessageOpener = Future<void> Function(int messageId);
 class InternalChatLinkTarget {
   const InternalChatLinkTarget({
     required this.chatId,
+    required this.accountSlot,
     required this.openMessage,
   });
 
   final int chatId;
+  final int accountSlot;
   final InternalChatMessageOpener openMessage;
 }
 
@@ -32,6 +34,7 @@ class InternalChatLinkScope extends InheritedWidget {
   @override
   bool updateShouldNotify(InternalChatLinkScope oldWidget) =>
       target.chatId != oldWidget.target.chatId ||
+      target.accountSlot != oldWidget.target.accountSlot ||
       target.openMessage != oldWidget.target.openMessage;
 }
 
@@ -66,6 +69,7 @@ Future<InternalChatLinkDisposition> routeResolvedInternalChatLink({
     chatId: chatId,
     title: title,
     messageId: targetMessageId,
+    accountSlot: source?.accountSlot,
   );
   return InternalChatLinkDisposition.requestedAdaptiveReplacement;
 }
