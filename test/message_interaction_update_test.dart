@@ -5,7 +5,7 @@ import 'package:mithka/chat/image_media_album_bubble.dart';
 import 'package:mithka/tdlib/td_models.dart';
 
 void main() {
-  test('non-channel comment metadata enables transcript attachments', () {
+  test('only channels enable full-width comment attachments', () {
     final thread = ChatMessage(
       id: 1,
       isOutgoing: false,
@@ -22,25 +22,13 @@ void main() {
     );
     final plain = ChatMessage(id: 3, isOutgoing: false, text: 'Plain', date: 1);
 
-    expect(
-      chatTranscriptAllowsCommentAttachment(isChannel: false, message: thread),
-      isTrue,
-    );
-    expect(
-      chatTranscriptAllowsCommentAttachment(isChannel: false, message: counted),
-      isTrue,
-    );
-    expect(
-      chatTranscriptAllowsCommentAttachment(isChannel: false, message: plain),
-      isFalse,
-    );
-    expect(
-      chatTranscriptAlbumAllowsCommentAttachment(
-        isChannel: false,
-        messages: [plain, counted],
-      ),
-      isTrue,
-    );
+    expect(chatTranscriptAllowsCommentAttachment(isChannel: false), isFalse);
+    expect(chatTranscriptAllowsCommentAttachment(isChannel: true), isTrue);
+
+    // Reply metadata never changes the presentation contract for the chat.
+    expect(thread.hasCommentThread, isTrue);
+    expect(counted.commentCount, 4);
+    expect(plain.commentCount, 0);
   });
 
   test('interaction updates refresh channel discussion metadata', () {
@@ -48,7 +36,7 @@ void main() {
       chatId: 42,
       title: 'Channel',
       markReadOnOpen: false,
-    );
+    )..isChannel = true;
     addTearDown(vm.dispose);
     final message = ChatMessage(
       id: 7,
@@ -108,6 +96,35 @@ void main() {
     expect(message.commentCount, 0);
   });
 
+  test('null interaction updates clear reply metadata without throwing', () {
+    final vm = ChatViewModel(chatId: 42, title: 'Group', markReadOnOpen: false)
+      ..isGroup = true;
+    addTearDown(vm.dispose);
+    final message = ChatMessage(
+      id: 7,
+      chatId: 42,
+      isOutgoing: false,
+      text: 'Post',
+      date: 1,
+      hasCommentThread: true,
+      commentCount: 3,
+      lastCommentMessageId: 99,
+    );
+    vm.messages.add(message);
+
+    vm.applyLiveUpdateForTesting({
+      '@type': 'updateMessageInteractionInfo',
+      'chat_id': 42,
+      'message_id': 7,
+      'interaction_info': null,
+    });
+
+    expect(message.commentThreadMetadataKnown, isTrue);
+    expect(message.hasCommentThread, isFalse);
+    expect(message.commentCount, 0);
+    expect(message.lastCommentMessageId, isNull);
+  });
+
   test('supergroup updates expose a linked channel discussion', () {
     final vm =
         ChatViewModel(chatId: 42, title: 'Channel', markReadOnOpen: false)
@@ -127,7 +144,7 @@ void main() {
     expect(vm.hasLinkedDiscussion, isTrue);
   });
 
-  test('album comments take ownership ahead of reactions', () {
+  test('album replies take interaction ownership ahead of reactions', () {
     final reacted = ChatMessage(id: 1, isOutgoing: false, text: '', date: 1)
       ..reactions = const [
         MessageReaction(emoji: '👍', count: 1, chosen: false),

@@ -48,6 +48,7 @@ import 'location_detail_view.dart';
 import 'looping_video_view.dart';
 import 'media_preview_geometry.dart';
 import 'message_action_menu.dart';
+import 'message_reply_count_badge.dart';
 import 'message_special_content.dart';
 import 'music_player_controller.dart';
 import 'sensitive_content_reveal_prompt.dart';
@@ -603,6 +604,12 @@ class _MessageBubbleState extends State<MessageBubble>
       (message.hasCommentThread ||
           message.commentCount > 0 ||
           (widget.channelHasLinkedDiscussion && !message.isService));
+
+  bool get _showsCompactReplyCount =>
+      !message.isContentRestricted &&
+      widget.isGroup &&
+      !widget.showCommentAttachment &&
+      message.commentCount > 0;
 
   BorderRadius _messageBorderRadius(double radius) =>
       BorderRadius.circular(radius);
@@ -1493,13 +1500,42 @@ class _MessageBubbleState extends State<MessageBubble>
   }
 
   Widget _withFloatingMeta(Widget child, bool outgoing) {
-    final show = message.isEdited || outgoing;
+    final showReplies = _showsCompactReplyCount;
+    final show = message.isEdited || outgoing || showReplies;
     if (!show) return child;
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        child,
-        Positioned(right: 2, bottom: 2, child: _floatingMeta(outgoing)),
+        if (showReplies)
+          Padding(padding: const EdgeInsets.only(bottom: 19), child: child)
+        else
+          child,
+        Positioned(
+          right: 2,
+          bottom: showReplies ? 0 : 2,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (showReplies)
+                MessageReplyCountBadge(
+                  key: ValueKey('messageCompactReplies-${message.id}'),
+                  count: message.commentCount,
+                  foreground: outgoing
+                      ? _outgoingTextColor.withValues(alpha: 0.78)
+                      : _colors.textSecondary,
+                  background: outgoing
+                      ? _outgoingBubbleColor.withValues(alpha: 0.82)
+                      : _colors.card.withValues(alpha: 0.82),
+                  onTap: widget.onOpenComments == null
+                      ? null
+                      : () => widget.onOpenComments?.call(message),
+                ),
+              if (showReplies && (message.isEdited || outgoing))
+                const SizedBox(width: 4),
+              if (message.isEdited || outgoing) _floatingMeta(outgoing),
+            ],
+          ),
+        ),
       ],
     );
   }

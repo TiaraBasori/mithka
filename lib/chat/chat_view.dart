@@ -126,23 +126,8 @@ import 'video_playback_queue.dart';
 import 'video_player_view.dart';
 
 @visibleForTesting
-bool chatTranscriptAllowsCommentAttachment({
-  required bool isChannel,
-  required ChatMessage message,
-}) => isChannel || message.hasCommentThread || message.commentCount > 0;
-
-@visibleForTesting
-bool chatTranscriptAlbumAllowsCommentAttachment({
-  required bool isChannel,
-  required Iterable<ChatMessage> messages,
-}) =>
-    isChannel ||
-    messages.any(
-      (message) => chatTranscriptAllowsCommentAttachment(
-        isChannel: false,
-        message: message,
-      ),
-    );
+bool chatTranscriptAllowsCommentAttachment({required bool isChannel}) =>
+    isChannel;
 
 @visibleForTesting
 Future<T?> showReactionUsersModal<T>(
@@ -3660,7 +3645,6 @@ class _ChatViewState extends State<ChatView> {
       onOpenComments: _openMessageComments,
       showCommentAttachment: chatTranscriptAllowsCommentAttachment(
         isChannel: _vm.isChannel,
-        message: message,
       ),
       channelHasLinkedDiscussion: _vm.hasLinkedDiscussion,
       onOpenImage: _openImage,
@@ -8467,9 +8451,8 @@ class _ChatViewState extends State<ChatView> {
       meName: _vm.meName,
       mePhoto: _vm.mePhoto,
       hasCustomChatTheme: _hasCustomChatTheme,
-      showCommentAttachment: chatTranscriptAlbumAllowsCommentAttachment(
+      showCommentAttachment: chatTranscriptAllowsCommentAttachment(
         isChannel: _vm.isChannel,
-        messages: group,
       ),
       channelHasLinkedDiscussion: _vm.hasLinkedDiscussion,
       selecting: _isSelecting,

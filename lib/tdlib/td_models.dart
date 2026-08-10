@@ -733,7 +733,9 @@ class ChatMessage {
     this.blockedByUser = false,
   }) : commentThreadMetadataKnown =
            commentThreadMetadataKnown ??
-           hasCommentThread || commentCount > 0 || lastCommentMessageId != null;
+           (hasCommentThread ||
+               commentCount > 0 ||
+               lastCommentMessageId != null);
 
   final int id;
   final bool isOutgoing;
@@ -841,8 +843,10 @@ class ChatMessage {
   int viewCount;
   int forwardCount;
   bool hasCommentThread;
-  int
-  commentCount; // channel discussion replies/comments, when TDLib exposes it
+
+  /// TDLib `reply_info.reply_count`: channel comments or ordinary group
+  /// replies, depending on the containing chat.
+  int commentCount;
   int? lastCommentMessageId;
 
   /// Whether this instance carries an authoritative reply-info snapshot.

@@ -52,6 +52,7 @@ void main() {
         TranslationDisplayStyle.quote,
     Set<int> showOriginalTranslationMessageIds = const <int>{},
     ValueChanged<ChatMessage>? onLongPress,
+    ValueChanged<ChatMessage>? onOpenComments,
     void Function(ChatMessage, Rect?, MessageActionSource)? onActionMenu,
   }) async {
     SharedPreferences.setMockInitialValues({
@@ -90,6 +91,7 @@ void main() {
               translationDisplayStyle: translationDisplayStyle,
               showOriginalTranslationMessageIds:
                   showOriginalTranslationMessageIds,
+              onOpenComments: onOpenComments,
               onLongPress:
                   onActionMenu ??
                   (onLongPress == null
@@ -1410,9 +1412,11 @@ void main() {
     );
   });
 
-  testWidgets('non-channel group messages render parsed comment counts', (
+  testWidgets('normal group replies use only the compact bottom-right count', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final message = ChatMessage(
       id: 121,
       isOutgoing: false,
@@ -1423,18 +1427,29 @@ void main() {
       commentCount: 7,
     );
 
+    ChatMessage? opened;
     await pumpBubble(
       tester,
       message,
       isGroup: true,
-      showCommentAttachment: true,
+      onOpenComments: (message) => opened = message,
     );
 
     expect(
       find.byKey(const ValueKey('messageCommentsAttachment-121')),
+      findsNothing,
+    );
+    expect(find.text('7 comments'), findsNothing);
+    final compact = find.byKey(const ValueKey('messageCompactReplies-121'));
+    expect(compact, findsOneWidget);
+    expect(
+      find.descendant(of: compact, matching: find.text('7')),
       findsOneWidget,
     );
-    expect(find.text('7 comments'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(compact);
+    expect(opened, same(message));
   });
 
   testWidgets('linked channel discussion stays visible before first comment', (

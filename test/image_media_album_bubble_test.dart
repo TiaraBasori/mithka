@@ -119,9 +119,11 @@ void main() {
     expect(first.overlaps(second), isFalse);
   });
 
-  testWidgets('non-channel group albums render parsed comment counts', (
+  testWidgets('normal group albums use only the compact reply count', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     SharedPreferences.setMockInitialValues({});
     final preferences = await SharedPreferences.getInstance();
     final theme = ThemeController(preferences);
@@ -153,6 +155,7 @@ void main() {
       ),
     ];
 
+    ChatMessage? opened;
     await tester.pumpWidget(
       ChangeNotifierProvider<ThemeController>.value(
         value: theme,
@@ -165,7 +168,7 @@ void main() {
               messages: messages,
               peerTitle: 'Design Circle',
               isGroup: true,
-              showCommentAttachment: true,
+              onOpenComments: (message) => opened = message,
               imageBuilder: (context, message, width, height) => ColoredBox(
                 color: message.id == 11
                     ? const Color(0xFFFFAE80)
@@ -180,8 +183,18 @@ void main() {
 
     expect(
       find.byKey(const ValueKey('messageCommentsAttachment-12')),
+      findsNothing,
+    );
+    expect(find.text('4 comments'), findsNothing);
+    final compact = find.byKey(const ValueKey('messageCompactReplies-12'));
+    expect(compact, findsOneWidget);
+    expect(
+      find.descendant(of: compact, matching: find.text('4')),
       findsOneWidget,
     );
-    expect(find.text('4 comments'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(compact);
+    expect(opened, same(messages[1]));
   });
 }
