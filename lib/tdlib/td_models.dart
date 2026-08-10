@@ -729,8 +729,11 @@ class ChatMessage {
     this.hasCommentThread = false,
     this.commentCount = 0,
     this.lastCommentMessageId,
+    bool? commentThreadMetadataKnown,
     this.blockedByUser = false,
-  });
+  }) : commentThreadMetadataKnown =
+           commentThreadMetadataKnown ??
+           hasCommentThread || commentCount > 0 || lastCommentMessageId != null;
 
   final int id;
   final bool isOutgoing;
@@ -841,6 +844,11 @@ class ChatMessage {
   int
   commentCount; // channel discussion replies/comments, when TDLib exposes it
   int? lastCommentMessageId;
+
+  /// Whether this instance carries an authoritative reply-info snapshot.
+  /// False means a partial/cached message omitted interaction metadata, so a
+  /// same-ID merge must not erase newer thread information already in memory.
+  bool commentThreadMetadataKnown;
 
   /// When true, this message is from a Telegram-blocked user and the
   /// "hide blocked user messages" feature is on.
@@ -1524,7 +1532,8 @@ abstract final class TDParse {
         : null;
 
     final parsedEntities = messageTextEntities(content);
-    final replyInfo = message.obj('interaction_info')?.obj('reply_info');
+    final interactionInfo = message.obj('interaction_info');
+    final replyInfo = interactionInfo?.obj('reply_info');
     var contentDisplayText = contentText;
     var contentDisplayEntities = parsedEntities;
     final contentRichBlocks = <RichMessageBlock>[...richMessageBlocks(content)];
@@ -1631,9 +1640,8 @@ abstract final class TDParse {
             (content?.obj('message')?.boolean('is_full') ?? false),
         isEdited: (message.integer('edit_date') ?? 0) > 0,
         isSending: message.obj('sending_state') != null,
-        viewCount: message.obj('interaction_info')?.integer('view_count') ?? 0,
-        forwardCount:
-            message.obj('interaction_info')?.integer('forward_count') ?? 0,
+        viewCount: interactionInfo?.integer('view_count') ?? 0,
+        forwardCount: interactionInfo?.integer('forward_count') ?? 0,
         hasCommentThread: !isContentRestricted && replyInfo != null,
         commentCount: isContentRestricted
             ? 0
@@ -1643,6 +1651,7 @@ abstract final class TDParse {
         lastCommentMessageId: isContentRestricted
             ? null
             : replyInfo?.int64('last_message_id'),
+        commentThreadMetadataKnown: interactionInfo != null,
       )
       ..reactions = reactionsFrom(message)
       ..forwardOrigin = isContentRestricted ? null : fwdName

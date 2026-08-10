@@ -36,6 +36,7 @@ void main() {
     WidgetTester tester,
     ChatMessage message, {
     List<ChatMessage> groupedMedia = const <ChatMessage>[],
+    bool isGroup = false,
     bool showCommentAttachment = false,
     bool channelHasLinkedDiscussion = false,
     bool themingEnabled = true,
@@ -78,7 +79,7 @@ void main() {
               message: message,
               groupedMedia: groupedMedia,
               peerTitle: 'Test',
-              isGroup: false,
+              isGroup: isGroup,
               showCommentAttachment: showCommentAttachment,
               channelHasLinkedDiscussion: channelHasLinkedDiscussion,
               outgoingBubbleColor: outgoingBubbleColor,
@@ -1399,6 +1400,33 @@ void main() {
           .contains(tester.getRect(commentsFinder).bottomCenter),
       isTrue,
     );
+  });
+
+  testWidgets('non-channel group messages render parsed comment counts', (
+    tester,
+  ) async {
+    final message = ChatMessage(
+      id: 121,
+      isOutgoing: false,
+      text: 'Group message',
+      date: 1,
+      contentType: 'messageText',
+      hasCommentThread: true,
+      commentCount: 7,
+    );
+
+    await pumpBubble(
+      tester,
+      message,
+      isGroup: true,
+      showCommentAttachment: true,
+    );
+
+    expect(
+      find.byKey(const ValueKey('messageCommentsAttachment-121')),
+      findsOneWidget,
+    );
+    expect(find.text('7 comments'), findsOneWidget);
   });
 
   testWidgets('linked channel discussion stays visible before first comment', (
