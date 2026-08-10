@@ -7273,7 +7273,7 @@ class _ChatViewState extends State<ChatView> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             button(
-              HeroAppIcons.share.data,
+              HeroAppIcons.forward.data,
               _forwardSelected,
               actionEnabled: _vm.canForwardContent,
             ),

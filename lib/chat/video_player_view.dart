@@ -3510,7 +3510,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                                 KeyedSubtree(
                                   key: const ValueKey('video-more-share'),
                                   child: _FocusableVideoMenuItem(
-                                    icon: HeroAppIcons.share,
+                                    icon: HeroAppIcons.forward,
                                     label: AppStringKeys.topicChatShare.l10n(
                                       context,
                                     ),

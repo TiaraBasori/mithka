@@ -3710,7 +3710,7 @@ class _MessageBubbleState extends State<MessageBubble>
       mainAxisSize: MainAxisSize.min,
       children: [
         AppIcon(
-          HeroAppIcons.share,
+          HeroAppIcons.forward,
           size: 11,
           color: accent.withValues(alpha: 0.9),
         ),

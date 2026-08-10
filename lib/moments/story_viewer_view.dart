@@ -963,7 +963,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
             key: const ValueKey('storyShare'),
             onTap: () => unawaited(_shareStory()),
             child: const AppIcon(
-              HeroAppIcons.share,
+              HeroAppIcons.forward,
               size: 21,
               color: Colors.white,
             ),
@@ -1179,7 +1179,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
                 _storyMenuRow(
                   context,
                   value: AppStrings.t(AppStringKeys.storyViewerShare),
-                  icon: HeroAppIcons.share,
+                  icon: HeroAppIcons.forward,
                   label: AppStringKeys.storyShare,
                 ),
               _storyMenuRow(
