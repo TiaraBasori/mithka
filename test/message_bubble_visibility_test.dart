@@ -47,11 +47,15 @@ void main() {
     bool hasCustomChatTheme = false,
     Color? outgoingBubbleColor,
     Color? outgoingBubbleTextColor,
+    AppColors? colors,
+    Brightness brightness = Brightness.light,
+    Color? brandColor,
     void Function(ChatMessage message)? onLongPress,
   }) async {
     SharedPreferences.setMockInitialValues({
       'groupImageMessages': true,
       'appearanceThemingEnabled': themingEnabled,
+      if (brandColor != null) 'brandColor': brandColor.toARGB32(),
     });
     final preferences = await SharedPreferences.getInstance();
     final theme = ThemeController(preferences)
@@ -65,7 +69,10 @@ void main() {
       ChangeNotifierProvider<ThemeController>.value(
         value: theme,
         child: MaterialApp(
-          theme: ThemeData(extensions: [AppColors.light]),
+          theme: ThemeData(
+            brightness: brightness,
+            extensions: [colors ?? AppColors.light],
+          ),
           locale: const Locale('en'),
           localizationsDelegates: const [AppLocalizations.delegate],
           supportedLocales: AppLocalizations.supportedLocales,
@@ -95,8 +102,16 @@ void main() {
     final message = ChatMessage(
       id: 410,
       isOutgoing: true,
-      text: 'Visible message https://example.com',
+      text: 'Visible message site https://example.com',
       date: 1,
+      textEntities: const [
+        MessageTextEntity(
+          offset: 16,
+          length: 4,
+          type: 'textEntityTypeTextUrl',
+          url: 'https://example.com/site',
+        ),
+      ],
     );
     ChatMessage? longPressed;
 
@@ -130,9 +145,20 @@ void main() {
     final link = _textSpans(
       messageText.text,
     ).singleWhere((span) => span.text == 'https://example.com');
+    final entityLink = _textSpans(
+      messageText.text,
+    ).singleWhere((span) => span.text == 'site');
     // Links inside an outgoing bubble follow the bubble's own ink rather than
     // the page link colour, which would not carry on this fill.
     expect(link.style?.color, AppColors.light.bubbleOutgoingText);
+    expect(entityLink.style?.color, AppColors.light.bubbleOutgoingText);
+    for (final enabledLink in [link, entityLink]) {
+      expect(
+        enabledLink.style?.decoration?.contains(TextDecoration.underline) ??
+            false,
+        isFalse,
+      );
+    }
 
     final delivery = tester.widget<CustomPaint>(
       find.descendant(
@@ -325,43 +351,149 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final outgoing in <bool>[false, true]) {
+  test('default outgoing blue with white body uses color-only distinction', () {
+    final style = readableLinkStyle(
+      background: const Color(0xFF0099FF),
+      body: Colors.white,
+      preferred: AppColors.light.linkBlue,
+    );
+
+    expect(style.underline, isFalse);
+    expect(
+      _contrastRatio(style.color, const Color(0xFF0099FF)),
+      greaterThanOrEqualTo(4.5),
+    );
+    expect(
+      _contrastRatio(style.color, Colors.white),
+      greaterThanOrEqualTo(3.0),
+    );
+  });
+
+  final disabledThemeCases =
+      <
+        ({
+          String name,
+          bool outgoing,
+          AppColors colors,
+          Brightness brightness,
+          Color? brandColor,
+          bool? expectsUnderline,
+          bool entityBased,
+        })
+      >[
+        (
+          name: 'light incoming',
+          outgoing: false,
+          colors: AppColors.light,
+          brightness: Brightness.light,
+          brandColor: null,
+          expectsUnderline: false,
+          entityBased: false,
+        ),
+        (
+          name: 'light outgoing',
+          outgoing: true,
+          colors: AppColors.light,
+          brightness: Brightness.light,
+          brandColor: null,
+          expectsUnderline: null,
+          entityBased: false,
+        ),
+        (
+          name: 'dark incoming',
+          outgoing: false,
+          colors: AppColors.dark,
+          brightness: Brightness.dark,
+          brandColor: null,
+          expectsUnderline: true,
+          entityBased: false,
+        ),
+        (
+          name: 'dark outgoing',
+          outgoing: true,
+          colors: AppColors.dark,
+          brightness: Brightness.dark,
+          brandColor: null,
+          expectsUnderline: null,
+          entityBased: false,
+        ),
+        (
+          name: 'custom mid-tone outgoing',
+          outgoing: true,
+          colors: AppColors.light,
+          brightness: Brightness.light,
+          brandColor: const Color(0xFF666699),
+          expectsUnderline: true,
+          entityBased: true,
+        ),
+      ];
+  for (var index = 0; index < disabledThemeCases.length; index++) {
+    final testCase = disabledThemeCases[index];
     testWidgets(
-      'disabled theming keeps ${outgoing ? 'outgoing' : 'incoming'} links distinct and readable',
+      'disabled theming keeps ${testCase.name} links distinct and readable',
       (tester) async {
-        final id = outgoing ? 419 : 420;
-        final direction = outgoing ? 'Outgoing' : 'Incoming';
+        final id = 419 + index;
+        final direction = testCase.outgoing ? 'Outgoing' : 'Incoming';
+        final prefix = '$direction body ';
+        final linkText = testCase.entityBased
+            ? 'entity'
+            : 'https://example.com';
         await pumpMessage(
           tester,
           ChatMessage(
             id: id,
-            isOutgoing: outgoing,
-            text: '$direction body https://example.com',
+            isOutgoing: testCase.outgoing,
+            text: '$prefix$linkText',
             date: 1,
+            textEntities: testCase.entityBased
+                ? [
+                    MessageTextEntity(
+                      offset: prefix.length,
+                      length: linkText.length,
+                      type: 'textEntityTypeTextUrl',
+                      url: 'https://example.com/entity',
+                    ),
+                  ]
+                : const [],
           ),
           bubblesEnabled: false,
           themingEnabled: false,
+          colors: testCase.colors,
+          brightness: testCase.brightness,
+          brandColor: testCase.brandColor,
         );
 
         final bubble = tester.widget<StretchableMessageBubbleBackground>(
           find.byKey(ValueKey('messageTextBubble-$id')),
         );
+        if (testCase.brandColor != null) {
+          expect(bubble.fallbackColor, testCase.brandColor);
+        }
         final richText = tester
             .widgetList<RichText>(find.byType(RichText))
             .singleWhere(
               (widget) => widget.text.toPlainText().contains('$direction body'),
             );
         final bodyColor = (richText.text as TextSpan).style!.color!;
-        final linkColor = _textSpans(richText.text)
-            .singleWhere((span) => span.text == 'https://example.com')
-            .style!
-            .color!;
+        final link = _textSpans(
+          richText.text,
+        ).singleWhere((span) => span.text == linkText);
+        final linkColor = link.style!.color!;
+        final colorSeparation = _contrastRatio(linkColor, bodyColor);
+        final underlined =
+            link.style?.decoration?.contains(TextDecoration.underline) ?? false;
 
-        expect(linkColor, isNot(bodyColor));
         expect(
           _contrastRatio(linkColor, bubble.fallbackColor),
           greaterThanOrEqualTo(4.5),
         );
+        expect(colorSeparation >= 3.0 || underlined, isTrue);
+        if (testCase.expectsUnderline case final expected?) {
+          expect(underlined, expected);
+        }
+        if (!underlined) {
+          expect(colorSeparation, greaterThanOrEqualTo(3.0));
+        }
         expect(tester.takeException(), isNull);
       },
     );

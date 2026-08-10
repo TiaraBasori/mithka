@@ -676,10 +676,8 @@ Color readableForeground(Color background) {
 /// Keeps a body-sized link readable against [background] while retaining as
 /// much of the owned [preferred] link hue as the contrast threshold permits.
 ///
-/// Unlike [readableForeground], this is deliberately threshold-based: a link
-/// must remain recognisably different from the surrounding body text, so it
-/// moves from the strongest neutral back towards the palette colour until the
-/// WCAG contrast floor would be crossed.
+/// This surface-only primitive is used by [readableLinkStyle], which also
+/// accounts for the surrounding body text and supplies a non-colour fallback.
 Color readableLinkColor({
   required Color background,
   required Color preferred,
@@ -722,6 +720,42 @@ Color readableLinkColor({
     }
   }
   return valid;
+}
+
+@immutable
+class ReadableLinkStyle {
+  const ReadableLinkStyle({required this.color, required this.underline});
+
+  final Color color;
+  final bool underline;
+}
+
+/// Resolves a message-link treatment that remains readable on its surface and
+/// distinguishable from adjacent body copy.
+///
+/// Body-sized text needs 4.5:1 contrast against its surface. When that safest
+/// palette colour is less than 3:1 from [body], a solid underline provides the
+/// second visual cue without introducing another derived colour policy.
+ReadableLinkStyle readableLinkStyle({
+  required Color background,
+  required Color body,
+  required Color preferred,
+}) {
+  Color opaque(Color color) => Color(color.toARGB32() | 0xFF000000);
+
+  final surface = opaque(background);
+  final bodyColor = opaque(Color.alphaBlend(body, surface));
+  final preferredColor = opaque(Color.alphaBlend(preferred, surface));
+  final color = readableLinkColor(
+    background: surface,
+    preferred: preferredColor,
+  );
+  final colorLuminance = color.computeLuminance();
+  final bodyLuminance = bodyColor.computeLuminance();
+  final lighter = math.max(colorLuminance, bodyLuminance);
+  final darker = math.min(colorLuminance, bodyLuminance);
+  final bodyContrast = (lighter + 0.05) / (darker + 0.05);
+  return ReadableLinkStyle(color: color, underline: bodyContrast < 3.0);
 }
 
 extension AppColorsContext on BuildContext {

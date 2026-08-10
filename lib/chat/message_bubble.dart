@@ -479,10 +479,7 @@ class _MessageBubbleState extends State<MessageBubble>
 
   Color _messageLinkColor(bool outgoing) {
     if (!_theme.themingEnabled) {
-      return readableLinkColor(
-        background: outgoing ? _outgoingBubbleColor : _incomingBubbleColor,
-        preferred: _colors.linkBlue,
-      );
+      return _disabledThemeLinkStyle(outgoing).color;
     }
     if (!_showsMessageBubbleSurface) return _colors.linkBlue;
     final base = outgoing ? _outgoingTextColor : _incomingTextColor;
@@ -493,6 +490,16 @@ class _MessageBubbleState extends State<MessageBubble>
     }
     return outgoing ? colors.outgoingLink : colors.incomingLink;
   }
+
+  ReadableLinkStyle _disabledThemeLinkStyle(bool outgoing) => readableLinkStyle(
+    background: outgoing ? _outgoingBubbleColor : _incomingBubbleColor,
+    body: outgoing ? _outgoingTextColor : _incomingTextColor,
+    preferred: _colors.linkBlue,
+  );
+
+  bool get _underlinesDisabledThemeLinks =>
+      !_theme.themingEnabled &&
+      _disabledThemeLinkStyle(message.isOutgoing).underline;
 
   Color _messageQuoteColor(bool outgoing) {
     if (_usesDecorativeBubbleBackground) {
@@ -4366,6 +4373,7 @@ class _MessageBubbleState extends State<MessageBubble>
     var useCodeFont = false;
     var fontFeatures = const <FontFeature>[];
     final decorations = <TextDecoration>[];
+    var isLink = false;
     for (final e in active) {
       switch (e.type) {
         case 'textEntityTypeBold':
@@ -4395,9 +4403,11 @@ class _MessageBubbleState extends State<MessageBubble>
         case 'textEntityTypePhoneNumber':
         case 'textEntityTypeBankCardNumber':
           color = link;
+          isLink = true;
         case 'textEntityTypeMediaTimestamp':
           color = link;
           weight = FontWeight.w600;
+          isLink = true;
         case 'textEntityTypeMarked':
           backgroundColor = Colors.amber.withValues(alpha: 0.32);
         case 'textEntityTypeSubscript':
@@ -4406,7 +4416,15 @@ class _MessageBubbleState extends State<MessageBubble>
           fontFeatures = const [FontFeature.superscripts()];
         case 'textEntityTypeDateTime':
           color = link;
+          isLink = true;
       }
+    }
+    final fallbackUnderline =
+        isLink &&
+        !active.any((entity) => entity.type == 'textEntityTypeSpoiler') &&
+        _underlinesDisabledThemeLinks;
+    if (fallbackUnderline && !decorations.contains(TextDecoration.underline)) {
+      decorations.add(TextDecoration.underline);
     }
     final style = TextStyle(
       color: color,
@@ -4417,6 +4435,8 @@ class _MessageBubbleState extends State<MessageBubble>
           ? null
           : TextDecoration.combine(decorations),
       decorationColor: color,
+      decorationStyle: fallbackUnderline ? TextDecorationStyle.solid : null,
+      decorationThickness: fallbackUnderline ? 1.0 : null,
       fontFeatures: fontFeatures.isEmpty ? null : fontFeatures,
     );
     return useCodeFont ? _theme.codeTextStyle(style) : style;
@@ -4483,10 +4503,7 @@ class _MessageBubbleState extends State<MessageBubble>
           : matched;
       if (isHashtag && widget.onHashtagTap == null) {
         spans.add(
-          TextSpan(
-            text: matched,
-            style: baseStyle.copyWith(color: link),
-          ),
+          TextSpan(text: matched, style: _autoLinkStyle(baseStyle, link)),
         );
         last = m.end;
         continue;
@@ -4503,7 +4520,7 @@ class _MessageBubbleState extends State<MessageBubble>
       spans.add(
         TextSpan(
           text: matched,
-          style: baseStyle.copyWith(color: link),
+          style: _autoLinkStyle(baseStyle, link),
           recognizer: recognizer,
         ),
       );
@@ -4513,6 +4530,25 @@ class _MessageBubbleState extends State<MessageBubble>
       spans.add(TextSpan(text: text.substring(last), style: baseStyle));
     }
     return spans;
+  }
+
+  TextStyle _autoLinkStyle(TextStyle baseStyle, Color link) {
+    if (!_underlinesDisabledThemeLinks) {
+      return baseStyle.copyWith(color: link);
+    }
+    final existing = baseStyle.decoration;
+    final decoration = existing == null || existing == TextDecoration.none
+        ? TextDecoration.underline
+        : existing == TextDecoration.underline
+        ? existing
+        : TextDecoration.combine([existing, TextDecoration.underline]);
+    return baseStyle.copyWith(
+      color: link,
+      decoration: decoration,
+      decorationColor: link,
+      decorationStyle: TextDecorationStyle.solid,
+      decorationThickness: 1.0,
+    );
   }
 
   String _normalizeHashtag(String tag) {

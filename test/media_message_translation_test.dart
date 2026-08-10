@@ -1212,11 +1212,19 @@ void main() {
     final quoteText = tester.widget<RichText>(
       find.descendant(of: quote, matching: find.byType(RichText)),
     );
+    final expectedLinkStyle = readableLinkStyle(
+      background: colors.bubbleIncoming,
+      body: colors.bubbleIncomingText,
+      preferred: colors.linkBlue,
+    );
+    final renderedLink = _textSpans(
+      quoteText.text,
+    ).singleWhere((span) => span.text == text);
+    expect(renderedLink.style?.color, expectedLinkStyle.color);
     expect(
-      _textSpans(
-        quoteText.text,
-      ).singleWhere((span) => span.text == text).style?.color,
-      colors.linkBlue,
+      renderedLink.style?.decoration?.contains(TextDecoration.underline) ??
+          false,
+      expectedLinkStyle.underline,
     );
     expect(
       contrast(colors.bubbleIncomingText, paintedBackground),
