@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/settings/app_icon_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   test(
@@ -101,4 +102,44 @@ void main() {
       }
     }
   });
+
+  test(
+    'unsupported platforms cannot invoke an alternate icon change',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final controller = AppIconController(
+        await SharedPreferences.getInstance(),
+      );
+
+      await controller.initialize();
+
+      expect(controller.supported, isFalse);
+      expect(await controller.setVariant(AppIconVariant.blue), isFalse);
+      expect(controller.variant, AppIconVariant.defaultIcon);
+    },
+  );
+
+  test(
+    'macOS builds its static app icon from the owned Icon Composer source',
+    () {
+      final project = File(
+        'macos/Runner.xcodeproj/project.pbxproj',
+      ).readAsStringSync();
+      final definition =
+          jsonDecode(
+                File('ios/Runner/Pengram.icon/icon.json').readAsStringSync(),
+              )
+              as Map<String, dynamic>;
+
+      expect(project, contains('Pengram.icon in Resources'));
+      expect(project, contains('path = ../ios/Runner/Pengram.icon'));
+      expect(
+        RegExp(
+          r'ASSETCATALOG_COMPILER_APPICON_NAME = Pengram;',
+        ).allMatches(project),
+        hasLength(3),
+      );
+      expect((definition['supported-platforms'] as Map)['squares'], 'shared');
+    },
+  );
 }

@@ -208,6 +208,10 @@ class _MessageBubbleState extends State<MessageBubble>
   final Set<String> _expandedQuotes = {};
   final Set<String> _revealedSpoilers = {};
   bool _showRestrictedContent = false;
+  int? _desktopSecondaryPointer;
+  Offset? _desktopSecondaryPosition;
+  bool _desktopSecondaryHandled = false;
+  int _desktopSecondarySequence = 0;
 
   SensitiveContentController get _sensitiveContentController =>
       widget.sensitiveContentController ?? SensitiveContentController.shared;
@@ -240,8 +244,55 @@ class _MessageBubbleState extends State<MessageBubble>
     TapUpDetails details, [
     MessageActionSource source = MessageActionSource.normal,
   ]) {
+    _markDesktopSecondaryHandled();
+    _handleSecondaryPress(details.globalPosition, source);
+  }
+
+  void _handleDesktopPointerDown(PointerDownEvent event) {
+    if ((event.buttons & kSecondaryMouseButton) == 0) return;
+    _desktopSecondarySequence += 1;
+    _desktopSecondaryPointer = event.pointer;
+    _desktopSecondaryPosition = event.position;
+    _desktopSecondaryHandled = false;
+  }
+
+  void _handleDesktopPointerUp(PointerUpEvent event) {
+    if (_desktopSecondaryPointer != event.pointer) return;
+    final sequence = _desktopSecondarySequence;
+    final position = _desktopSecondaryPosition ?? event.position;
+    scheduleMicrotask(() {
+      if (!mounted ||
+          sequence != _desktopSecondarySequence ||
+          _desktopSecondaryPointer != event.pointer) {
+        return;
+      }
+      final handled = _desktopSecondaryHandled;
+      _desktopSecondaryPointer = null;
+      _desktopSecondaryPosition = null;
+      _desktopSecondaryHandled = false;
+      if (!handled) _handleSecondaryPress(position);
+    });
+  }
+
+  void _handleDesktopPointerCancel(PointerCancelEvent event) {
+    if (_desktopSecondaryPointer != event.pointer) return;
+    _desktopSecondarySequence += 1;
+    _desktopSecondaryPointer = null;
+    _desktopSecondaryPosition = null;
+    _desktopSecondaryHandled = false;
+  }
+
+  void _markDesktopSecondaryHandled() {
+    if (_desktopSecondaryPointer != null) {
+      _desktopSecondaryHandled = true;
+    }
+  }
+
+  void _handleSecondaryPress(
+    Offset position, [
+    MessageActionSource source = MessageActionSource.normal,
+  ]) {
     _lastTapAt = null;
-    final position = details.globalPosition;
     if (_shouldOfferSensitiveContentUnblock) {
       unawaited(
         _showSensitiveContentUnblockPrompt(
@@ -722,19 +773,36 @@ class _MessageBubbleState extends State<MessageBubble>
     final showDetailTime = alwaysShowTime || _showTappedTimestamp;
     final timeInSenderHeader =
         widget.isGroup && !outgoing && message.senderName != null;
+    final desktopInteraction = isDesktopTargetPlatform(
+      Theme.of(context).platform,
+    );
+    final contentBody = _contentBody(outgoing);
     final body = GestureDetector(
       key: _bubbleKey,
       behavior: HitTestBehavior.opaque,
       onTapDown: _handleTapDown,
       onTap: () => _handleTap(alwaysShowTime),
       onLongPress: _handleLongPress,
-      onSecondaryTapUp: _handleSecondaryTapUp,
-      onHorizontalDragStart: (_) => _swipeController.stop(),
-      onHorizontalDragUpdate: _onDragUpdate,
-      onHorizontalDragEnd: _onDragEnd,
+      onSecondaryTapUp: desktopInteraction ? null : _handleSecondaryTapUp,
+      onHorizontalDragStart: desktopInteraction
+          ? null
+          : (_) => _swipeController.stop(),
+      onHorizontalDragUpdate: desktopInteraction ? null : _onDragUpdate,
+      onHorizontalDragEnd: desktopInteraction ? null : _onDragEnd,
       child: KeyedSubtree(
         key: ValueKey('messageTapTarget-${message.id}'),
-        child: _contentBody(outgoing),
+        child: desktopInteraction
+            ? Listener(
+                onPointerDown: _handleDesktopPointerDown,
+                onPointerUp: _handleDesktopPointerUp,
+                onPointerCancel: _handleDesktopPointerCancel,
+                child: SelectionArea(
+                  key: ValueKey('messageTextSelectionArea-${message.id}'),
+                  contextMenuBuilder: (_, _) => const SizedBox.shrink(),
+                  child: contentBody,
+                ),
+              )
+            : contentBody,
       ),
     );
     final contentWidget = ConstrainedBox(
@@ -3888,10 +3956,16 @@ class _MessageBubbleState extends State<MessageBubble>
     final style = DefaultTextStyle.of(
       context,
     ).style.merge(TextStyle(fontSize: effectiveFontSize, color: base));
-    return RichText(
-      maxLines: maxLines,
-      overflow: maxLines == null ? TextOverflow.clip : TextOverflow.fade,
-      text: TextSpan(style: style, children: children),
+    return Builder(
+      builder: (context) => RichText(
+        maxLines: maxLines,
+        overflow: maxLines == null ? TextOverflow.clip : TextOverflow.fade,
+        text: TextSpan(style: style, children: children),
+        selectionRegistrar: SelectionContainer.maybeOf(context),
+        selectionColor:
+            Theme.of(context).textSelectionTheme.selectionColor ??
+            AppTheme.brand.withValues(alpha: 0.28),
+      ),
     );
   }
 
@@ -5419,6 +5493,7 @@ class _MessageBubbleState extends State<MessageBubble>
     ChatMessage source,
     Offset globalPosition,
   ) {
+    _markDesktopSecondaryHandled();
     _lastTapAt = null;
     widget.onLongPress?.call(
       source,

@@ -107,6 +107,7 @@ class AppIconController extends ChangeNotifier {
   }
 
   Future<bool> setVariant(AppIconVariant next) async {
+    if (!_supported) return false;
     if (_loading || next == _variant) return true;
     final previous = _variant;
     _variant = next;

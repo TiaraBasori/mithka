@@ -126,6 +126,12 @@ import 'video_playback_queue.dart';
 import 'video_player_view.dart';
 
 @visibleForTesting
+bool chatMessageUsesSelectionDialog({
+  required bool selecting,
+  TargetPlatform? platform,
+}) => !selecting && !isDesktopTargetPlatform(platform);
+
+@visibleForTesting
 bool chatTranscriptBoundaryChanged({
   required int previousCount,
   required int currentCount,
@@ -3486,6 +3492,10 @@ class _ChatViewState extends State<ChatView> {
         _vm.ensureMessageCapabilities(member);
       }
     }
+    final useSelectionDialog = chatMessageUsesSelectionDialog(
+      selecting: _isSelecting,
+      platform: Theme.of(context).platform,
+    );
     return MessageBubble(
       message: message,
       selected: _selectedMessageIds.contains(message.id),
@@ -3501,9 +3511,9 @@ class _ChatViewState extends State<ChatView> {
       showRepeat: _vm.canForwardContent && _isRepeatTail(messageIndex),
       onRepeat: () => _vm.repeatMessage(message),
       onLongPress: _isSelecting ? null : _showActionMenuForMessage,
-      onDoubleTap: _isSelecting
-          ? null
-          : (m) => unawaited(_showTextSelection(m)),
+      onDoubleTap: useSelectionDialog
+          ? (m) => unawaited(_showTextSelection(m))
+          : null,
       onReply: (m) => _vm.setReply(m),
       onAvatarTap: _openSenderProfile,
       onAvatarLongPress: (m) {
