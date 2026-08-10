@@ -478,7 +478,6 @@ class TdClient {
     _supportDir = supportDir.path;
     if (kDebugMode) await _closeStaleDebugClients();
 
-    await BotApiAccountRegistry.migrateLegacyMacOsKeychain(_prefs);
     final storedBotApiAccounts = BotApiAccountRegistry.load(_prefs);
     _botApiEndpoint = BotApiEndpointConfig.load(
       _prefs,

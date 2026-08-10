@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -149,13 +148,8 @@ String normalizeBotToken(String value) {
 
 abstract final class BotApiAccountRegistry {
   static const metadataKey = 'mithka.bot_api.accounts.v1';
-  static const legacyMacOsKeychainMigrationKey =
-      'mithka.bot_api.migration.macos_file_keychain.v1';
-  static const legacyMacOsKeychainPendingSlotsKey =
-      'mithka.bot_api.migration.macos_file_keychain.pending_slots.v1';
   static const _tokenPrefix = 'mithka.bot_api.token.';
   static const _appleKeychainService = 'ad.neko.mithka.bot-api';
-  static Future<void>? _legacyMacOsMigration;
   static const _secureStorage = FlutterSecureStorage(
     // The signed iOS and macOS targets use the same bundle identifier, so both
     // receive the same team-prefixed default Keychain access group. Leaving
@@ -169,19 +163,6 @@ abstract final class BotApiAccountRegistry {
     mOptions: MacOsOptions(
       accountName: _appleKeychainService,
       synchronizable: true,
-    ),
-  );
-  static const _legacyMacOsStorage = FlutterSecureStorage(
-    // Releases before the data-protection migration used flutter_secure_storage's
-    // default service in the legacy file-based login Keychain. Keep these
-    // options isolated to the one-shot migration below. In particular, never
-    // fall back to this store from normal token reads.
-    mOptions: MacOsOptions(
-      usesDataProtectionKeychain: false,
-      // kSecUseAuthenticationUIFail's stable CFString value. A stale
-      // per-signature ACL must fail privately instead of presenting a login
-      // Keychain password prompt while Mithka is starting in the background.
-      authenticationUIBehavior: 'u_AuthUIF',
     ),
   );
 
@@ -207,91 +188,6 @@ abstract final class BotApiAccountRegistry {
     for (final account in accounts) jsonEncode(account.toJson()),
   ]);
 
-  /// Moves released macOS bot tokens out of the legacy login Keychain.
-  ///
-  /// Metadata determines the exact slots to inspect, so the migration neither
-  /// enumerates unrelated Keychain contents nor copies a credential into
-  /// preferences. Each legacy item remains intact unless the new
-  /// data-protection/iCloud item has been written and read back byte-for-byte.
-  /// A failed slot remains in its original store and is recorded as non-secret
-  /// pending metadata. Startup never probes that legacy ACL again: recovering
-  /// such a slot requires a future explicit foreground action or re-entering
-  /// its token. Concurrent callers in one Flutter isolate share one operation.
-  static Future<void> migrateLegacyMacOsKeychain(
-    SharedPreferences preferences,
-  ) async {
-    if (kIsWeb || defaultTargetPlatform != TargetPlatform.macOS) return;
-    if (preferences.getBool(legacyMacOsKeychainMigrationKey) == true) return;
-
-    final activeMigration = _legacyMacOsMigration;
-    if (activeMigration != null) return activeMigration;
-
-    final migration = _performLegacyMacOsKeychainMigration(preferences);
-    _legacyMacOsMigration = migration;
-    try {
-      await migration;
-    } finally {
-      if (identical(_legacyMacOsMigration, migration)) {
-        _legacyMacOsMigration = null;
-      }
-    }
-  }
-
-  static Future<void> _performLegacyMacOsKeychainMigration(
-    SharedPreferences preferences,
-  ) async {
-    final pendingSlots = <String>[];
-    final slots = load(preferences).map((account) => account.slot).toSet();
-    for (final slot in slots) {
-      var currentVerified = false;
-      try {
-        final key = '$_tokenPrefix$slot';
-        var token = _nonEmpty(await _secureStorage.read(key: key));
-        token ??= _nonEmpty(await _legacyMacOsStorage.read(key: key));
-        if (token == null) continue;
-
-        // Rewriting an already-current value provides the same success proof
-        // before deleting a possibly stale legacy duplicate. It also makes the
-        // operation idempotent after a previous run copied the value but was
-        // interrupted before cleanup.
-        await _secureStorage.write(key: key, value: token);
-        final verified = _nonEmpty(await _secureStorage.read(key: key));
-        if (verified != token) {
-          pendingSlots.add('$slot');
-          continue;
-        }
-        currentVerified = true;
-        try {
-          await _legacyMacOsStorage.delete(key: key);
-        } on PlatformException {
-          // The current item is already usable. Do not keep probing an old ACL
-          // just to clean up an inaccessible duplicate.
-        }
-      } on MissingPluginException {
-        // A secondary engine without the plugin must not consume the one-shot
-        // attempt before a fully registered engine can perform it.
-        return;
-      } on PlatformException {
-        if (!currentVerified) pendingSlots.add('$slot');
-      }
-    }
-
-    // Persist pending metadata first. If the process stops between these two
-    // writes, rerunning is idempotent because no source was deleted without a
-    // verified current copy.
-    final pendingStored = await preferences.setStringList(
-      legacyMacOsKeychainPendingSlotsKey,
-      pendingSlots,
-    );
-    if (!pendingStored) return;
-    await preferences.setBool(legacyMacOsKeychainMigrationKey, true);
-  }
-
-  static String? _nonEmpty(String? value) {
-    final candidate = value?.trim() ?? '';
-    return candidate.isEmpty ? null : candidate;
-  }
-
   static Future<void> save(
     SharedPreferences preferences,
     BotApiAccount account,
@@ -303,13 +199,10 @@ abstract final class BotApiAccountRegistry {
       ..removeWhere((existing) => existing.slot == account.slot)
       ..add(account);
     accounts.sort((a, b) => a.slot.compareTo(b.slot));
-    final metadataStored = await preferences.setStringList(
+    await preferences.setStringList(
       metadataKey,
       accounts.map((value) => jsonEncode(value.toJson())).toList(),
     );
-    if (metadataStored) {
-      await _clearPendingLegacySlot(preferences, account.slot);
-    }
   }
 
   static Future<String?> readToken(int slot) async {
@@ -329,11 +222,10 @@ abstract final class BotApiAccountRegistry {
   static Future<void> remove(SharedPreferences preferences, int slot) async {
     final accounts = load(preferences)
       ..removeWhere((account) => account.slot == slot);
-    final metadataStored = await preferences.setStringList(
+    await preferences.setStringList(
       metadataKey,
       accounts.map((value) => jsonEncode(value.toJson())).toList(),
     );
-    if (metadataStored) await _clearPendingLegacySlot(preferences, slot);
     try {
       await _secureStorage.delete(key: '$_tokenPrefix$slot');
     } on MissingPluginException {
@@ -356,19 +248,5 @@ abstract final class BotApiAccountRegistry {
         'Mithka could not save the bot token securely on this device.',
       );
     }
-  }
-
-  static Future<void> _clearPendingLegacySlot(
-    SharedPreferences preferences,
-    int slot,
-  ) async {
-    final pending = preferences.getStringList(
-      legacyMacOsKeychainPendingSlotsKey,
-    );
-    if (pending == null || !pending.remove('$slot')) return;
-    await preferences.setStringList(
-      legacyMacOsKeychainPendingSlotsKey,
-      pending,
-    );
   }
 }
