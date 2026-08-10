@@ -8,6 +8,12 @@ typedef SystemPictureInPictureStopped =
     FutureOr<void> Function(Duration? finalPosition);
 typedef SystemPictureInPictureRestoreRequested =
     FutureOr<bool> Function(SystemPictureInPictureSnapshot snapshot);
+typedef SystemPictureInPictureLifecycleCallback =
+    FutureOr<void> Function(SystemPictureInPictureSnapshot snapshot);
+typedef SystemPictureInPictureActionCallback =
+    FutureOr<void> Function(SystemPictureInPictureAction action);
+
+enum SystemPictureInPictureAction { play, pause }
 
 @immutable
 final class SystemPictureInPictureSnapshot {
@@ -25,10 +31,20 @@ final class SystemPictureInPictureSnapshot {
 }
 
 final class _SystemPictureInPictureSession {
-  _SystemPictureInPictureSession({this.onStop, this.onRestoreRequested});
+  _SystemPictureInPictureSession({
+    this.onStop,
+    this.onRestoreRequested,
+    this.onEntered,
+    this.onRestored,
+    this.onActionRequested,
+  });
 
   final SystemPictureInPictureStopped? onStop;
   final SystemPictureInPictureRestoreRequested? onRestoreRequested;
+  final SystemPictureInPictureLifecycleCallback? onEntered;
+  final SystemPictureInPictureLifecycleCallback? onRestored;
+  final SystemPictureInPictureActionCallback? onActionRequested;
+  bool active = false;
   bool restoreAttempted = false;
   bool stopping = false;
 }
@@ -79,9 +95,15 @@ class SystemPictureInPicture {
     required bool muted,
     required bool playing,
     required Size videoSize,
+    Rect? sourceRect,
+    String? playLabel,
+    String? pauseLabel,
     int? playerId,
     SystemPictureInPictureStopped? onStop,
     SystemPictureInPictureRestoreRequested? onRestoreRequested,
+    SystemPictureInPictureLifecycleCallback? onEntered,
+    SystemPictureInPictureLifecycleCallback? onRestored,
+    SystemPictureInPictureActionCallback? onActionRequested,
   }) async {
     if (!isSupportedPlatform) return false;
     final prepared = await prepare(
@@ -92,9 +114,15 @@ class SystemPictureInPicture {
       muted: muted,
       playing: playing,
       videoSize: videoSize,
+      sourceRect: sourceRect,
+      playLabel: playLabel,
+      pauseLabel: pauseLabel,
       playerId: playerId,
       onStop: onStop,
       onRestoreRequested: onRestoreRequested,
+      onEntered: onEntered,
+      onRestored: onRestored,
+      onActionRequested: onActionRequested,
     );
     if (!prepared) return false;
     final started = await startPrepared(
@@ -104,6 +132,9 @@ class SystemPictureInPicture {
       muted: muted,
       playing: playing,
       videoSize: videoSize,
+      sourceRect: sourceRect,
+      playLabel: playLabel,
+      pauseLabel: pauseLabel,
     );
     if (!started) {
       await cancelPrepared(id);
@@ -120,29 +151,45 @@ class SystemPictureInPicture {
     required bool muted,
     required bool playing,
     required Size videoSize,
+    Rect? sourceRect,
+    String? playLabel,
+    String? pauseLabel,
     int? playerId,
     SystemPictureInPictureStopped? onStop,
     SystemPictureInPictureRestoreRequested? onRestoreRequested,
+    SystemPictureInPictureLifecycleCallback? onEntered,
+    SystemPictureInPictureLifecycleCallback? onRestored,
+    SystemPictureInPictureActionCallback? onActionRequested,
   }) async {
     if (!isSupportedPlatform) return false;
     _attachHandler();
     _sessionsById[id] = _SystemPictureInPictureSession(
       onStop: onStop,
       onRestoreRequested: onRestoreRequested,
+      onEntered: onEntered,
+      onRestored: onRestored,
+      onActionRequested: onActionRequested,
+    );
+    final arguments = _playbackArguments(
+      id: id,
+      uri: uri,
+      position: position,
+      speed: speed,
+      muted: muted,
+      playing: playing,
+      videoSize: videoSize,
+      sourceRect: sourceRect,
+      playLabel: playLabel,
+      pauseLabel: pauseLabel,
+      playerId: playerId,
     );
     if (playerId != null) {
       try {
         final prepared =
-            await _activePlayerChannel.invokeMethod<bool>('prepare', {
-              'id': id,
-              'playerId': playerId,
-              'positionMs': position.inMilliseconds,
-              'speed': speed,
-              'muted': muted,
-              'playing': playing,
-              'width': videoSize.width,
-              'height': videoSize.height,
-            }) ??
+            await _activePlayerChannel.invokeMethod<bool>(
+              'prepare',
+              arguments,
+            ) ??
             false;
         if (prepared) {
           _backendById[id] = _PictureInPictureBackend.activeFvpPlayer;
@@ -152,17 +199,7 @@ class SystemPictureInPicture {
     }
     try {
       final prepared =
-          await _channel.invokeMethod<bool>('prepare', {
-            'id': id,
-            'url': uri.toString(),
-            'positionMs': position.inMilliseconds,
-            'speed': speed,
-            'muted': muted,
-            'playing': playing,
-            'width': videoSize.width,
-            'height': videoSize.height,
-          }) ??
-          false;
+          await _channel.invokeMethod<bool>('prepare', arguments) ?? false;
       if (prepared) {
         _backendById[id] = _PictureInPictureBackend.nativePlatform;
       } else {
@@ -182,6 +219,9 @@ class SystemPictureInPicture {
     required bool muted,
     required bool playing,
     required Size videoSize,
+    Rect? sourceRect,
+    String? playLabel,
+    String? pauseLabel,
   }) async {
     if (!isSupportedPlatform) return false;
     _attachHandler();
@@ -189,15 +229,20 @@ class SystemPictureInPicture {
         ? _activePlayerChannel
         : _channel;
     try {
-      return await channel.invokeMethod<bool>('startPrepared', {
-            'id': id,
-            'positionMs': position.inMilliseconds,
-            'speed': speed,
-            'muted': muted,
-            'playing': playing,
-            'width': videoSize.width,
-            'height': videoSize.height,
-          }) ??
+      return await channel.invokeMethod<bool>(
+            'startPrepared',
+            _playbackArguments(
+              id: id,
+              position: position,
+              speed: speed,
+              muted: muted,
+              playing: playing,
+              videoSize: videoSize,
+              sourceRect: sourceRect,
+              playLabel: playLabel,
+              pauseLabel: pauseLabel,
+            ),
+          ) ??
           false;
     } catch (_) {
       return false;
@@ -211,6 +256,9 @@ class SystemPictureInPicture {
     required bool muted,
     required bool playing,
     required Size videoSize,
+    Rect? sourceRect,
+    String? playLabel,
+    String? pauseLabel,
   }) async {
     if (!isSupportedPlatform) return;
     _attachHandler();
@@ -218,15 +266,20 @@ class SystemPictureInPicture {
         ? _activePlayerChannel
         : _channel;
     try {
-      await channel.invokeMethod<void>('update', {
-        'id': id,
-        'positionMs': position.inMilliseconds,
-        'speed': speed,
-        'muted': muted,
-        'playing': playing,
-        'width': videoSize.width,
-        'height': videoSize.height,
-      });
+      await channel.invokeMethod<void>(
+        'update',
+        _playbackArguments(
+          id: id,
+          position: position,
+          speed: speed,
+          muted: muted,
+          playing: playing,
+          videoSize: videoSize,
+          sourceRect: sourceRect,
+          playLabel: playLabel,
+          pauseLabel: pauseLabel,
+        ),
+      );
     } catch (_) {}
   }
 
@@ -291,6 +344,40 @@ class SystemPictureInPicture {
     }
     final position = _positionFromArguments(args);
     switch (call.method) {
+      case 'didStart':
+        final session = _sessionsById[id];
+        if (session == null || session.stopping || session.active) return null;
+        session.active = true;
+        try {
+          await Future<void>.value(
+            session.onEntered?.call(_snapshotFromArguments(args)),
+          );
+        } catch (_) {}
+        return null;
+      case 'didRestore':
+        final session = _sessionsById[id];
+        if (session == null || session.stopping || !session.active) return null;
+        session.active = false;
+        session.restoreAttempted = false;
+        try {
+          await Future<void>.value(
+            session.onRestored?.call(_snapshotFromArguments(args)),
+          );
+        } catch (_) {}
+        return null;
+      case 'actionRequested':
+        final session = _sessionsById[id];
+        if (session == null || session.stopping) return null;
+        final action = switch (args?['action']) {
+          'play' => SystemPictureInPictureAction.play,
+          'pause' => SystemPictureInPictureAction.pause,
+          _ => null,
+        };
+        if (action == null) return null;
+        try {
+          await Future<void>.value(session.onActionRequested?.call(action));
+        } catch (_) {}
+        return null;
       case 'restoreRequested':
         final session = _sessionsById[id];
         final callback = session?.onRestoreRequested;
@@ -319,16 +406,58 @@ class SystemPictureInPicture {
           _sessionsById.remove(id);
           _backendById.remove(id);
         }
+        return null;
       default:
         return null;
     }
-    return null;
   }
 
   static Duration? _positionFromArguments(Map<dynamic, dynamic>? arguments) {
     final value = arguments?['positionMs'];
     if (value is! num || !value.isFinite || value < 0) return null;
     return Duration(milliseconds: value.round());
+  }
+
+  static Map<String, Object> _playbackArguments({
+    required String id,
+    Uri? uri,
+    required Duration position,
+    required double speed,
+    required bool muted,
+    required bool playing,
+    required Size videoSize,
+    Rect? sourceRect,
+    String? playLabel,
+    String? pauseLabel,
+    int? playerId,
+  }) {
+    final validSourceRect =
+        sourceRect != null &&
+        sourceRect.left.isFinite &&
+        sourceRect.top.isFinite &&
+        sourceRect.right.isFinite &&
+        sourceRect.bottom.isFinite &&
+        sourceRect.width > 0 &&
+        sourceRect.height > 0;
+    return <String, Object>{
+      'id': id,
+      if (uri != null) 'url': uri.toString(),
+      'playerId': ?playerId,
+      'positionMs': position.inMilliseconds,
+      'speed': speed,
+      'muted': muted,
+      'playing': playing,
+      'width': videoSize.width,
+      'height': videoSize.height,
+      if (validSourceRect) ...{
+        'sourceLeft': sourceRect.left.round(),
+        'sourceTop': sourceRect.top.round(),
+        'sourceRight': sourceRect.right.round(),
+        'sourceBottom': sourceRect.bottom.round(),
+      },
+      if (playLabel != null && playLabel.isNotEmpty) 'playLabel': playLabel,
+      if (pauseLabel != null && pauseLabel.isNotEmpty) 'pauseLabel': pauseLabel,
+    };
   }
 
   static SystemPictureInPictureSnapshot _snapshotFromArguments(
@@ -354,10 +483,16 @@ class SystemPictureInPicture {
     bool? usesActivePlayer,
     SystemPictureInPictureStopped? onStop,
     SystemPictureInPictureRestoreRequested? onRestoreRequested,
+    SystemPictureInPictureLifecycleCallback? onEntered,
+    SystemPictureInPictureLifecycleCallback? onRestored,
+    SystemPictureInPictureActionCallback? onActionRequested,
   }) {
     _sessionsById[id] = _SystemPictureInPictureSession(
       onStop: onStop,
       onRestoreRequested: onRestoreRequested,
+      onEntered: onEntered,
+      onRestored: onRestored,
+      onActionRequested: onActionRequested,
     );
     if (usesActivePlayer != null) {
       _backendById[id] = usesActivePlayer

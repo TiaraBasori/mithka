@@ -112,6 +112,8 @@ void main() {
       expect(window, contains('unawaited(_controller?.pause())'));
       expect(window, contains('SystemPictureInPicture.start('));
       expect(window, contains('MithkaDesktopVideoWindows.focusCurrentWindow'));
+      expect(window, contains('MithkaDesktopVideoWindows.hideCurrentWindow'));
+      expect(window, contains('MithkaDesktopVideoWindows.closeCurrentWindow'));
       expect(player, contains('LogicalKeyboardKey.space'));
       expect(player, contains('LogicalKeyboardKey.arrowLeft'));
       expect(player, contains('LogicalKeyboardKey.arrowRight'));

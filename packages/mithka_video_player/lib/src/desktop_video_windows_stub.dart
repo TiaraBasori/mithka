@@ -70,6 +70,9 @@ class _UnsupportedDesktopVideoWindows
   Future<void> focusCurrentWindow() async {}
 
   @override
+  Future<void> hideCurrentWindow() async {}
+
+  @override
   Future<void> closeCurrentWindow() async {}
 
   @override

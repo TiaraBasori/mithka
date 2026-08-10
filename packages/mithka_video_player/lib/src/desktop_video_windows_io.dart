@@ -238,6 +238,18 @@ class _IoDesktopVideoWindows
   }
 
   @override
+  Future<void> hideCurrentWindow() async {
+    if (!isSupported || _currentWindowId == null || _currentWindowId == 0) {
+      return;
+    }
+    try {
+      await MultiWindowManager.current.hide();
+    } on Object catch (error, stackTrace) {
+      _report('hideCurrentWindow', error, stackTrace);
+    }
+  }
+
+  @override
   Future<void> closeCurrentWindow() async {
     if (!isSupported || _currentWindowId == null || _currentWindowId == 0) {
       return;

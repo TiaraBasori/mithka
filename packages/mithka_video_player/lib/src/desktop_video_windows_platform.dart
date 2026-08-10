@@ -31,6 +31,7 @@ abstract interface class MithkaDesktopVideoWindowsPlatform {
 
   Future<bool> focus(int windowId);
   Future<void> focusCurrentWindow();
+  Future<void> hideCurrentWindow();
   Future<void> closeCurrentWindow();
   Future<void> close(int windowId);
   Future<void> closeAll();

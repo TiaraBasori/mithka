@@ -99,6 +99,13 @@ class MithkaDesktopVideoWindows {
   static Future<void> focusCurrentWindow() =>
       instance._platform.focusCurrentWindow();
 
+  /// Hides this engine's child window without destroying its player engine.
+  ///
+  /// This lets a native PiP session keep playing after its source window has
+  /// disappeared. The window is shown again only when PiP requests restore.
+  static Future<void> hideCurrentWindow() =>
+      instance._platform.hideCurrentWindow();
+
   /// Requests a graceful close of the current independent window.
   static Future<void> closeCurrentWindow() =>
       instance._platform.closeCurrentWindow();

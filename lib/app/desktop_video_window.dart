@@ -212,10 +212,7 @@ class _DesktopVideoWindowPlayerState extends State<_DesktopVideoWindowPlayer> {
         if (activeController != null && finalPosition != null) {
           await activeController.seekTo(finalPosition);
         }
-        if (_pictureInPictureRestoreRequested &&
-            _wasPlayingBeforePictureInPicture) {
-          await activeController?.play();
-        }
+        final restoreRequested = _pictureInPictureRestoreRequested;
         _pictureInPictureRestoreRequested = false;
         if (mounted) {
           setState(() {
@@ -223,17 +220,27 @@ class _DesktopVideoWindowPlayerState extends State<_DesktopVideoWindowPlayer> {
             _pictureInPictureBusy = false;
           });
         }
+        if (restoreRequested) {
+          if (_wasPlayingBeforePictureInPicture) {
+            await activeController?.play();
+          }
+        } else {
+          await MithkaDesktopVideoWindows.closeCurrentWindow();
+        }
       },
     );
     if (!mounted) {
       if (started) await SystemPictureInPicture.stop();
       return;
     }
-    if (started) await controller.pause();
+    if (started) {
+      await controller.pause();
+    }
     setState(() {
       _pictureInPicture = started;
       _pictureInPictureBusy = false;
     });
+    if (started) await MithkaDesktopVideoWindows.hideCurrentWindow();
   }
 
   @override
