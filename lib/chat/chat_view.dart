@@ -126,6 +126,101 @@ import 'video_playback_queue.dart';
 import 'video_player_view.dart';
 
 @visibleForTesting
+Future<T?> showReactionUsersModal<T>(
+  BuildContext context, {
+  required WidgetBuilder builder,
+}) {
+  return showAppAdaptiveSheetDialog<T>(
+    context: context,
+    builder: builder,
+    barrierLabel: AppStrings.t(AppStringKeys.musicPlayerClose),
+    barrierColor: Colors.black.withValues(alpha: 0.46),
+    transitionDuration: const Duration(milliseconds: 220),
+    centeredBackgroundColor: context.colors.card,
+    mobileTransitionBuilder: (context, animation, _, child) {
+      final offset = Tween<Offset>(
+        begin: const Offset(0, 1),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+      return SlideTransition(position: offset, child: child);
+    },
+  );
+}
+
+@visibleForTesting
+const reactionUsersCenteredFrameKey = ValueKey<String>(
+  'reaction-users-centered-frame',
+);
+
+@visibleForTesting
+const reactionUsersTouchFrameKey = ValueKey<String>(
+  'reaction-users-touch-frame',
+);
+
+@visibleForTesting
+const reactionUsersDragHandleKey = ValueKey<String>(
+  'reaction-users-drag-handle',
+);
+
+@visibleForTesting
+class ReactionUsersSheetFrame extends StatelessWidget {
+  const ReactionUsersSheetFrame({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colors;
+    final centered = appModalUsesCenteredPresentation(
+      MediaQuery.sizeOf(context),
+    );
+    final height = math.min(MediaQuery.sizeOf(context).height * 0.62, 560.0);
+    final content = SizedBox(
+      height: height,
+      width: double.infinity,
+      child: Column(
+        children: [
+          if (centered)
+            const SizedBox(height: 8)
+          else ...[
+            const SizedBox(height: 10),
+            Container(
+              key: reactionUsersDragHandleKey,
+              width: 42,
+              height: 5,
+              decoration: BoxDecoration(
+                color: c.divider,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          Expanded(child: child),
+        ],
+      ),
+    );
+    if (centered) {
+      return ColoredBox(
+        key: reactionUsersCenteredFrameKey,
+        color: c.card,
+        child: content,
+      );
+    }
+    return SafeArea(
+      top: false,
+      child: Align(
+        key: reactionUsersTouchFrameKey,
+        alignment: Alignment.bottomCenter,
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+          child: ColoredBox(color: c.card, child: content),
+        ),
+      ),
+    );
+  }
+}
+
+@visibleForTesting
 bool chatMessageUsesSelectionDialog({
   required bool selecting,
   TargetPlatform? platform,
@@ -4551,24 +4646,13 @@ class _ChatViewState extends State<ChatView> {
     MessageReaction reaction,
   ) async {
     if (!mounted || message.reactions.isEmpty) return;
-    await showGeneralDialog<void>(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: AppStrings.t(AppStringKeys.musicPlayerClose),
-      barrierColor: Colors.black.withValues(alpha: 0.46),
-      transitionDuration: const Duration(milliseconds: 220),
-      pageBuilder: (context, _, _) => _ReactionUsersSheet(
+    await showReactionUsersModal<void>(
+      context,
+      builder: (dialogContext) => _ReactionUsersSheet(
         viewModel: _vm,
         message: message,
         initialReaction: reaction,
       ),
-      transitionBuilder: (context, animation, _, child) {
-        final offset =
-            Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
-              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
-            );
-        return SlideTransition(position: offset, child: child);
-      },
     );
   }
 
@@ -8750,38 +8834,13 @@ class _ReactionUsersSheetState extends State<_ReactionUsersSheet> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final height = math.min(MediaQuery.sizeOf(context).height * 0.62, 560.0);
-    return SafeArea(
-      top: false,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-          child: ColoredBox(
-            color: c.card,
-            child: SizedBox(
-              height: height,
-              width: double.infinity,
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 42,
-                    height: 5,
-                    decoration: BoxDecoration(
-                      color: c.divider,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _reactionTabs(c),
-                  Divider(height: 1, thickness: 0.5, color: c.divider),
-                  Expanded(child: _reactionUsers(c)),
-                ],
-              ),
-            ),
-          ),
-        ),
+    return ReactionUsersSheetFrame(
+      child: Column(
+        children: [
+          _reactionTabs(c),
+          Divider(height: 1, thickness: 0.5, color: c.divider),
+          Expanded(child: _reactionUsers(c)),
+        ],
       ),
     );
   }
