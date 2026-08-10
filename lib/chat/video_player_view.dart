@@ -661,6 +661,24 @@ bool usesReusableMobileFullscreenPlayer({
   return platform == TargetPlatform.android || platform == TargetPlatform.iOS;
 }
 
+/// Whether the legacy video surface should install touch-style pan gestures.
+///
+/// Native desktop playback keeps mouse drags free for the desktop interaction
+/// model. Its keyboard shortcuts, pointer-wheel volume adjustment, taps, and
+/// double-click fullscreen action are handled independently and remain active.
+@visibleForTesting
+bool videoPlaybackSurfaceUsesPanGestures({
+  required VideoPlayerPresentation presentation,
+  required TargetPlatform platform,
+  bool isWeb = false,
+}) {
+  if (presentation != VideoPlayerPresentation.fullscreen) return false;
+  if (isWeb) return true;
+  return platform != TargetPlatform.macOS &&
+      platform != TargetPlatform.windows &&
+      platform != TargetPlatform.linux;
+}
+
 @visibleForTesting
 bool isStoppedVideoPlaybackComplete(VideoPlayerValue value) {
   if (value.isPlaying || !value.isInitialized) return false;
@@ -2520,8 +2538,11 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     return Scaffold(backgroundColor: Colors.black, body: body);
   }
 
-  bool get _supportsPlaybackGestures =>
-      widget.presentation == VideoPlayerPresentation.fullscreen;
+  bool get _supportsPlaybackGestures => videoPlaybackSurfaceUsesPanGestures(
+    presentation: widget.presentation,
+    platform: defaultTargetPlatform,
+    isWeb: kIsWeb,
+  );
 
   bool get _usesReusableMobileFullscreenPlayer =>
       usesReusableMobileFullscreenPlayer(
