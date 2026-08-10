@@ -509,6 +509,32 @@ void main() {
     expect(mainTabs, contains('_openGlobalThemeSelector'));
   });
 
+  test('detached settings synchronize notification and video preferences', () {
+    final child = File(
+      'lib/app/desktop_utility_window.dart',
+    ).readAsStringSync();
+    final main = File('lib/main.dart').readAsStringSync();
+
+    expect(
+      child,
+      contains('_notificationPreferences.initialize(widget.prefs);'),
+    );
+    expect(child, contains('_notificationPreferences,'));
+    expect(child, contains('VideoPlaybackPreferences.changes,'));
+    expect(
+      main,
+      contains('NotificationPreferences.shared.initialize(widget.prefs);'),
+    );
+    expect(
+      main.indexOf('await widget.prefs.reload();'),
+      lessThan(
+        main.indexOf(
+          'NotificationPreferences.shared.initialize(widget.prefs);',
+        ),
+      ),
+    );
+  });
+
   test(
     'utility roots use a native system title bar and no root back button',
     () {
