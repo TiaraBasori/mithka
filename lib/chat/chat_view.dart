@@ -945,7 +945,6 @@ class _ChatViewState extends State<ChatView> {
   bool _transcriptPivotFreezeScheduled = false;
   late int _historyWindowRevision;
   late int _historyWindowInvalidationRevision;
-  final Set<int> _reportedVisibleMessageIds = <int>{};
   final Set<int> _expandedBlockedRunIds = <int>{};
   final Set<int> _showOriginalTranslationMessageIds = <int>{};
   bool _unreadProgressUpdateScheduled = false;
@@ -970,11 +969,8 @@ class _ChatViewState extends State<ChatView> {
   int? _lastOldestMessageId;
   final ChatUnreadProgress _unreadProgress = ChatUnreadProgress();
   int get _liveNewMessageCount => _unreadProgress.liveCount;
-  int get _remainingUnreadCount => _liveNewMessageCount > 0
-      ? _liveNewMessageCount
-      : _showEntryUnreadBanner
-      ? _entryUnreadCount
-      : _unreadProgress.remaining(entryUnreadCount: _entryUnreadCount);
+  int get _remainingUnreadCount =>
+      _unreadProgress.badgeCount(entryUnreadCount: _entryUnreadCount);
   int _entryUnreadCount = 0;
   int _entryLastReadInboxId = 0;
   int? _entryFirstUnreadMessageId;
@@ -1747,16 +1743,22 @@ class _ChatViewState extends State<ChatView> {
 
       for (final message in entry.value.messages) {
         if (message.isOutgoing || message.isService) continue;
-        if (_reportedVisibleMessageIds.add(message.id)) {
+        final observation = _unreadProgress.observeVisibleIncoming(
+          messageId: message.id,
+          initialUnread: message.id > _entryLastReadInboxId,
+        );
+        if (observation.shouldReportViewed) {
           newlyVisible.add(message);
         }
-        changed =
-            _unreadProgress.markVisible(
-              messageId: message.id,
-              initialUnread: message.id > _entryLastReadInboxId,
-            ) ||
-            changed;
+        changed = observation.unreadCountChanged || changed;
       }
+    }
+
+    if (_showEntryUnreadBanner &&
+        _unreadProgress.initialRemaining(entryUnreadCount: _entryUnreadCount) ==
+            0) {
+      _showEntryUnreadBanner = false;
+      changed = true;
     }
 
     if (newlyVisible.isNotEmpty) {

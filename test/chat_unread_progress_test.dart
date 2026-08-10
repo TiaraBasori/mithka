@@ -186,6 +186,45 @@ void main() {
     expect(progress.remaining(entryUnreadCount: 5), 3);
   });
 
+  test(
+    'opening at the unread viewport reports visible messages without scrolling',
+    () {
+      final progress = ChatUnreadProgress();
+
+      final first = progress.observeVisibleIncoming(
+        messageId: 101,
+        initialUnread: true,
+      );
+      final second = progress.observeVisibleIncoming(
+        messageId: 102,
+        initialUnread: true,
+      );
+
+      expect(first.shouldReportViewed, isTrue);
+      expect(first.unreadCountChanged, isTrue);
+      expect(second.shouldReportViewed, isTrue);
+      expect(second.unreadCountChanged, isTrue);
+      expect(progress.badgeCount(entryUnreadCount: 2), 0);
+
+      final measuredAgain = progress.observeVisibleIncoming(
+        messageId: 101,
+        initialUnread: true,
+      );
+      expect(measuredAgain.shouldReportViewed, isFalse);
+      expect(measuredAgain.unreadCountChanged, isFalse);
+    },
+  );
+
+  test('entry badge keeps only genuinely offscreen unread messages', () {
+    final progress = ChatUnreadProgress();
+
+    progress.observeVisibleIncoming(messageId: 101, initialUnread: true);
+    progress.observeVisibleIncoming(messageId: 102, initialUnread: true);
+
+    expect(progress.initialRemaining(entryUnreadCount: 5), 3);
+    expect(progress.badgeCount(entryUnreadCount: 5), 3);
+  });
+
   test('live read updates do not double-decrement entry unread progress', () {
     const entryUnreadCount = 5;
     final progress = ChatUnreadProgress();
