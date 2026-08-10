@@ -4066,9 +4066,18 @@ abstract final class TDParse {
     final id = file?.integer('id');
     if (file == null || id == null) return null;
     final normalizedThumbnail = thumbnail?.id == id ? null : thumbnail;
+    final local = file.obj('local');
+    // TDLib exposes `local.path` as soon as any prefix/range exists. That path
+    // is not a decodable whole file until the completion bit is set; treating
+    // it as an outgoing/local source bypasses TdFileCenter's download waiter
+    // and can leave message media displaying a permanently partial image.
+    final completedLocalPath =
+        local?.boolean('is_downloading_completed') == true
+        ? local?.str('path')
+        : null;
     return TdFileRef(
       id: id,
-      localPath: file.obj('local')?.str('path'),
+      localPath: completedLocalPath,
       fileName: fileName,
       mimeType: mimeType,
       miniThumb: miniThumb,
