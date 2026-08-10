@@ -48,10 +48,12 @@ class SystemPictureInPicture {
   static final Map<String, _PictureInPictureBackend> _backendById = {};
   static bool _handlerAttached = false;
 
-  static bool get isSupportedPlatform => Platform.isIOS || Platform.isAndroid;
+  static bool get isSupportedPlatform =>
+      Platform.isIOS || Platform.isAndroid || Platform.isMacOS;
 
   /// Android PiP hosts the existing Activity, including its Flutter texture.
-  /// iOS instead transfers playback to AVPictureInPictureController.
+  /// Apple platforms instead transfer playback to
+  /// AVPictureInPictureController.
   static bool get keepsFlutterPlayerInActivity => Platform.isAndroid;
 
   static Future<bool> isSupported() async {

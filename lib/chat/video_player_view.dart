@@ -4691,7 +4691,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   Future<void> _enterPictureInPicture() async {
     if (_systemPiPBusy) return;
     setState(() => _systemPiPBusy = true);
-    if (SystemPictureInPicture.isSupportedPlatform) {
+    // Prefer the native backend only after it has confirmed support. When a
+    // presentation switch callback is available it remains the deterministic
+    // fallback (including while support probing is still in flight).
+    if (_systemPiPSupported ||
+        (widget.onSwitchMode == null &&
+            SystemPictureInPicture.isSupportedPlatform)) {
       try {
         await _startSystemPictureInPicture();
       } catch (_) {}

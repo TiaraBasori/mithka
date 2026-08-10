@@ -50,6 +50,14 @@ class MithkaDesktopVideoWindows {
   static ValueListenable<bool> get currentWindowFullscreen =>
       instance._platform.currentWindowFullscreen;
 
+  /// Increments before the current native child window closes.
+  ///
+  /// Player hosts use this to synchronously pause their controller even when
+  /// the platform keeps the Flutter engine alive briefly after its NSWindow or
+  /// HWND has gone away.
+  static ValueListenable<int> get currentWindowCloseRevision =>
+      instance._platform.currentWindowCloseRevision;
+
   /// Initializes the native-window integration for this Flutter engine.
   ///
   /// The returned arguments are non-null only for a valid child video window.
@@ -86,6 +94,10 @@ class MithkaDesktopVideoWindows {
   /// Returns false when the window is unknown or already gone, which is the
   /// caller's signal that the media needs a new window.
   Future<bool> focus(int windowId) => _platform.focus(windowId);
+
+  /// Brings this engine's current child window back for a PiP restore action.
+  static Future<void> focusCurrentWindow() =>
+      instance._platform.focusCurrentWindow();
 
   /// Requests a graceful close of the current independent window.
   static Future<void> closeCurrentWindow() =>

@@ -1087,6 +1087,7 @@ class _ChatViewState extends State<ChatView> {
   late int _historyWindowInvalidationRevision;
   final Set<int> _expandedBlockedRunIds = <int>{};
   final Set<int> _showOriginalTranslationMessageIds = <int>{};
+  int? _desktopStickerSetId;
   bool _unreadProgressUpdateScheduled = false;
   bool _viewTickerEnabled = true;
   bool _modelDirtyWhileInactive = false;
@@ -4240,10 +4241,26 @@ class _ChatViewState extends State<ChatView> {
   }
 
   void _openSticker(ChatMessage message) {
+    final desktop = isDesktopTargetPlatform(Theme.of(context).platform);
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => StickerViewer(message: message),
+        builder: (_) => StickerViewer(
+          message: message,
+          onOpenSet: desktop ? _openStickerSet : null,
+        ),
+      ),
+    );
+  }
+
+  void _openStickerSet(int setId) {
+    if (isDesktopTargetPlatform(Theme.of(context).platform)) {
+      setState(() => _desktopStickerSetId = setId);
+      return;
+    }
+    unawaited(
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => StickerSetDetailView(setId: setId)),
       ),
     );
   }
@@ -4542,15 +4559,7 @@ class _ChatViewState extends State<ChatView> {
         }
       case MessageAction.viewStickerSet:
         final sid = message.stickerSetId;
-        if (sid != null) {
-          unawaited(
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => StickerSetDetailView(setId: sid),
-              ),
-            ),
-          );
-        }
+        if (sid != null) _openStickerSet(sid);
       case MessageAction.delete:
         await _performDeleteAction(message);
     }
@@ -5715,6 +5724,8 @@ class _ChatViewState extends State<ChatView> {
                             },
                           ),
                         ),
+                        if (_desktopStickerSetId != null)
+                          _desktopStickerSetPanel(_desktopStickerSetId!),
                         if (_actionTarget != null && !_isSelecting)
                           _actionMenuOverlay(),
                       ],
@@ -5722,6 +5733,39 @@ class _ChatViewState extends State<ChatView> {
                   ),
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _desktopStickerSetPanel(int setId) {
+    final colors = context.colors;
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) => Align(
+          alignment: Alignment.centerRight,
+          child: Container(
+            key: const ValueKey('desktop-sticker-set-panel'),
+            width: constraints.maxWidth / 2,
+            height: constraints.maxHeight,
+            decoration: BoxDecoration(
+              color: colors.groupedBackground,
+              border: Border(left: BorderSide(color: colors.divider)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 22,
+                  offset: const Offset(-6, 0),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: StickerSetDetailView(
+              key: ValueKey('desktop-sticker-set-$setId'),
+              setId: setId,
+              onClose: () => setState(() => _desktopStickerSetId = null),
             ),
           ),
         ),
@@ -8392,10 +8436,12 @@ class _ChatViewState extends State<ChatView> {
     final overlayBox =
         _actionOverlayKey.currentContext?.findRenderObject() as RenderBox?;
     final platform = Theme.of(context).platform;
+    final desktop = isDesktopTargetPlatform(platform);
     final usePointer =
-        !isDesktopTargetPlatform(platform) &&
-        context.read<ThemeController>().mobileMessageActionMenuStyle ==
-            MobileMessageActionMenuStyle.dropdown;
+        desktop ||
+        (!desktop &&
+            context.read<ThemeController>().mobileMessageActionMenuStyle ==
+                MobileMessageActionMenuStyle.dropdown);
     final globalAnchor = MessageActionMenu.anchorRectForPresentation(
       targetRect: rect,
       pointer: _lastActionPointerGlobalPosition,
@@ -8698,7 +8744,11 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Widget _actionMenuOverlay() {
-    final screenSize = MediaQuery.sizeOf(context);
+    final overlayBox =
+        _actionOverlayKey.currentContext?.findRenderObject() as RenderBox?;
+    final screenSize = overlayBox?.hasSize == true
+        ? overlayBox!.size
+        : MediaQuery.sizeOf(context);
     final safeArea = MediaQuery.paddingOf(context);
     final screenW = screenSize.width;
     final screenH = screenSize.height;
@@ -8777,6 +8827,9 @@ class _ChatViewState extends State<ChatView> {
             bottomSafe: bottomSafe,
           )
         : const Offset(10, 0);
+    final boundedActionMenu = verticalMenu
+        ? SizedBox(width: verticalMenuWidth, height: menuH, child: actionMenu)
+        : actionMenu;
 
     void dismiss() => setState(() {
       _actionTarget = null;
@@ -8839,8 +8892,8 @@ class _ChatViewState extends State<ChatView> {
                 left: pointerAnchored ? pointerMenuOrigin.dx : 10,
                 right: pointerAnchored ? null : 10,
                 child: pointerAnchored
-                    ? actionMenu
-                    : Align(alignment: align, child: actionMenu),
+                    ? boundedActionMenu
+                    : Align(alignment: align, child: boundedActionMenu),
               ),
           ],
         ),
