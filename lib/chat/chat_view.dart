@@ -958,6 +958,7 @@ class _ChatViewState extends State<ChatView> {
   ChatMessage? _actionTarget;
   Rect? _actionRect; // bounds in the action-overlay Stack's coordinate space
   final GlobalKey _actionOverlayKey = GlobalKey();
+  Offset? _lastActionPointerGlobalPosition;
   MessageActionSource _actionSource = MessageActionSource.normal;
   bool _reactionExpanded = false; // full reaction picker vs. quick bar
   String _reactionTab = 'standard'; // 'standard' or a custom-emoji pack id
@@ -5593,75 +5594,80 @@ class _ChatViewState extends State<ChatView> {
                       !_isSelecting &&
                       !showPeerRestrictionBlock,
                   onImagesDropped: _previewAndSendDroppedImages,
-                  child: Stack(
-                    key: _actionOverlayKey,
-                    children: [
-                      Positioned.fill(
-                        child: LayoutBuilder(
-                          builder: (context, constraints) {
-                            // Scaffold shrinks its body as the keyboard slides,
-                            // so this builder re-runs every animation frame
-                            // even though only the width matters. Handing back
-                            // the same widget lets Element.updateChild skip the
-                            // header, transcript and composer entirely.
-                            final width = constraints.maxWidth;
-                            final cached = _cachedShellLayout;
-                            if (cached != null &&
-                                _cachedShellLayoutGeneration ==
-                                    _shellLayoutGeneration &&
-                                _cachedShellLayoutWidth == width) {
-                              return cached;
-                            }
-                            final searchPane = _searchUsesResultsPane(width);
-                            _searchResultsPaneVisible = searchPane;
-                            final searching = _search.isActive;
-                            final shell = ChatHeaderTrailingPaneLayout(
-                              header: showPeerRestrictionBlock
-                                  ? _header()
-                                  : searching
-                                  ? _searchHeader(showSteppers: searchPane)
-                                  : (_isSelecting
-                                        ? _selectionHeader()
-                                        : _header()),
-                              body: showPeerRestrictionBlock
-                                  ? _restrictedPeerBlockPage()
-                                  : Column(
-                                      children: [
-                                        Expanded(
-                                          child: _transcriptLayer(
-                                            searchPane: searchPane,
+                  child: Listener(
+                    onPointerDown: (event) {
+                      _lastActionPointerGlobalPosition = event.position;
+                    },
+                    child: Stack(
+                      key: _actionOverlayKey,
+                      children: [
+                        Positioned.fill(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              // Scaffold shrinks its body as the keyboard slides,
+                              // so this builder re-runs every animation frame
+                              // even though only the width matters. Handing back
+                              // the same widget lets Element.updateChild skip the
+                              // header, transcript and composer entirely.
+                              final width = constraints.maxWidth;
+                              final cached = _cachedShellLayout;
+                              if (cached != null &&
+                                  _cachedShellLayoutGeneration ==
+                                      _shellLayoutGeneration &&
+                                  _cachedShellLayoutWidth == width) {
+                                return cached;
+                              }
+                              final searchPane = _searchUsesResultsPane(width);
+                              _searchResultsPaneVisible = searchPane;
+                              final searching = _search.isActive;
+                              final shell = ChatHeaderTrailingPaneLayout(
+                                header: showPeerRestrictionBlock
+                                    ? _header()
+                                    : searching
+                                    ? _searchHeader(showSteppers: searchPane)
+                                    : (_isSelecting
+                                          ? _selectionHeader()
+                                          : _header()),
+                                body: showPeerRestrictionBlock
+                                    ? _restrictedPeerBlockPage()
+                                    : Column(
+                                        children: [
+                                          Expanded(
+                                            child: _transcriptLayer(
+                                              searchPane: searchPane,
+                                            ),
                                           ),
-                                        ),
-                                        _chatMusicPlayer(),
-                                        // A narrow chat trades the composer
-                                        // for the hit navigator; a wide one
-                                        // keeps composing beside the results.
-                                        if (searching && !searchPane)
-                                          _searchNavigator()
-                                        else if (_isSelecting)
-                                          _selectionActionBar()
-                                        else
-                                          _composerArea(),
-                                      ],
-                                    ),
-                              trailingPane: searchPane
-                                  ? _searchResultsPane()
-                                  : widget.trailingPane,
-                              trailingPaneWidth: searchPane
-                                  ? chatSearchResultsPaneWidth
-                                  : widget.trailingPaneWidth,
-                            );
-                            _cachedShellLayout = shell;
-                            _cachedShellLayoutGeneration =
-                                _shellLayoutGeneration;
-                            _cachedShellLayoutWidth = width;
-                            return shell;
-                          },
+                                          _chatMusicPlayer(),
+                                          // A narrow chat trades the composer
+                                          // for the hit navigator; a wide one
+                                          // keeps composing beside the results.
+                                          if (searching && !searchPane)
+                                            _searchNavigator()
+                                          else if (_isSelecting)
+                                            _selectionActionBar()
+                                          else
+                                            _composerArea(),
+                                        ],
+                                      ),
+                                trailingPane: searchPane
+                                    ? _searchResultsPane()
+                                    : widget.trailingPane,
+                                trailingPaneWidth: searchPane
+                                    ? chatSearchResultsPaneWidth
+                                    : widget.trailingPaneWidth,
+                              );
+                              _cachedShellLayout = shell;
+                              _cachedShellLayoutGeneration =
+                                  _shellLayoutGeneration;
+                              _cachedShellLayoutWidth = width;
+                              return shell;
+                            },
+                          ),
                         ),
-                      ),
-                      if (_actionTarget != null && !_isSelecting)
-                        _actionMenuOverlay(),
-                    ],
+                        if (_actionTarget != null && !_isSelecting)
+                          _actionMenuOverlay(),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -8334,12 +8340,23 @@ class _ChatViewState extends State<ChatView> {
     EmojiStore.shared.loadIfNeeded();
     final overlayBox =
         _actionOverlayKey.currentContext?.findRenderObject() as RenderBox?;
-    final overlayRect = rect != null && overlayBox?.hasSize == true
+    final platform = Theme.of(context).platform;
+    final usePointer =
+        !isDesktopTargetPlatform(platform) &&
+        context.read<ThemeController>().mobileMessageActionMenuStyle ==
+            MobileMessageActionMenuStyle.dropdown;
+    final globalAnchor = MessageActionMenu.anchorRectForPresentation(
+      targetRect: rect,
+      pointer: _lastActionPointerGlobalPosition,
+      usePointer: usePointer,
+    );
+    _lastActionPointerGlobalPosition = null;
+    final overlayRect = globalAnchor != null && overlayBox?.hasSize == true
         ? MessageActionMenu.rectInOverlay(
-            rect,
+            globalAnchor,
             globalToLocal: overlayBox!.globalToLocal,
           )
-        : rect;
+        : globalAnchor;
     setState(() {
       _actionTarget = message;
       _actionRect = overlayRect;
@@ -8521,8 +8538,13 @@ class _ChatViewState extends State<ChatView> {
     final rect = _actionRect;
     final showActionMenu = !_reactionExpanded;
     final desktopMenu = isDesktopTargetPlatform(Theme.of(context).platform);
+    final mobileDropdown =
+        !desktopMenu &&
+        context.watch<ThemeController>().mobileMessageActionMenuStyle ==
+            MobileMessageActionMenuStyle.dropdown;
+    final verticalMenu = desktopMenu || mobileDropdown;
     final pointerAnchored =
-        desktopMenu && rect != null && rect.width == 0 && rect.height == 0;
+        verticalMenu && rect != null && rect.width == 0 && rect.height == 0;
     final showReactions = !desktopMenu && !_actionTarget!.isCall;
     final actionMenu = MessageActionMenu(
       message: _actionTarget!,
@@ -8535,6 +8557,9 @@ class _ChatViewState extends State<ChatView> {
       showingOriginalTranslation: _showOriginalTranslationMessageIds.contains(
         _actionTarget!.id,
       ),
+      layout: verticalMenu
+          ? MessageActionMenuLayout.vertical
+          : MessageActionMenuLayout.grid,
       onSelect: (action) => _perform(action, _actionTarget!),
     );
 
@@ -8560,7 +8585,7 @@ class _ChatViewState extends State<ChatView> {
         topSafe,
         bottomSafe - reactionH,
       );
-      menuTop = (desktopMenu ? rect.top : rect.bottom + gap).clamp(
+      menuTop = (verticalMenu ? rect.top : rect.bottom + gap).clamp(
         topSafe,
         bottomSafe - menuH,
       );
@@ -8569,15 +8594,15 @@ class _ChatViewState extends State<ChatView> {
       menuTop = reactionTop + reactionH + menuGap;
     }
     final align = outgoing ? Alignment.centerRight : Alignment.centerLeft;
-    final desktopMenuWidth = math.min(
+    final verticalMenuWidth = math.min(
       MessageActionMenu.desktopPreferredWidth,
       math.max(0.0, screenW - 20),
     );
     final pointerMenuOrigin = pointerAnchored
-        ? MessageActionMenu.desktopOriginForPointer(
+        ? MessageActionMenu.verticalOriginForPointer(
             pointer: rect.topLeft,
             viewport: screenSize,
-            menuSize: Size(desktopMenuWidth, menuH),
+            menuSize: Size(verticalMenuWidth, menuH),
             topSafe: topSafe,
             bottomSafe: bottomSafe,
           )
@@ -8586,6 +8611,7 @@ class _ChatViewState extends State<ChatView> {
     void dismiss() => setState(() {
       _actionTarget = null;
       _actionRect = null;
+      _lastActionPointerGlobalPosition = null;
       _actionSource = MessageActionSource.normal;
       _reactionExpanded = false;
     });
