@@ -268,6 +268,10 @@ bool _shouldUseFvp() {
 }
 
 void _initializeVideoBackend({bool installGlobalLogHandler = true}) {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    MithkaFvpBackend.ensureAndroidStickerDecoderInitialized();
+    return;
+  }
   if (!_shouldUseFvp()) return;
   MithkaFvpBackend.ensureInitialized(
     configuration: MithkaFvpConfiguration(
