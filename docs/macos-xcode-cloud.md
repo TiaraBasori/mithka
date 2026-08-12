@@ -1,8 +1,8 @@
-# macOS GitHub Actions and TestFlight
+# Apple GitHub Actions and TestFlight
 
-Mithka's macOS TestFlight delivery runs on GitHub Actions. The iOS archive and
-TestFlight workflow remains enabled in Xcode Cloud and is intentionally outside
-this migration.
+Mithka's iOS and macOS TestFlight delivery runs on GitHub Actions. The former
+Xcode Cloud workflows remain in App Store Connect in a deactivated state for
+rollback and configuration history.
 
 `.github/workflows/macos-testflight.yml` starts for:
 
@@ -18,6 +18,19 @@ and assigns the processed build to both `Internal` and `External` TestFlight
 groups. The former macOS Xcode Cloud workflow is retained in App Store Connect
 in a deactivated state for rollback and configuration history.
 
+`.github/workflows/ios-testflight.yml` starts for:
+
+- branches beginning with `nightly`;
+- the exact `release` branch;
+- branches beginning with `release-ios`;
+- an explicit manual dispatch.
+
+Those conditions mirror the former iOS Xcode Cloud workflow. It prepares the
+same pinned native dependencies as Xcode Cloud, archives
+`ios/Runner.xcworkspace`, validates the TDLib dSYM and exported IPA SwiftSupport,
+uploads an App Store-eligible iOS build, and assigns the processed build to the
+same Internal and External TestFlight groups.
+
 ## Deterministic build preparation
 
 The action uses Flutter 3.44.2 and delegates source preparation to
@@ -30,6 +43,13 @@ The action uses Flutter 3.44.2 and delegates source preparation to
 5. repairs generated Swift-package resource directories; and
 6. resolves the committed workspace `Package.resolved` before the locked
    archive.
+
+The iOS action delegates preparation to `ios/ci_scripts/ci_post_clone.sh`. It
+recreates the ignored Firebase configuration, TDLib and TgVoip frameworks,
+Flutter generated inputs, Swift packages, and CocoaPods sandbox before the
+archive. GitHub's epoch build number overrides the source build number while
+the marketing version continues to use the major and minor components from
+`pubspec.yaml` with a zero patch component.
 
 The published TDLib input remains:
 
@@ -44,6 +64,7 @@ The workflow reads these encrypted GitHub Actions repository secrets:
 
 - `TELEGRAM_API_ID`
 - `TELEGRAM_API_HASH`
+- `FIREBASE_IOS_GOOGLESERVICE_INFO_PLIST_B64` (iOS only)
 - `SENTRY_DSN` (optional)
 - `APP_STORE_CONNECT_KEY_ID`
 - `APP_STORE_CONNECT_ISSUER_ID`
@@ -57,7 +78,7 @@ default to `Internal` and `External`.
 The build number is an epoch timestamp so every GitHub upload is greater than
 the previous Xcode Cloud build number and remains monotonic across branches.
 The marketing version keeps the major and minor components from
-`pubspec.yaml` and forces the patch component to zero, matching iOS.
+`pubspec.yaml` and forces the patch component to zero on both Apple platforms.
 
 ## App Store metadata prerequisite
 

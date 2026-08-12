@@ -101,10 +101,11 @@ module TestFlightGroupDistributor
   end
 
   class Runner
-    def initialize(client:, app_id:, build_number:, internal_group:, external_group:, wait_seconds:)
+    def initialize(client:, app_id:, build_number:, platform:, internal_group:, external_group:, wait_seconds:)
       @client = client
       @app_id = app_id
       @build_number = build_number
+      @platform = platform
       @internal_group = internal_group
       @external_group = external_group
       @wait_seconds = wait_seconds
@@ -115,7 +116,7 @@ module TestFlightGroupDistributor
       groups = @client.get("/apps/#{@app_id}/betaGroups", "limit" => "200").fetch("data")
       assign(build.fetch("id"), find_group(groups, @internal_group, true))
       assign(build.fetch("id"), find_group(groups, @external_group, false))
-      puts "Assigned macOS build #{@build_number} to internal and external TestFlight groups."
+      puts "Assigned #{platform_name} build #{@build_number} to internal and external TestFlight groups."
     end
 
     private
@@ -130,7 +131,9 @@ module TestFlightGroupDistributor
           "sort" => "-uploadedDate",
           "limit" => "10"
         )
-        builds = response.fetch("data")
+        builds = response.fetch("data").select do |candidate|
+          build_platform(candidate.fetch("id")) == @platform
+        end
         raise Error, "multiple App Store builds use number #{@build_number}" if builds.length > 1
 
         build = builds.first
@@ -143,6 +146,14 @@ module TestFlightGroupDistributor
         puts "Waiting for App Store build #{@build_number} (#{state})..."
         sleep 45
       end
+    end
+
+    def build_platform(build_id)
+      @client.get("/builds/#{build_id}/preReleaseVersion").dig("data", "attributes", "platform")
+    end
+
+    def platform_name
+      { "IOS" => "iOS", "MAC_OS" => "macOS" }.fetch(@platform, @platform)
     end
 
     def find_group(groups, name, internal)
@@ -174,6 +185,7 @@ end
 
 options = {
   app_id: "6783830742",
+  platform: "MAC_OS",
   internal_group: "Internal",
   external_group: "External",
   wait_seconds: 2_700
@@ -184,12 +196,13 @@ OptionParser.new do |parser|
   parser.on("--key-path VALUE") { |value| options[:key_path] = value }
   parser.on("--app-id VALUE") { |value| options[:app_id] = value }
   parser.on("--build-number VALUE") { |value| options[:build_number] = value }
+  parser.on("--platform VALUE") { |value| options[:platform] = value }
   parser.on("--internal-group VALUE") { |value| options[:internal_group] = value }
   parser.on("--external-group VALUE") { |value| options[:external_group] = value }
   parser.on("--wait-seconds VALUE", Integer) { |value| options[:wait_seconds] = value }
 end.parse!
 
-required = %i[key_id issuer_id key_path app_id build_number internal_group external_group]
+required = %i[key_id issuer_id key_path app_id build_number platform internal_group external_group]
 missing = required.select { |key| options[key].to_s.empty? }
 raise TestFlightGroupDistributor::Error, "missing options: #{missing.join(', ')}" unless missing.empty?
 raise TestFlightGroupDistributor::Error, "build number must be numeric" unless options[:build_number].match?(/\A\d+\z/)
@@ -203,6 +216,7 @@ TestFlightGroupDistributor::Runner.new(
   client: client,
   app_id: options[:app_id],
   build_number: options[:build_number],
+  platform: options[:platform],
   internal_group: options[:internal_group],
   external_group: options[:external_group],
   wait_seconds: options[:wait_seconds]
