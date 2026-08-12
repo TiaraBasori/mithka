@@ -116,6 +116,7 @@ void main() {
         expect(platform.initializedEvents, 1);
         expect(find.byType(MithkaVideoPlayer), findsOneWidget);
         expect(_timeline, findsOneWidget);
+        expect(_volumeSlider, findsOneWidget);
 
         expect(tester.takeException(), isNull);
         final playerRect = tester.getRect(find.byType(MithkaVideoPlayer));
@@ -131,6 +132,7 @@ void main() {
         final previousRect = tester.getRect(_semanticsWidget('Previous video'));
         final pauseRect = tester.getRect(_semanticsWidget('Pause'));
         final nextRect = tester.getRect(_semanticsWidget('Next video'));
+        final volumeRect = tester.getRect(_volumeSlider);
 
         expect(playerRect, const Rect.fromLTWH(0, 0, 390, 844));
         expect(reusablePlayer.alignment, Alignment.center);
@@ -149,6 +151,22 @@ void main() {
         expect(previousRect.center.dy, closeTo(nextRect.center.dy, 0.01));
         expect(previousRect.bottom, lessThanOrEqualTo(pauseRect.top));
         expect(nextRect.bottom, lessThanOrEqualTo(pauseRect.top));
+        expect(volumeRect.height, 44);
+        expect(playerRect.contains(volumeRect.topLeft), isTrue);
+        expect(playerRect.contains(volumeRect.bottomRight), isTrue);
+
+        final volumeWrites = platform.volumeValues.length;
+        await tester.tapAt(Offset(volumeRect.left + 8, volumeRect.center.dy));
+        await tester.pump();
+        expect(platform.volumeValues, hasLength(volumeWrites + 1));
+        final adjustedVolume = platform.volumeValues.last;
+        expect(adjustedVolume, inInclusiveRange(0.0, 0.5));
+        await tester.tap(_semanticsWidget('Mute'));
+        await tester.pump();
+        expect(platform.volumeValues.last, 0);
+        await tester.tap(_semanticsWidget('Unmute'));
+        await tester.pump();
+        expect(platform.volumeValues.last, closeTo(adjustedVolume, 0.001));
 
         expect(_semanticsWidget('Play horizontally'), findsOneWidget);
         await tester.tap(_semanticsWidget('Play horizontally'));
@@ -432,6 +450,7 @@ void main() {
         await tester.pump();
         expect(_semanticsWidget('Previous video'), findsOneWidget);
         expect(_semanticsWidget('Next video'), findsOneWidget);
+        expect(_volumeSlider, findsOneWidget);
         expect(_semanticsWidget('Switch display mode'), findsNothing);
         expect(tester.takeException(), isNull);
 
@@ -679,6 +698,89 @@ void main() {
     }
   });
 
+  testWidgets('playlist navigation preserves the selected volume', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(() {
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPhysicalSize();
+    });
+
+    final previousPlatform = VideoPlayerPlatform.instance;
+    final platform = _FakeMobileVideoPlatform();
+    VideoPlayerPlatform.instance = platform;
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      SharedPreferences.setMockInitialValues(const {});
+      final sourcePath = File('pubspec.yaml').absolute.path;
+      final sourceLength = File(sourcePath).lengthSync();
+      final queueChanges = <VideoPlaybackQueue>[];
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [AppLocalizations.delegate],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: VideoPlaylistPlayerView(
+              queue: VideoPlaybackQueue(
+                items: [
+                  VideoPlaybackItem(
+                    video: TdFileRef(id: 720, localPath: sourcePath),
+                    width: 1920,
+                    height: 1080,
+                  ),
+                  VideoPlaybackItem(
+                    video: TdFileRef(id: 721, localPath: sourcePath),
+                    width: 1920,
+                    height: 1080,
+                  ),
+                ],
+              ),
+              onClose: () {},
+              onQueueChanged: queueChanges.add,
+              streamQuery: (request) async => _tdFileInfo(
+                fileId: request['file_id'] as int,
+                path: sourcePath,
+                totalBytes: sourceLength,
+                downloadedBytes: sourceLength,
+                completed: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await _pumpUntilPlayerReady(tester);
+
+      final sliderRect = tester.getRect(_volumeSlider);
+      await tester.tapAt(
+        Offset(sliderRect.left + sliderRect.width * 0.35, sliderRect.center.dy),
+      );
+      await tester.pump();
+      final selectedVolume = platform.volumeValues.last;
+      expect(selectedVolume, inInclusiveRange(0.1, 0.6));
+
+      await tester.dragFrom(const Offset(320, 355), const Offset(-90, 0));
+      for (var i = 0; i < 20 && platform.initializedEvents < 2; i++) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)),
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(queueChanges.single.index, 1);
+      expect(platform.initializedEvents, 2);
+      expect(platform.volumeValues.last, closeTo(selectedVolume, 0.001));
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await _pumpUntilDisposed(tester, platform);
+    } finally {
+      VideoPlayerPlatform.instance = previousPlatform;
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('Android volume gesture controls the system media stream', (
     tester,
   ) async {
@@ -729,6 +831,7 @@ void main() {
               video: TdFileRef(id: 708, localPath: sourcePath),
               width: 1920,
               height: 1080,
+              initialVolume: 0.4,
               onClose: () {},
               streamQuery: _completedVideoQuery(sourcePath, fileId: 708),
             ),
@@ -736,6 +839,30 @@ void main() {
         ),
       );
       await _pumpUntilPlayerReady(tester);
+      for (
+        var i = 0;
+        i < 20 &&
+            (platform.volumeValues.isEmpty || platform.volumeValues.last != 1);
+        i++
+      ) {
+        await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 5)),
+        );
+        await tester.pump();
+      }
+
+      expect(_volumeSlider, findsOneWidget);
+      expect(volumeCalls.where((call) => call.method == 'get'), isNotEmpty);
+      expect(platform.volumeValues.last, 1);
+      final sliderRect = tester.getRect(_volumeSlider);
+      final visibleControlPlayerWrites = platform.volumeValues.length;
+      await tester.tapAt(sliderRect.center);
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(volumeCalls.where((call) => call.method == 'set'), isNotEmpty);
+      expect(platform.volumeValues, hasLength(visibleControlPlayerWrites));
+      volumeCalls.clear();
 
       final playerVolumeWritesBefore = platform.volumeValues.length;
       final gesture = await tester.startGesture(const Offset(320, 420));
@@ -1578,6 +1705,8 @@ final Finder _timeline = find.byWidgetPredicate(
   (widget) =>
       widget is MithkaVideoSlider && widget.semanticLabel == 'Adjust progress',
 );
+
+final Finder _volumeSlider = find.byKey(const ValueKey('video-volume-slider'));
 
 final Finder _compactScrubPreview = find.byWidgetPredicate(
   (widget) =>

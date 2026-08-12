@@ -628,6 +628,7 @@ Future<bool> restoreVideoPlaybackFromPictureInPicture({
       queue: queue,
       initialPosition: restoredPosition,
       initialPlaying: snapshot.playing,
+      initialVolume: snapshot.volume,
       initialMuted: snapshot.muted,
       initialSpeed: snapshot.speed,
       streamQuery: streamQuery,
@@ -741,6 +742,8 @@ class VideoPlayerView extends StatefulWidget {
     this.messageId,
     this.currentMode = VideoDisplayMode.fullscreen,
     this.onSwitchMode,
+    this.onVolumeChanged,
+    this.initialVolume = 1,
     this.initialMuted = false,
     this.initialPlaying = true,
     this.initialSpeed = 1,
@@ -765,6 +768,8 @@ class VideoPlayerView extends StatefulWidget {
   final int? messageId;
   final VideoDisplayMode currentMode;
   final ValueChanged<VideoDisplayMode>? onSwitchMode;
+  final ValueChanged<double>? onVolumeChanged;
+  final double initialVolume;
   final bool initialMuted;
   final bool initialPlaying;
   final double initialSpeed;
@@ -797,6 +802,8 @@ class VideoPlaylistPlayerView extends StatefulWidget {
     this.currentMode = VideoDisplayMode.fullscreen,
     this.onSwitchMode,
     this.onQueueChanged,
+    this.onVolumeChanged,
+    this.initialVolume = 1,
     this.initialMuted = false,
     this.initialPlaying = true,
     this.initialSpeed = 1,
@@ -811,6 +818,8 @@ class VideoPlaylistPlayerView extends StatefulWidget {
   final VideoDisplayMode currentMode;
   final VideoPlaylistModeCallback? onSwitchMode;
   final ValueChanged<VideoPlaybackQueue>? onQueueChanged;
+  final ValueChanged<double>? onVolumeChanged;
+  final double initialVolume;
   final bool initialMuted;
   final bool initialPlaying;
   final double initialSpeed;
@@ -826,6 +835,18 @@ class _VideoPlaylistPlayerViewState extends State<VideoPlaylistPlayerView> {
   late VideoPlaybackQueue _queue = widget.queue;
   late Duration? _initialPosition = widget.initialPosition;
   late bool _initialPlaying = widget.initialPlaying;
+  late double _lastAudibleVolume;
+  late bool _muted;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initialVolume.isFinite
+        ? widget.initialVolume.clamp(0.0, 1.0).toDouble()
+        : 1.0;
+    _lastAudibleVolume = initial > 0.01 ? initial : 1.0;
+    _muted = widget.initialMuted || initial <= 0.01;
+  }
 
   @override
   void didUpdateWidget(covariant VideoPlaylistPlayerView oldWidget) {
@@ -853,6 +874,15 @@ class _VideoPlaylistPlayerViewState extends State<VideoPlaylistPlayerView> {
     widget.onQueueChanged?.call(next);
   }
 
+  void _handleVolumeChanged(double volume) {
+    final normalized = volume.isFinite
+        ? volume.clamp(0.0, 1.0).toDouble()
+        : 0.0;
+    _muted = normalized <= 0.01;
+    if (!_muted) _lastAudibleVolume = normalized;
+    widget.onVolumeChanged?.call(normalized);
+  }
+
   @override
   Widget build(BuildContext context) {
     final item = _queue.current;
@@ -874,7 +904,9 @@ class _VideoPlaylistPlayerViewState extends State<VideoPlaylistPlayerView> {
       onSwitchMode: widget.onSwitchMode == null
           ? null
           : (mode) => widget.onSwitchMode!(_queue, mode),
-      initialMuted: widget.initialMuted,
+      onVolumeChanged: _handleVolumeChanged,
+      initialVolume: _lastAudibleVolume,
+      initialMuted: _muted,
       initialPlaying: _initialPlaying,
       initialSpeed: widget.initialSpeed,
       initialPosition: _initialPosition,
@@ -907,6 +939,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   TdFileProgress? _progress;
   double _speed = 1;
   double _volume = 1;
+  double _lastAudibleVolume = 1;
+  int _volumeControlRequestGeneration = 0;
   String? _localPath;
   int _lastSavedPositionMs = 0;
   TdVideoStreamServer? _streamServer;
@@ -1006,6 +1040,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       defaultTargetPlatform == TargetPlatform.android &&
       widget.presentation == VideoPlayerPresentation.fullscreen;
 
+  double get _controllerGainForCurrentVolume =>
+      _usesAndroidSystemMediaVolume && _volume > 0.01 ? 1.0 : _volume;
+
   bool _isDecoderOrSurfaceFailure(Object? error) {
     if (!_canUseAndroidPlatformViewFallback || error == null) return false;
     final message = error.toString().toLowerCase();
@@ -1023,7 +1060,11 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     super.initState();
     _brightnessSession = PlayerBrightnessSession.capture();
     _lastKnownPlaybackWasPlaying = widget.initialPlaying;
-    if (widget.initialMuted) _volume = 0;
+    final initialVolume = widget.initialVolume.isFinite
+        ? widget.initialVolume.clamp(0.0, 1.0).toDouble()
+        : 1.0;
+    _lastAudibleVolume = initialVolume > 0.01 ? initialVolume : 1;
+    _volume = widget.initialMuted ? 0 : initialVolume;
     if (widget.initialSpeed.isFinite && widget.initialSpeed > 0) {
       _speed = widget.initialSpeed;
     }
@@ -1327,7 +1368,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       await c.initialize().timeout(const Duration(seconds: 45));
       await c.setLooping(false);
       await c.setPlaybackSpeed(_speed);
-      await c.setVolume(_volume);
+      await c.setVolume(_controllerGainForCurrentVolume);
       final resume = resumeOverride != null
           ? _clampPlaybackPosition(resumeOverride, c.value.duration)
           : widget.initialPosition == null
@@ -1353,6 +1394,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     }
     c.addListener(_onTick);
     setState(() => _controller = c);
+    if (_usesAndroidSystemMediaVolume) {
+      unawaited(_syncAndroidSystemVolume(c));
+    }
     _updateWakelock();
     unawaited(_refreshSystemPictureInPictureSupport());
     _scheduleHide();
@@ -1692,7 +1736,16 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       _completionHandled = false;
     }
     if (value != null) {
-      _volume = value.volume.clamp(0.0, 1.0);
+      if (!_usesAndroidSystemMediaVolume) {
+        final controllerVolume = value.volume.clamp(0.0, 1.0);
+        if ((_volume - controllerVolume).abs() > 0.001) {
+          _volume = controllerVolume;
+          widget.onVolumeChanged?.call(controllerVolume);
+        }
+        if (controllerVolume > 0.01) {
+          _lastAudibleVolume = controllerVolume;
+        }
+      }
       _speed = value.playbackSpeed;
     }
     _storePlaybackPositionIfNeeded();
@@ -1816,6 +1869,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         id: id,
         position: c.value.position,
         speed: _speed,
+        volume: _pictureInPictureVolume,
         muted: muted,
         playing: playing,
         videoSize: c.value.size,
@@ -1828,6 +1882,11 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
 
   bool get _usesAndroidSystemPictureInPicture =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  double get _pictureInPictureVolume =>
+      (_volume > 0.01 ? _volume : _lastAudibleVolume)
+          .clamp(0.0, 1.0)
+          .toDouble();
 
   Rect? _systemPictureInPictureSourceRect(VideoPlayerController controller) {
     final renderObject = context.findRenderObject();
@@ -2012,17 +2071,88 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
 
   void _setVolume(double volume) {
     final next = volume.clamp(0.0, 1.0);
-    _controller?.setVolume(next);
+    if (next > 0.01) _lastAudibleVolume = next;
     if (!mounted) return;
     setState(() {
       _volume = next;
       _controlsVisible = true;
     });
+    widget.onVolumeChanged?.call(next);
+    final controller = _controller;
+    final request = ++_volumeControlRequestGeneration;
+    if (_usesAndroidSystemMediaVolume && controller != null) {
+      unawaited(_setAndroidSystemVolume(next, request, controller));
+    } else {
+      unawaited(controller?.setVolume(next));
+    }
+  }
+
+  Future<void> _setAndroidSystemVolume(
+    double requested,
+    int request,
+    VideoPlayerController controller,
+  ) async {
+    final current = await PlayerSystemVolume.setFraction(requested);
+    if (!mounted ||
+        request != _volumeControlRequestGeneration ||
+        _controller != controller) {
+      return;
+    }
+    if (current == null) {
+      await controller.setVolume(requested);
+      return;
+    }
+    // Android's visible control and vertical gesture both own STREAM_MUSIC.
+    // Keep the player gain open so a controller restored from a muted
+    // snapshot cannot remain inaudible after the system stream is raised.
+    if (requested > 0.01 && controller.value.volume <= 0.01) {
+      await controller.setVolume(1);
+      if (!mounted ||
+          request != _volumeControlRequestGeneration ||
+          _controller != controller) {
+        return;
+      }
+    }
+    final actual = current.fraction;
+    if (actual > 0.01) _lastAudibleVolume = actual;
+    setState(() {
+      _volume = actual;
+      _controlsVisible = true;
+    });
+    if ((actual - requested).abs() > 0.001) {
+      widget.onVolumeChanged?.call(actual);
+    }
+  }
+
+  Future<void> _syncAndroidSystemVolume(
+    VideoPlayerController controller,
+  ) async {
+    final request = _volumeControlRequestGeneration;
+    final current = await PlayerSystemVolume.current();
+    if (!mounted ||
+        request != _volumeControlRequestGeneration ||
+        _controller != controller ||
+        current == null) {
+      return;
+    }
+    final actual = current.fraction;
+    if (actual > 0.01) _lastAudibleVolume = actual;
+    // Preserve an explicitly muted playback snapshot while remembering the
+    // system level that the unmute action should restore.
+    if (_volume <= 0.01) return;
+    await controller.setVolume(1);
+    if (!mounted ||
+        request != _volumeControlRequestGeneration ||
+        _controller != controller) {
+      return;
+    }
+    setState(() => _volume = actual);
+    widget.onVolumeChanged?.call(actual);
   }
 
   void _toggleMute() {
     _hideTimer?.cancel();
-    _setVolume(_volume <= 0.01 ? 1 : 0);
+    _setVolume(_volume <= 0.01 ? _lastAudibleVolume : 0);
     _scheduleHide();
   }
 
@@ -2134,6 +2264,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       position: normalized,
       playing: snapshot.playing,
       speed: snapshot.speed,
+      volume: snapshot.volume,
       muted: snapshot.muted,
     );
     unawaited(_storeResumePosition(normalized, duration));
@@ -2189,6 +2320,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         id: id,
         position: c.value.position,
         speed: _speed,
+        volume: _pictureInPictureVolume,
         muted: _volume <= 0.01,
         playing: c.value.isPlaying,
         videoSize: c.value.size,
@@ -2219,6 +2351,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         uri: uri,
         position: c.value.position,
         speed: _speed,
+        volume: _pictureInPictureVolume,
         muted: _volume <= 0.01,
         playing: c.value.isPlaying,
         videoSize: c.value.size,
@@ -2276,6 +2409,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
           position: c.value.position,
           playing: c.value.isPlaying,
           speed: _speed,
+          volume: _pictureInPictureVolume,
           muted: _volume <= 0.01,
         ),
       );
@@ -2335,6 +2469,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       uri: uri,
       position: c.value.position,
       speed: _speed,
+      volume: _pictureInPictureVolume,
       muted: _volume <= 0.01,
       playing: c.value.isPlaying,
       videoSize: c.value.size,
@@ -2533,7 +2668,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       width: widget.width,
       height: widget.height,
       autoplay: false,
-      initialVolume: _volume,
+      initialVolume: _controllerGainForCurrentVolume,
       initialPlaybackSpeed: _speed,
       onClose: _close,
       onToggleFullscreen: widget.onToggleFullscreen,
@@ -2724,7 +2859,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       );
 
   bool get _isDesktopPlatform =>
-      Platform.isMacOS || Platform.isWindows || Platform.isLinux;
+      !kIsWeb && (Platform.isMacOS || Platform.isWindows || Platform.isLinux);
 
   KeyEventResult _handleDesktopKey(
     KeyEvent event,
@@ -3006,8 +3141,15 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         _gestureNavigationDelta != 0 &&
         _canNavigate(_gestureNavigationDelta)) {
       widget.onNavigate?.call(_gestureNavigationDelta);
-    } else if (gesture == _PlayerGesture.volume && !_gestureUsesSystemVolume) {
+    } else if (gesture == _PlayerGesture.volume) {
       _volume = _gestureValue;
+      if (_volume > 0.01) {
+        _lastAudibleVolume = _volume;
+        if (_gestureUsesSystemVolume && controller.value.volume <= 0.01) {
+          unawaited(controller.setVolume(1));
+        }
+      }
+      widget.onVolumeChanged?.call(_volume);
     }
     _cancelPlaybackGesture();
     _scheduleHide();
@@ -4219,6 +4361,38 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         final width = constraints.maxWidth;
         final actions = <Widget>[];
 
+        // A continuous level control remains the first compact action whenever
+        // there is enough space for a useful track. On exceptionally narrow
+        // embedded surfaces, retain the mute action rather than overflowing.
+        final navigationWidth = compact && _showsNavigationControls
+            ? math.max(48, layout.actionButtonSize) * 2 + layout.actionGap
+            : 0.0;
+        final availableForActions = math.max(0.0, width - navigationWidth);
+        final compactVolumeWidth = math.min(104.0, availableForActions);
+        final showCompactSlider = compactVolumeWidth >= 88;
+        var usedActionWidth = compact
+            ? (showCompactSlider ? compactVolumeWidth : 44.0)
+            : 152.0;
+
+        bool reserveAction(bool available) {
+          if (!available) return false;
+          const actionWidth = 44.0;
+          final nextWidth = usedActionWidth + layout.actionGap + actionWidth;
+          if (navigationWidth + nextWidth > width) return false;
+          usedActionWidth = nextWidth;
+          return true;
+        }
+
+        // Display mode is the most important secondary action after volume;
+        // reserve it first but keep the established visual order below.
+        final showDisplayMode = compact
+            ? reserveAction(_showsDisplayModeButton)
+            : _showsDisplayModeButton;
+        final showOrientation = compact
+            ? reserveAction(_showsOrientationButton)
+            : _showsOrientationButton;
+        final showSpeed = compact ? reserveAction(width >= 220) : true;
+
         void addAction(Widget action) {
           if (actions.isNotEmpty) {
             actions.add(SizedBox(width: layout.actionGap));
@@ -4226,22 +4400,25 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
           actions.add(action);
         }
 
-        if (compact) {
+        if (compact && showCompactSlider) {
+          addAction(
+            SizedBox(
+              width: compactVolumeWidth,
+              child: _volumeSlider(compact: true),
+            ),
+          );
+        } else if (compact) {
           addAction(_muteButton(size: layout.actionButtonSize));
         } else {
           addAction(_secondaryVolumeSlider(layout));
         }
-        if (!compact || width >= 220) {
+        if (showSpeed) {
           addAction(_speedMenu(compact: compact));
         }
-        if (_showsOrientationButton && (!compact || width >= 272)) {
+        if (showOrientation) {
           addAction(_orientationButton(size: layout.actionButtonSize));
         }
-        final displayModeMinimumWidth = compact && _showsNavigationControls
-            ? 252.0
-            : 240.0;
-        if (_showsDisplayModeButton &&
-            (!compact || width >= displayModeMinimumWidth)) {
+        if (showDisplayMode) {
           addAction(_displayModeButton(size: layout.actionButtonSize));
         }
         final navigation = <Widget>[];
@@ -4257,7 +4434,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
 
   Widget _secondaryVolumeSlider(_VideoControlsLayout layout) {
     if (!layout.timelineCompact) return _volumeSlider();
-    return SizedBox(width: 82, child: _volumeSlider(compact: true));
+    return SizedBox(width: 104, child: _volumeSlider(compact: true));
   }
 
   List<Widget> _compactControls(VideoPlayerController c) {
@@ -4271,7 +4448,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         child: LayoutBuilder(
           builder: (context, constraints) {
             if (constraints.maxWidth < 220) {
-              return _scrubber(c);
+              return Row(
+                children: [
+                  Expanded(child: _scrubber(c)),
+                  const SizedBox(width: 8),
+                  _muteButton(size: 34),
+                ],
+              );
             }
             return Row(
               children: [
@@ -4286,7 +4469,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                   _muteButton(size: 34)
                 else if (constraints.maxWidth >= 320)
                   SizedBox(width: 104, child: _volumeSlider(compact: true)),
-                if (constraints.maxWidth >= 320) const SizedBox(width: 8),
+                if (!pip && constraints.maxWidth < 320) _muteButton(size: 34),
+                const SizedBox(width: 8),
                 if (constraints.maxWidth >= 280)
                   Text(
                     _speedText(_speed),
@@ -4661,8 +4845,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   Widget _volumeSlider({bool compact = false}) {
     final iconSize = compact ? 15.0 : 18.0;
     return SizedBox(
+      key: const ValueKey('video-volume-control'),
       width: compact ? null : 152,
-      height: compact ? 36 : 38,
+      height: 44,
       child: Row(
         mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
         children: [
@@ -4676,6 +4861,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
           SizedBox(width: compact ? 0 : 7),
           Expanded(
             child: MithkaVideoSlider(
+              key: const ValueKey('video-volume-slider'),
               value: _volume,
               trackHeight: compact ? 2.5 : 3,
               thumbRadius: compact ? 5 : 7,

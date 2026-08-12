@@ -1,5 +1,8 @@
 ## 0.3.0
 
+- Added compact and wide continuous volume controls with 44-pixel interaction
+  height, mute-first micro-layout fallback, mute-level restoration, and an
+  `onVolumeChanged` callback for host-owned playlist persistence.
 - Added `MithkaVideoChromeStyle` with high-contrast transport, scrim, timeline,
   focus, hover, border, shadow, size, and spacing defaults that can be tailored
   without replacing the ready chrome.

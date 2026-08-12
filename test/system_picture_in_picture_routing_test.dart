@@ -45,6 +45,10 @@ void main() {
     expect(android, contains('"actionRequested"'));
     expect(android, contains('"didRestore"'));
     expect(iosPlugin, contains('AVPictureInPictureController'));
+    expect(
+      iosPlugin,
+      contains('player.volume = Float(min(1, max(0, volume)))'),
+    );
     expect(appDelegate, isNot(contains('SystemPictureInPictureBridge')));
     expect(
       mainActivity,
@@ -95,8 +99,17 @@ void main() {
 
     expect(fallback, contains('"restoreRequested"'));
     expect(fallback, contains('"positionMs": stoppedPositionMs'));
+    expect(fallback, contains('"volume": player.volume'));
     expect(fvpSpm, contains('invokeMethod:@"restoreRequested"'));
     expect(fvpSpm, contains('@"positionMs": @(stoppedPositionMs)'));
+    expect(fvpSpm, contains('pictureInPicturePlayer->volume()'));
+    expect(
+      fvpSpm,
+      contains(
+        'pictureInPicturePlayer->setVolume(self.pictureInPictureVolume)',
+      ),
+    );
+    expect(fvpSpm, contains('@"volume": @(self.pictureInPictureVolume)'));
     expect(fvpIos, fvpSpm);
     expect(fvpDarwin, fvpSpm);
   });

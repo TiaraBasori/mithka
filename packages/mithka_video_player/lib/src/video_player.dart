@@ -350,6 +350,7 @@ class MithkaVideoPlayer extends StatefulWidget {
     this.onPrevious,
     this.onNext,
     this.onPositionChanged,
+    this.onVolumeChanged,
     this.onPlaybackStateChanged,
     this.onError,
     this.onRetry,
@@ -415,6 +416,10 @@ class MithkaVideoPlayer extends StatefulWidget {
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
   final ValueChanged<Duration>? onPositionChanged;
+
+  /// Reports user, keyboard, pointer, gesture, or programmatic volume changes.
+  /// Hosts can persist this normalized value when replacing playlist items.
+  final ValueChanged<double>? onVolumeChanged;
   final ValueChanged<MithkaVideoPlaybackState>? onPlaybackStateChanged;
   final MithkaVideoPlayerErrorCallback? onError;
   final MithkaVideoRetryCallback? onRetry;
@@ -559,8 +564,9 @@ class _MithkaVideoPlayerState extends State<MithkaVideoPlayer>
     _actions = _MithkaVideoActions(this);
     _validateConfiguration();
     WidgetsBinding.instance.addObserver(this);
-    _volume = widget.initialMuted ? 0 : widget.initialVolume ?? 1;
-    _lastAudibleVolume = widget.initialMuted ? 1 : _volume;
+    final initialAudibleVolume = widget.initialVolume ?? 1;
+    _volume = widget.initialMuted ? 0 : initialAudibleVolume;
+    _lastAudibleVolume = initialAudibleVolume > 0 ? initialAudibleVolume : 1;
     _speed = widget.initialPlaybackSpeed ?? 1;
     unawaited(_replaceController(rebuild: false));
   }
@@ -691,13 +697,13 @@ class _MithkaVideoPlayerState extends State<MithkaVideoPlayer>
       );
       return;
     }
-    final targetVolume = widget.initialMuted
-        ? 0.0
-        : widget.initialVolume ?? controller.value.volume;
+    final initialAudibleVolume =
+        widget.initialVolume ?? controller.value.volume;
+    final targetVolume = widget.initialMuted ? 0.0 : initialAudibleVolume;
     final targetSpeed =
         widget.initialPlaybackSpeed ?? controller.value.playbackSpeed;
     _volume = targetVolume;
-    _lastAudibleVolume = _volume > 0 ? _volume : 1;
+    _lastAudibleVolume = initialAudibleVolume > 0 ? initialAudibleVolume : 1;
     _speed = targetSpeed;
     _initializing = false;
     _error = null;
@@ -941,6 +947,15 @@ class _MithkaVideoPlayerState extends State<MithkaVideoPlayer>
     if (value.volume != _volume) {
       _volume = value.volume.clamp(0.0, 1.0);
       if (_volume > 0) _lastAudibleVolume = _volume;
+      // Initialization can briefly expose the backend's default level before
+      // the requested configuration is applied. It is not a host-initiated
+      // change and must not overwrite a persisted playlist volume.
+      if (!_initializing) {
+        _invokeCallback(
+          () => widget.onVolumeChanged?.call(_volume),
+          'while reporting a video volume change',
+        );
+      }
     }
     if (value.playbackSpeed != _speed) {
       _speed = value.playbackSpeed;
@@ -1173,6 +1188,10 @@ class _MithkaVideoPlayerState extends State<MithkaVideoPlayer>
     final next = value.clamp(0.0, 1.0).toDouble();
     if (next > 0) _lastAudibleVolume = next;
     _volume = next;
+    _invokeCallback(
+      () => widget.onVolumeChanged?.call(next),
+      'while reporting a video volume change',
+    );
     final controller = _controller;
     if (controller != null) {
       await _runCommand(() => controller.setVolume(next));
@@ -2131,15 +2150,22 @@ class _MithkaVideoPlayerState extends State<MithkaVideoPlayer>
     var fixedWidth = 44.0;
     if (mergeTransport && widget.onPrevious != null) fixedWidth += 48;
     if (mergeTransport && widget.onNext != null) fixedWidth += 48;
+
+    // Volume is a primary playback control. Reserve the mute target before
+    // optional presentation actions so even very narrow players do not lose
+    // their only audio control to fullscreen or picture-in-picture.
+    final showMute = availableWidth >= fixedWidth + 48;
+    if (showMute) fixedWidth += 48;
+    final volumeTrackWidth = wide ? 92.0 : 72.0;
+    final showVolume =
+        showMute && availableWidth >= fixedWidth + 6 + volumeTrackWidth;
+    if (showVolume) fixedWidth += 6 + volumeTrackWidth;
+
     final showFullscreen = hasFullscreen && availableWidth >= fixedWidth + 44;
     if (showFullscreen) fixedWidth += 44;
     final showPictureInPicture =
         hasPictureInPicture && availableWidth >= fixedWidth + 44;
     if (showPictureInPicture) fixedWidth += 44;
-    final showMute = availableWidth >= fixedWidth + 48;
-    if (showMute) fixedWidth += 48;
-    final showVolume = wide && showMute && availableWidth >= fixedWidth + 98;
-    if (showVolume) fixedWidth += 98;
     const speedWidth = 64.0;
     final showSpeed = availableWidth >= fixedWidth + speedWidth + 88;
     if (showSpeed) fixedWidth += speedWidth;
@@ -2177,14 +2203,15 @@ class _MithkaVideoPlayerState extends State<MithkaVideoPlayer>
           _controlButton(
             glyph: _volume == 0 ? _Glyph.muted : _Glyph.volume,
             label: _volume == 0 ? widget.labels.unmute : widget.labels.mute,
+            toggled: _volume == 0,
             onTap: () => unawaited(_toggleMute()),
           ),
         ],
         if (showVolume) ...[
           const SizedBox(width: 6),
           SizedBox(
-            width: 92,
-            height: 28,
+            width: volumeTrackWidth,
+            height: 44,
             child: MithkaVideoSlider(
               value: _volume,
               trackHeight: 3,

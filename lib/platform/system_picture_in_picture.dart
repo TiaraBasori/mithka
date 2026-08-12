@@ -21,12 +21,19 @@ final class SystemPictureInPictureSnapshot {
     required this.position,
     required this.playing,
     required this.speed,
+    required this.volume,
     required this.muted,
   });
 
   final Duration position;
   final bool playing;
   final double speed;
+
+  /// Normalized player gain in the inclusive range from 0 to 1.
+  ///
+  /// [muted] remains separate so a muted session can remember the gain that
+  /// should be restored when it is unmuted.
+  final double volume;
   final bool muted;
 }
 
@@ -92,6 +99,7 @@ class SystemPictureInPicture {
     required Uri uri,
     required Duration position,
     required double speed,
+    required double volume,
     required bool muted,
     required bool playing,
     required Size videoSize,
@@ -111,6 +119,7 @@ class SystemPictureInPicture {
       uri: uri,
       position: position,
       speed: speed,
+      volume: volume,
       muted: muted,
       playing: playing,
       videoSize: videoSize,
@@ -129,6 +138,7 @@ class SystemPictureInPicture {
       id: id,
       position: position,
       speed: speed,
+      volume: volume,
       muted: muted,
       playing: playing,
       videoSize: videoSize,
@@ -148,6 +158,7 @@ class SystemPictureInPicture {
     required Uri uri,
     required Duration position,
     required double speed,
+    required double volume,
     required bool muted,
     required bool playing,
     required Size videoSize,
@@ -175,6 +186,7 @@ class SystemPictureInPicture {
       uri: uri,
       position: position,
       speed: speed,
+      volume: volume,
       muted: muted,
       playing: playing,
       videoSize: videoSize,
@@ -216,6 +228,7 @@ class SystemPictureInPicture {
     required String id,
     required Duration position,
     required double speed,
+    required double volume,
     required bool muted,
     required bool playing,
     required Size videoSize,
@@ -235,6 +248,7 @@ class SystemPictureInPicture {
               id: id,
               position: position,
               speed: speed,
+              volume: volume,
               muted: muted,
               playing: playing,
               videoSize: videoSize,
@@ -253,6 +267,7 @@ class SystemPictureInPicture {
     required String id,
     required Duration position,
     required double speed,
+    required double volume,
     required bool muted,
     required bool playing,
     required Size videoSize,
@@ -272,6 +287,7 @@ class SystemPictureInPicture {
           id: id,
           position: position,
           speed: speed,
+          volume: volume,
           muted: muted,
           playing: playing,
           videoSize: videoSize,
@@ -423,6 +439,7 @@ class SystemPictureInPicture {
     Uri? uri,
     required Duration position,
     required double speed,
+    required double volume,
     required bool muted,
     required bool playing,
     required Size videoSize,
@@ -445,6 +462,7 @@ class SystemPictureInPicture {
       'playerId': ?playerId,
       'positionMs': position.inMilliseconds,
       'speed': speed,
+      'volume': _normalizedVolume(volume, muted: muted),
       'muted': muted,
       'playing': playing,
       'width': videoSize.width,
@@ -467,14 +485,27 @@ class SystemPictureInPicture {
     final speed = rawSpeed is num && rawSpeed.isFinite && rawSpeed > 0
         ? rawSpeed.toDouble()
         : 1.0;
+    final muted = arguments?['muted'] is bool
+        ? arguments!['muted'] as bool
+        : false;
     return SystemPictureInPictureSnapshot(
       position: _positionFromArguments(arguments) ?? Duration.zero,
       playing: arguments?['playing'] is bool
           ? arguments!['playing'] as bool
           : true,
       speed: speed,
-      muted: arguments?['muted'] is bool ? arguments!['muted'] as bool : false,
+      volume: _normalizedVolume(arguments?['volume'], muted: muted),
+      muted: muted,
     );
+  }
+
+  static double _normalizedVolume(Object? value, {required bool muted}) {
+    if (value is num && value.isFinite) {
+      return value.toDouble().clamp(0.0, 1.0);
+    }
+    // Older native implementations only reported the mute flag. Preserve
+    // their binary behavior while newer implementations retain exact gain.
+    return muted ? 0.0 : 1.0;
   }
 
   @visibleForTesting

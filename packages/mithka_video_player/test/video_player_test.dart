@@ -56,6 +56,178 @@ void main() {
   });
 
   testWidgets(
+    'compact chrome exposes continuous volume and restores the audible level',
+    (tester) async {
+      final controller = _FakeVideoPlayerController();
+      final reportedVolumes = <double>[];
+
+      await tester.pumpWidget(
+        _frame(
+          MithkaVideoPlayer(
+            source: _source('compact-volume'),
+            controller: controller,
+            autoplay: false,
+            initialVolume: 0.6,
+            onVolumeChanged: reportedVolumes.add,
+          ),
+          width: 320,
+          height: 568,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(reportedVolumes, isEmpty);
+      final volume = _sliderWithLabel('Volume');
+      expect(volume, findsOneWidget);
+      final volumeRect = tester.getRect(volume);
+      expect(volumeRect.size, const Size(72, 44));
+
+      const targetVolume = 0.25;
+      final volumeGesture = await tester.startGesture(
+        Offset(
+          volumeRect.left + 5 + (volumeRect.width - 10) * 0.6,
+          volumeRect.center.dy,
+        ),
+      );
+      await volumeGesture.moveTo(
+        Offset(
+          volumeRect.left + 5 + (volumeRect.width - 10) * targetVolume,
+          volumeRect.center.dy,
+        ),
+      );
+      await volumeGesture.up();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(controller.value.volume, closeTo(targetVolume, 0.001));
+      expect(reportedVolumes.last, closeTo(targetVolume, 0.001));
+
+      final semantics = tester.ensureSemantics();
+      expect(
+        tester.widget<Semantics>(_semanticsWidget('Mute')).properties.toggled,
+        isFalse,
+      );
+      final callbacksBeforeMute = reportedVolumes.length;
+      tester.semantics.tap(find.semantics.byLabel('Mute'));
+      await tester.pump();
+      expect(controller.value.volume, 0);
+      expect(reportedVolumes.last, 0);
+      expect(reportedVolumes, hasLength(callbacksBeforeMute + 1));
+      expect(_semanticsWidget('Unmute'), findsOneWidget);
+      expect(
+        tester.widget<Semantics>(_semanticsWidget('Unmute')).properties.toggled,
+        isTrue,
+      );
+
+      tester.semantics.tap(find.semantics.byLabel('Unmute'));
+      await tester.pump();
+      expect(controller.value.volume, closeTo(targetVolume, 0.001));
+      expect(reportedVolumes.last, closeTo(targetVolume, 0.001));
+      expect(reportedVolumes, hasLength(callbacksBeforeMute + 2));
+      semantics.dispose();
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await controller.dispose();
+    },
+  );
+
+  testWidgets('initial mute restores the configured audible volume', (
+    tester,
+  ) async {
+    final controller = _FakeVideoPlayerController();
+    final reportedVolumes = <double>[];
+
+    await tester.pumpWidget(
+      _frame(
+        MithkaVideoPlayer(
+          source: _source('initial-muted-volume'),
+          controller: controller,
+          autoplay: false,
+          initialMuted: true,
+          initialVolume: 0.35,
+          onVolumeChanged: reportedVolumes.add,
+        ),
+        width: 320,
+        height: 568,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(controller.value.volume, 0);
+    expect(reportedVolumes, isEmpty);
+    final semantics = tester.ensureSemantics();
+    tester.semantics.tap(find.semantics.byLabel('Unmute'));
+    await tester.pump();
+    expect(controller.value.volume, closeTo(0.35, 0.001));
+    expect(reportedVolumes, [closeTo(0.35, 0.001)]);
+    semantics.dispose();
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await controller.dispose();
+  });
+
+  testWidgets(
+    'responsive volume targets stay bounded and mute wins on micro layouts',
+    (tester) async {
+      final controller = _FakeVideoPlayerController();
+
+      for (final size in <Size>[
+        const Size(320, 568),
+        const Size(390, 844),
+        const Size(1024, 768),
+      ]) {
+        await tester.pumpWidget(
+          _frame(
+            MithkaVideoPlayer(
+              source: _source('responsive-volume'),
+              controller: controller,
+              autoplay: false,
+              onFullscreenChanged: (_) {},
+              onPictureInPictureChanged: (_) {},
+            ),
+            width: size.width,
+            height: size.height,
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final volumeRect = tester.getRect(_sliderWithLabel('Volume'));
+        final playerRect = tester.getRect(find.byType(MithkaVideoPlayer));
+        expect(volumeRect.height, 44);
+        expect(volumeRect.width, size.width >= 700 ? 92 : 72);
+        expect(playerRect.contains(volumeRect.topLeft), isTrue);
+        expect(playerRect.contains(volumeRect.bottomRight), isTrue);
+        expect(tester.takeException(), isNull);
+      }
+
+      await tester.pumpWidget(
+        _frame(
+          MithkaVideoPlayer(
+            source: _source('responsive-volume'),
+            controller: controller,
+            autoplay: false,
+            onFullscreenChanged: (_) {},
+            onPictureInPictureChanged: (_) {},
+          ),
+          width: 160,
+          height: 300,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(_sliderWithLabel('Volume'), findsNothing);
+      expect(_semanticsWidget('Mute'), findsOneWidget);
+      expect(_semanticsWidget('Fullscreen'), findsNothing);
+      expect(_semanticsWidget('Picture in picture'), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await controller.dispose();
+    },
+  );
+
+  testWidgets(
     'already-initialized caller controller renders before configuration',
     (tester) async {
       final controller = _FakeVideoPlayerController(initialized: true);
@@ -1143,9 +1315,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.byType(MithkaVideoSlider), findsOneWidget);
+    expect(_sliderWithLabel('Playback position'), findsOneWidget);
+    expect(_sliderWithLabel('Volume'), findsOneWidget);
 
-    final timeline = find.byType(MithkaVideoSlider);
+    final timeline = _sliderWithLabel('Playback position');
     final timelineRect = tester.getRect(timeline);
     final gesture = await tester.startGesture(timelineRect.center);
     await gesture.moveTo(
@@ -1320,7 +1493,7 @@ void main() {
 
     await tester.pumpWidget(player('first-scrub'));
     await tester.pumpAndSettle();
-    final timeline = find.byType(MithkaVideoSlider);
+    final timeline = _sliderWithLabel('Playback position');
     final gesture = await tester.startGesture(tester.getCenter(timeline));
     await gesture.moveBy(const Offset(40, 0));
     await tester.pump();
@@ -1402,7 +1575,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final timeline = find.byType(MithkaVideoSlider);
+    final timeline = _sliderWithLabel('Playback position');
     final gesture = await tester.startGesture(tester.getCenter(timeline));
     await gesture.moveBy(const Offset(30, 0));
     await tester.pump();
@@ -1440,7 +1613,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tapAt(tester.getCenter(find.byType(MithkaVideoSlider)));
+      await tester.tapAt(
+        tester.getCenter(_sliderWithLabel('Playback position')),
+      );
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 1));
       expect(_controlOpacity(tester), 1);
@@ -1543,7 +1718,7 @@ void main() {
       expect(find.byType(MithkaVideoSlider), findsOneWidget);
       expect(tester.takeException(), isNull, reason: 'overlap at $size');
 
-      final timeline = tester.getRect(find.byType(MithkaVideoSlider));
+      final timeline = tester.getRect(_sliderWithLabel('Playback position'));
       final previous = tester.getRect(_semanticsWidget('Previous video'));
       final play = tester.getRect(_semanticsWidget('Play'));
       final next = tester.getRect(_semanticsWidget('Next video'));
@@ -1583,7 +1758,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final gesture = await tester.startGesture(
-      tester.getCenter(find.byType(MithkaVideoSlider)),
+      tester.getCenter(_sliderWithLabel('Playback position')),
     );
     await gesture.moveBy(const Offset(20, 0));
     await tester.pump();
@@ -1619,7 +1794,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final timeline = find.byType(MithkaVideoSlider);
+    final timeline = _sliderWithLabel('Playback position');
     var gesture = await tester.startGesture(tester.getCenter(timeline));
     await gesture.moveBy(const Offset(20, 0));
     await tester.pump(const Duration(milliseconds: 199));
@@ -1791,6 +1966,10 @@ MithkaVideoSource _source(String id) =>
 
 Finder _semanticsWidget(String label) => find.byWidgetPredicate(
   (widget) => widget is Semantics && widget.properties.label == label,
+);
+
+Finder _sliderWithLabel(String label) => find.byWidgetPredicate(
+  (widget) => widget is MithkaVideoSlider && widget.semanticLabel == label,
 );
 
 Widget _frame(

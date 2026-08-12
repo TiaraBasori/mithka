@@ -33,6 +33,7 @@ void main() {
       'positionMs': 12345.4,
       'playing': false,
       'speed': 1.5,
+      'volume': 0.37,
       'muted': true,
     });
 
@@ -55,6 +56,7 @@ void main() {
     expect(restoredSnapshot?.position, const Duration(milliseconds: 12345));
     expect(restoredSnapshot?.playing, isFalse);
     expect(restoredSnapshot?.speed, 1.5);
+    expect(restoredSnapshot?.volume, 0.37);
     expect(restoredSnapshot?.muted, isTrue);
 
     expect(
@@ -125,6 +127,7 @@ void main() {
           'positionMs': -10,
           'playing': 'invalid',
           'speed': double.nan,
+          'volume': double.nan,
           'muted': 1,
         }),
       ),
@@ -133,8 +136,48 @@ void main() {
     expect(snapshot?.position, Duration.zero);
     expect(snapshot?.playing, isTrue);
     expect(snapshot?.speed, 1.0);
+    expect(snapshot?.volume, 1.0);
     expect(snapshot?.muted, isFalse);
   });
+
+  test(
+    'snapshot volume is normalized and supports legacy mute-only data',
+    () async {
+      final snapshots = <SystemPictureInPictureSnapshot>[];
+      SystemPictureInPicture.debugRegisterSession(
+        id: 'normalized-volume',
+        onRestoreRequested: (snapshot) {
+          snapshots.add(snapshot);
+          return true;
+        },
+      );
+      await SystemPictureInPicture.debugHandleNativeCallback(
+        const MethodCall('restoreRequested', {
+          'id': 'normalized-volume',
+          'volume': 2.5,
+          'muted': false,
+        }),
+      );
+      SystemPictureInPicture.debugRegisterSession(
+        id: 'legacy-muted',
+        onRestoreRequested: (snapshot) {
+          snapshots.add(snapshot);
+          return true;
+        },
+      );
+      await SystemPictureInPicture.debugHandleNativeCallback(
+        const MethodCall('restoreRequested', {
+          'id': 'legacy-muted',
+          'muted': true,
+        }),
+      );
+
+      expect(snapshots[0].volume, 1.0);
+      expect(snapshots[0].muted, isFalse);
+      expect(snapshots[1].volume, 0.0);
+      expect(snapshots[1].muted, isTrue);
+    },
+  );
 
   test('missing and stopped sessions reject restore', () async {
     expect(
@@ -184,6 +227,7 @@ void main() {
         'positionMs': 1200,
         'playing': true,
         'speed': 1.25,
+        'volume': 0.62,
         'muted': false,
       });
 
@@ -208,6 +252,7 @@ void main() {
           'positionMs': 2400,
           'playing': false,
           'speed': 1.25,
+          'volume': 0.48,
           'muted': false,
         }),
         fromActivePlayer: false,
@@ -228,6 +273,8 @@ void main() {
       expect(actions, [SystemPictureInPictureAction.pause]);
       expect(snapshots[0].position, const Duration(milliseconds: 1200));
       expect(snapshots[1].position, const Duration(milliseconds: 2400));
+      expect(snapshots[0].volume, 0.62);
+      expect(snapshots[1].volume, 0.48);
 
       await SystemPictureInPicture.debugHandleNativeCallback(
         started,
@@ -264,6 +311,7 @@ void main() {
         position: Duration(seconds: 37),
         playing: false,
         speed: 1.5,
+        volume: 0.28,
         muted: true,
       ),
       streamQuery: (_) async => {
@@ -292,6 +340,7 @@ void main() {
     expect(restored.initialPosition, const Duration(seconds: 37));
     expect(restored.initialPlaying, isFalse);
     expect(restored.initialSpeed, 1.5);
+    expect(restored.initialVolume, 0.28);
     expect(restored.initialMuted, isTrue);
 
     appNavigatorKey.currentState!.pop();

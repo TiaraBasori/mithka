@@ -322,6 +322,8 @@ class SystemPictureInPicturePlugin : FlutterPlugin, MethodChannel.MethodCallHand
         "positionMs" to ((preparedArguments["positionMs"] as? Number)?.toLong() ?: 0L),
         "playing" to (preparedArguments["playing"] == true),
         "speed" to ((preparedArguments["speed"] as? Number)?.toDouble() ?: 1.0),
+        "volume" to ((preparedArguments["volume"] as? Number)?.toDouble()
+            ?: if (preparedArguments["muted"] == true) 0.0 else 1.0),
         "muted" to (preparedArguments["muted"] == true),
     )
 

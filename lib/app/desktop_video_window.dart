@@ -199,6 +199,7 @@ class _DesktopVideoWindowPlayerState extends State<_DesktopVideoWindowPlayer> {
       uri: arguments.uri,
       position: value.position,
       speed: value.playbackSpeed,
+      volume: value.volume,
       muted: value.volume <= 0.001,
       playing: value.isPlaying,
       videoSize: videoSize,

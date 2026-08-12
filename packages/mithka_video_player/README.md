@@ -16,8 +16,9 @@ does not require Material, Cupertino, or their built-in icon fonts.
 - Previous/play/next navigation, replay, mute, volume, playback speed, seek,
   buffered progress, captions, controlled fullscreen and picture-in-picture
   callbacks, and scrub previews where supported.
-- Compact controls for narrow layouts and larger controls with inline volume
-  on wide tablet/desktop layouts.
+- Compact controls with a continuous inline volume track at standard phone
+  widths, plus a longer track on wide tablet/desktop layouts. Space-constrained
+  players retain mute before optional presentation actions whenever it fits.
 - High-contrast, configurable default transport chrome plus a safe-area-aware
   top-trailing slot for project actions and finite inline menus.
 - Keyboard, pointer, touch, touch-region double-tap seek, desktop double-click
@@ -297,8 +298,10 @@ border, and a 70% black shadow with 12-pixel blur and a three-pixel vertical
 offset. The gradient uses 50% black at the top and 88% black at the bottom so
 unfilled secondary actions and timeline text remain legible over bright frames.
 Default center transports are 44/56 logical pixels on compact layouts and
-56/68 on wide layouts, with 8- and 12-pixel gaps respectively. All interactive
-controls retain a minimum 44-pixel target.
+56/68 on wide layouts, with 8- and 12-pixel gaps respectively. The default
+volume track is 72 pixels wide on compact layouts and 92 pixels on wide
+layouts. All interactive controls, including the volume track, retain a
+minimum 44-pixel target height.
 
 Override only the concrete values your project owns:
 
@@ -346,6 +349,13 @@ For built-in chrome shorter than 220 logical pixels, the player merges
 previous/play/next into the bottom action row and tightens its edge spacing.
 This keeps real 160x90 and 220x124 embedded players usable without overlapping
 a separate center transport over the timeline.
+
+Volume changes use normalized values from 0 to 1 on every backend. The default
+chrome provides a continuous 44-pixel-high control when the layout can fit it
+and retains mute as the fallback on micro embeds. Use `onVolumeChanged` to
+persist the selected level across playlist items or routes. Custom chrome can
+read `scope.snapshot.volume` and call `scope.actions.setVolume(...)` or
+`scope.actions.toggleMute()` without depending on platform-specific widgets.
 
 When `isFullscreen` is true, the default chrome and captions add the current
 `MediaQuery` safe-area insets to their edge spacing. Embedded layouts retain

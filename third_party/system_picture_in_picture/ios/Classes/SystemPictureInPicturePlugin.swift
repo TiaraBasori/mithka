@@ -119,6 +119,11 @@ public final class SystemPictureInPicturePlugin: NSObject, FlutterPlugin,
   }
 
   private func applyPlaybackArguments(_ args: [String: Any], to player: AVPlayer, shouldSeek: Bool) {
+    if let volume = (args["volume"] as? NSNumber)?.doubleValue,
+      volume.isFinite
+    {
+      player.volume = Float(min(1, max(0, volume)))
+    }
     player.isMuted = args["muted"] as? Bool ?? false
     preferredRate = (args["speed"] as? NSNumber)?.floatValue ?? 1.0
     preferredPlaying = args["playing"] as? Bool ?? true
@@ -317,6 +322,7 @@ public final class SystemPictureInPicturePlugin: NSObject, FlutterPlugin,
         "positionMs": positionMilliseconds(player),
         "playing": player.timeControlStatus != .paused,
         "speed": preferredRate,
+        "volume": player.volume,
         "muted": player.isMuted,
       ]
     ) { response in

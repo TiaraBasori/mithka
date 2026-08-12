@@ -331,6 +331,11 @@ private final class MacOSSystemPictureInPicturePlugin: NSObject, FlutterPlugin,
     to player: AVPlayer,
     shouldSeek: Bool
   ) {
+    if let volume = (arguments["volume"] as? NSNumber)?.doubleValue,
+      volume.isFinite
+    {
+      player.volume = Float(min(1, max(0, volume)))
+    }
     player.isMuted = arguments["muted"] as? Bool ?? false
     preferredRate = (arguments["speed"] as? NSNumber)?.floatValue ?? 1
     preferredPlaying = arguments["playing"] as? Bool ?? true
@@ -536,6 +541,7 @@ private final class MacOSSystemPictureInPicturePlugin: NSObject, FlutterPlugin,
         "positionMs": positionMilliseconds(player),
         "playing": player.timeControlStatus != .paused,
         "speed": preferredRate,
+        "volume": player.volume,
         "muted": player.isMuted,
       ]
     ) { response in

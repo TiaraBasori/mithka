@@ -13,6 +13,7 @@
 #import <CoreVideo/CoreVideo.h>
 #import <Metal/Metal.h>
 #include <atomic>
+#include <cmath>
 #include <functional>
 #include <mutex>
 #include <unordered_map>
@@ -354,6 +355,7 @@ static UIViewController* _Nullable PictureInPictureRootViewController() {
 @property(assign, nonatomic) BOOL pictureInPictureStartRequested;
 @property(assign, nonatomic) double pictureInPictureRate;
 @property(assign, nonatomic) BOOL pictureInPictureRestoreAccepted;
+@property(assign, nonatomic) double pictureInPictureVolume;
 @property(assign, nonatomic) BOOL pictureInPictureMuted;
 #endif
 @end
@@ -390,6 +392,7 @@ static UIViewController* _Nullable PictureInPictureRootViewController() {
     pictureInPictureTextureId = -1;
     _pictureInPictureRate = 1.0;
     _pictureInPictureRestoreAccepted = NO;
+    _pictureInPictureVolume = 1.0;
     _pictureInPictureMuted = NO;
     _pictureInPictureChannel = [FlutterMethodChannel
         methodChannelWithName:@"mithka/fvp_picture_in_picture"
@@ -496,6 +499,10 @@ static UIViewController* _Nullable PictureInPictureRootViewController() {
         pictureInPictureTextureId = textureId;
         self.pictureInPictureId = sessionId;
         self.pictureInPictureRestoreAccepted = NO;
+        self.pictureInPictureVolume = std::fmin(
+            1.0,
+            std::fmax(0.0, pictureInPicturePlayer->volume())
+        );
         self.pictureInPictureRate = [args[@"speed"] doubleValue] > 0.0
             ? [args[@"speed"] doubleValue]
             : 1.0;
@@ -639,6 +646,15 @@ static UIViewController* _Nullable PictureInPictureRootViewController() {
                               allowSeek:(BOOL)allowSeek {
     if (!pictureInPicturePlayer)
         return;
+    NSNumber* volume = args[@"volume"];
+    if ([volume isKindOfClass:[NSNumber class]] &&
+        std::isfinite(volume.doubleValue)) {
+        self.pictureInPictureVolume = std::fmin(
+            1.0,
+            std::fmax(0.0, volume.doubleValue)
+        );
+        pictureInPicturePlayer->setVolume(self.pictureInPictureVolume);
+    }
     NSNumber* muted = args[@"muted"];
     if ([muted isKindOfClass:[NSNumber class]]) {
         self.pictureInPictureMuted = muted.boolValue;
@@ -796,6 +812,7 @@ static UIViewController* _Nullable PictureInPictureRootViewController() {
     self.pictureInPictureStartRequested = NO;
     self.pictureInPictureRate = 1.0;
     self.pictureInPictureRestoreAccepted = NO;
+    self.pictureInPictureVolume = 1.0;
     self.pictureInPictureMuted = NO;
 
     if (notifyFlutter && stoppedId) {
@@ -871,6 +888,7 @@ static UIViewController* _Nullable PictureInPictureRootViewController() {
                @"positionMs": @(positionMs),
                @"playing": @(pictureInPicturePlayer->state() == State::Playing),
                @"speed": @(self.pictureInPictureRate),
+               @"volume": @(self.pictureInPictureVolume),
                @"muted": @(self.pictureInPictureMuted),
            }
               result:^(id response) {
