@@ -110,14 +110,14 @@ jobs:
           test "$dsym_uuid" = "$binary_uuid"
           echo "ARCHIVE_PATH=$archive_path" >> "$GITHUB_ENV"
 
-      - name: Upload archive to App Store Connect
+      - name: Export and upload IPA to App Store Connect
         run: |
           set -euo pipefail
           export_options="$RUNNER_TEMP/UploadOptions-iOS.plist"
           upload_path="$RUNNER_TEMP/iOSUpload"
           plutil -create xml1 "$export_options"
           plutil -insert method -string app-store-connect "$export_options"
-          plutil -insert destination -string upload "$export_options"
+          plutil -insert destination -string export "$export_options"
           plutil -insert signingStyle -string automatic "$export_options"
           plutil -insert teamID -string "$DEVELOPMENT_TEAM" "$export_options"
           plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
@@ -131,6 +131,16 @@ jobs:
             -authenticationKeyPath "$ASC_KEY_PATH" \
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+          ipa_count="$(find "$upload_path" -maxdepth 1 -type f -name '*.ipa' -print | wc -l | tr -d ' ')"
+          test "$ipa_count" -eq 1
+          ipa="$(find "$upload_path" -maxdepth 1 -type f -name '*.ipa' -print -quit)"
+          API_PRIVATE_KEYS_DIR="$(dirname "$ASC_KEY_PATH")" \
+            xcrun altool --upload-package "$ipa" \
+              --api-key "$ASC_KEY_ID" \
+              --api-issuer "$ASC_ISSUER_ID" \
+              --wait \
+              --output-format json
 
       - name: Retain uploaded IPA for release verification
         uses: actions/upload-artifact@v6
