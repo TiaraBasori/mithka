@@ -27,7 +27,7 @@ echo "== Build IPA =="
 flutter build ipa --release --export-options-plist=ios/ExportOptions.app-store-connect.plist
 
 ARCHIVE="$REPO_ROOT/build/ios/archive/Runner.xcarchive"
-TDJSON_DSYM="$ARCHIVE/dSYMs/libtdjson.1.8.65.dylib.dSYM"
+TDJSON_DSYM="$ARCHIVE/dSYMs/tdjson.framework.dSYM"
 EXPECTED_UUID="CE86A2AF-6906-3CDF-B0F1-5494F3271F7D"
 
 if ! /usr/bin/dwarfdump --uuid "$TDJSON_DSYM" | grep -q "$EXPECTED_UUID"; then
