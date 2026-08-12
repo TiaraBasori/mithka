@@ -133,7 +133,9 @@ jobs:
 
           ipa_path="$(find "$export_path" -maxdepth 1 -name '*.ipa' -print | sort | tail -1)"
           test -n "$ipa_path"
-          unzip -Z1 "$ipa_path" | grep -Eq '^SwiftSupport/iphoneos/libswift.+\.dylib$'
+          ipa_listing="$RUNNER_TEMP/iOS-ipa-contents.txt"
+          unzip -Z1 "$ipa_path" > "$ipa_listing"
+          grep -Eq '^SwiftSupport/iphoneos/libswift.+\.dylib$' "$ipa_listing"
 
       - name: Upload archive to App Store Connect
         run: |

@@ -50,7 +50,9 @@ if [[ -z "$IPA" ]]; then
   exit 1
 fi
 
-if ! unzip -Z1 "$IPA" | grep -Eq '^SwiftSupport/iphoneos/libswift.+\.dylib$'; then
+IPA_LISTING="$REPO_ROOT/build/ios/ipa-appstore/contents.txt"
+unzip -Z1 "$IPA" > "$IPA_LISTING"
+if ! grep -Eq '^SwiftSupport/iphoneos/libswift.+\.dylib$' "$IPA_LISTING"; then
   echo "error: exported IPA is missing SwiftSupport/iphoneos (ITMS-90426)" >&2
   exit 1
 fi
