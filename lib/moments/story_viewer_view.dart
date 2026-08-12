@@ -12,11 +12,11 @@ import 'dart:async';
 
 import 'dart:io';
 
+import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-import 'package:mithka_video_player/mithka_video_player.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
@@ -950,7 +950,7 @@ class _StoryViewerViewState extends State<StoryViewerView>
                   Expanded(
                     child: SizedBox(
                       height: 44,
-                      child: MithkaVideoSlider(
+                      child: FVideoSlider(
                         key: const ValueKey('storyVolumeSlider'),
                         value: _videoVolume,
                         trackHeight: 3,

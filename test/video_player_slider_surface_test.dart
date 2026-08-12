@@ -13,22 +13,15 @@ void main() {
     final videoNoteSource = File(
       'lib/chat/video_note_preview_view.dart',
     ).readAsStringSync();
-    final source = File(
-      'packages/mithka_video_player/lib/src/video_slider.dart',
-    ).readAsStringSync();
-
-    expect(appSource, contains('MithkaVideoSlider('));
+    expect(appSource, contains("package:f_videoplayer/f_videoplayer.dart"));
+    expect(appSource, contains('FVideoSlider('));
     expect(storySource, contains("ValueKey('storyVolumeSlider')"));
-    expect(storySource, contains('MithkaVideoSlider('));
+    expect(storySource, contains('FVideoSlider('));
     expect(videoNoteSource, contains("ValueKey('videoNoteVolumeSlider')"));
-    expect(videoNoteSource, contains('MithkaVideoSlider('));
+    expect(videoNoteSource, contains('FVideoSlider('));
     expect(<String>[
       storySource,
       videoNoteSource,
     ], everyElement(isNot(matches(RegExp(r'\b(?:Icons|CupertinoIcons)\.')))));
-    expect(source, contains('class MithkaVideoSlider'));
-    expect(source, contains('CustomPaint('));
-    expect(source, isNot(contains('SliderTheme(')));
-    expect(source, isNot(contains('child: Slider(')));
   });
 }

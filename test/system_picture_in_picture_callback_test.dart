@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:f_videoplayer_pip/f_video_picture_in_picture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,19 +8,18 @@ import 'package:mithka/app/app_navigator.dart';
 import 'package:mithka/chat/video_playback_queue.dart';
 import 'package:mithka/chat/video_player_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-import 'package:mithka/platform/system_picture_in_picture.dart';
 import 'package:mithka/tdlib/td_models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(SystemPictureInPicture.debugClearSessions);
-  tearDown(SystemPictureInPicture.debugClearSessions);
+  setUp(FVideoPictureInPicture.debugClearSessions);
+  tearDown(FVideoPictureInPicture.debugClearSessions);
 
   test('restore snapshot is routed once to its registered backend', () async {
     var restoreCalls = 0;
-    SystemPictureInPictureSnapshot? restoredSnapshot;
-    SystemPictureInPicture.debugRegisterSession(
+    FVideoPictureInPictureSnapshot? restoredSnapshot;
+    FVideoPictureInPicture.debugRegisterSession(
       id: 'video-1',
       usesActivePlayer: true,
       onRestoreRequested: (snapshot) {
@@ -38,7 +38,7 @@ void main() {
     });
 
     expect(
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         call,
         fromActivePlayer: false,
       ),
@@ -46,7 +46,7 @@ void main() {
     );
     expect(restoreCalls, 0);
     expect(
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         call,
         fromActivePlayer: true,
       ),
@@ -60,7 +60,7 @@ void main() {
     expect(restoredSnapshot?.muted, isTrue);
 
     expect(
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         call,
         fromActivePlayer: true,
       ),
@@ -74,7 +74,7 @@ void main() {
     final cleanupGate = Completer<void>();
     final events = <String>[];
     Duration? stoppedPosition;
-    SystemPictureInPicture.debugRegisterSession(
+    FVideoPictureInPicture.debugRegisterSession(
       id: 'video-2',
       usesActivePlayer: false,
       onStop: (position) async {
@@ -86,13 +86,13 @@ void main() {
     );
     const call = MethodCall('didStop', {'id': 'video-2', 'positionMs': 45678});
 
-    await SystemPictureInPicture.debugHandleNativeCallback(
+    await FVideoPictureInPicture.debugHandleNativeCallback(
       call,
       fromActivePlayer: true,
     );
     expect(events, isEmpty, reason: 'a callback from another backend is stale');
 
-    final stopping = SystemPictureInPicture.debugHandleNativeCallback(
+    final stopping = FVideoPictureInPicture.debugHandleNativeCallback(
       call,
       fromActivePlayer: false,
     );
@@ -103,7 +103,7 @@ void main() {
     await stopping;
     expect(events, ['cleanup-start', 'cleanup-end']);
 
-    await SystemPictureInPicture.debugHandleNativeCallback(
+    await FVideoPictureInPicture.debugHandleNativeCallback(
       call,
       fromActivePlayer: false,
     );
@@ -111,8 +111,8 @@ void main() {
   });
 
   test('invalid snapshots are safe and callback failures are denied', () async {
-    SystemPictureInPictureSnapshot? snapshot;
-    SystemPictureInPicture.debugRegisterSession(
+    FVideoPictureInPictureSnapshot? snapshot;
+    FVideoPictureInPicture.debugRegisterSession(
       id: 'video-3',
       onRestoreRequested: (value) {
         snapshot = value;
@@ -121,7 +121,7 @@ void main() {
     );
 
     expect(
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         const MethodCall('restoreRequested', {
           'id': 'video-3',
           'positionMs': -10,
@@ -143,29 +143,29 @@ void main() {
   test(
     'snapshot volume is normalized and supports legacy mute-only data',
     () async {
-      final snapshots = <SystemPictureInPictureSnapshot>[];
-      SystemPictureInPicture.debugRegisterSession(
+      final snapshots = <FVideoPictureInPictureSnapshot>[];
+      FVideoPictureInPicture.debugRegisterSession(
         id: 'normalized-volume',
         onRestoreRequested: (snapshot) {
           snapshots.add(snapshot);
           return true;
         },
       );
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         const MethodCall('restoreRequested', {
           'id': 'normalized-volume',
           'volume': 2.5,
           'muted': false,
         }),
       );
-      SystemPictureInPicture.debugRegisterSession(
+      FVideoPictureInPicture.debugRegisterSession(
         id: 'legacy-muted',
         onRestoreRequested: (snapshot) {
           snapshots.add(snapshot);
           return true;
         },
       );
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         const MethodCall('restoreRequested', {
           'id': 'legacy-muted',
           'muted': true,
@@ -181,18 +181,18 @@ void main() {
 
   test('missing and stopped sessions reject restore', () async {
     expect(
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         const MethodCall('restoreRequested', {'id': 'missing'}),
       ),
       isFalse,
     );
 
-    SystemPictureInPicture.debugRegisterSession(id: 'video-4');
-    await SystemPictureInPicture.debugHandleNativeCallback(
+    FVideoPictureInPicture.debugRegisterSession(id: 'video-4');
+    await FVideoPictureInPicture.debugHandleNativeCallback(
       const MethodCall('didStop', {'id': 'video-4'}),
     );
     expect(
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         const MethodCall('restoreRequested', {'id': 'video-4'}),
       ),
       isFalse,
@@ -203,9 +203,9 @@ void main() {
     'Android enter, actions, restore, and dismissal retain one session',
     () async {
       final events = <String>[];
-      final snapshots = <SystemPictureInPictureSnapshot>[];
-      final actions = <SystemPictureInPictureAction>[];
-      SystemPictureInPicture.debugRegisterSession(
+      final snapshots = <FVideoPictureInPictureSnapshot>[];
+      final actions = <FVideoPictureInPictureAction>[];
+      FVideoPictureInPicture.debugRegisterSession(
         id: 'android-video',
         usesActivePlayer: false,
         onEntered: (snapshot) {
@@ -231,22 +231,22 @@ void main() {
         'muted': false,
       });
 
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         started,
         fromActivePlayer: false,
       );
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         started,
         fromActivePlayer: false,
       );
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         const MethodCall('actionRequested', {
           'id': 'android-video',
           'action': 'pause',
         }),
         fromActivePlayer: false,
       );
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         const MethodCall('didRestore', {
           'id': 'android-video',
           'positionMs': 2400,
@@ -257,11 +257,11 @@ void main() {
         }),
         fromActivePlayer: false,
       );
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         started,
         fromActivePlayer: false,
       );
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         const MethodCall('didStop', {
           'id': 'android-video',
           'positionMs': 3600,
@@ -270,13 +270,13 @@ void main() {
       );
 
       expect(events, ['entered', 'action', 'restored', 'entered', 'stopped']);
-      expect(actions, [SystemPictureInPictureAction.pause]);
+      expect(actions, [FVideoPictureInPictureAction.pause]);
       expect(snapshots[0].position, const Duration(milliseconds: 1200));
       expect(snapshots[1].position, const Duration(milliseconds: 2400));
       expect(snapshots[0].volume, 0.62);
       expect(snapshots[1].volume, 0.48);
 
-      await SystemPictureInPicture.debugHandleNativeCallback(
+      await FVideoPictureInPicture.debugHandleNativeCallback(
         started,
         fromActivePlayer: false,
       );
@@ -307,7 +307,7 @@ void main() {
 
     final accepted = await restoreVideoPlaybackFromPictureInPicture(
       queue: queue,
-      snapshot: const SystemPictureInPictureSnapshot(
+      snapshot: const FVideoPictureInPictureSnapshot(
         position: Duration(seconds: 37),
         playing: false,
         speed: 1.5,

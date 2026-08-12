@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
-import 'package:mithka_video_player/mithka_video_player.dart';
 import 'package:video_player/video_player.dart';
 
 import '../components/app_icons.dart';
@@ -354,7 +354,7 @@ class _VideoNotePreviewViewState extends State<VideoNotePreviewView> {
           Expanded(
             child: SizedBox(
               height: 44,
-              child: MithkaVideoSlider(
+              child: FVideoSlider(
                 key: const ValueKey('videoNoteVolumeSlider'),
                 value: _volume,
                 trackHeight: 3,

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:f_videoplayer/f_videoplayer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +11,6 @@ import 'package:mithka/chat/video_playback_queue.dart';
 import 'package:mithka/chat/video_player_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/td_models.dart';
-import 'package:mithka_video_player/mithka_video_player.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 // Used only to install a deterministic fake for the public video_player API.
 // ignore: depend_on_referenced_packages
@@ -93,7 +93,7 @@ void main() {
 
         for (
           var attempt = 0;
-          attempt < 40 && find.byType(MithkaVideoPlayer).evaluate().isEmpty;
+          attempt < 40 && find.byType(FVideoPlayer).evaluate().isEmpty;
           attempt++
         ) {
           await tester.runAsync(
@@ -114,14 +114,14 @@ void main() {
           Uri.file(sourcePath).toString(),
         );
         expect(platform.initializedEvents, 1);
-        expect(find.byType(MithkaVideoPlayer), findsOneWidget);
+        expect(find.byType(FVideoPlayer), findsOneWidget);
         expect(_timeline, findsOneWidget);
         expect(_volumeSlider, findsOneWidget);
 
         expect(tester.takeException(), isNull);
-        final playerRect = tester.getRect(find.byType(MithkaVideoPlayer));
-        final reusablePlayer = tester.widget<MithkaVideoPlayer>(
-          find.byType(MithkaVideoPlayer),
+        final playerRect = tester.getRect(find.byType(FVideoPlayer));
+        final reusablePlayer = tester.widget<FVideoPlayer>(
+          find.byType(FVideoPlayer),
         );
         final surfaceRect = tester.getRect(
           find.byKey(const ValueKey('fake-mobile-video-surface')),
@@ -960,10 +960,10 @@ void main() {
       expect(sourceUri.path, '/video/702.mp4');
       expect(dataSource.uri, isNot(contains(sparseFile.path)));
 
-      final reusablePlayer = tester.widget<MithkaVideoPlayer>(
-        find.byType(MithkaVideoPlayer),
+      final reusablePlayer = tester.widget<FVideoPlayer>(
+        find.byType(FVideoPlayer),
       );
-      expect(reusablePlayer.source.kind, MithkaVideoSourceKind.network);
+      expect(reusablePlayer.source.kind, FVideoSourceKind.network);
       expect(reusablePlayer.source.location, dataSource.uri);
       expect(
         query.requests.where((request) => request['@type'] == 'getFile'),
@@ -1073,9 +1073,9 @@ void main() {
           ),
           hasLength(1),
         );
-        expect(find.byType(MithkaVideoPlayer), findsOneWidget);
-        final completedFilePlayer = tester.widget<MithkaVideoPlayer>(
-          find.byType(MithkaVideoPlayer),
+        expect(find.byType(FVideoPlayer), findsOneWidget);
+        final completedFilePlayer = tester.widget<FVideoPlayer>(
+          find.byType(FVideoPlayer),
         );
         expect(completedFilePlayer.controller?.value.position, initialPosition);
 
@@ -1127,8 +1127,8 @@ void main() {
         );
         await _pumpUntilPlayerReady(tester);
 
-        final firstPlayer = tester.widget<MithkaVideoPlayer>(
-          find.byType(MithkaVideoPlayer),
+        final firstPlayer = tester.widget<FVideoPlayer>(
+          find.byType(FVideoPlayer),
         );
         final firstController = firstPlayer.controller!;
         const resumePosition = Duration(seconds: 17);
@@ -1159,8 +1159,8 @@ void main() {
           VideoViewType.textureView,
           VideoViewType.platformView,
         ]);
-        final replacement = tester.widget<MithkaVideoPlayer>(
-          find.byType(MithkaVideoPlayer),
+        final replacement = tester.widget<FVideoPlayer>(
+          find.byType(FVideoPlayer),
         );
         expect(replacement.controller?.value.position, resumePosition);
         expect(replacement.controller?.value.isPlaying, isTrue);
@@ -1180,14 +1180,14 @@ void main() {
           await tester.pump(const Duration(milliseconds: 10));
         }
         expect(find.text('Try again'), findsOneWidget);
-        expect(find.byType(MithkaVideoPlayer), findsNothing);
+        expect(find.byType(FVideoPlayer), findsNothing);
         expect(platform.disposedPlayerIds, [1, 2]);
 
         await tester.tap(find.text('Try again'));
         await _pumpUntilPlayerReady(tester);
         expect(platform.createCalls, 3);
-        final retriedPlayer = tester.widget<MithkaVideoPlayer>(
-          find.byType(MithkaVideoPlayer),
+        final retriedPlayer = tester.widget<FVideoPlayer>(
+          find.byType(FVideoPlayer),
         );
         expect(retriedPlayer.controller?.value.position, resumePosition);
         expect(retriedPlayer.controller?.value.isPlaying, isTrue);
@@ -1261,8 +1261,8 @@ void main() {
         expect(platform.createdPlayerIds, [1]);
         expect(platform.playCalls, 1);
 
-        final firstPlayer = tester.widget<MithkaVideoPlayer>(
-          find.byType(MithkaVideoPlayer),
+        final firstPlayer = tester.widget<FVideoPlayer>(
+          find.byType(FVideoPlayer),
         );
         final firstController = firstPlayer.controller!;
         const resumePosition = Duration(seconds: 37);
@@ -1272,7 +1272,7 @@ void main() {
         expect(firstController.value.isPlaying, isTrue);
 
         firstPlayer.onError?.call(
-          const MithkaVideoPlayerError('A non-fatal command failed.'),
+          const FVideoPlayerError('A non-fatal command failed.'),
         );
         await tester.pump(const Duration(milliseconds: 50));
         expect(
@@ -1308,8 +1308,8 @@ void main() {
           platform.creationOptions[0].dataSource.uri,
         );
 
-        final replacementPlayer = tester.widget<MithkaVideoPlayer>(
-          find.byType(MithkaVideoPlayer),
+        final replacementPlayer = tester.widget<FVideoPlayer>(
+          find.byType(FVideoPlayer),
         );
         final replacementController = replacementPlayer.controller!;
         expect(replacementController, isNot(same(firstController)));
@@ -1353,8 +1353,8 @@ void main() {
           hasLength(1),
         );
 
-        final completedFilePlayer = tester.widget<MithkaVideoPlayer>(
-          find.byType(MithkaVideoPlayer),
+        final completedFilePlayer = tester.widget<FVideoPlayer>(
+          find.byType(FVideoPlayer),
         );
         expect(completedFilePlayer.controller?.value.position, resumePosition);
         expect(completedFilePlayer.controller?.value.isPlaying, isTrue);
@@ -1431,8 +1431,8 @@ void main() {
       );
       await _pumpUntilPlayerReady(tester);
 
-      final firstPlayer = tester.widget<MithkaVideoPlayer>(
-        find.byType(MithkaVideoPlayer),
+      final firstPlayer = tester.widget<FVideoPlayer>(
+        find.byType(FVideoPlayer),
       );
       final firstController = firstPlayer.controller!;
       platform.emitBufferingStart(platform.createdPlayerIds.single);
@@ -1616,8 +1616,8 @@ void main() {
 
       expect(platform.seekPositions, [const Duration(seconds: 37)]);
       expect(platform.playCalls, 0);
-      final restoredPlayer = tester.widget<MithkaVideoPlayer>(
-        find.byType(MithkaVideoPlayer),
+      final restoredPlayer = tester.widget<FVideoPlayer>(
+        find.byType(FVideoPlayer),
       );
       expect(restoredPlayer.controller?.value.playbackSpeed, 1.5);
       expect(restoredPlayer.controller?.value.volume, 0.0);
@@ -1637,7 +1637,7 @@ Future<void> _pumpUntilPlayerReady(WidgetTester tester) async {
   );
   for (
     var attempt = 0;
-    attempt < 40 && find.byType(MithkaVideoPlayer).evaluate().isEmpty;
+    attempt < 40 && find.byType(FVideoPlayer).evaluate().isEmpty;
     attempt++
   ) {
     await tester.runAsync(
@@ -1675,12 +1675,12 @@ Future<void> _pumpUntilReplacementPlayerReady(
       () => Future<void>.delayed(const Duration(milliseconds: 5)),
     );
     await tester.pump(const Duration(milliseconds: 10));
-    final players = find.byType(MithkaVideoPlayer).evaluate();
+    final players = find.byType(FVideoPlayer).evaluate();
     if (platform.createCalls == expectedCalls &&
         platform.initializedEvents == expectedCalls &&
         players.length == 1 &&
         !identical(
-          (players.single.widget as MithkaVideoPlayer).controller,
+          (players.single.widget as FVideoPlayer).controller,
           previousController,
         )) {
       return;
@@ -1703,7 +1703,7 @@ Future<void> _pumpUntilPreviewGone(WidgetTester tester) async {
 
 final Finder _timeline = find.byWidgetPredicate(
   (widget) =>
-      widget is MithkaVideoSlider && widget.semanticLabel == 'Adjust progress',
+      widget is FVideoSlider && widget.semanticLabel == 'Adjust progress',
 );
 
 final Finder _volumeSlider = find.byKey(const ValueKey('video-volume-slider'));
