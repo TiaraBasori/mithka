@@ -109,34 +109,6 @@ jobs:
           test "$dsym_uuid" = "$binary_uuid"
           echo "ARCHIVE_PATH=$archive_path" >> "$GITHUB_ENV"
 
-      - name: Export and validate iOS IPA
-        run: |
-          set -euo pipefail
-          export_options="$RUNNER_TEMP/ExportOptions-iOS.plist"
-          export_path="$RUNNER_TEMP/iOSExport"
-          plutil -create xml1 "$export_options"
-          plutil -insert method -string app-store-connect "$export_options"
-          plutil -insert destination -string export "$export_options"
-          plutil -insert signingStyle -string automatic "$export_options"
-          plutil -insert teamID -string "$DEVELOPMENT_TEAM" "$export_options"
-          plutil -insert manageAppVersionAndBuildNumber -bool NO "$export_options"
-          plutil -insert stripSwiftSymbols -bool YES "$export_options"
-          plutil -insert uploadSymbols -bool YES "$export_options"
-          xcodebuild -exportArchive \
-            -archivePath "$ARCHIVE_PATH" \
-            -exportPath "$export_path" \
-            -exportOptionsPlist "$export_options" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
-
-          ipa_path="$(find "$export_path" -maxdepth 1 -name '*.ipa' -print | sort | tail -1)"
-          test -n "$ipa_path"
-          ipa_listing="$RUNNER_TEMP/iOS-ipa-contents.txt"
-          unzip -Z1 "$ipa_path" > "$ipa_listing"
-          grep -Eq '^SwiftSupport/iphoneos/libswift.+\.dylib$' "$ipa_listing"
-
       - name: Upload archive to App Store Connect
         run: |
           set -euo pipefail

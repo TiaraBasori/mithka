@@ -27,9 +27,10 @@ in a deactivated state for rollback and configuration history.
 
 Those conditions mirror the former iOS Xcode Cloud workflow. It prepares the
 same pinned native dependencies as Xcode Cloud, archives
-`ios/Runner.xcworkspace`, validates the TDLib dSYM and exported IPA SwiftSupport,
-uploads an App Store-eligible iOS build, and assigns the processed build to the
-same Internal and External TestFlight groups.
+`ios/Runner.xcworkspace`, verifies that the TDLib binary and dSYM UUIDs match,
+and uploads the archive through Xcode's App Store Connect destination so Apple
+performs the authoritative distribution validation, and assigns the processed
+build to the same Internal and External TestFlight groups.
 
 ## Deterministic build preparation
 
