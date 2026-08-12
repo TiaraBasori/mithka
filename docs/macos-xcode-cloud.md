@@ -70,9 +70,14 @@ The workflow reads these encrypted GitHub Actions repository secrets:
 - `APP_STORE_CONNECT_KEY_ID`
 - `APP_STORE_CONNECT_ISSUER_ID`
 - `APP_STORE_CONNECT_PRIVATE_KEY`
+- `IOS_SIGNING_CERTIFICATE_P12`
+- `IOS_SIGNING_CERTIFICATE_PASSWORD`
 
 The App Store Connect private key is written only to the runner's temporary
-directory and removed in the final cleanup step. `TESTFLIGHT_INTERNAL_GROUP`
+directory and removed in the final cleanup step. The Apple signing identity is
+imported into a temporary keychain so ephemeral runners reuse one managed
+certificate instead of consuming the Apple Development certificate quota; the
+keychain and PKCS#12 are removed in the same cleanup step. `TESTFLIGHT_INTERNAL_GROUP`
 and `TESTFLIGHT_EXTERNAL_GROUP` may be set as repository variables; they
 default to `Internal` and `External`.
 
