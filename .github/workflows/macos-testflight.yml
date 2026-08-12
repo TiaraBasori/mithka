@@ -71,8 +71,9 @@ jobs:
       - name: Set build identity
         run: |
           set -euo pipefail
+          build_number="$(sh scripts/apple_ci_build_number.sh "$GITHUB_SHA")"
           {
-            echo "CI_BUILD_NUMBER=$(date -u '+%s')"
+            echo "CI_BUILD_NUMBER=$build_number"
             echo "CI_COMMIT=$GITHUB_SHA"
             echo "CI_PRIMARY_REPOSITORY_PATH=$GITHUB_WORKSPACE"
             echo "CI_DERIVED_DATA_PATH=$RUNNER_TEMP/MithkaDerivedData"

@@ -48,9 +48,9 @@ The action uses Flutter 3.44.2 and delegates source preparation to
 The iOS action delegates preparation to `ios/ci_scripts/ci_post_clone.sh`. It
 recreates the ignored Firebase configuration, TDLib and TgVoip frameworks,
 Flutter generated inputs, Swift packages, and CocoaPods sandbox before the
-archive. GitHub's epoch build number overrides the source build number while
-the marketing version continues to use the major and minor components from
-`pubspec.yaml` with a zero patch component.
+archive. GitHub's commit-height build number overrides the source build number
+while the marketing version continues to use the major and minor components
+from `pubspec.yaml` with a zero patch component.
 
 The published TDLib input remains:
 
@@ -76,9 +76,12 @@ directory and removed in the final cleanup step. `TESTFLIGHT_INTERNAL_GROUP`
 and `TESTFLIGHT_EXTERNAL_GROUP` may be set as repository variables; they
 default to `Internal` and `External`.
 
-The build number is an epoch timestamp so every GitHub upload is greater than
-the previous Xcode Cloud build number and remains monotonic across branches.
-The marketing version keeps the major and minor components from
+The GitHub workflows derive the build number from the full Git commit height.
+They add the fixed migration offset `1786500000` because the first GitHub
+uploads used epoch timestamps, including iOS build `1786500062`; raw commit
+height cannot move backward within the existing `0.10.0` train. Xcode Cloud
+continues to supply its native `CI_BUILD_NUMBER` if either retained workflow is
+reactivated. The marketing version keeps the major and minor components from
 `pubspec.yaml` and forces the patch component to zero on both Apple platforms.
 
 ## App Store metadata prerequisite
