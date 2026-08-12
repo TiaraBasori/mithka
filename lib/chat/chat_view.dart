@@ -3796,6 +3796,7 @@ class _ChatViewState extends State<ChatView> {
       ),
       channelHasLinkedDiscussion: _vm.hasLinkedDiscussion,
       onOpenImage: _openImage,
+      onOpenImageGallery: _openImageGallery,
       onApplyMessageBubble: offersMessageBubbleApplyAction(message)
           ? (message) => unawaited(
               applyMessageBubbleRepositoryPhoto(
@@ -4238,6 +4239,13 @@ class _ChatViewState extends State<ChatView> {
         startIndex: start < 0 ? 0 : start,
       ),
     );
+  }
+
+  void _openImageGallery({
+    required List<TdFileRef> items,
+    required int startIndex,
+  }) {
+    unawaited(openImagePreview(context, items: items, startIndex: startIndex));
   }
 
   void _openSticker(ChatMessage message) {
