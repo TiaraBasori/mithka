@@ -157,6 +157,11 @@ module TestFlightGroupDistributor
     end
 
     def assign(build_id, group)
+      if group.dig("attributes", "hasAccessToAllBuilds")
+        puts "#{group.dig('attributes', 'name')}: automatic access to all builds"
+        return
+      end
+
       result = @client.post(
         "/betaGroups/#{group.fetch('id')}/relationships/builds",
         "data" => [{ "type" => "builds", "id" => build_id }]
