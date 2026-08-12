@@ -76,13 +76,12 @@ directory and removed in the final cleanup step. `TESTFLIGHT_INTERNAL_GROUP`
 and `TESTFLIGHT_EXTERNAL_GROUP` may be set as repository variables; they
 default to `Internal` and `External`.
 
-The GitHub workflows derive the build number from the full Git commit height.
-They add the fixed migration offset `1786500000` because the first GitHub
-uploads used epoch timestamps, including iOS build `1786500062`; raw commit
-height cannot move backward within the existing `0.10.0` train. Xcode Cloud
-continues to supply its native `CI_BUILD_NUMBER` if either retained workflow is
-reactivated. The marketing version keeps the major and minor components from
-`pubspec.yaml` and forces the patch component to zero on both Apple platforms.
+The GitHub workflows use the full Git commit height as the build number with an
+offset of zero. This starts with the `1.0.0` train, after the temporary
+epoch-numbered migration builds on `0.10.0`. Xcode Cloud continues to supply
+its native `CI_BUILD_NUMBER` if either retained workflow is reactivated. The
+marketing version keeps the major and minor components from `pubspec.yaml` and
+forces the patch component to zero on both Apple platforms.
 
 ## App Store metadata prerequisite
 

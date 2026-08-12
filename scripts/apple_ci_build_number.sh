@@ -1,10 +1,9 @@
 #!/bin/sh
 set -eu
 
-# The first GitHub Actions migration uploads used epoch timestamps, including
-# iOS build 1786500062. Keep later builds monotonic within the existing 0.10.0
-# train while deriving every new value deterministically from Git history.
-BUILD_NUMBER_OFFSET=1786500000
+# Apple build numbers are the full Git commit height. The 1.0.0 train starts
+# after the temporary epoch-numbered migration builds, so no offset is needed.
+BUILD_NUMBER_OFFSET=0
 COMMIT="${1:-HEAD}"
 
 COMMIT_HEIGHT="$(git rev-list --count "$COMMIT")"

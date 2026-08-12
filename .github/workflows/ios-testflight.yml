@@ -132,6 +132,14 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID"
 
+      - name: Retain uploaded IPA for release verification
+        uses: actions/upload-artifact@v6
+        with:
+          name: ios-app-store-ipa
+          path: ${{ runner.temp }}/iOSUpload/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Distribute to TestFlight groups
         env:
           TESTFLIGHT_INTERNAL_GROUP: ${{ vars.TESTFLIGHT_INTERNAL_GROUP || 'Internal' }}

@@ -4,11 +4,11 @@ require "minitest/autorun"
 require "open3"
 
 class AppleCiBuildNumberTest < Minitest::Test
-  OFFSET = 1_786_500_000
+  OFFSET = 0
   SCRIPT = File.expand_path("../../scripts/apple_ci_build_number.sh", __dir__)
   REPOSITORY = File.expand_path("../..", __dir__)
 
-  def test_build_number_is_migration_offset_plus_commit_height
+  def test_build_number_is_commit_height
     height = git("rev-list", "--count", "HEAD").to_i
 
     output, error, status = Open3.capture3("sh", SCRIPT, "HEAD", chdir: REPOSITORY)
