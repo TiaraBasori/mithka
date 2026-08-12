@@ -102,8 +102,11 @@ jobs:
             PROVISIONING_PROFILE_SPECIFIER=
 
           tdjson_dsym="$archive_path/dSYMs/tdjson.framework.dSYM"
-          expected_uuid='CE86A2AF-6906-3CDF-B0F1-5494F3271F7D'
-          /usr/bin/dwarfdump --uuid "$tdjson_dsym" | grep -q "$expected_uuid"
+          tdjson_binary="$archive_path/Products/Applications/Runner.app/Frameworks/tdjson.framework/tdjson"
+          binary_uuid="$(/usr/bin/dwarfdump --uuid "$tdjson_binary" | awk 'NR == 1 { print $2 }')"
+          dsym_uuid="$(/usr/bin/dwarfdump --uuid "$tdjson_dsym" | awk 'NR == 1 { print $2 }')"
+          test -n "$binary_uuid"
+          test "$dsym_uuid" = "$binary_uuid"
           echo "ARCHIVE_PATH=$archive_path" >> "$GITHUB_ENV"
 
       - name: Export and validate iOS IPA
