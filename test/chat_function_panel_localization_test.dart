@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -46,6 +47,14 @@ void main() {
     expect(find.text('视频消息'), findsNothing);
     expect(find.text('联系人'), findsOneWidget);
     expect(find.text('定时消息'), findsOneWidget);
+
+    if (Platform.isMacOS) {
+      expect(
+        find.byKey(const ValueKey('desktopComposerVoiceAction')),
+        findsNothing,
+      );
+      return;
+    }
 
     await tester.tap(find.byIcon(HeroAppIcons.microphone.data));
     await tester.pump();

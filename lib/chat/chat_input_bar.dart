@@ -1442,6 +1442,7 @@ class _ChatInputBarState extends State<ChatInputBar> {
   // MARK: - Voice recording
 
   void _toggleVoice() {
+    if (Platform.isMacOS) return;
     _focus.unfocus();
     _setPanel(_panel == _Panel.voice ? _Panel.none : _Panel.voice);
     if (_panel == _Panel.voice) {
@@ -5368,15 +5369,16 @@ class _ChatInputBarState extends State<ChatInputBar> {
                       ),
                     ),
                   ),
-                  _desktopIcon(
-                    key: const ValueKey('desktopComposerVoiceAction'),
-                    icon: HeroAppIcons.microphone,
-                    semanticLabel: AppStrings.t(
-                      AppStringKeys.composerHoldToTalk,
+                  if (!Platform.isMacOS)
+                    _desktopIcon(
+                      key: const ValueKey('desktopComposerVoiceAction'),
+                      icon: HeroAppIcons.microphone,
+                      semanticLabel: AppStrings.t(
+                        AppStringKeys.composerHoldToTalk,
+                      ),
+                      active: _panel == _Panel.voice,
+                      onTap: _toggleVoice,
                     ),
-                    active: _panel == _Panel.voice,
-                    onTap: _toggleVoice,
-                  ),
                   _desktopIcon(
                     key: const ValueKey('desktopComposerImageAction'),
                     icon: HeroAppIcons.image,
@@ -5746,11 +5748,12 @@ class _ChatInputBarState extends State<ChatInputBar> {
     if (!_usesNativeDesktopComposer(context) || vm.editingMessage != null) {
       return;
     }
+    String? path;
     try {
       final capture =
           widget.desktopScreenshotCapture ??
           DesktopScreenshotService.captureInteractiveRegion;
-      final path = await capture();
+      path = await capture();
       if (!mounted || path == null || path.trim().isEmpty) return;
       _focus.unfocus();
       await _previewAndSendAttachments([
@@ -5765,6 +5768,10 @@ class _ChatInputBarState extends State<ChatInputBar> {
       if (mounted) {
         _pickFailed(AppStringKeys.composerScreenshot.l10n(context));
       }
+    } finally {
+      // Screen captures are user-selected temporary data. Keep them only for
+      // the review/send flow and remove the local PNG after that flow ends.
+      if (path != null) await _deleteTempFile(path);
     }
   }
 
