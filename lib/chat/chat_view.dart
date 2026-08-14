@@ -1160,6 +1160,7 @@ class _ChatViewState extends State<ChatView> {
   bool _prioritizingSessionUnread = false;
   bool _preserveSnapshotAfterFailedSessionJump = false;
   bool _initialTranscriptReady = false;
+  bool _initialTranscriptPositionCancelled = false;
   final Set<int> _transcriptPointersDown = <int>{};
   bool _bottomScrollScheduled = false;
   bool _scheduledBottomAnimated = true;
@@ -1532,7 +1533,12 @@ class _ChatViewState extends State<ChatView> {
       unawaited(_loadOlderFromScroll());
     }
     final nearBottom = _isNearBottom(80);
-    if (_isAtLoadedBottom(1)) _autoScrollPolicy.returnToBottom();
+    if (_isAtLoadedBottom(1)) {
+      _autoScrollPolicy.returnToBottom();
+      if (!_hasTranscriptPointerDown) {
+        _transcriptViewportClaimedByUser = false;
+      }
+    }
     if (nearBottom &&
         (_liveNewMessageCount > 0 ||
             (!_openAtLatest && !_bannerDismissed && _vm.unreadCount > 0))) {
@@ -1631,8 +1637,19 @@ class _ChatViewState extends State<ChatView> {
 
   bool get _hasTranscriptPointerDown => _transcriptPointersDown.isNotEmpty;
 
+  bool get _initialTranscriptPositioningAborted =>
+      _initialTranscriptPositionCancelled ||
+      _hasTranscriptPointerDown ||
+      _transcriptViewportClaimedByUser;
+
   void _onTranscriptPointerDown(PointerDownEvent event) {
     _transcriptPointersDown.add(event.pointer);
+    if (!_initialTranscriptReady) {
+      _initialTranscriptPositionCancelled = true;
+      // Let the first real drag claim the viewport immediately, even if the
+      // opening unread correction has not completed its first frame yet.
+      _initialTranscriptReady = true;
+    }
     _cancelSessionReopenNavigation();
     // A hold cancels an in-flight driven scroll immediately. It does not claim
     // the viewport permanently unless it becomes an actual drag.
@@ -1648,6 +1665,9 @@ class _ChatViewState extends State<ChatView> {
     _scheduleShortTranscriptFill();
     _scheduleSessionScrollAnchorMaintenance();
     _scheduleRestoredBottomCorrection();
+    if (!_hasTranscriptPointerDown && _isAtLoadedBottom(1)) {
+      _transcriptViewportClaimedByUser = false;
+    }
     if (!_hasTranscriptPointerDown) _drainReturnToLatestIntent();
   }
 
@@ -1999,7 +2019,11 @@ class _ChatViewState extends State<ChatView> {
     _scheduleShortFirstContactReveal();
   }
 
-  void _scheduleScrollToBottom({bool animated = true}) {
+  void _scheduleScrollToBottom({
+    bool animated = true,
+    bool userInitiated = false,
+  }) {
+    if (userInitiated) _transcriptViewportClaimedByUser = false;
     final generation = _bottomFollow.begin();
     _scheduledBottomGeneration = generation;
     if (_bottomScrollScheduled) {
@@ -2051,6 +2075,7 @@ class _ChatViewState extends State<ChatView> {
       mounted &&
       _scroll.hasClients &&
       !_hasTranscriptPointerDown &&
+      !_transcriptViewportClaimedByUser &&
       !_vm.anchoredHistory &&
       !_autoScrollPolicy.preservesViewport &&
       _scrollTargetId == null;
@@ -2118,6 +2143,7 @@ class _ChatViewState extends State<ChatView> {
         _bannerDismissed = _vm.unreadCount <= 0;
       });
     }
+    _transcriptViewportClaimedByUser = false;
     _scheduleScrollToBottom();
     _markReadAtBottomIfNeeded();
   }
@@ -2125,6 +2151,7 @@ class _ChatViewState extends State<ChatView> {
   void _requestReturnToLatest({bool userInitiated = false}) {
     if (!userInitiated && _hasTranscriptPointerDown) return;
     if (userInitiated) {
+      _transcriptViewportClaimedByUser = false;
       _cancelSessionReopenNavigation(userClaimedViewport: true);
       _restoredPositionGuard.cancel();
       _cancelSessionScrollAnchorMaintenance();
@@ -2181,7 +2208,7 @@ class _ChatViewState extends State<ChatView> {
       _requestReturnToLatest(userInitiated: true);
       return;
     }
-    _scheduleScrollToBottom();
+    _scheduleScrollToBottom(userInitiated: true);
   }
 
   void _onComposerPanelGeometryChanged() {
@@ -2204,7 +2231,7 @@ class _ChatViewState extends State<ChatView> {
       _requestReturnToLatest(userInitiated: true);
       return;
     }
-    _scheduleScrollToBottom(animated: false);
+    _scheduleScrollToBottom(animated: false, userInitiated: true);
   }
 
   void _playMusicMessage(ChatMessage message) {
@@ -2538,7 +2565,9 @@ class _ChatViewState extends State<ChatView> {
       revealRequested: _revealLoadedOlderPage,
     );
     final followingLatest =
-        !_autoScrollPolicy.preservesViewport && !_maintainSessionScrollAnchor;
+        !_autoScrollPolicy.preservesViewport &&
+        !_maintainSessionScrollAnchor &&
+        !_transcriptViewportClaimedByUser;
     final hasMessageOlderThanPivot =
         _transcriptPivot != null &&
         _vm.messages.any(
@@ -2550,17 +2579,20 @@ class _ChatViewState extends State<ChatView> {
       latestArmIsShort: latestArmIsShort,
       hasMessageOlderThanPivot: hasMessageOlderThanPivot,
       followingLatest: followingLatest,
+      viewportClaimedByUser: _transcriptViewportClaimedByUser,
     );
     final parkedShortArm = shouldRebaseParkedShortTranscriptPivot(
       pivotCutoffMessageId: _transcriptPivot?.cutoffMessageId,
       latestArmIsShort: latestArmIsShort,
       hasMessageOlderThanPivot: hasMessageOlderThanPivot,
       followingLatest: followingLatest,
+      viewportClaimedByUser: _transcriptViewportClaimedByUser,
     );
     final wasPinnedToLoadedBottom =
         _didInitialScroll &&
         !_hasTranscriptPointerDown &&
         !_isUserScrolling &&
+        !_transcriptViewportClaimedByUser &&
         !_autoScrollPolicy.preservesViewport &&
         _scrollTargetId == null &&
         _isAtLoadedBottom(2);
@@ -2659,6 +2691,7 @@ class _ChatViewState extends State<ChatView> {
           !_vm.anchoredHistory &&
           appendedNewest &&
           !_hasTranscriptPointerDown &&
+          !_transcriptViewportClaimedByUser &&
           !_isUserScrolling &&
           _autoScrollPolicy.shouldFollowAppendedMessage(
             wasNearBottom: wasNearBottom,
@@ -2738,6 +2771,7 @@ class _ChatViewState extends State<ChatView> {
       });
     }
     if ((wasPinnedToLoadedBottom || rebasedParkedShortArm) &&
+        !_transcriptViewportClaimedByUser &&
         !_bottomScrollScheduled) {
       _scheduleScrollToBottom(animated: false);
     }
@@ -2792,6 +2826,7 @@ class _ChatViewState extends State<ChatView> {
           mounted &&
           _maintainRestoredBottom &&
           !_hasTranscriptPointerDown &&
+          !_transcriptViewportClaimedByUser &&
           !_vm.anchoredHistory &&
           _scrollTargetId == null &&
           _scroll.hasClients,
@@ -2833,9 +2868,18 @@ class _ChatViewState extends State<ChatView> {
       await _positionInitialTranscript();
     }
     if (!mounted) return;
+    if (_initialTranscriptPositioningAborted) {
+      setState(() => _initialTranscriptReady = true);
+      return;
+    }
     if (_repairParkedShortTranscriptPivot()) {
       await WidgetsBinding.instance.endOfFrame;
-      if (mounted && _scroll.hasClients) _scrollToBottom();
+      if (!mounted) return;
+      if (_initialTranscriptPositioningAborted) {
+        setState(() => _initialTranscriptReady = true);
+        return;
+      }
+      if (_canFollowLoadedBottom()) _scrollToBottom();
     }
     if (!mounted) return;
     setState(() => _initialTranscriptReady = true);
@@ -2845,13 +2889,20 @@ class _ChatViewState extends State<ChatView> {
 
   Future<void> _restoreSessionScrollPosition() async {
     final snapshot = _sessionScrollSnapshot;
-    if (snapshot == null || !_scroll.hasClients) return;
+    if (snapshot == null ||
+        !_scroll.hasClients ||
+        _initialTranscriptPositioningAborted) {
+      return;
+    }
     if (_hasSessionScrollAnchor) {
       final anchorMessageId = snapshot.anchorMessageId!;
       for (var attempt = 0; attempt < 4; attempt++) {
+        if (_initialTranscriptPositioningAborted) return;
         if (_restoreSessionScrollAnchor(snapshot)) {
           await WidgetsBinding.instance.endOfFrame;
-          if (mounted && _scroll.hasClients) {
+          if (mounted &&
+              _scroll.hasClients &&
+              !_initialTranscriptPositioningAborted) {
             _restoreSessionScrollAnchor(snapshot);
           }
           return;
@@ -2859,7 +2910,11 @@ class _ChatViewState extends State<ChatView> {
         final estimate = _estimateMessageOffset(anchorMessageId, 0);
         if (estimate != null) _scroll.jumpTo(estimate);
         await WidgetsBinding.instance.endOfFrame;
-        if (!mounted || !_scroll.hasClients) return;
+        if (!mounted ||
+            !_scroll.hasClients ||
+            _initialTranscriptPositioningAborted) {
+          return;
+        }
       }
       // A transcript can be evicted before its independently stored scroll
       // anchor. Raw pixels belong to that old centered window, so never apply
@@ -2877,26 +2932,41 @@ class _ChatViewState extends State<ChatView> {
       await _invalidateSessionSnapshotAndPositionCold();
       return;
     }
+    if (_initialTranscriptPositioningAborted) return;
     _jumpToSessionScrollSnapshot(snapshot);
     await WidgetsBinding.instance.endOfFrame;
-    if (!mounted || !_scroll.hasClients) return;
+    if (!mounted ||
+        !_scroll.hasClients ||
+        _initialTranscriptPositioningAborted) {
+      return;
+    }
 
     var guard = 0;
     while (mounted &&
         _scroll.hasClients &&
+        !_initialTranscriptPositioningAborted &&
         _vm.canLoadOlder &&
         snapshot.pixels + 24 < _scroll.position.minScrollExtent &&
         guard < 6) {
       final loaded = await _vm.loadOlderLocal();
       if (!loaded) break;
       await WidgetsBinding.instance.endOfFrame;
+      if (_initialTranscriptPositioningAborted) return;
       guard++;
     }
 
-    if (!mounted || !_scroll.hasClients) return;
+    if (!mounted ||
+        !_scroll.hasClients ||
+        _initialTranscriptPositioningAborted) {
+      return;
+    }
     _jumpToSessionScrollSnapshot(snapshot);
     await WidgetsBinding.instance.endOfFrame;
-    if (!mounted || !_scroll.hasClients) return;
+    if (!mounted ||
+        !_scroll.hasClients ||
+        _initialTranscriptPositioningAborted) {
+      return;
+    }
     _jumpToSessionScrollSnapshot(snapshot);
     _saveSessionScrollSnapshot();
   }
@@ -2954,12 +3024,17 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Future<void> _positionInitialTranscript() async {
-    if (!_scroll.hasClients) return;
+    if (!_scroll.hasClients || _initialTranscriptPositioningAborted) return;
     _jumpToInitialEstimate();
     for (var i = 0; i < 3; i++) {
       await WidgetsBinding.instance.endOfFrame;
-      if (!mounted || !_scroll.hasClients) return;
+      if (!mounted ||
+          !_scroll.hasClients ||
+          _initialTranscriptPositioningAborted) {
+        return;
+      }
       await _correctInitialPosition();
+      if (_initialTranscriptPositioningAborted) return;
     }
   }
 
@@ -3003,7 +3078,9 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Future<bool> _correctInitialPosition() async {
-    if (!_scroll.hasClients) return false;
+    if (!_scroll.hasClients || _initialTranscriptPositioningAborted) {
+      return false;
+    }
     final i = _firstUnreadIndex();
     final boundaryLoaded = _isUnreadBoundaryLoaded();
     final decision = resolveChatInitialViewportTarget(
@@ -3025,6 +3102,7 @@ class _ChatViewState extends State<ChatView> {
           _targetKey,
           alignment: _initialTargetAlignment,
         );
+        if (_initialTranscriptPositioningAborted) return false;
         if (corrected && mounted && _scrollTargetId == target) {
           setState(() => _setScrollTarget(null));
         }
@@ -3253,7 +3331,7 @@ class _ChatViewState extends State<ChatView> {
       if (!_repairParkedShortTranscriptPivot()) return;
       setState(() {});
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _scroll.hasClients) _scrollToBottom();
+        if (mounted && _canFollowLoadedBottom()) _scrollToBottom();
       });
     });
   }
@@ -3265,7 +3343,9 @@ class _ChatViewState extends State<ChatView> {
         (_vm.anchoredHistory && !_isTranscriptShort()) ||
         _maintainSessionScrollAnchor ||
         _autoScrollPolicy.preservesViewport ||
-        _scrollTargetId != null) {
+        _scrollTargetId != null ||
+        _initialTranscriptPositionCancelled ||
+        _transcriptViewportClaimedByUser) {
       return false;
     }
     final pivot = _transcriptPivot;
@@ -3279,6 +3359,7 @@ class _ChatViewState extends State<ChatView> {
       hasMessageOlderThanPivot: hasOlder,
       followingLatest: true,
       hasExplicitMessageTarget: widget.initialMessageId != null,
+      viewportClaimedByUser: _transcriptViewportClaimedByUser,
     )) {
       return false;
     }
@@ -3289,13 +3370,18 @@ class _ChatViewState extends State<ChatView> {
   }
 
   Future<void> _fillShortTranscript() async {
-    if (!mounted || !_scroll.hasClients || !_vm.initialLoaded) return;
+    if (!mounted ||
+        !_scroll.hasClients ||
+        !_vm.initialLoaded ||
+        _initialTranscriptPositionCancelled) {
+      return;
+    }
     // Repair does not need another network page: history may already sit in
     // before-center under a frozen pivot.
     if (_repairParkedShortTranscriptPivot()) {
       setState(() {});
       await WidgetsBinding.instance.endOfFrame;
-      if (mounted && _scroll.hasClients) _scrollToBottom();
+      if (mounted && _canFollowLoadedBottom()) _scrollToBottom();
     }
     if (!mounted ||
         !_scroll.hasClients ||
@@ -3303,6 +3389,8 @@ class _ChatViewState extends State<ChatView> {
         _maintainSessionScrollAnchor ||
         _autoScrollPolicy.preservesViewport ||
         _scrollTargetId != null ||
+        _initialTranscriptPositionCancelled ||
+        _transcriptViewportClaimedByUser ||
         !_vm.canLoadOlder) {
       return;
     }
@@ -3345,7 +3433,7 @@ class _ChatViewState extends State<ChatView> {
     if (_repairParkedShortTranscriptPivot()) {
       setState(() {});
       await WidgetsBinding.instance.endOfFrame;
-      if (mounted && _scroll.hasClients) {
+      if (mounted && _canFollowLoadedBottom()) {
         _scrollToBottom();
         return;
       }
@@ -3366,6 +3454,8 @@ class _ChatViewState extends State<ChatView> {
         generation == _shortTranscriptFillGeneration &&
         _scroll.hasClients &&
         !_hasTranscriptPointerDown &&
+        !_initialTranscriptPositionCancelled &&
+        !_transcriptViewportClaimedByUser &&
         !(_vm.anchoredHistory && !_isTranscriptShort()) &&
         !_maintainSessionScrollAnchor &&
         !_autoScrollPolicy.preservesViewport &&
@@ -3750,6 +3840,8 @@ class _ChatViewState extends State<ChatView> {
     ChatMessage message,
     int messageIndex, {
     List<ChatMessage> groupedMedia = const <ChatMessage>[],
+    int? targetMediaMessageId,
+    GlobalKey? targetMediaKey,
   }) {
     if (groupedMedia.isEmpty) {
       _vm.ensureMessageCapabilities(message);
@@ -3766,6 +3858,8 @@ class _ChatViewState extends State<ChatView> {
       message: message,
       selected: _selectedMessageIds.contains(message.id),
       groupedMedia: groupedMedia,
+      targetMediaMessageId: targetMediaMessageId,
+      targetMediaKey: targetMediaKey,
       translationDisplayStyle: _translation.displayStyle,
       showOriginalTranslationMessageIds: _showOriginalTranslationMessageIds,
       peerTitle: _vm.peerTitle,
@@ -7762,29 +7856,12 @@ class _ChatViewState extends State<ChatView> {
       final ctx = activeKey.currentContext;
       if (ctx != null && ctx.mounted) {
         if (pinnedJump && alignment == null && _scroll.hasClients) {
-          final targetObject = ctx.findRenderObject();
-          final viewportObject = _transcriptViewportKey.currentContext
-              ?.findRenderObject();
-          if (targetObject is RenderBox &&
-              targetObject.attached &&
-              viewportObject is RenderBox &&
-              viewportObject.attached) {
-            final target = pinnedMessageTargetScrollOffset(
-              _scroll.position,
-              targetTop: targetObject.localToGlobal(Offset.zero).dy,
-              viewportTop: viewportObject.localToGlobal(Offset.zero).dy,
-            );
-            if ((target - _scroll.position.pixels).abs() > 0.5) {
-              if (instant) {
-                _scroll.jumpTo(target);
-              } else {
-                await _scroll.animateTo(
-                  target,
-                  duration: const Duration(milliseconds: 140),
-                  curve: Curves.easeOutCubic,
-                );
-              }
-            }
+          final aligned = await _alignPinnedMessage(
+            messageId,
+            instant: instant,
+            isCancelled: isCancelled,
+          );
+          if (aligned) {
             if (mounted && _scrollTargetId == messageId) {
               setState(() => _setScrollTarget(null));
             }
@@ -7800,6 +7877,7 @@ class _ChatViewState extends State<ChatView> {
           }
           return !(isCancelled?.call() ?? false);
         }
+        if (!mounted || !ctx.mounted) return false;
         await Scrollable.ensureVisible(
           ctx,
           alignment: targetAlignment,
@@ -7827,32 +7905,69 @@ class _ChatViewState extends State<ChatView> {
     return false;
   }
 
+  /// Aligns a pinned target more than once because media rows can finish a
+  /// thumbnail decode while the first scroll animation is still laying out.
+  /// The old one-shot calculation consequently landed the containing album a
+  /// few pixels above or below the pinned banner, especially on Android.
+  Future<bool> _alignPinnedMessage(
+    int messageId, {
+    required bool instant,
+    bool Function()? isCancelled,
+  }) async {
+    for (var pass = 0; pass < 3; pass++) {
+      if (isCancelled?.call() ?? false) return false;
+      final activeKey = _scrollTargetId == messageId ? _targetKey : _pinnedKey;
+      final targetObject = activeKey.currentContext?.findRenderObject();
+      final viewportObject = _transcriptViewportKey.currentContext
+          ?.findRenderObject();
+      if (targetObject is! RenderBox ||
+          !targetObject.attached ||
+          viewportObject is! RenderBox ||
+          !viewportObject.attached ||
+          !_scroll.hasClients) {
+        return false;
+      }
+      final target = pinnedMessageTargetScrollOffset(
+        _scroll.position,
+        targetTop: targetObject.localToGlobal(Offset.zero).dy,
+        viewportTop: viewportObject.localToGlobal(Offset.zero).dy,
+      );
+      if ((target - _scroll.position.pixels).abs() <= 0.5) return true;
+      if (instant) {
+        _scroll.jumpTo(target);
+      } else {
+        await _scroll.animateTo(
+          target,
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOutCubic,
+        );
+      }
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    return true;
+  }
+
   bool _isKeyMostlyVisible(GlobalKey key) {
     final ctx = key.currentContext;
     if (ctx == null) return false;
     final renderObject = ctx.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.attached) return false;
-    final padding = MediaQuery.paddingOf(context);
-    final origin = renderObject.localToGlobal(Offset.zero);
-    final rect = origin & renderObject.size;
-    // Search replaces the whole header, translation panel and header bottom
-    // included, with the field plus its filter strip.
-    final viewportTop =
-        padding.top +
-        widget.headerHeight +
-        (_search.isActive
-            ? ChatSearchFilterStrip.height
-            : (widget.headerBottom == null ? 0 : widget.headerBottomHeight)) +
-        (widget.showHeaderDivider ? 1 : 0);
-    // _keyboardInset mirrors MediaQuery.viewInsetsOf; reading the field keeps
-    // this state element off the viewInsets aspect, which the keyboard
-    // animates every frame.
-    final viewportBottom =
-        MediaQuery.sizeOf(context).height -
-        _keyboardInset -
-        padding.bottom -
-        72;
-    return rect.top >= viewportTop - 24 && rect.bottom <= viewportBottom + 24;
+    final viewportObject = _transcriptViewportKey.currentContext
+        ?.findRenderObject();
+    if (viewportObject is! RenderBox || !viewportObject.attached) return false;
+    final targetTop = renderObject.localToGlobal(Offset.zero).dy;
+    final targetBottom = targetTop + renderObject.size.height;
+    final viewportTop = viewportObject.localToGlobal(Offset.zero).dy;
+    final viewportBottom = viewportTop + viewportObject.size.height;
+    final pinnedOverlayInset =
+        !_search.isActive && _vm.pinnedMessage != null && !_vm.pinnedDismissed
+        ? pinnedMessageTargetTopInset
+        : 0.0;
+    // The viewport already excludes the header, bottom composer, keyboard,
+    // and safe areas. Comparing against those widgets' assumed heights was the
+    // source of false "already visible" results after an Android resize.
+    return targetTop >= viewportTop + pinnedOverlayInset - 24 &&
+        targetBottom <= viewportBottom + 24;
   }
 
   Widget _transcript() {
@@ -8135,6 +8250,7 @@ class _ChatViewState extends State<ChatView> {
           !positioned &&
           !_showingFullyVisibleFirstContactHistory &&
           !_hasTranscriptPointerDown &&
+          !_transcriptViewportClaimedByUser &&
           !_autoScrollPolicy.preservesViewport) {
         _scheduleScrollToBottom(animated: false);
       }
@@ -8214,43 +8330,71 @@ class _ChatViewState extends State<ChatView> {
     final messageIndex = entry.startIndex;
     final isTarget = entry.messages.any((m) => m.id == _scrollTargetId);
     final isPinned = entry.messages.any((m) => m.id == _vm.pinnedMessage?.id);
+    final targetMessageId = isTarget
+        ? _scrollTargetId
+        : isPinned
+        ? _vm.pinnedMessage?.id
+        : null;
+    final targetKey = isTarget
+        ? _targetKey
+        : isPinned
+        ? _pinnedKey
+        : null;
+    final usesExactMediaTarget = entry.isImageGroup || entry.isDocumentGroup;
+    final Widget messageBody;
+    if (message.isService) {
+      messageBody = message.communityPreview != null
+          ? ChatCommunityServiceCard(
+              preview: message.communityPreview!,
+              label: message.text,
+              onView: () =>
+                  unawaited(_openCommunityPreview(message.communityPreview!)),
+            )
+          : message.appearancePreview == null
+          ? SystemBanner(text: message.text)
+          : ChatAppearanceMessagePreview(
+              preview: message.appearancePreview!,
+              label: message.text,
+              controller: _wallpaperController,
+              fallback: SystemBanner(text: message.text),
+            );
+    } else if (entry.isBlockedRun) {
+      messageBody = _blockedMessagePlaceholder(context, entry);
+    } else if (entry.isImageGroup) {
+      messageBody = _selectionEntry(
+        entry,
+        _imageGroupBubble(
+          entry.messages,
+          targetMessageId: targetMessageId,
+          targetKey: targetKey,
+        ),
+      );
+    } else if (entry.isDocumentGroup) {
+      messageBody = _selectionEntry(
+        entry,
+        _documentGroupBubble(
+          entry,
+          targetMessageId: targetMessageId,
+          targetKey: targetKey,
+        ),
+      );
+    } else {
+      messageBody = _selectionEntry(
+        entry,
+        _messageBubble(message, messageIndex),
+      );
+    }
+    final positionedMessageBody = usesExactMediaTarget || targetKey == null
+        ? messageBody
+        : KeyedSubtree(key: targetKey, child: messageBody);
     final content = Column(
-      key: isTarget
-          ? _targetKey
-          : isPinned
-          ? _pinnedKey
-          : null,
       mainAxisSize: MainAxisSize.min,
       children: [
         if (_needsUnreadDivider(messageIndex, messages: messages))
           KeyedSubtree(key: _unreadKey, child: _unreadDivider()),
         if (_needsSeparator(messageIndex, messages: messages))
           TimeSeparator(unix: message.date),
-        if (message.isService)
-          message.communityPreview != null
-              ? ChatCommunityServiceCard(
-                  preview: message.communityPreview!,
-                  label: message.text,
-                  onView: () => unawaited(
-                    _openCommunityPreview(message.communityPreview!),
-                  ),
-                )
-              : message.appearancePreview == null
-              ? SystemBanner(text: message.text)
-              : ChatAppearanceMessagePreview(
-                  preview: message.appearancePreview!,
-                  label: message.text,
-                  controller: _wallpaperController,
-                  fallback: SystemBanner(text: message.text),
-                )
-        else if (entry.isBlockedRun)
-          _blockedMessagePlaceholder(context, entry)
-        else if (entry.isImageGroup)
-          _selectionEntry(entry, _imageGroupBubble(entry.messages))
-        else if (entry.isDocumentGroup)
-          _selectionEntry(entry, _documentGroupBubble(entry))
-        else
-          _selectionEntry(entry, _messageBubble(message, messageIndex)),
+        positionedMessageBody,
       ],
     );
     final visibilityKey = _entryVisibilityKeys.putIfAbsent(
@@ -8719,17 +8863,31 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
-  Widget _documentGroupBubble(_TranscriptEntry entry) {
+  Widget _documentGroupBubble(
+    _TranscriptEntry entry, {
+    int? targetMessageId,
+    GlobalKey? targetKey,
+  }) {
     final owner = _mediaAlbumInteractionOwner(entry.messages);
     final ownerIndex = entry.startIndex + entry.messages.indexOf(owner);
-    return _messageBubble(owner, ownerIndex, groupedMedia: entry.messages);
+    return _messageBubble(
+      owner,
+      ownerIndex,
+      groupedMedia: entry.messages,
+      targetMediaMessageId: targetMessageId,
+      targetMediaKey: targetKey,
+    );
   }
 
   ChatMessage _mediaAlbumInteractionOwner(List<ChatMessage> group) {
     return selectMediaAlbumInteractionOwner(group);
   }
 
-  Widget _imageGroupBubble(List<ChatMessage> group) {
+  Widget _imageGroupBubble(
+    List<ChatMessage> group, {
+    int? targetMessageId,
+    GlobalKey? targetKey,
+  }) {
     ChatMessage? captionMessage;
     for (final message in group) {
       if (message.text.trim().isNotEmpty) {
@@ -8787,6 +8945,8 @@ class _ChatViewState extends State<ChatView> {
       onBotCommandTap: _sendCommand,
       onHashtagTap: _openHashtagSearch,
       onMentionTap: _openUserProfile,
+      targetMessageId: targetMessageId,
+      targetKey: targetKey,
     );
   }
 

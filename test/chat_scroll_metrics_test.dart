@@ -28,6 +28,24 @@ void main() {
     );
   });
 
+  test('user-owned transcript scroll cancels async latest corrections', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final followStart = source.indexOf('bool _canFollowLoadedBottom()');
+    final followEnd = source.indexOf(
+      'void _scheduleBottomGeometryFollow(',
+      followStart,
+    );
+
+    expect(followStart, greaterThanOrEqualTo(0));
+    expect(followEnd, greaterThan(followStart));
+    expect(
+      source.substring(followStart, followEnd),
+      contains('!_transcriptViewportClaimedByUser'),
+    );
+    expect(source, contains('_initialTranscriptPositionCancelled = true;'));
+    expect(source, contains('_initialTranscriptPositioningAborted'));
+  });
+
   test('targeted chats persist the position reached before exit', () {
     final source = File('lib/chat/chat_view.dart').readAsStringSync();
     final saveStart = source.indexOf(
