@@ -4060,7 +4060,8 @@ class ChannelPostRow extends StatelessWidget {
 
   bool get _hasReplyQuote =>
       message.replyToMessageId != null &&
-      (message.replyToPreview?.trim().isNotEmpty ?? false);
+      ((message.replyToPreview?.trim().isNotEmpty ?? false) ||
+          message.replyToImage != null);
 }
 
 class _PostReplyQuote extends StatelessWidget {
@@ -4073,6 +4074,9 @@ class _PostReplyQuote extends StatelessWidget {
     final c = context.colors;
     final sender = message.replyToSender?.trim();
     final preview = message.replyToPreview?.trim() ?? '';
+    final image = message.replyToImage;
+    final pixelRatio = MediaQuery.devicePixelRatioOf(context);
+    final hasText = (sender?.isNotEmpty ?? false) || preview.isNotEmpty;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(13, 10, 13, 10),
@@ -4080,23 +4084,49 @@ class _PostReplyQuote extends StatelessWidget {
         color: _momentQuoteFill(c),
         borderRadius: BorderRadius.circular(AppRadius.card),
       ),
-      child: RichText(
-        maxLines: 4,
-        overflow: TextOverflow.ellipsis,
-        text: TextSpan(
-          style: TextStyle(fontSize: 15, height: 1.35, color: c.textPrimary),
-          children: [
-            if (sender != null && sender.isNotEmpty)
-              TextSpan(
-                text: '$sender: ',
-                style: TextStyle(
-                  color: c.linkBlue,
-                  fontWeight: FontWeight.w500,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (image != null) ...[
+            SizedBox(
+              key: const ValueKey('momentsReplyMediaPreview'),
+              width: 52,
+              height: 52,
+              child: TDImage(
+                photo: image,
+                cornerRadius: 6,
+                cacheWidth: (52 * pixelRatio).round(),
+                cacheHeight: (52 * pixelRatio).round(),
+              ),
+            ),
+            if (hasText) const SizedBox(width: 10),
+          ],
+          if (hasText)
+            Expanded(
+              child: RichText(
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                text: TextSpan(
+                  style: TextStyle(
+                    fontSize: 15,
+                    height: 1.35,
+                    color: c.textPrimary,
+                  ),
+                  children: [
+                    if (sender != null && sender.isNotEmpty)
+                      TextSpan(
+                        text: '$sender: ',
+                        style: TextStyle(
+                          color: c.linkBlue,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    TextSpan(text: preview.replaceAll('\n', ' ')),
+                  ],
                 ),
               ),
-            TextSpan(text: preview.replaceAll('\n', ' ')),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }
