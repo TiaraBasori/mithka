@@ -4332,7 +4332,7 @@ class _ChatViewState extends State<ChatView> {
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (routeContext) => VideoPlaylistPlayerView(
+        builder: (routeContext) => VideoOnDemandPlayerView(
           queue: session.queue,
           initialMuted: muted,
           onSwitchMode: (queue, mode) =>
@@ -4370,6 +4370,7 @@ class _ChatViewState extends State<ChatView> {
           thumb: candidate.image,
           width: candidate.imageWidth,
           height: candidate.imageHeight,
+          durationSeconds: candidate.videoDuration,
           sourceChatId: widget.chatId,
           messageId: candidate.id,
           title: _videoPlaybackTitle(candidate),
