@@ -21,6 +21,27 @@ void main() {
     }
   });
 
+  test('macOS requests only capabilities implemented by the release app', () {
+    for (final path in [
+      'macos/Runner/DebugProfile.entitlements',
+      'macos/Runner/Release.entitlements',
+    ]) {
+      final entitlements = File(path).readAsStringSync();
+      expect(entitlements, contains('com.apple.security.device.audio-input'));
+      expect(entitlements, isNot(contains('com.apple.security.device.camera')));
+      expect(
+        entitlements,
+        isNot(contains('com.apple.security.personal-information.location')),
+      );
+    }
+
+    final info = File('macos/Runner/Info.plist').readAsStringSync();
+    expect(info, contains('NSMicrophoneUsageDescription'));
+    expect(info, contains('record voice messages you choose to send'));
+    expect(info, isNot(contains('NSCameraUsageDescription')));
+    expect(info, isNot(contains('NSLocationWhenInUseUsageDescription')));
+  });
+
   test('Apple targets share one app identifier for iCloud Keychain', () {
     final appInfo = File(
       'macos/Runner/Configs/AppInfo.xcconfig',
