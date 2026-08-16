@@ -88,6 +88,31 @@ void main() {
     );
   });
 
+  test('Apple GitHub workflows submit both TestFlight audiences', () {
+    for (final path in const [
+      '.github/workflows/ios-testflight.yml',
+      '.github/workflows/macos-testflight.yml',
+    ]) {
+      final workflow = File(path).readAsStringSync();
+      expect(
+        workflow,
+        contains('ruby scripts/distribute_testflight_groups.rb'),
+      );
+      expect(
+        workflow,
+        contains(r'--internal-group "$TESTFLIGHT_INTERNAL_GROUP"'),
+      );
+      expect(
+        workflow,
+        contains(r'--external-group "$TESTFLIGHT_EXTERNAL_GROUP"'),
+      );
+      expect(
+        workflow,
+        contains('Distribute internally and submit external Beta App Review'),
+      );
+    }
+  });
+
   test('macOS TestFlight always uses a zero patch marketing version', () {
     for (final testCase in const {
       '0.8.14': '0.8.0',
