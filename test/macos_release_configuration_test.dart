@@ -88,6 +88,48 @@ void main() {
     );
   });
 
+  test('macOS TestFlight always uses a zero patch marketing version', () {
+    for (final testCase in const {
+      '0.8.14': '0.8.0',
+      '1.0.0+282': '1.0.0',
+      '12.34.56+789': '12.34.0',
+    }.entries) {
+      final result = Process.runSync('sh', [
+        'scripts/macos_marketing_version.sh',
+        testCase.key,
+      ]);
+      expect(result.exitCode, 0, reason: result.stderr.toString());
+      expect(result.stdout.toString().trim(), testCase.value);
+    }
+
+    final invalid = Process.runSync('sh', [
+      'scripts/macos_marketing_version.sh',
+      '1.2',
+    ]);
+    expect(invalid.exitCode, isNonZero);
+
+    final postClone = File('ci_scripts/macos_post_clone.sh').readAsStringSync();
+    expect(
+      postClone,
+      contains(
+        r'APP_VERSION="$(sh "$REPO/scripts/macos_marketing_version.sh" '
+        r'"$RAW_VERSION")"',
+      ),
+    );
+    expect(postClone, contains(r'--build-name="$APP_VERSION"'));
+
+    final workflow = File(
+      '.github/workflows/macos-testflight.yml',
+    ).readAsStringSync();
+    expect(workflow, contains('- name: Verify macOS marketing version'));
+    expect(workflow, contains('scripts/macos_marketing_version.sh'));
+    expect(workflow, contains('CFBundleShortVersionString'));
+    expect(
+      workflow,
+      contains(r'if [[ "$actual_version" != "$expected_version" ]]; then'),
+    );
+  });
+
   test('Apple setup delegates macOS TDJSON to the shared wrapper', () {
     final script = File('ci_scripts/macos_post_clone.sh').readAsStringSync();
 

@@ -84,9 +84,11 @@ The GitHub workflows use the full Git commit height as the build number with an
 offset of zero. This starts with the `1.0.0` train, after the temporary
 epoch-numbered migration builds on `0.10.0`. Xcode Cloud continues to supply
 its native `CI_BUILD_NUMBER` if either retained workflow is reactivated. The
-marketing version preserves the complete semantic version from `pubspec.yaml`;
-nightly patch increments therefore move Apple builds to a new App Store Connect
-release train when the previous train is closed.
+macOS marketing version keeps the major and minor components from
+`pubspec.yaml` and always forces the patch component to `0`. The shared hook
+applies this rule in both GitHub Actions and the retained Xcode Cloud workflow,
+and GitHub verifies the archived app's `CFBundleShortVersionString` before
+uploading it to App Store Connect.
 
 ## App Store metadata prerequisite
 
