@@ -84,8 +84,10 @@ final class MacOSAppIconPlugin: NSObject, FlutterPlugin {
   @discardableResult
   private func applyIcon(named name: String) -> Bool {
     if name == Self.defaultIconName {
-      guard let source = Self.bundleIcon() else { return false }
-      NSApplication.shared.applicationIconImage = source
+      // nil tells AppKit to reload the signed bundle icon (Pengram.icns).
+      // NSImage.applicationIconName can resolve to the current runtime image
+      // after it has been changed, so it isn't suitable for resetting.
+      NSApplication.shared.applicationIconImage = nil
       NSApplication.shared.dockTile.display()
       return true
     }
@@ -121,35 +123,6 @@ final class MacOSAppIconPlugin: NSObject, FlutterPlugin {
     return Bundle(
       path: (frameworksPath as NSString).appendingPathComponent("App.framework")
     )
-  }
-
-  /// Loads the signed app icon directly instead of assigning `nil`, which
-  /// makes AppKit show its generic application artwork in the Dock.
-  static func bundleIcon(in bundle: Bundle = .main) -> NSImage? {
-    guard
-      let configuredName = bundle.object(
-        forInfoDictionaryKey: "CFBundleIconFile"
-      ) as? String,
-      !configuredName.isEmpty
-    else {
-      return nil
-    }
-
-    let configuredPath = configuredName as NSString
-    let resourceName = configuredPath.deletingPathExtension
-    let resourceExtension =
-      configuredPath.pathExtension.isEmpty
-      ? "icns"
-      : configuredPath.pathExtension
-    guard
-      let iconURL = bundle.url(
-        forResource: resourceName,
-        withExtension: resourceExtension
-      )
-    else {
-      return nil
-    }
-    return NSImage(contentsOf: iconURL)
   }
 
   /// Flutter's picker artwork is square. AppKit does not mask runtime Dock
