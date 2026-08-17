@@ -197,7 +197,10 @@ void main() {
     expect(source, contains('Bundle(identifier: "io.flutter.flutter.app")'));
     expect(source, contains('privateFrameworksPath'));
     expect(source, contains('resourceRoot.appendingPathComponent(assetKey)'));
-    expect(source, contains('applicationIconImage = nil'));
+    expect(source, contains('forInfoDictionaryKey: "CFBundleIconFile"'));
+    expect(source, contains('bundle.url('));
+    expect(source, contains('NSImage(contentsOf: iconURL)'));
+    expect(source, isNot(contains('applicationIconImage = nil')));
     expect(source, contains('NSBezierPath('));
     expect(source, contains('roundedRect: bounds'));
     expect(source, contains("Finder's bundle icon untouched"));

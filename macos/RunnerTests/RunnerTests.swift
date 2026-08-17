@@ -1,9 +1,20 @@
 import Cocoa
 import FlutterMacOS
 import XCTest
+
 @testable import Mithka
 
 class RunnerTests: XCTestCase {
+  func testDefaultDockIconLoadsFromBuiltBundle() throws {
+    XCTAssertEqual(
+      Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") as? String,
+      "Pengram"
+    )
+    let icon = try XCTUnwrap(MacOSAppIconPlugin.bundleIcon())
+    XCTAssertGreaterThan(icon.size.width, 0)
+    XCTAssertGreaterThan(icon.size.height, 0)
+  }
+
   func testNativeTestHostDetectionDoesNotDependOnOneXCTestSignal() {
     XCTAssertTrue(
       MainFlutterWindow.isNativeTestHost(
