@@ -4084,7 +4084,10 @@ class _MessageBubbleState extends State<MessageBubble>
       widgets.add(
         Align(
           alignment: Alignment.centerRight,
-          child: RichText(text: TextSpan(children: [_metaSpan(outgoing)])),
+          child: RichText(
+            textScaler: MediaQuery.textScalerOf(context),
+            text: TextSpan(children: [_metaSpan(outgoing)]),
+          ),
         ),
       );
     }
@@ -4120,6 +4123,7 @@ class _MessageBubbleState extends State<MessageBubble>
     ).style.merge(TextStyle(fontSize: effectiveFontSize, color: base));
     return Builder(
       builder: (context) => RichText(
+        textScaler: MediaQuery.textScalerOf(context),
         maxLines: maxLines,
         overflow: maxLines == null ? TextOverflow.clip : TextOverflow.fade,
         text: TextSpan(style: style, children: children),

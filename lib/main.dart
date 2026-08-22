@@ -957,6 +957,14 @@ class _ScaledAppView extends StatelessWidget {
       media.size.width / scale,
       media.size.height / scale,
     );
+    // Honour the platform accessibility text size underneath the user's own
+    // font preference. The product stays capped at the app's tested range so
+    // extreme system settings cannot break fixed layouts.
+    final systemFontScale = media.textScaler.scale(1.0);
+    final effectiveFontScale = (fontScale * systemFontScale).clamp(
+      ThemeController.minFontScale,
+      ThemeController.maxFontScale,
+    );
     final scaledMedia = media.copyWith(
       size: virtualSize,
       padding: _unscaleInsets(media.padding, scale),
@@ -966,7 +974,7 @@ class _ScaledAppView extends StatelessWidget {
       // The outer transform scales geometry and text together. Keep only the
       // independent font preference here; dividing by interfaceScale caused
       // normal Text widgets to stay small while noScaling text still grew.
-      textScaler: TextScaler.linear(fontScale),
+      textScaler: TextScaler.linear(effectiveFontScale),
     );
 
     return AppKeyboardDismissOnTap(
