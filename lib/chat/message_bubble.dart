@@ -3911,11 +3911,17 @@ class _MessageBubbleState extends State<MessageBubble>
                 ),
                 if ((message.replyToPreview ?? '').isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(
+                  _richText(
                     message.replyToPreview!,
+                    faded,
+                    faded,
+                    0,
+                    message.replyToPreview!.length,
+                    outgoing,
+                    false,
                     maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 14, height: 1.22, color: faded),
+                    entities: message.replyToEntities,
+                    fontSize: 14,
                   ),
                 ],
               ],
