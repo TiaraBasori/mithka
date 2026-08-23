@@ -1026,14 +1026,17 @@ class _MessageBubbleState extends State<MessageBubble>
               role: showSenderRole ? message.senderRole : null,
               roleTitle: showSenderRole && showMemberTags ? senderTitle : null,
               roleAfterName: isDesktopTargetPlatform(),
-              trailing: showStatus
-                  ? StatusEmojiView(
-                      id: message.senderEmojiStatusId,
-                      size: 14,
-                      color: senderNameColor,
-                      animate: theme.chatStatusEmojiMode.animate,
-                    )
-                  : null,
+          trailing: showStatus
+              ? StatusEmojiView(
+                  id: message.senderEmojiStatusId,
+                  // The name beside it scales with the chat font size; the
+                  // status emoji should grow with it instead of staying at a
+                  // fixed pixel size.
+                  size: 14 * MediaQuery.textScalerOf(context).scale(1.0),
+                  color: senderNameColor,
+                  animate: theme.chatStatusEmojiMode.animate,
+                )
+              : null,
             ),
           ),
           const SizedBox(width: 5),
