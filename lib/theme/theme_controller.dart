@@ -1236,7 +1236,9 @@ class ThemeController extends ChangeNotifier {
   static const _unreadBadgeOverflowModeKey = 'unreadBadgeOverflowMode';
 
   static const double minFontScale = 0.8;
-  static const double maxFontScale = 1.4;
+  // Chat text reflows inside fixed bubble widths, so a generous ceiling is
+  // safe: 2.0 covers users the old 1.4 cap left behind.
+  static const double maxFontScale = 2.0;
   static const double minInterfaceScale = 0.66 * 0.66;
   static const double maxInterfaceScale = 1.50 * 1.50;
 
