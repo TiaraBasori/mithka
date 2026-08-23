@@ -1801,11 +1801,12 @@ class ThemeController extends ChangeNotifier {
     return value;
   }
 
-  /// App-wide text scale factor, applied at the root via MediaQuery.textScaler.
+  /// App-wide text scale factor for chat surfaces, applied by
+  /// [ChatFontScaleScope] through a scoped MediaQuery.textScaler.
   double get fontScale => _fontScale;
-  // Font scaling is applied once by the root MediaQuery; Text applies it
-  // implicitly and RichText reads it explicitly. Returning an already scaled
-  // size here made chat typography grow twice while navigation text grew once.
+  // Chat font scaling is applied once by the chat-scoped MediaQuery; Text
+  // applies it implicitly and RichText reads it explicitly. Returning an
+  // already scaled size here made chat typography grow twice.
   double chatTextSize(double base) => base;
 
   /// Squared value shown by the Interface Size control. For example, the
