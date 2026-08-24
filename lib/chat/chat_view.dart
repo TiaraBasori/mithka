@@ -21,6 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../app/active_conversation.dart';
 import '../app/adaptive_split_layout.dart';
 import '../app/desktop_video_window.dart';
+import '../app/ipad_window_chrome.dart';
 import '../app/primary_chat_launcher.dart';
 import '../app/video_split_controller.dart';
 import '../auth/telegram_country_names.dart';
@@ -7191,7 +7192,10 @@ class _ChatViewState extends State<ChatView> {
     final actionActive = _vm.hasActiveChatAction;
     final wideGroupHeader = _usesWideGroupHeader;
     return Container(
-      padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+      padding: EdgeInsets.only(
+        top: MediaQuery.paddingOf(context).top +
+            iPadWindowChromeInsetOf(context),
+      ),
       decoration: BoxDecoration(
         color: widget.headerColor ?? c.navBar,
         border: widget.showHeaderDivider
@@ -7492,7 +7496,10 @@ class _ChatViewState extends State<ChatView> {
     final c = context.colors;
     final count = _selectedMessageIds.length;
     return Container(
-      padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+      padding: EdgeInsets.only(
+        top: MediaQuery.paddingOf(context).top +
+            iPadWindowChromeInsetOf(context),
+      ),
       decoration: BoxDecoration(
         color: c.navBar,
         border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
