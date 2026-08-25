@@ -110,6 +110,37 @@ void main() {
     },
   );
 
+  testWidgets('window controls reach the top right corner without a margin', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: [AppColors.light]),
+        home: const Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(
+            width: 600,
+            child: MacosDesktopTitleBar(
+              leadingClearance: 8,
+              appIdentity: SizedBox(width: 112, child: Text('Account')),
+              trailingControls: SizedBox(
+                key: ValueKey('test-window-controls'),
+                width: 138,
+                height: MacosDesktopTitleBar.height,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final corner = tester.getTopRight(
+      find.byKey(const ValueKey('test-window-controls')),
+    );
+    expect(corner.dx, 600);
+    expect(corner.dy, 0);
+  });
+
   testWidgets(
     'desktop title bar searches in place and hands Search All its query',
     (tester) async {
