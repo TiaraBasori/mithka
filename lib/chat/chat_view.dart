@@ -2608,16 +2608,20 @@ class _ChatViewState extends State<ChatView> {
     // _isTranscriptShort walks every cached entry; nothing below moves the
     // scroll position or the pivot, so one measurement serves all three tests.
     final latestArmIsShort = _isTranscriptShort();
+    final hasPendingMessageTarget = _scrollTargetId != null;
     final hydratedShortTranscript = shouldRebaseForHydratedOlderPage(
       prependedOlder: prependedOlder,
       latestArmWasShort: latestArmIsShort,
       historyFillInFlight: _isFillingShortTranscript || _loadingOlderFromScroll,
       revealRequested: _revealLoadedOlderPage,
+      hasPendingMessageTarget: hasPendingMessageTarget,
     );
-    final followingLatest =
-        !_autoScrollPolicy.preservesViewport &&
-        !_maintainSessionScrollAnchor &&
-        !_transcriptViewportClaimedByUser;
+    final followingLatest = transcriptFollowsLatestEdge(
+      preservesViewport: _autoScrollPolicy.preservesViewport,
+      maintainsSessionAnchor: _maintainSessionScrollAnchor,
+      viewportClaimedByUser: _transcriptViewportClaimedByUser,
+      hasPendingMessageTarget: hasPendingMessageTarget,
+    );
     final hasMessageOlderThanPivot =
         _transcriptPivot != null &&
         _vm.messages.any(
@@ -8056,11 +8060,13 @@ class _ChatViewState extends State<ChatView> {
           pinnedJump: pinnedJump,
           isCancelled: targetCancelled,
         );
-        if (aligned && mounted && !targetCancelled()) {
-          setState(() => _setScrollTarget(null));
-          return true;
-        }
-        return false;
+        if (!mounted || targetCancelled()) return false;
+        // A correction pass can lose the row's context without the navigation
+        // being cancelled, and the jump is over either way. Holding the target
+        // past that point stalls new-message auto-scroll, short-transcript
+        // fill, and parked-pivot repair for as long as the chat stays open.
+        setState(() => _setScrollTarget(null));
+        return aligned;
       }
       if (!_scroll.hasClients) return false;
       // A loaded target can be arbitrarily far from the currently laid-out
@@ -8097,6 +8103,10 @@ class _ChatViewState extends State<ChatView> {
       if (isCancelled()) return false;
       final ctx = targetKey.currentContext;
       if (ctx == null || !ctx.mounted) return false;
+      // Nothing reflowed during the previous pass, so the remaining correction
+      // animations would only spend their duration re-issuing the offset the
+      // row already sits at.
+      if (pass > 0 && _isTargetAtAlignment(targetKey, alignment)) return true;
       await Scrollable.ensureVisible(
         ctx,
         alignment: alignment,
@@ -8113,6 +8123,22 @@ class _ChatViewState extends State<ChatView> {
       await WidgetsBinding.instance.endOfFrame;
     }
     return !isCancelled();
+  }
+
+  /// Whether the row already rests where `Scrollable.ensureVisible` would put
+  /// it, using the viewport's own reveal math so pinned slivers and oversized
+  /// rows are accounted for exactly as the real call accounts for them.
+  bool _isTargetAtAlignment(GlobalKey targetKey, double alignment) {
+    if (!_scroll.hasClients) return false;
+    final object = targetKey.currentContext?.findRenderObject();
+    if (object == null || !object.attached) return false;
+    final viewport = RenderAbstractViewport.maybeOf(object);
+    if (viewport == null) return false;
+    final target = clampScrollOffset(
+      _scroll.position,
+      viewport.getOffsetToReveal(object, alignment).offset,
+    );
+    return (target - _scroll.position.pixels).abs() <= 0.5;
   }
 
   /// Aligns a pinned target more than once because media rows can finish a
