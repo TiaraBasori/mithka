@@ -411,8 +411,11 @@ abstract final class DesktopUpdater {
     await workDirectory.create(recursive: true);
 
     try {
+      // A fixed local name: the archive is identified by the extension the
+      // extractor needs, never by the name the release feed supplied.
       final package = File(
-        '${workDirectory.path}${Platform.pathSeparator}${asset.name}',
+        '${workDirectory.path}${Platform.pathSeparator}'
+        'package.${Platform.isWindows ? 'zip' : 'tar.gz'}',
       );
       await _download(
         asset,
@@ -439,7 +442,7 @@ abstract final class DesktopUpdater {
       _throwIfCancelled(cancellation);
 
       onProgress?.call(const DesktopUpdateProgress(DesktopUpdateStage.staging));
-      final staged = _packageRoot(unpacked);
+      final staged = packageRoot(unpacked);
       await package.delete();
       return PreparedDesktopUpdate._(version, layout, workDirectory, staged);
     } catch (_) {
@@ -542,12 +545,14 @@ abstract final class DesktopUpdater {
 
   /// The single package directory the archive unpacked to, checked to be a real
   /// Mithka build before anything is allowed to replace the current one.
-  static Directory _packageRoot(Directory unpacked) {
+  @visibleForTesting
+  static Directory packageRoot(Directory unpacked) {
     final entries = unpacked.listSync();
     final directories = entries.whereType<Directory>().toList();
     if (directories.length != 1) {
       throw DesktopUpdateException(
-        'Expected one directory in the update package, found ${entries.length}',
+        'Expected one directory in the update package, '
+        'found ${directories.length}',
       );
     }
     final root = directories.single;

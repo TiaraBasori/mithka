@@ -78,6 +78,59 @@ void main() {
     });
   });
 
+  group('unpacked package guard', () {
+    Directory unpacked(void Function(Directory root) build) {
+      final directory = Directory.systemTemp.createTempSync('mithka-pkg-');
+      build(directory);
+      return directory;
+    }
+
+    test('accepts an archive holding one Mithka build', () {
+      final directory = unpacked((root) {
+        Directory('${root.path}/Mithka').createSync();
+        File(
+          '${root.path}/Mithka/${DesktopUpdater.launcherFileName}',
+        ).writeAsStringSync('');
+      });
+      expect(DesktopUpdater.packageRoot(directory).path, endsWith('Mithka'));
+      directory.deleteSync(recursive: true);
+    });
+
+    test('rejects a directory with no Mithka executable', () {
+      final directory = unpacked((root) {
+        Directory('${root.path}/Mithka').createSync();
+        File('${root.path}/Mithka/readme.txt').writeAsStringSync('');
+      });
+      expect(
+        () => DesktopUpdater.packageRoot(directory),
+        throwsA(isA<DesktopUpdateException>()),
+        reason: 'an archive without a launcher would brick the install',
+      );
+      directory.deleteSync(recursive: true);
+    });
+
+    test('rejects an archive that unpacked more than one directory', () {
+      final directory = unpacked((root) {
+        Directory('${root.path}/Mithka').createSync();
+        Directory('${root.path}/Other').createSync();
+      });
+      expect(
+        () => DesktopUpdater.packageRoot(directory),
+        throwsA(isA<DesktopUpdateException>()),
+      );
+      directory.deleteSync(recursive: true);
+    });
+
+    test('rejects an empty archive', () {
+      final directory = unpacked((_) {});
+      expect(
+        () => DesktopUpdater.packageRoot(directory),
+        throwsA(isA<DesktopUpdateException>()),
+      );
+      directory.deleteSync(recursive: true);
+    });
+  });
+
   group('POSIX swap helper', () {
     String script({
       String installDirectory = '/home/u/Apps/Mithka',

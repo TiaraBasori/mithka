@@ -67,6 +67,17 @@ class _DesktopUpdateSheetState extends State<_DesktopUpdateSheet> {
     DesktopUpdateStage.downloading,
   );
 
+  /// Whether this sheet has already popped. The widget stays mounted for the
+  /// length of the dismiss transition, so a cancelled run that reports back
+  /// during it would otherwise pop the route underneath.
+  bool _settled = false;
+
+  void _settle(DesktopUpdateResult result) {
+    if (_settled || !mounted) return;
+    _settled = true;
+    Navigator.of(context).pop(result);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -83,17 +94,14 @@ class _DesktopUpdateSheetState extends State<_DesktopUpdateSheet> {
           if (mounted) setState(() => _progress = progress);
         },
       );
-      if (!mounted) {
-        // The sheet went away mid-flight; leave nothing staged behind.
+      if (_settled || !mounted) {
+        // The sheet is already gone; leave nothing staged behind.
         await prepared.discard();
         return;
       }
-      Navigator.of(
-        context,
-      ).pop(DesktopUpdateResult(DesktopUpdateResultKind.ready, prepared));
+      _settle(DesktopUpdateResult(DesktopUpdateResultKind.ready, prepared));
     } catch (_) {
-      if (!mounted) return;
-      Navigator.of(context).pop(
+      _settle(
         DesktopUpdateResult(
           _cancellation.isCancelled
               ? DesktopUpdateResultKind.cancelled
@@ -104,12 +112,10 @@ class _DesktopUpdateSheetState extends State<_DesktopUpdateSheet> {
   }
 
   void _cancel() {
+    // Closing right away makes the click feel answered; prepare() then unwinds
+    // on its own and finds the sheet already settled.
     _cancellation.cancel();
-    // prepare() surfaces the cancellation and pops with it; this only closes
-    // the sheet immediately so the click feels answered.
-    Navigator.of(
-      context,
-    ).pop(const DesktopUpdateResult(DesktopUpdateResultKind.cancelled));
+    _settle(const DesktopUpdateResult(DesktopUpdateResultKind.cancelled));
   }
 
   String get _stageLabel => AppStrings.t(switch (_progress.stage) {
