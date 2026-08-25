@@ -136,9 +136,12 @@ class PreparedDesktopUpdate {
   /// Starts the swap helper and leaves, which is what lets the helper replace
   /// the directory this process is running from.
   ///
-  /// Callers must already have drained anything that needs a clean shutdown;
-  /// the process is gone by the time this returns.
-  Future<Never> apply() async {
+  /// [drain] is whatever needs a clean shutdown before the process goes. It runs
+  /// only once the helper is started and waiting: draining first would leave a
+  /// gutted app still on screen if the helper then failed to launch, whereas the
+  /// helper simply times out and leaves the install alone if the drain hangs.
+  /// A drain that throws does not strand the user on the old build.
+  Future<Never> apply({Future<void> Function()? drain}) async {
     final script = await _writeHelperScript();
     await Process.start(
       Platform.isWindows ? 'cmd.exe' : '/bin/sh',
@@ -146,6 +149,14 @@ class PreparedDesktopUpdate {
       mode: ProcessStartMode.detached,
       workingDirectory: script.parent.path,
     );
+    if (drain != null) {
+      try {
+        await drain();
+      } catch (_) {
+        // The update is staged and verified; a client that refused to close
+        // cleanly must not leave the user on the old build.
+      }
+    }
     // Give the detached helper a moment to be scheduled before the exit removes
     // this process from the wait it is about to start.
     await Future<void>.delayed(const Duration(milliseconds: 100));

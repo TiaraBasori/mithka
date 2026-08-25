@@ -215,19 +215,12 @@ class UpdateChecker {
     }
   }
 
-  /// Drains TDLib, then hands the swap to the detached helper and leaves.
+  /// Hands the swap to the detached helper, drains TDLib, and leaves.
   ///
   /// Nothing after this runs: the helper is waiting on this process to exit
   /// before it can replace the directory the app is running from.
-  static Future<Never> _restartInto(PreparedDesktopUpdate update) async {
-    try {
-      await TdClient.shared.shutdown();
-    } catch (_) {
-      // A client that refused to close cleanly must not strand the user on the
-      // old build; the update is already staged and verified.
-    }
-    return update.apply();
-  }
+  static Future<Never> _restartInto(PreparedDesktopUpdate update) =>
+      update.apply(drain: TdClient.shared.shutdown);
 
   static Future<void> _offerManualDownload(
     BuildContext context,
