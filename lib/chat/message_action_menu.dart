@@ -169,40 +169,27 @@ class QuickReactionBar extends StatelessWidget {
   }
 }
 
-/// The reaction strip a desktop pointer reveals by resting on a message.
+/// The reaction strip that rides on top of the desktop context menu.
 ///
-/// Touch reaches the same choices through [QuickReactionBar] inside the
-/// long-press HUD. A pointer has no long press to spend on that, so the strip
-/// floats beside the hovered bubble instead: 30pt square slots, a 22pt glyph in
-/// each, and a trailing chevron onto the full picker. Fixed dark colors for the
-/// same reason the HUD uses them — it reads as a floating surface, not as part
-/// of the themed message list underneath.
-class HoverReactionBar extends StatelessWidget {
-  const HoverReactionBar({
+/// Drawn as the menu's own upper storey: same surface, same 9pt radius, same
+/// hairline border, laid out to the menu's width so the two read as one
+/// stack rather than a pill parked above a card. Touch keeps the rounded
+/// [QuickReactionBar], which floats free of its grid menu.
+class MenuReactionBar extends StatelessWidget {
+  const MenuReactionBar({
     super.key,
     required this.reactions,
     required this.onReaction,
     required this.onExpand,
   });
 
-  /// Past this the strip is wider than the gutter left beside a bubble in a
-  /// typical desktop window, and it would start covering the message it is
-  /// offering reactions for. The rest stay behind the expand button.
-  static const maxReactionCount = 5;
-
-  static const _slot = 30.0;
-  static const _emojiSize = 22.0;
+  /// Six plus the expand button divide the menu's 220pt width into 30pt
+  /// slots. More would either narrow the slots below a comfortable target or
+  /// push the strip wider than the menu it sits on.
+  static const maxReactionCount = 6;
+  static const height = 40.0;
   static const _padding = 5.0;
-  static const _surface = Color(0xFF2C2C2E);
-  static const _slotHoverFill = Color(0xFF3A3A3C);
-
-  static const height = _slot + _padding * 2;
-
-  /// The width [reactionCount] slots plus the expand button lay out to. The
-  /// bubble needs this before the strip builds, to place it against its own
-  /// outer edge.
-  static double widthFor(int reactionCount) =>
-      (reactionCount + 1) * _slot + _padding * 2;
+  static const _emojiSize = 22.0;
 
   final List<QuickReactionChoice> reactions;
   final ValueChanged<QuickReactionChoice> onReaction;
@@ -210,36 +197,32 @@ class HoverReactionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TweenAnimationBuilder<double>(
-      duration: AppMotion.duration(context, AppMotion.quick),
-      curve: AppMotion.emphasized,
-      tween: Tween(begin: 0, end: 1),
-      builder: (context, t, child) => Opacity(
-        opacity: t,
-        child: Transform.scale(scale: 0.94 + 0.06 * t, child: child),
-      ),
-      child: Container(
-        key: const ValueKey('hover-reaction-bar'),
-        width: widthFor(reactions.length),
-        height: height,
-        padding: const EdgeInsets.all(_padding),
-        decoration: BoxDecoration(
-          color: _surface,
-          borderRadius: BorderRadius.circular(AppRadius.pill),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    final shown = reactions.take(maxReactionCount).toList(growable: false);
+    return Container(
+      key: const ValueKey('menu-reaction-bar'),
+      height: height,
+      padding: const EdgeInsets.symmetric(horizontal: _padding),
+      decoration: BoxDecoration(
+        color: MessageActionMenu.surface,
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.22),
+          width: 0.75,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final reaction in reactions)
-              _HoverReactionSlot(
-                key: ValueKey('hover-reaction-${reaction.storageValue}'),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.24),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          for (final reaction in shown)
+            Expanded(
+              child: _MenuReactionSlot(
+                key: ValueKey('menu-reaction-${reaction.storageValue}'),
                 onTap: () => onReaction(reaction),
                 child: reaction.isCustom
                     ? CustomEmojiView(
@@ -253,27 +236,28 @@ class HoverReactionBar extends StatelessWidget {
                         style: const TextStyle(fontSize: _emojiSize),
                       ),
               ),
-            _HoverReactionSlot(
-              key: const ValueKey('hover-reaction-expand'),
+            ),
+          Expanded(
+            child: _MenuReactionSlot(
+              key: const ValueKey('menu-reaction-expand'),
               onTap: onExpand,
               child: const AppIcon(
-                HeroAppIcons.chevronDown,
-                size: 18,
+                HeroAppIcons.faceSmile,
+                size: 21,
                 color: Colors.white,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// One 30pt slot of [HoverReactionBar]. A pointer gets a filled disc under the
-/// glyph it is over — without it there is no way to tell which of five tightly
-/// packed emoji a click would land on.
-class _HoverReactionSlot extends StatefulWidget {
-  const _HoverReactionSlot({
+/// One slot of [MenuReactionBar]. A pointer gets a rounded fill under the
+/// glyph it is over, matching how a row of the menu below lights up.
+class _MenuReactionSlot extends StatefulWidget {
+  const _MenuReactionSlot({
     super.key,
     required this.onTap,
     required this.child,
@@ -283,10 +267,10 @@ class _HoverReactionSlot extends StatefulWidget {
   final Widget child;
 
   @override
-  State<_HoverReactionSlot> createState() => _HoverReactionSlotState();
+  State<_MenuReactionSlot> createState() => _MenuReactionSlotState();
 }
 
-class _HoverReactionSlotState extends State<_HoverReactionSlot> {
+class _MenuReactionSlotState extends State<_MenuReactionSlot> {
   bool _hovering = false;
 
   @override
@@ -301,14 +285,14 @@ class _HoverReactionSlotState extends State<_HoverReactionSlot> {
         child: AnimatedContainer(
           duration: AppMotion.duration(context, AppMotion.quick),
           curve: AppMotion.standard,
-          width: HoverReactionBar._slot,
-          height: HoverReactionBar._slot,
+          height: MenuReactionBar.height - MenuReactionBar._padding * 2,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: _hovering
-                ? HoverReactionBar._slotHoverFill
+                ? Colors.white.withValues(alpha: 0.12)
                 : Colors.transparent,
-            shape: BoxShape.circle,
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           child: widget.child,
         ),
@@ -340,7 +324,7 @@ class MessageActionMenu extends StatelessWidget {
   final bool showingOriginalTranslation;
   final MessageActionMenuLayout layout;
 
-  static const _surface = Color(0xFF2C2C2E);
+  static const surface = Color(0xFF2C2C2E);
   static const _destructive = Color(0xFFFF6961);
   static const _horizontalPadding = 6.0;
   static const _actionWidth = 58.0;
@@ -569,7 +553,7 @@ class MessageActionMenu extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 11),
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
-            color: _surface,
+            color: surface,
             borderRadius: BorderRadius.circular(AppRadius.lg),
             boxShadow: [
               BoxShadow(
@@ -638,7 +622,7 @@ class _VerticalActionList extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: MessageActionMenu._surface,
+        color: MessageActionMenu.surface,
         borderRadius: BorderRadius.circular(AppRadius.control),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.22),

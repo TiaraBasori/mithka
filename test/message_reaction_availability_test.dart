@@ -159,7 +159,7 @@ void main() {
     expect(availability.quickChoices(defaultQuickReactions), isEmpty);
   });
 
-  test('message action controls wait for a non-empty mobile result', () {
+  test('message action controls wait for a non-empty result', () {
     final empty = MessageReactionAvailability.fromTd(
       _available(),
       isPremium: false,
@@ -170,55 +170,20 @@ void main() {
     );
 
     expect(
-      messageActionShowsReactionControls(
-        isDesktop: false,
-        isCall: false,
-        availability: null,
-      ),
+      messageActionShowsReactionControls(isCall: false, availability: null),
       isFalse,
     );
     expect(
-      messageActionShowsReactionControls(
-        isDesktop: false,
-        isCall: false,
-        availability: empty,
-      ),
+      messageActionShowsReactionControls(isCall: false, availability: empty),
       isFalse,
     );
     expect(
-      messageActionShowsReactionControls(
-        isDesktop: false,
-        isCall: false,
-        availability: allowed,
-      ),
+      messageActionShowsReactionControls(isCall: false, availability: allowed),
       isTrue,
     );
+    // A call log has nothing to react to on either platform.
     expect(
-      messageActionShowsReactionControls(
-        isDesktop: true,
-        isCall: false,
-        availability: allowed,
-      ),
-      isFalse,
-    );
-    // A pointer picks reactions off the hover strip; the overlay only carries
-    // them on desktop once that strip asks for the full picker.
-    expect(
-      messageActionShowsReactionControls(
-        isDesktop: true,
-        isCall: false,
-        availability: allowed,
-        reactionExpanded: true,
-      ),
-      isTrue,
-    );
-    expect(
-      messageActionShowsReactionControls(
-        isDesktop: true,
-        isCall: true,
-        availability: allowed,
-        reactionExpanded: true,
-      ),
+      messageActionShowsReactionControls(isCall: true, availability: allowed),
       isFalse,
     );
   });

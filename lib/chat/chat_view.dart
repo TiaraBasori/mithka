@@ -1111,14 +1111,6 @@ class _ChatViewState extends State<ChatView> {
   String _reactionTab = 'standard'; // 'standard' or a custom-emoji pack id
   MessageReactionAvailability? _actionReactionAvailability;
   int _actionReactionAvailabilityGeneration = 0;
-  // What a hovered message may be reacted with holds still for as long as
-  // the chat is open, and a pointer crossing back and forth between two
-  // bubbles would otherwise re-ask on every crossing. Only one bubble is
-  // ever hovered, so there is no fan-out here to deduplicate.
-  final Map<int, MessageReactionAvailability> _hoverReactionAvailability = {};
-  // Caps what a long scroll can accumulate. Dropping the map costs at most
-  // one re-query per message the pointer comes back to.
-  static const _hoverReactionCacheLimit = 256;
   int _lastCount = 0;
   bool _didInitialScroll = false; // one-time entry positioning has run
   bool _showJumpDown = false; // scrolled up → show jump-to-bottom button
@@ -4051,11 +4043,6 @@ class _ChatViewState extends State<ChatView> {
       hasCustomChatTheme: _hasCustomChatTheme,
       onToggleReaction: (r) => unawaited(_toggleMessageReaction(message, r)),
       onShowReactionUsers: _showReactionUsers,
-      onResolveHoverReactions: _offersHoverReactions
-          ? _resolveHoverReactionAvailability
-          : null,
-      onHoverReaction: _reactFromHover,
-      onExpandHoverReactions: _showHoverReactionPicker,
       onRedial: _startCall,
       onOpenContact: _openSharedContact,
       onVotePoll: (message, optionIndex) =>
@@ -8923,78 +8910,11 @@ class _ChatViewState extends State<ChatView> {
       _actionReactionAvailability = null;
     });
     oldSelectionState?.selectableRegion.clearSelection();
-    if (!desktop && !message.isCall) {
+    if (!message.isCall) {
       unawaited(
         _loadActionReactionAvailability(message.id, reactionGeneration),
       );
     }
-  }
-
-  /// Reacting off a hovered bubble needs a pointer to hover with; touch
-  /// reaches the same choices by long-pressing into the HUD.
-  bool get _offersHoverReactions =>
-      !_isSelecting && isDesktopTargetPlatform(Theme.of(context).platform);
-
-  Future<MessageReactionAvailability?> _resolveHoverReactionAvailability(
-    ChatMessage message,
-  ) async {
-    if (message.isCall) return null;
-    final cached = _hoverReactionAvailability[message.id];
-    if (cached != null) return cached;
-    EmojiStore.shared.loadIfNeeded();
-    try {
-      final availability = await _vm.messageReactionAvailability(message.id);
-      if (!mounted) return null;
-      if (_hoverReactionAvailability.length >= _hoverReactionCacheLimit) {
-        _hoverReactionAvailability.clear();
-      }
-      _hoverReactionAvailability[message.id] = availability;
-      return availability;
-    } catch (_) {
-      // Fail closed, as the long-press path does: a strip built from the
-      // global defaults offers reactions this message may reject.
-      return null;
-    }
-  }
-
-  void _reactFromHover(ChatMessage message, QuickReactionChoice reaction) {
-    unawaited(
-      _sendReaction(
-        () => reaction.isCustom
-            ? _vm.addCustomReaction(message.id, reaction.customEmojiId)
-            : _vm.addReaction(message.id, reaction.emoji),
-      ),
-    );
-  }
-
-  /// The strip's expand button hands the message to the overlay the long-press
-  /// menu uses, opened straight onto the full picker.
-  void _showHoverReactionPicker(
-    ChatMessage message,
-    Rect? bounds,
-    MessageReactionAvailability availability,
-  ) {
-    EmojiStore.shared.loadIfNeeded();
-    final overlayBox =
-        _actionOverlayKey.currentContext?.findRenderObject() as RenderBox?;
-    final overlayRect = bounds != null && overlayBox?.hasSize == true
-        ? MessageActionMenu.rectInOverlay(
-            bounds,
-            globalToLocal: overlayBox!.globalToLocal,
-          )
-        : bounds;
-    setState(() {
-      _actionTarget = message;
-      _actionRect = overlayRect;
-      _lastActionPointerGlobalPosition = null;
-      _actionSource = MessageActionSource.normal;
-      _reactionExpanded = true;
-      _reactionTab = 'standard';
-      // Retires a long-press query still in flight, which would otherwise land
-      // on this target and replace the availability the strip resolved.
-      _actionReactionAvailabilityGeneration += 1;
-      _actionReactionAvailability = availability;
-    });
   }
 
   Future<void> _loadActionReactionAvailability(
@@ -9351,10 +9271,8 @@ class _ChatViewState extends State<ChatView> {
         verticalMenu && rect != null && rect.width == 0 && rect.height == 0;
     final reactionAvailability = _actionReactionAvailability;
     final showReactions = messageActionShowsReactionControls(
-      isDesktop: desktopMenu,
       isCall: _actionTarget!.isCall,
       availability: reactionAvailability,
-      reactionExpanded: _reactionExpanded,
     );
     final actionMenu = MessageActionMenu(
       message: _actionTarget!,
@@ -9373,15 +9291,27 @@ class _ChatViewState extends State<ChatView> {
       onSelect: (action) => _perform(action, _actionTarget!),
     );
 
+    // Desktop treats the strip as the menu's upper storey and places the pair
+    // as one block. Its row is reserved the moment the menu opens and only
+    // collapses if the server comes back with nothing to offer, so the menu
+    // does not jump out from under a settled pointer when the answer lands.
+    final desktopStrip =
+        desktopMenu &&
+        !_reactionExpanded &&
+        !_actionTarget!.isCall &&
+        (reactionAvailability == null || reactionAvailability.canAdd);
+    final desktopStripH = desktopStrip
+        ? MenuReactionBar.height + _menuReactionGap
+        : 0.0;
     final reactionH = !showReactions
         ? 0.0
         : _reactionExpanded
-        ? 268.0
+        ? _expandedPickerSize.height
         : 48.0;
     final menuH = showActionMenu
         ? math.min(
             actionMenu.preferredHeightFor(context),
-            math.max(0.0, bottomSafe - topSafe),
+            math.max(0.0, bottomSafe - topSafe - desktopStripH),
           )
         : 0.0;
     const gap = 8.0;
@@ -9420,6 +9350,17 @@ class _ChatViewState extends State<ChatView> {
     final boundedActionMenu = verticalMenu
         ? SizedBox(width: verticalMenuWidth, height: menuH, child: actionMenu)
         : actionMenu;
+    final desktopOrigin = desktopMenu
+        ? MessageActionMenu.verticalOriginForPointer(
+            pointer: rect?.topLeft ?? Offset(10, topSafe),
+            viewport: screenSize,
+            menuSize: _reactionExpanded
+                ? _expandedPickerSize
+                : Size(verticalMenuWidth, desktopStripH + menuH),
+            topSafe: topSafe,
+            bottomSafe: bottomSafe,
+          )
+        : Offset.zero;
 
     void dismiss() => setState(() {
       _actionTarget = null;
@@ -9445,29 +9386,34 @@ class _ChatViewState extends State<ChatView> {
                 child: const SizedBox.expand(),
               ),
             ),
-            // Call logs and other special messages aren't reactable — no +1 bar.
+            // Call logs and other special messages aren't reactable — no strip.
             if (showReactions)
               Positioned(
-                top: reactionTop,
-                left: 10,
-                right: 10,
+                top: desktopMenu ? desktopOrigin.dy : reactionTop,
+                left: desktopMenu ? desktopOrigin.dx : 10,
+                right: desktopMenu ? null : 10,
                 child: AnimatedBuilder(
                   animation: EmojiStore.shared,
                   builder: (context, _) {
                     final availability = reactionAvailability!;
                     if (_reactionExpanded) {
-                      return Align(
-                        alignment: align,
-                        child: _expandedReactionPicker(availability),
+                      final picker = _expandedReactionPicker(availability);
+                      return desktopMenu
+                          ? picker
+                          : Align(alignment: align, child: picker);
+                    }
+                    final reactions = _quickReactionChoices(availability);
+                    if (desktopMenu) {
+                      return SizedBox(
+                        width: verticalMenuWidth,
+                        child: MenuReactionBar(
+                          reactions: reactions,
+                          onReaction: _reactQuick,
+                          onExpand: () =>
+                              setState(() => _reactionExpanded = true),
+                        ),
                       );
                     }
-                    final configured = effectiveQuickReactions(
-                      context.watch<ThemeController>().quickReactions,
-                      allowCustomEmoji:
-                          availability.allowArbitraryCustom ||
-                          availability.choices.any((choice) => choice.isCustom),
-                    );
-                    final reactions = availability.quickChoices(configured);
                     return Align(
                       alignment: align,
                       child: QuickReactionBar(
@@ -9482,10 +9428,18 @@ class _ChatViewState extends State<ChatView> {
               ),
             if (showActionMenu)
               Positioned(
-                top: pointerAnchored ? pointerMenuOrigin.dy : menuTop,
-                left: pointerAnchored ? pointerMenuOrigin.dx : 10,
-                right: pointerAnchored ? null : 10,
-                child: pointerAnchored
+                top: desktopMenu
+                    ? desktopOrigin.dy + desktopStripH
+                    : pointerAnchored
+                    ? pointerMenuOrigin.dy
+                    : menuTop,
+                left: desktopMenu
+                    ? desktopOrigin.dx
+                    : pointerAnchored
+                    ? pointerMenuOrigin.dx
+                    : 10,
+                right: desktopMenu || pointerAnchored ? null : 10,
+                child: desktopMenu || pointerAnchored
                     ? boundedActionMenu
                     : Align(alignment: align, child: boundedActionMenu),
               ),
@@ -9495,14 +9449,31 @@ class _ChatViewState extends State<ChatView> {
     );
   }
 
+  /// The gap between the strip and the menu it rides on — tight enough that
+  /// the pair reads as one stack, wide enough to keep both borders visible.
+  static const _menuReactionGap = 4.0;
+  static const _expandedPickerSize = Size(300, 268);
+
+  List<QuickReactionChoice> _quickReactionChoices(
+    MessageReactionAvailability availability,
+  ) {
+    final configured = effectiveQuickReactions(
+      context.watch<ThemeController>().quickReactions,
+      allowCustomEmoji:
+          availability.allowArbitraryCustom ||
+          availability.choices.any((choice) => choice.isCustom),
+    );
+    return availability.quickChoices(configured);
+  }
+
   Widget _expandedReactionPicker(MessageReactionAvailability availability) {
     final store = EmojiStore.shared;
     final packs = availability.allowArbitraryCustom
         ? store.customPacks
         : const <CustomEmojiPack>[];
     return Container(
-      width: 300,
-      height: 268,
+      width: _expandedPickerSize.width,
+      height: _expandedPickerSize.height,
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2E),
         borderRadius: BorderRadius.circular(AppRadius.lg),
