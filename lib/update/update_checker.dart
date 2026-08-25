@@ -64,7 +64,7 @@ class UpdateChecker {
     if (!supportsManualCheck || _checkedThisLaunch) return;
     _checkedThisLaunch = true;
     try {
-      await _check(context);
+      await _check(context, unasked: true);
     } catch (_) {
       // Offline, rate-limited, or no release yet — silently skip.
     }
@@ -89,13 +89,16 @@ class UpdateChecker {
   static Future<UpdateCheckOutcome> checkNow(BuildContext context) async {
     if (!supportsManualCheck) return UpdateCheckOutcome.unavailable;
     try {
-      return await _check(context);
+      return await _check(context, unasked: false);
     } catch (_) {
       return UpdateCheckOutcome.unavailable;
     }
   }
 
-  static Future<UpdateCheckOutcome> _check(BuildContext context) async {
+  static Future<UpdateCheckOutcome> _check(
+    BuildContext context, {
+    required bool unasked,
+  }) async {
     final current = await _installedVersion();
     if (current.isEmpty) return UpdateCheckOutcome.unavailable;
 
@@ -109,7 +112,7 @@ class UpdateChecker {
     if (Platform.isAndroid) {
       return _offerAndroidApk(context, release, current);
     }
-    return _offerDesktopPackage(context, release, current);
+    return _offerDesktopPackage(context, release, current, unasked: unasked);
   }
 
   /// The running build's version, from the Android host or package metadata.
@@ -158,13 +161,16 @@ class UpdateChecker {
   /// Offers the desktop package for this architecture, installed in place.
   ///
   /// An install this app does not own — a distro package, Flatpak, Snap,
-  /// AppImage, or a directory it cannot write — is told where to get the update
-  /// instead of being swapped underneath its real package manager.
+  /// AppImage, or a directory it cannot write — is never swapped underneath its
+  /// real updater. A check the user pressed says so and points at the releases
+  /// page; the launch check stays quiet, because repeating a message nobody can
+  /// act on from inside the app is just nagging.
   static Future<UpdateCheckOutcome> _offerDesktopPackage(
     BuildContext context,
     ReleaseInfo release,
-    String current,
-  ) async {
+    String current, {
+    required bool unasked,
+  }) async {
     final suffix = desktopPackageSuffix();
     final asset = suffix == null ? null : release.assetEndingWith(suffix);
     if (asset == null) return UpdateCheckOutcome.unavailable;
@@ -173,6 +179,7 @@ class UpdateChecker {
     // Without a published digest there is nothing to verify the package
     // against, and an unverified archive must never replace the install.
     if (block != null || asset.sha256 == null) {
+      if (unasked) return UpdateCheckOutcome.updateAvailable;
       await _offerManualDownload(context, release, current, block);
       return UpdateCheckOutcome.updateAvailable;
     }
