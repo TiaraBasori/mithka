@@ -52,9 +52,9 @@ void main() {
       find.byKey(const ValueKey('macos-account-identity')),
       findsOneWidget,
     );
-    // With no window controls the bar keeps its trailing inset, so the last
-    // element stops short of the right edge. macOS depends on that: its
-    // caption buttons are native and this slot is empty.
+    // With no window controls the bar keeps its trailing inset, so the
+    // account identity stops short of the right edge. macOS depends on that:
+    // its caption buttons are native and this slot is empty.
     expect(
       tester
           .getTopRight(find.byKey(const ValueKey('macos-account-identity')))
