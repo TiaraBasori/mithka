@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -113,6 +114,60 @@ void main() {
 
     await tester.pumpAndSettle();
   });
+
+  for (final platformCase in const [
+    (name: 'Android', cacheExtent: 260.0),
+    (name: 'iOS', cacheExtent: 420.0),
+  ]) {
+    testWidgets(
+      '${platformCase.name} search targets survive badly underestimated rows',
+      (tester) async {
+        final controller = ScrollController();
+        final historyKey = GlobalKey<_TargetedHistoryPrototypeState>();
+        addTearDown(controller.dispose);
+
+        await tester.pumpWidget(
+          _testApp(
+            _TargetedHistoryPrototype(
+              key: historyKey,
+              controller: controller,
+              cacheExtent: platformCase.cacheExtent,
+            ),
+          ),
+        );
+
+        // The old search loop repeated this same estimate six times. Rows are
+        // actually 300 px tall here but estimated at 60 px, so neither mobile
+        // cache extent gets close enough to build the target.
+        for (var attempt = 0; attempt < 6; attempt++) {
+          controller.jumpTo(_TargetedHistoryPrototype.staleEstimate);
+          await tester.pump();
+        }
+        expect(find.byKey(_TargetedHistoryPrototype.targetKey), findsNothing);
+
+        // Moving the center pivot to the target makes it index zero of the
+        // after-center sliver. It is built on the next frame independently of
+        // cache extent or the accumulated height-estimation error.
+        historyKey.currentState!.stageTargetAtCenter();
+        await tester.pump();
+        expect(find.byKey(_TargetedHistoryPrototype.targetKey), findsOneWidget);
+
+        final targetContext = historyKey.currentState!.targetContext;
+        expect(targetContext, isNotNull);
+        await Scrollable.ensureVisible(targetContext!, alignment: 0.38);
+        await tester.pump();
+
+        final viewport = tester.getRect(
+          find.byKey(_TargetedHistoryPrototype.scrollViewKey),
+        );
+        final target = tester.getRect(
+          find.byKey(_TargetedHistoryPrototype.targetKey),
+        );
+        expect(target.top, greaterThanOrEqualTo(viewport.top));
+        expect(target.bottom, lessThanOrEqualTo(viewport.bottom));
+      },
+    );
+  }
 }
 
 Widget _testApp(Widget child) {
@@ -201,4 +256,72 @@ class _BidirectionalHistoryPrototypeState
       ),
     );
   }
+}
+
+class _TargetedHistoryPrototype extends StatefulWidget {
+  const _TargetedHistoryPrototype({
+    super.key,
+    required this.controller,
+    required this.cacheExtent,
+  });
+
+  static const targetIndex = 50;
+  static const staleEstimate = targetIndex * 60.0;
+  static const scrollViewKey = ValueKey('targeted-history-scroll-view');
+  static const targetKey = ValueKey('targeted-history-message-50');
+
+  final ScrollController controller;
+  final double cacheExtent;
+
+  @override
+  State<_TargetedHistoryPrototype> createState() =>
+      _TargetedHistoryPrototypeState();
+}
+
+class _TargetedHistoryPrototypeState extends State<_TargetedHistoryPrototype> {
+  final _centerSliverKey = GlobalKey();
+  final _targetContextKey = GlobalKey();
+  var _pivotIndex = 0;
+
+  BuildContext? get targetContext => _targetContextKey.currentContext;
+
+  void stageTargetAtCenter() {
+    widget.controller.jumpTo(0);
+    setState(() => _pivotIndex = _TargetedHistoryPrototype.targetIndex);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final older = List<int>.generate(_pivotIndex, (index) => index);
+    final newer = List<int>.generate(
+      80 - _pivotIndex,
+      (index) => index + _pivotIndex,
+    );
+    return CustomScrollView(
+      key: _TargetedHistoryPrototype.scrollViewKey,
+      controller: widget.controller,
+      center: _centerSliverKey,
+      scrollCacheExtent: ScrollCacheExtent.pixels(widget.cacheExtent),
+      physics: const ClampingScrollPhysics(),
+      slivers: [
+        _messageSliver(older.reversed.toList(growable: false)),
+        _messageSliver(newer, key: _centerSliverKey),
+      ],
+    );
+  }
+
+  Widget _messageSliver(List<int> indexes, {Key? key}) => SliverList(
+    key: key,
+    delegate: SliverChildBuilderDelegate((context, localIndex) {
+      final messageIndex = indexes[localIndex];
+      final message = SizedBox(
+        key: ValueKey('targeted-history-message-$messageIndex'),
+        height: 300,
+        child: Text('message $messageIndex'),
+      );
+      return messageIndex == _TargetedHistoryPrototype.targetIndex
+          ? KeyedSubtree(key: _targetContextKey, child: message)
+          : message;
+    }, childCount: indexes.length),
+  );
 }

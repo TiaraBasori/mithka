@@ -2885,6 +2885,35 @@ class _ChatViewState extends State<ChatView> {
     _scrollTargetId = messageId;
   }
 
+  /// Makes an arbitrary loaded target the first child after the scroll view's
+  /// center sliver, so Flutter lays it out without depending on guessed row
+  /// heights. The transcript keeps the same chronological order on both sides
+  /// of the new pivot; only its zero scroll coordinate moves to the target.
+  bool _stageMessageAtTranscriptCenter(int messageId) {
+    if (!_scroll.hasClients) return false;
+    ChatMessage? target;
+    for (final message in _vm.messages) {
+      if (message.id == messageId) {
+        target = message;
+        break;
+      }
+    }
+    if (target == null) return false;
+
+    final cutoff = _transcriptOrderId(target);
+    if (_transcriptPivot?.cutoffMessageId != cutoff ||
+        !_transcriptPivotFrozen) {
+      setState(() {
+        _transcriptPivot = TranscriptPivot(cutoff);
+        // Async sender, preview, and media hydration must not reset the pivot
+        // before the target's final alignment passes have completed.
+        _transcriptPivotFrozen = true;
+      });
+    }
+    _scroll.jumpTo(clampScrollOffset(_scroll.position, 0));
+    return true;
+  }
+
   void _cancelSessionScrollAnchorMaintenance() {
     _maintainSessionScrollAnchor = false;
   }
@@ -3107,7 +3136,11 @@ class _ChatViewState extends State<ChatView> {
 
   Future<void> _positionInitialTranscript() async {
     if (!_scroll.hasClients || _initialTranscriptPositioningAborted) return;
-    _jumpToInitialEstimate();
+    final initialTarget = _scrollTargetId;
+    if (initialTarget == null ||
+        !_stageMessageAtTranscriptCenter(initialTarget)) {
+      _jumpToInitialEstimate();
+    }
     for (var i = 0; i < 3; i++) {
       await WidgetsBinding.instance.endOfFrame;
       if (!mounted ||
@@ -7981,6 +8014,7 @@ class _ChatViewState extends State<ChatView> {
 
     final targetAlignment =
         alignment ?? (pinnedJump ? pinnedMessageScrollAlignment : 0.3);
+    var stagedAtTranscriptCenter = false;
     for (var tries = 0; tries < 6; tries++) {
       if (targetCancelled()) return false;
       final activeKey = _targetKey;
@@ -8015,32 +8049,70 @@ class _ChatViewState extends State<ChatView> {
           return false;
         }
         if (!mounted || !ctx.mounted || targetCancelled()) return false;
-        await Scrollable.ensureVisible(
-          ctx,
+        final aligned = await _alignMessageTarget(
+          activeKey,
           alignment: targetAlignment,
-          duration: instant
-              ? Duration.zero
-              : pinnedJump
-              ? const Duration(milliseconds: 140)
-              : const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
+          instant: instant,
+          pinnedJump: pinnedJump,
+          isCancelled: targetCancelled,
         );
-        if (mounted && !targetCancelled()) {
+        if (aligned && mounted && !targetCancelled()) {
           setState(() => _setScrollTarget(null));
           return true;
         }
         return false;
       }
       if (!_scroll.hasClients) return false;
-      final estimate = _estimateMessageOffset(messageId, targetAlignment);
-      if (estimate != null) _scroll.jumpTo(estimate);
-      await Future<void>.delayed(const Duration(milliseconds: 120));
+      // A loaded target can be arbitrarily far from the currently laid-out
+      // sliver children. Move the bidirectional transcript's center to that
+      // row once; unlike an absolute height estimate, this guarantees Flutter
+      // will build the target even when every preceding row was underestimated.
+      if (!stagedAtTranscriptCenter &&
+          _stageMessageAtTranscriptCenter(messageId)) {
+        stagedAtTranscriptCenter = true;
+      } else {
+        final estimate = _estimateMessageOffset(messageId, targetAlignment);
+        if (estimate != null) _scroll.jumpTo(estimate);
+      }
+      await WidgetsBinding.instance.endOfFrame;
       if (!mounted || targetCancelled()) return false;
     }
     if (mounted && !targetCancelled()) {
       setState(() => _setScrollTarget(null));
     }
     return false;
+  }
+
+  /// Repeats ordinary target alignment while rich content finishes laying out.
+  /// The first pass carries the visible motion; the two short correction passes
+  /// absorb thumbnail, preview, reaction, and text reflow during that motion.
+  Future<bool> _alignMessageTarget(
+    GlobalKey targetKey, {
+    required double alignment,
+    required bool instant,
+    required bool pinnedJump,
+    required bool Function() isCancelled,
+  }) async {
+    for (var pass = 0; pass < 3; pass++) {
+      if (isCancelled()) return false;
+      final ctx = targetKey.currentContext;
+      if (ctx == null || !ctx.mounted) return false;
+      await Scrollable.ensureVisible(
+        ctx,
+        alignment: alignment,
+        duration: instant
+            ? Duration.zero
+            : pass == 0
+            ? pinnedJump
+                  ? const Duration(milliseconds: 140)
+                  : const Duration(milliseconds: 220)
+            : const Duration(milliseconds: 80),
+        curve: Curves.easeOutCubic,
+      );
+      if (isCancelled()) return false;
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    return !isCancelled();
   }
 
   /// Aligns a pinned target more than once because media rows can finish a
