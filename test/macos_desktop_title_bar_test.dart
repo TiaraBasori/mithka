@@ -52,6 +52,15 @@ void main() {
       find.byKey(const ValueKey('macos-account-identity')),
       findsOneWidget,
     );
+    // With no window controls the bar keeps its trailing inset, so the
+    // account identity stops short of the right edge. macOS depends on that:
+    // its caption buttons are native and this slot is empty.
+    expect(
+      tester
+          .getTopRight(find.byKey(const ValueKey('macos-account-identity')))
+          .dx,
+      600 - MacosDesktopTitleBar.trailingPadding,
+    );
 
     final decoration = tester.widget<DecoratedBox>(
       find.byKey(const ValueKey('macos-desktop-title-bar-decoration')),
@@ -106,6 +115,16 @@ void main() {
               )
               .dx,
         ),
+      );
+      // The configuration Windows and Linux actually render: actions and
+      // controls together, with close still owning the corner.
+      expect(
+        tester
+            .getTopRight(
+              find.byKey(const ValueKey('desktop-title-bar-window-controls')),
+            )
+            .dx,
+        600,
       );
     },
   );
