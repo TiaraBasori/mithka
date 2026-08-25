@@ -479,6 +479,17 @@ jobs:
           # alone, so on Windows the plugin registers and is then never used.
           python3 scripts/drop-windows-plugin.py firebase_core \
             --reason 'Firebase publishes no Windows ARM64 binaries'
+          # Flutter writes the plugin registrant and the CMake plugin list
+          # during pub get, so both have to be regenerated from the plugin set
+          # this leaves behind; the build itself will not redo it.
+          flutter pub get
+          for generated in windows/flutter/generated_plugin_registrant.cc \
+                           windows/flutter/generated_plugins.cmake; do
+            if grep -qi firebase "$generated"; then
+              echo "$generated still registers Firebase" >&2
+              exit 1
+            fi
+          done
 
       - name: Build Windows release
         if: matrix.platform == 'windows'
