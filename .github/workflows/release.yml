@@ -467,13 +467,28 @@ jobs:
             --dart-define="CI_BUILD_STAMP=${{ needs.prepare.outputs.build_stamp }}" \
             --dart-define="SENTRY_DSN=$SENTRY_DSN"
 
+      - name: Drop Firebase from the Windows arm64 build
+        if: matrix.platform == 'windows' && matrix.architecture == 'arm64'
+        shell: bash
+        run: |
+          # Google ships the Firebase C++ SDK for Windows as x86 and x64 static
+          # libraries only — the archive contains no ARM64 at all — so an ARM64
+          # link fails on unresolved firebase::App symbols. Nothing is lost:
+          # Mithka initialises Firebase only when the mithka/firebase_configuration
+          # channel answers, and that channel is implemented on Android and iOS
+          # alone, so on Windows the plugin registers and is then never used.
+          python3 scripts/drop-windows-plugin.py firebase_core \
+            --reason 'Firebase publishes no Windows ARM64 binaries'
+
       - name: Build Windows release
         if: matrix.platform == 'windows'
         shell: pwsh
         env:
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
-          flutter build windows --release `
+          # --no-pub keeps pub from re-resolving over the plugin set this job
+          # settled on; the dependencies step above already fetched them.
+          flutter build windows --release --no-pub `
             --build-name="${{ needs.prepare.outputs.app_version }}" `
             --build-number="${{ needs.prepare.outputs.build_stamp }}" `
             --dart-define="GIT_COMMIT=${{ needs.prepare.outputs.short_sha }}" `
