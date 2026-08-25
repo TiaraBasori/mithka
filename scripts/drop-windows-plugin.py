@@ -18,6 +18,7 @@ import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 PACKAGE_CONFIG = Path(".dart_tool/package_config.json")
 PLATFORM_KEY = re.compile(r"^(\s*)platforms:\s*$")
@@ -28,17 +29,32 @@ class DropError(Exception):
     pass
 
 
+DRIVE_LETTER = re.compile(r"^/[A-Za-z]:[/\\]")
+
+
+def package_root(root_uri: str) -> Path:
+    """The directory a package_config.json ``rootUri`` points at.
+
+    A Windows file URI is ``file:///C:/...``, and its path keeps a leading
+    slash in front of the drive letter that has to come off before it names
+    anything. A relative rootUri is relative to ``.dart_tool/``.
+    """
+    parsed = urlparse(root_uri)
+    path = unquote(parsed.path)
+    if parsed.scheme == "file":
+        if DRIVE_LETTER.match(path):
+            path = path[1:]
+        return Path(path)
+    return PACKAGE_CONFIG.parent / path
+
+
 def resolve_package(name: str) -> Path:
     if not PACKAGE_CONFIG.is_file():
         raise DropError(f"{PACKAGE_CONFIG} is missing; run `flutter pub get` first")
     config = json.loads(PACKAGE_CONFIG.read_text(encoding="utf-8"))
     for package in config.get("packages", []):
-        if package.get("name") != name:
-            continue
-        # rootUri is relative to .dart_tool/ when it is not absolute.
-        root = package.get("rootUri", "")
-        root = root[len("file://"):] if root.startswith("file://") else root
-        return (PACKAGE_CONFIG.parent / root).resolve()
+        if package.get("name") == name:
+            return package_root(package.get("rootUri", "")).resolve()
     raise DropError(f"{name} is not a resolved dependency")
 
 
