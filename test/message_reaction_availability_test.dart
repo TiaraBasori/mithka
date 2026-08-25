@@ -201,5 +201,25 @@ void main() {
       ),
       isFalse,
     );
+    // A pointer picks reactions off the hover strip; the overlay only carries
+    // them on desktop once that strip asks for the full picker.
+    expect(
+      messageActionShowsReactionControls(
+        isDesktop: true,
+        isCall: false,
+        availability: allowed,
+        reactionExpanded: true,
+      ),
+      isTrue,
+    );
+    expect(
+      messageActionShowsReactionControls(
+        isDesktop: true,
+        isCall: true,
+        availability: allowed,
+        reactionExpanded: true,
+      ),
+      isFalse,
+    );
   });
 }

@@ -49,10 +49,12 @@ import 'location_detail_view.dart';
 import 'looping_video_view.dart';
 import 'media_preview_geometry.dart';
 import 'message_action_menu.dart';
+import 'message_reaction_availability.dart';
 import 'message_reply_count_badge.dart';
 import 'message_special_content.dart';
 import 'mobile_message_text_selection.dart';
 import 'music_player_controller.dart';
+import 'quick_reaction_choice.dart';
 import 'sensitive_content_reveal_prompt.dart';
 import 'stretchable_message_bubble_background.dart';
 import 'video_sticker_view.dart';
@@ -102,6 +104,9 @@ class MessageBubble extends StatefulWidget {
     this.channelHasLinkedDiscussion = false,
     this.onToggleReaction,
     this.onShowReactionUsers,
+    this.onResolveHoverReactions,
+    this.onHoverReaction,
+    this.onExpandHoverReactions,
     this.onRedial,
     this.onOpenContact,
     this.onVotePoll,
@@ -174,6 +179,21 @@ class MessageBubble extends StatefulWidget {
   final ValueChanged<MessageReaction>? onToggleReaction;
   final void Function(ChatMessage message, MessageReaction reaction)?
   onShowReactionUsers;
+
+  /// Resolves what this message may be reacted with, for the strip a
+  /// desktop pointer reveals by resting on the bubble. Left null by every
+  /// caller without a pointer to hover with, which keeps the strip out of
+  /// the touch layouts entirely. Returning null hides the strip.
+  final Future<MessageReactionAvailability?> Function(ChatMessage message)?
+  onResolveHoverReactions;
+  final void Function(ChatMessage message, QuickReactionChoice reaction)?
+  onHoverReaction;
+  final void Function(
+    ChatMessage message,
+    Rect? bounds,
+    MessageReactionAvailability availability,
+  )?
+  onExpandHoverReactions;
   final ValueChanged<bool>?
   onRedial; // tap a call log to redial (bool = isVideo)
   final ValueChanged<ChatMessage>? onOpenContact;
@@ -200,6 +220,23 @@ class MessageBubble extends StatefulWidget {
   State<MessageBubble> createState() => _MessageBubbleState();
 }
 
+/// Where a hovered bubble's reaction strip goes, resolved once when the strip
+/// is revealed rather than on every frame the pointer moves.
+@immutable
+class _HoverReactionAnchor {
+  const _HoverReactionAnchor({
+    required this.availability,
+    required this.reactions,
+    required this.left,
+    required this.top,
+  });
+
+  final MessageReactionAvailability availability;
+  final List<QuickReactionChoice> reactions;
+  final double left;
+  final double top;
+}
+
 class _MessageBubbleState extends State<MessageBubble>
     with SingleTickerProviderStateMixin {
   static const double _replyTrigger = 48;
@@ -220,6 +257,15 @@ class _MessageBubbleState extends State<MessageBubble>
   // a setState here rebuilt the entire bubble on every pointer crossing, and on
   // desktop the cursor crosses a bubble boundary on most scroll frames.
   final ValueNotifier<bool> _hoveringTimestamp = ValueNotifier(false);
+  // The desktop hover strip rides a notifier for that same reason, and
+  // measures against this key: a Stack child painted outside its parent
+  // takes no hits, so the strip has to be placed inside the message row.
+  final ValueNotifier<_HoverReactionAnchor?> _hoverReactions = ValueNotifier(
+    null,
+  );
+  final GlobalKey _messageRowKey = GlobalKey();
+  Timer? _hoverReactionDwell;
+  int _hoverReactionGeneration = 0;
   double? _layoutWidth;
   final Set<String> _expandedQuotes = {};
   final Set<String> _revealedSpoilers = {};
@@ -383,7 +429,92 @@ class _MessageBubbleState extends State<MessageBubble>
 
   void _setTimestampHover(bool hovering) => _hoveringTimestamp.value = hovering;
 
+  /// A pointer on its way down the list crosses every bubble between where
+  /// it started and the one it wants, and so does a list scrolling under a
+  /// parked cursor. Only a bubble the pointer settles on asks what it may
+  /// be reacted with.
+  static const _hoverReactionDelay = Duration(milliseconds: 150);
+
+  void _handleHoverReactionEnter() {
+    if (widget.onResolveHoverReactions == null) return;
+    _hoverReactionDwell?.cancel();
+    if (_hoverReactions.value != null) return;
+    _hoverReactionDwell = Timer(_hoverReactionDelay, _revealHoverReactions);
+  }
+
+  void _handleHoverReactionExit() {
+    _hoverReactionDwell?.cancel();
+    _hoverReactionDwell = null;
+    // Also drops a query still in flight: it answers for a bubble the
+    // pointer has already left.
+    _hoverReactionGeneration += 1;
+    _hoverReactions.value = null;
+  }
+
+  Future<void> _revealHoverReactions() async {
+    final resolve = widget.onResolveHoverReactions;
+    if (resolve == null) return;
+    final generation = ++_hoverReactionGeneration;
+    final availability = await resolve(message);
+    if (!mounted ||
+        generation != _hoverReactionGeneration ||
+        availability == null ||
+        !availability.canAdd) {
+      return;
+    }
+    _hoverReactions.value = _hoverReactionAnchor(availability);
+  }
+
+  /// Puts the strip against the bubble's outer edge, in the gutter the 75%
+  /// width cap leaves beside it, and clamps it back inside the row when the
+  /// bubble is wide enough to leave no gutter — a strip the pointer cannot
+  /// reach is worse than one overlapping a corner.
+  _HoverReactionAnchor? _hoverReactionAnchor(
+    MessageReactionAvailability availability,
+  ) {
+    final rowBox =
+        _messageRowKey.currentContext?.findRenderObject() as RenderBox?;
+    final bubbleBox =
+        _bubbleKey.currentContext?.findRenderObject() as RenderBox?;
+    if (rowBox == null ||
+        bubbleBox == null ||
+        !rowBox.hasSize ||
+        !bubbleBox.hasSize) {
+      return null;
+    }
+    final configured = effectiveQuickReactions(
+      _theme.quickReactions,
+      allowCustomEmoji:
+          availability.allowArbitraryCustom ||
+          availability.choices.any((choice) => choice.isCustom),
+    );
+    final reactions = availability
+        .quickChoices(configured)
+        .take(HoverReactionBar.maxReactionCount)
+        .toList(growable: false);
+    if (reactions.isEmpty) return null;
+    final bubble =
+        rowBox.globalToLocal(bubbleBox.localToGlobal(Offset.zero)) &
+        bubbleBox.size;
+    final width = HoverReactionBar.widthFor(reactions.length);
+    const gap = 6.0;
+    const edge = 12.0; // the message row's own horizontal padding
+    final maxLeft = math.max(edge, rowBox.size.width - edge - width);
+    final left = _outgoing ? bubble.left - gap - width : bubble.right + gap;
+    final maxTop = math.max(0.0, rowBox.size.height - HoverReactionBar.height);
+    return _HoverReactionAnchor(
+      availability: availability,
+      reactions: reactions,
+      left: left.clamp(edge, maxLeft),
+      top: bubble.top.clamp(0.0, maxTop),
+    );
+  }
+
   ChatMessage get message => widget.message;
+
+  bool get _outgoing => widget.meId != null
+      ? message.senderId == widget.meId
+      : message.isOutgoing;
 
   // Theme state resolved once per build by [_resolveTheme]. The colour helpers
   // below are read dozens of times while one bubble builds, and each read used
@@ -704,6 +835,8 @@ class _MessageBubbleState extends State<MessageBubble>
     _sensitiveContentController.removeListener(_handleSensitiveContentChange);
     _swipeController.dispose();
     _hoveringTimestamp.dispose();
+    _hoverReactionDwell?.cancel();
+    _hoverReactions.dispose();
     _voice.dispose();
     for (final r in _linkRecognizers) {
       r.dispose();
@@ -715,9 +848,7 @@ class _MessageBubbleState extends State<MessageBubble>
   Widget build(BuildContext context) {
     if (message.isService) return const SizedBox.shrink();
     _resolveTheme();
-    final outgoing = widget.meId != null
-        ? message.senderId == widget.meId
-        : message.isOutgoing;
+    final outgoing = _outgoing;
     return LayoutBuilder(
       builder: (context, constraints) {
         _layoutWidth = constraints.maxWidth.isFinite
@@ -951,9 +1082,16 @@ class _MessageBubbleState extends State<MessageBubble>
     // bubble and re-inflate every child element (spoilers, inline video, map
     // thumbnails). Hover therefore only ever swaps the Positioned's child.
     return MouseRegion(
-      onEnter: (_) => _setTimestampHover(true),
-      onExit: (_) => _setTimestampHover(false),
+      onEnter: (_) {
+        _setTimestampHover(true);
+        _handleHoverReactionEnter();
+      },
+      onExit: (_) {
+        _setTimestampHover(false);
+        _handleHoverReactionExit();
+      },
       child: Stack(
+        key: _messageRowKey,
         clipBehavior: Clip.none,
         children: [
           messageRow,
@@ -969,10 +1107,41 @@ class _MessageBubbleState extends State<MessageBubble>
                           : const SizedBox.shrink(),
                     ),
             ),
+          if (widget.onResolveHoverReactions != null) _hoverReactionOverlay(),
         ],
       ),
     );
   }
+
+  /// [Positioned.fill] rather than a bare [Positioned]: where the strip goes is
+  /// only known once its anchor resolves, and a builder cannot hand a Stack a
+  /// Positioned child. The inner Stack claims no hits of its own, so every
+  /// click that misses the strip still reaches the bubble underneath.
+  Widget _hoverReactionOverlay() => Positioned.fill(
+    child: ValueListenableBuilder<_HoverReactionAnchor?>(
+      valueListenable: _hoverReactions,
+      builder: (context, anchor, _) => anchor == null
+          ? const SizedBox.shrink()
+          : Stack(
+              children: [
+                Positioned(
+                  left: anchor.left,
+                  top: anchor.top,
+                  child: HoverReactionBar(
+                    reactions: anchor.reactions,
+                    onReaction: (reaction) =>
+                        widget.onHoverReaction?.call(message, reaction),
+                    onExpand: () => widget.onExpandHoverReactions?.call(
+                      message,
+                      _bubbleBounds(),
+                      anchor.availability,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    ),
+  );
 
   Widget _detailTimestampOverlay(bool outgoing, Widget child) => Positioned(
     left: outgoing ? null : 58,

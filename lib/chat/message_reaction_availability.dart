@@ -12,11 +12,19 @@ class MessageReactionUnavailableException implements Exception {
   String toString() => 'Reaction is unavailable for this message';
 }
 
+/// Whether the long-press overlay carries reaction controls.
+///
+/// Desktop keeps the quick bar out of that overlay — a pointer picks reactions
+/// off the strip beside the hovered bubble instead. The expanded picker is the
+/// exception: the strip's expand button opens it through this same overlay, and
+/// [reactionExpanded] is how that arrives here.
 bool messageActionShowsReactionControls({
   required bool isDesktop,
   required bool isCall,
   required MessageReactionAvailability? availability,
-}) => !isDesktop && !isCall && availability?.canAdd == true;
+  bool reactionExpanded = false,
+}) =>
+    (!isDesktop || reactionExpanded) && !isCall && availability?.canAdd == true;
 
 bool messageReactionAvailabilityResultIsCurrent({
   required int requestGeneration,

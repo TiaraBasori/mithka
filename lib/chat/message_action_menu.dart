@@ -17,6 +17,7 @@ import '../components/app_icons.dart';
 import '../platform/adaptive_platform.dart';
 import '../settings/translation_controller.dart';
 import '../tdlib/td_models.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import 'custom_emoji.dart';
 import 'emoji_store.dart';
@@ -162,6 +163,154 @@ class QuickReactionBar extends StatelessWidget {
               color: Colors.white,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The reaction strip a desktop pointer reveals by resting on a message.
+///
+/// Touch reaches the same choices through [QuickReactionBar] inside the
+/// long-press HUD. A pointer has no long press to spend on that, so the strip
+/// floats beside the hovered bubble instead: 30pt square slots, a 22pt glyph in
+/// each, and a trailing chevron onto the full picker. Fixed dark colors for the
+/// same reason the HUD uses them — it reads as a floating surface, not as part
+/// of the themed message list underneath.
+class HoverReactionBar extends StatelessWidget {
+  const HoverReactionBar({
+    super.key,
+    required this.reactions,
+    required this.onReaction,
+    required this.onExpand,
+  });
+
+  /// Past this the strip is wider than the gutter left beside a bubble in a
+  /// typical desktop window, and it would start covering the message it is
+  /// offering reactions for. The rest stay behind the expand button.
+  static const maxReactionCount = 5;
+
+  static const _slot = 30.0;
+  static const _emojiSize = 22.0;
+  static const _padding = 5.0;
+  static const _surface = Color(0xFF2C2C2E);
+  static const _slotHoverFill = Color(0xFF3A3A3C);
+
+  static const height = _slot + _padding * 2;
+
+  /// The width [reactionCount] slots plus the expand button lay out to. The
+  /// bubble needs this before the strip builds, to place it against its own
+  /// outer edge.
+  static double widthFor(int reactionCount) =>
+      (reactionCount + 1) * _slot + _padding * 2;
+
+  final List<QuickReactionChoice> reactions;
+  final ValueChanged<QuickReactionChoice> onReaction;
+  final VoidCallback onExpand;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      duration: AppMotion.duration(context, AppMotion.quick),
+      curve: AppMotion.emphasized,
+      tween: Tween(begin: 0, end: 1),
+      builder: (context, t, child) => Opacity(
+        opacity: t,
+        child: Transform.scale(scale: 0.94 + 0.06 * t, child: child),
+      ),
+      child: Container(
+        key: const ValueKey('hover-reaction-bar'),
+        width: widthFor(reactions.length),
+        height: height,
+        padding: const EdgeInsets.all(_padding),
+        decoration: BoxDecoration(
+          color: _surface,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final reaction in reactions)
+              _HoverReactionSlot(
+                key: ValueKey('hover-reaction-${reaction.storageValue}'),
+                onTap: () => onReaction(reaction),
+                child: reaction.isCustom
+                    ? CustomEmojiView(
+                        id: reaction.customEmojiId,
+                        size: _emojiSize,
+                        color: Colors.white,
+                      )
+                    : Text(
+                        reaction.emoji,
+                        textScaler: TextScaler.noScaling,
+                        style: const TextStyle(fontSize: _emojiSize),
+                      ),
+              ),
+            _HoverReactionSlot(
+              key: const ValueKey('hover-reaction-expand'),
+              onTap: onExpand,
+              child: const AppIcon(
+                HeroAppIcons.chevronDown,
+                size: 18,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One 30pt slot of [HoverReactionBar]. A pointer gets a filled disc under the
+/// glyph it is over — without it there is no way to tell which of five tightly
+/// packed emoji a click would land on.
+class _HoverReactionSlot extends StatefulWidget {
+  const _HoverReactionSlot({
+    super.key,
+    required this.onTap,
+    required this.child,
+  });
+
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  State<_HoverReactionSlot> createState() => _HoverReactionSlotState();
+}
+
+class _HoverReactionSlotState extends State<_HoverReactionSlot> {
+  bool _hovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovering = true),
+      onExit: (_) => setState(() => _hovering = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: AppMotion.duration(context, AppMotion.quick),
+          curve: AppMotion.standard,
+          width: HoverReactionBar._slot,
+          height: HoverReactionBar._slot,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: _hovering
+                ? HoverReactionBar._slotHoverFill
+                : Colors.transparent,
+            shape: BoxShape.circle,
+          ),
+          child: widget.child,
         ),
       ),
     );

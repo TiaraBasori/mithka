@@ -1111,6 +1111,14 @@ class _ChatViewState extends State<ChatView> {
   String _reactionTab = 'standard'; // 'standard' or a custom-emoji pack id
   MessageReactionAvailability? _actionReactionAvailability;
   int _actionReactionAvailabilityGeneration = 0;
+  // What a hovered message may be reacted with holds still for as long as
+  // the chat is open, and a pointer crossing back and forth between two
+  // bubbles would otherwise re-ask on every crossing. Only one bubble is
+  // ever hovered, so there is no fan-out here to deduplicate.
+  final Map<int, MessageReactionAvailability> _hoverReactionAvailability = {};
+  // Caps what a long scroll can accumulate. Dropping the map costs at most
+  // one re-query per message the pointer comes back to.
+  static const _hoverReactionCacheLimit = 256;
   int _lastCount = 0;
   bool _didInitialScroll = false; // one-time entry positioning has run
   bool _showJumpDown = false; // scrolled up → show jump-to-bottom button
@@ -4043,6 +4051,11 @@ class _ChatViewState extends State<ChatView> {
       hasCustomChatTheme: _hasCustomChatTheme,
       onToggleReaction: (r) => unawaited(_toggleMessageReaction(message, r)),
       onShowReactionUsers: _showReactionUsers,
+      onResolveHoverReactions: _offersHoverReactions
+          ? _resolveHoverReactionAvailability
+          : null,
+      onHoverReaction: _reactFromHover,
+      onExpandHoverReactions: _showHoverReactionPicker,
       onRedial: _startCall,
       onOpenContact: _openSharedContact,
       onVotePoll: (message, optionIndex) =>
@@ -8917,6 +8930,73 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
+  /// Reacting off a hovered bubble needs a pointer to hover with; touch
+  /// reaches the same choices by long-pressing into the HUD.
+  bool get _offersHoverReactions =>
+      !_isSelecting && isDesktopTargetPlatform(Theme.of(context).platform);
+
+  Future<MessageReactionAvailability?> _resolveHoverReactionAvailability(
+    ChatMessage message,
+  ) async {
+    if (message.isCall) return null;
+    final cached = _hoverReactionAvailability[message.id];
+    if (cached != null) return cached;
+    EmojiStore.shared.loadIfNeeded();
+    try {
+      final availability = await _vm.messageReactionAvailability(message.id);
+      if (!mounted) return null;
+      if (_hoverReactionAvailability.length >= _hoverReactionCacheLimit) {
+        _hoverReactionAvailability.clear();
+      }
+      _hoverReactionAvailability[message.id] = availability;
+      return availability;
+    } catch (_) {
+      // Fail closed, as the long-press path does: a strip built from the
+      // global defaults offers reactions this message may reject.
+      return null;
+    }
+  }
+
+  void _reactFromHover(ChatMessage message, QuickReactionChoice reaction) {
+    unawaited(
+      _sendReaction(
+        () => reaction.isCustom
+            ? _vm.addCustomReaction(message.id, reaction.customEmojiId)
+            : _vm.addReaction(message.id, reaction.emoji),
+      ),
+    );
+  }
+
+  /// The strip's expand button hands the message to the overlay the long-press
+  /// menu uses, opened straight onto the full picker.
+  void _showHoverReactionPicker(
+    ChatMessage message,
+    Rect? bounds,
+    MessageReactionAvailability availability,
+  ) {
+    EmojiStore.shared.loadIfNeeded();
+    final overlayBox =
+        _actionOverlayKey.currentContext?.findRenderObject() as RenderBox?;
+    final overlayRect = bounds != null && overlayBox?.hasSize == true
+        ? MessageActionMenu.rectInOverlay(
+            bounds,
+            globalToLocal: overlayBox!.globalToLocal,
+          )
+        : bounds;
+    setState(() {
+      _actionTarget = message;
+      _actionRect = overlayRect;
+      _lastActionPointerGlobalPosition = null;
+      _actionSource = MessageActionSource.normal;
+      _reactionExpanded = true;
+      _reactionTab = 'standard';
+      // Retires a long-press query still in flight, which would otherwise land
+      // on this target and replace the availability the strip resolved.
+      _actionReactionAvailabilityGeneration += 1;
+      _actionReactionAvailability = availability;
+    });
+  }
+
   Future<void> _loadActionReactionAvailability(
     int messageId,
     int generation,
@@ -9274,6 +9354,7 @@ class _ChatViewState extends State<ChatView> {
       isDesktop: desktopMenu,
       isCall: _actionTarget!.isCall,
       availability: reactionAvailability,
+      reactionExpanded: _reactionExpanded,
     );
     final actionMenu = MessageActionMenu(
       message: _actionTarget!,
