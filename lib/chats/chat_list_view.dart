@@ -844,7 +844,7 @@ class _ChatListViewState extends State<ChatListView>
     if (positions.length != 1) return;
     final position = positions.single;
     final theme = context.read<ThemeController>();
-    final rowHeight = theme.rowHeight + 0.5;
+    final rowHeight = AppMetric.chatListRowExtent(context) + 0.5;
     final archiveMode = effectiveChatListArchiveDisplayMode(
       theme.archivedChatsDisplayMode,
     );
@@ -872,7 +872,7 @@ class _ChatListViewState extends State<ChatListView>
         setState(() => _archiveRevealed = false);
       }
     }
-    if (position.extentAfter < theme.rowHeight * 8) {
+    if (position.extentAfter < AppMetric.chatListRowExtent(context) * 8) {
       _model.loadMore();
     }
   }
@@ -1483,7 +1483,7 @@ class _ChatListViewState extends State<ChatListView>
     }
     return chatListItemScrollOffset(
       itemIndex: itemIndex,
-      rowHeight: context.read<ThemeController>().rowHeight,
+      rowHeight: AppMetric.chatListRowExtent(context),
       maxScrollExtent: _scrollController.position.maxScrollExtent,
       leadingExtent: _leadingListControlsExtent(
         context.read<ThemeController>(),
@@ -1920,8 +1920,15 @@ class _ChatListViewState extends State<ChatListView>
   Widget _chatFolderTabs() {
     final c = context.colors;
     final selectedFolderId = _model.selectedFilter.folderId;
+    // The strip scrolls horizontally, so its height is fixed; grow it with the
+    // label that sits above the selection indicator.
+    final tabHeight = AppMetric.rowExtentFor(
+      context,
+      base: 44,
+      lines: const [AppTextSize.callout],
+    );
     return Container(
-      height: 44,
+      height: tabHeight,
       decoration: BoxDecoration(
         color: c.listHeaderTint,
         border: Border(bottom: BorderSide(color: c.divider, width: 0.5)),
@@ -1945,7 +1952,7 @@ class _ChatListViewState extends State<ChatListView>
             behavior: HitTestBehavior.opaque,
             onTap: () => _selectFilter(filter),
             child: SizedBox(
-              height: 44,
+              height: tabHeight,
               child: AnimatedBuilder(
                 animation: _folderDrag,
                 builder: (context, _) {
@@ -2158,7 +2165,7 @@ class _ChatListViewState extends State<ChatListView>
           color: c.background,
           child: LayoutBuilder(
             builder: (context, geo) {
-              final rowH = theme.rowHeight + 0.5;
+              final rowH = AppMetric.chatListRowExtent(context) + 0.5;
               if (entries.isEmpty && !showInlineArchive) {
                 return ListView(
                   primary: false,
@@ -2230,7 +2237,7 @@ class _ChatListViewState extends State<ChatListView>
       color: c.background,
       child: LayoutBuilder(
         builder: (context, geo) {
-          final rowH = theme.rowHeight + 0.5;
+          final rowH = AppMetric.chatListRowExtent(context) + 0.5;
           final searchHeight = leadingControlsExtent;
           final visibleRows = math.max(1, (geo.maxHeight / rowH).ceil());
           _lastVisibleRows = visibleRows;
@@ -3048,7 +3055,7 @@ class _ChatRowPlaceholder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final rowHeight = context.watch<ThemeController>().rowHeight;
+    final rowHeight = AppMetric.chatListRowExtent(context);
     return SizedBox(
       height: rowHeight,
       child: Padding(
