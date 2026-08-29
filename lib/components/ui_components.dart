@@ -320,12 +320,14 @@ class NavHeader extends StatelessWidget {
       value: systemUiOverlayStyleForSurface(c.navBar),
       child: Container(
         constraints: BoxConstraints(
-          minHeight: headerHeight +
+          minHeight:
+              headerHeight +
               MediaQuery.of(context).padding.top +
               iPadWindowChromeInsetOf(context),
         ),
         padding: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top +
+          top:
+              MediaQuery.of(context).padding.top +
               iPadWindowChromeInsetOf(context),
         ),
         decoration: BoxDecoration(
@@ -1012,14 +1014,20 @@ class SettingsRow extends StatelessWidget {
   final String? subtitle;
   final bool enabled;
 
+  /// The height a settings row of [height] actually resolves to. Exposed so a
+  /// hand-rolled row that has to line up with the settings rows around it can
+  /// read the rule instead of hard-coding a number and drifting on desktop,
+  /// where rows compress well below [AppMetric.settingsRowHeight].
+  static double resolveHeight([double height = AppMetric.settingsRowHeight]) =>
+      isDesktopTargetPlatform() && height >= AppMetric.compactSettingsRowHeight
+      ? 42.0
+      : height;
+
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final pointerDense = isDesktopTargetPlatform();
-    final effectiveHeight =
-        pointerDense && height >= AppMetric.compactSettingsRowHeight
-        ? 42.0
-        : height;
+    final effectiveHeight = resolveHeight(height);
     final effectiveLeadingInset =
         pointerDense && leadingInset == AppMetric.settingsLeadingInset
         ? AppSpacing.lg
@@ -1386,10 +1394,7 @@ class SettingsSwitchRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final pointerDense = isDesktopTargetPlatform();
-    final effectiveHeight =
-        pointerDense && height >= AppMetric.compactSettingsRowHeight
-        ? 42.0
-        : height;
+    final effectiveHeight = SettingsRow.resolveHeight(height);
     final effectiveLeadingInset =
         pointerDense && leadingInset == AppMetric.settingsLeadingInset
         ? AppSpacing.lg
