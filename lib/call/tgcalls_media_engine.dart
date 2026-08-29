@@ -36,6 +36,7 @@ class TgcallsMediaEngine implements CallMediaEngine {
       case 'signaling':
         final data = event['data'];
         if (data is Uint8List) _onSignalingData?.call(data);
+        break;
       case 'state':
         debugPrint('📞 [ntgcalls] state=${event['state']}');
     }
