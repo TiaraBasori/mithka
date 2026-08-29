@@ -125,8 +125,9 @@ abstract final class AppAssetPicker {
           ),
         ),
       );
-      if (state == PermissionState.authorized ||
-          state == PermissionState.limited) {
+        if (!context.mounted) {
+          return const AppAssetPickerSelection(assets: [], failedCount: 0);
+        }
         final assets = await AssetPicker.pickAssets(
           context,
           pickerConfig: buildConfig(
