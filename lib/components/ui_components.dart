@@ -92,7 +92,10 @@ class SettingsPageScaffold extends StatelessWidget {
             (navigator?.canPop() ?? false)
         ? onBack ?? () => navigator!.pop()
         : null;
-    final content = constrainContent
+    // A scroll view has to span the pane so its scrollbar rides the pane's
+    // edge rather than floating beside the content lane; [SettingsListView]
+    // lanes its own content instead. Everything else is constrained here.
+    final content = constrainContent && child is! SettingsListView
         ? DesktopContentConstraint(child: child)
         : child;
     return Scaffold(
@@ -137,12 +140,21 @@ class SettingsListView extends StatelessWidget {
   final ScrollViewKeyboardDismissBehavior keyboardDismissBehavior;
 
   @override
-  Widget build(BuildContext context) => ListView(
-    controller: controller,
-    physics: physics,
-    padding: padding,
-    keyboardDismissBehavior: keyboardDismissBehavior,
-    children: children,
+  Widget build(BuildContext context) => LayoutBuilder(
+    // The lane lives in the padding, not around the list — see
+    // [desktopContentLaneInset]. Nested inside a pane that is already laned,
+    // the inset resolves to zero and this is a plain ListView.
+    builder: (context, constraints) => ListView(
+      controller: controller,
+      physics: physics,
+      padding: padding.add(
+        EdgeInsets.symmetric(
+          horizontal: desktopContentLaneInset(constraints.maxWidth),
+        ),
+      ),
+      keyboardDismissBehavior: keyboardDismissBehavior,
+      children: children,
+    ),
   );
 }
 
