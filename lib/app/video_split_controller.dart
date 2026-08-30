@@ -74,4 +74,10 @@ class VideoSplitController extends ChangeNotifier {
     _session = null;
     notifyListeners();
   }
+
+  @override
+  void dispose() {
+    super.dispose();
+    close();
+  }
 }
