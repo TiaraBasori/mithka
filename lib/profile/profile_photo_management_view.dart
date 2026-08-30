@@ -203,10 +203,13 @@ class _ProfilePhotoManagementViewState
     switch (action) {
       case _PhotoAction.useCurrent:
         await _usePrevious(entry, isPublic: false);
+        break;
       case _PhotoAction.usePublic:
         await _usePrevious(entry, isPublic: true);
+        break;
       case _PhotoAction.delete:
         await _delete(entry);
+        break;
     }
   }
 
