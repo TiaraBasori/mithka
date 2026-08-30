@@ -883,6 +883,12 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
       _notificationTapChannel.setMethodCallHandler(null);
     }
   }
+
+  @override
+  void dispose() {
+    super.dispose();
+    unawaited(stop());
+  }
 }
 
 class _EffectiveNotificationSettings {
