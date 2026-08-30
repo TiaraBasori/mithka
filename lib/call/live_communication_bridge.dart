@@ -20,6 +20,7 @@ class LiveCommunicationBridge {
       switch (call.method) {
         case 'setMuted':
           onSystemMuted?.call(uuid, arguments?['muted'] as bool? ?? false);
+          break;
         case 'end':
           onSystemEnded?.call(uuid);
       }
