@@ -108,12 +108,15 @@ class _PublicDiscoveryViewState extends State<PublicDiscoveryView> {
       switch (_tab) {
         case _DiscoveryTab.channels:
           await _loadChannels(query, generation);
+          break;
         case _DiscoveryTab.posts:
           if (query.isNotEmpty) {
             await _loadPosts(query, generation, reset: reset);
           }
+          break;
         case _DiscoveryTab.media:
           await _loadMedia(query, generation, reset: reset);
+          break;
       }
     } catch (error) {
       if (mounted && generation == _generation) {
