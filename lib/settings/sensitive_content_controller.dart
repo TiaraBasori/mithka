@@ -19,6 +19,8 @@ class SensitiveContentController extends ChangeNotifier {
   bool _canIgnore = false;
   bool _enabled = false;
 
+  StreamSubscription<int>? _slotChangesSub;
+
   bool get loading => _loading;
   bool get canIgnore => _canIgnore;
   bool get enabled => _enabled;
@@ -30,7 +32,7 @@ class SensitiveContentController extends ChangeNotifier {
   Future<void> initialize() async {
     if (_initialized || _loading) return;
     _initialized = true;
-    TdClient.shared.subscribeActiveSlotChanges().listen(
+    _slotChangesSub = TdClient.shared.subscribeActiveSlotChanges().listen(
       (_) => unawaited(refresh()),
     );
     await refresh();
@@ -68,5 +70,12 @@ class SensitiveContentController extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  @override
+  Future<void> dispose() async {
+    await _slotChangesSub?.cancel();
+    _slotChangesSub = null;
+    super.dispose();
   }
 }
