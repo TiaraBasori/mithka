@@ -164,6 +164,7 @@ class _ChatAdministratorEditViewState extends State<ChatAdministratorEditView> {
     try {
       final availability = await TdClient.shared.query({
         '@type': 'canTransferOwnership',
+        'chat_id': widget.chatId,
       });
       if (!mounted) return;
       if (availability.type != 'canTransferOwnershipResultOk') {
