@@ -52,9 +52,10 @@ class PushDeviceRegistrar {
 
   Future<dynamic> _handleNativeMethod(MethodCall call) async {
     switch (call.method) {
-      case 'deviceToken':
+        case 'deviceToken':
         _setDeviceToken(call.arguments as String?);
         unawaited(_registerIfPossible());
+        break;
       case 'registrationError':
         debugPrint('APNs registration failed: ${call.arguments}');
     }

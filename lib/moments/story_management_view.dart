@@ -203,6 +203,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       switch (action) {
         case 'edit':
           await _editCaption(id, story.obj('caption')?.str('text') ?? '');
+          break;
         case 'media':
           await _replaceMedia(id);
         case 'privacy':
