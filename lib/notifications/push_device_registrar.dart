@@ -55,8 +55,10 @@ class PushDeviceRegistrar {
       case 'deviceToken':
         _setDeviceToken(call.arguments as String?);
         unawaited(_registerIfPossible());
+        break;
       case 'registrationError':
         debugPrint('APNs registration failed: ${call.arguments}');
+        break;
     }
   }
 
