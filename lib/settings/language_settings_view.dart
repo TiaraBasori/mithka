@@ -112,9 +112,7 @@ class MithkaLanguageSettingsView extends StatelessWidget {
                     for (final option in AppLocaleController.options) ...[
                       _LanguageRow(
                         title: option.label.l10n(context),
-                        selected:
-                            !locale.followsSystem &&
-                            option.tag == locale.locale!.toLanguageTag(),
+                        selected: !locale.followsSystem && option.tag == locale.locale!.toLanguageTag(),
                         onTap: () => locale.locale = option.locale,
                       ),
                       if (option != AppLocaleController.options.last)
