@@ -547,6 +547,7 @@ class GroupCallController extends ChangeNotifier {
         if (update.integer('group_call_id') != current.groupCallId) return;
         final raw = update.obj('participant');
         if (raw != null) _upsertParticipant(raw);
+        break;
       case 'updateGroupCallParticipants':
         if (update.integer('group_call_id') != current.groupCallId ||
             _unboundInviteLink.isEmpty) {
