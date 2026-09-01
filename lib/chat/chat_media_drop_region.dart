@@ -51,23 +51,23 @@ class _ChatMediaDropRegionState extends State<ChatMediaDropRegion> {
       case 'dropImages':
         if (_draggingOver && mounted) setState(() => _draggingOver = false);
         if (!widget.enabled) return;
-        final paths = (call.arguments as List<Object?>? ?? const [])
+          final paths = (call.arguments as List<Object?>? ?? const [])
             .whereType<String>()
             .where((path) => path.isNotEmpty && File(path).existsSync())
             .take(10);
-        final attachments = await resolveAttachmentListDimensions(
-          paths.map(
-            (path) => OutgoingAttachment(
-              path: path,
-              kind: _isGif(path)
-                  ? OutgoingAttachmentKind.animation
-                  : OutgoingAttachmentKind.photo,
+          final attachments = await resolveAttachmentListDimensions(
+            paths.map(
+              (path) => OutgoingAttachment(
+                path: path,
+                kind: _isGif(path)
+                    ? OutgoingAttachmentKind.animation
+                    : OutgoingAttachmentKind.photo,
+              ),
             ),
-          ),
-        );
-        if (mounted && attachments.isNotEmpty) {
-          await widget.onImagesDropped(attachments);
-        }
+          );
+          if (mounted && attachments.isNotEmpty) {
+            await widget.onImagesDropped(attachments);
+          }
     }
   }
 
