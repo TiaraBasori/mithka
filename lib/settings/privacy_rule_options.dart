@@ -47,12 +47,16 @@ class PrivacyRuleSelection {
       switch (rule.type) {
         case 'userPrivacySettingRuleAllowUsers':
           allowUserIds.addAll(rule.int64Array('user_ids') ?? const <int>[]);
+          break;
         case 'userPrivacySettingRuleAllowChatMembers':
           allowChatIds.addAll(rule.int64Array('chat_ids') ?? const <int>[]);
+          break;
         case 'userPrivacySettingRuleRestrictUsers':
           restrictUserIds.addAll(rule.int64Array('user_ids') ?? const <int>[]);
+          break;
         case 'userPrivacySettingRuleRestrictChatMembers':
           restrictChatIds.addAll(rule.int64Array('chat_ids') ?? const <int>[]);
+          break;
       }
     }
     return PrivacyRuleSelection._(
