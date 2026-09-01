@@ -98,6 +98,7 @@ class CustomEmojiCenter {
   final Map<int, CustomEmojiSticker> _cache = {};
   final Set<int> _pending = {};
   bool _scheduled = false;
+  Timer? _debounceTimer;
   int _generation = 0;
   final StreamController<int> _resolved = StreamController.broadcast();
 
@@ -116,12 +117,13 @@ class CustomEmojiCenter {
     _pending.add(id);
     if (_scheduled) return;
     _scheduled = true;
-    Future.delayed(const Duration(milliseconds: 40), _flush);
+    _debounceTimer = Timer(const Duration(milliseconds: 40), _flush);
   }
 
   Future<void> _flush() async {
     final generation = _generation;
     _scheduled = false;
+    _debounceTimer = null;
     final ids = _pending.toList();
     _pending.clear();
     for (var i = 0; i < ids.length; i += 200) {
@@ -150,6 +152,12 @@ class CustomEmojiCenter {
         }
       } catch (_) {}
     }
+  }
+
+  void cancel() {
+    _debounceTimer?.cancel();
+    _debounceTimer = null;
+    _scheduled = false;
   }
 }
 
@@ -190,6 +198,7 @@ class _CustomEmojiViewState extends State<CustomEmojiView> {
     _sub?.cancel();
     _sub = null;
     final center = CustomEmojiCenter.shared;
+    center.cancel();
     if (center.get(widget.id) == null) {
       center.request(widget.id);
       _sub = center.onResolved.listen((rid) {
