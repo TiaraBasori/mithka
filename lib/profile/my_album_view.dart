@@ -51,10 +51,15 @@ class _MyAlbumViewState extends State<MyAlbumView> {
         final ref = TDParse.fileRef(sizes.last.obj('photo'));
         if (ref != null) photos.add(ref);
       }
-      _photos = photos;
-    } catch (_) {}
-    if (mounted) setState(() => _loading = false);
-  }
+      if (mounted) {
+        setState(() {
+          _photos = photos;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
 
   @override
   Widget build(BuildContext context) {
