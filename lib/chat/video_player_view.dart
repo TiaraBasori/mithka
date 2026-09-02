@@ -169,6 +169,7 @@ class VideoPlayerView extends StatefulWidget {
     this.onFVideoPictureInPictureRestore,
     this.onToggleFullscreen,
     this.streamQuery,
+    this.thumbnailProvider,
   });
 
   final TdFileRef video;
@@ -203,6 +204,10 @@ class VideoPlayerView extends StatefulWidget {
   /// Overrides TDLib file queries for deterministic host tests.
   @visibleForTesting
   final TdVideoStreamQuery? streamQuery;
+
+  /// Overrides native thumbnail generation for deterministic host tests.
+  @visibleForTesting
+  final FVideoThumbnailProvider? thumbnailProvider;
 
   @override
   State<VideoPlayerView> createState() => _VideoPlayerViewState();
@@ -2198,7 +2203,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     if (source == null) {
       return Future<Uint8List?>.value();
     }
-    return FVideoThumbnail.generateRequest(
+    return _generateScrubThumbnail(
       FVideoThumbnailRequest(
         source: source,
         position: request.position,
@@ -2865,7 +2870,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     final aspect = controller == null
         ? 16 / 9
         : _displayVideoSize(controller).aspectRatio;
-    return FVideoThumbnail.generateRequest(
+    return _generateScrubThumbnail(
       FVideoThumbnailRequest(
         source: source,
         position: position,
@@ -2873,6 +2878,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         quality: 70,
       ),
     );
+  }
+
+  Future<Uint8List?> _generateScrubThumbnail(FVideoThumbnailRequest request) {
+    final provider = widget.thumbnailProvider;
+    return provider == null
+        ? FVideoThumbnail.generateRequest(request)
+        : provider(request);
   }
 
   FVideoSource? _scrubThumbnailSource() {
