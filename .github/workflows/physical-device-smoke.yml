@@ -29,7 +29,7 @@ jobs:
     runs-on: [self-hosted, macOS, mithka-physical-ios]
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
@@ -80,7 +80,7 @@ jobs:
     runs-on: [self-hosted, mithka-physical-android]
     timeout-minutes: 90
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
 
       - uses: subosito/flutter-action@v2
         with:
