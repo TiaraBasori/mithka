@@ -162,6 +162,7 @@ class _GroupManagementViewState extends State<GroupManagementView> {
           _canChangeInfo = true;
           _canRestrictMembers = true;
           _canPromoteMembers = true;
+          break;
         case 'chatMemberStatusAdministrator':
           final rights = status?.obj('rights');
           _canChangeInfo = rights?.boolean('can_change_info') ?? false;
