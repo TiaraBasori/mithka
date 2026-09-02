@@ -258,6 +258,7 @@ class AuthManager extends ChangeNotifier {
         // state. On Flutter hot restart, Dart-side lifecycle can be rebuilt
         // while tdjson is still alive, so repeat the active bootstrap here.
         _client.sendParametersForActiveClient();
+        break;
       case 'authorizationStateWaitPhoneNumber':
         _set(const AuthWaitPhoneNumber());
       case 'authorizationStateWaitPremiumPurchase':
