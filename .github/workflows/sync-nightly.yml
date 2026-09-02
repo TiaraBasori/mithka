@@ -24,8 +24,13 @@ permissions:
   contents: write
 
 jobs:
+  quality:
+    name: Required quality gate
+    uses: ./.github/workflows/quality.yml
+
   sync:
     name: Sync master to nightly
+    needs: quality
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.sync.outputs.changed }}

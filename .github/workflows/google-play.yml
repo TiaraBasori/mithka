@@ -20,9 +20,14 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    name: Required quality gate
+    uses: ./.github/workflows/quality.yml
+
   prepare:
     name: Read release version
     if: github.ref == 'refs/heads/nightly' || github.ref == 'refs/heads/release'
+    needs: quality
     runs-on: ubuntu-latest
     outputs:
       app_version: ${{ steps.version.outputs.app_version }}
@@ -69,14 +74,16 @@ jobs:
               exit 1
               ;;
           esac
-          echo "app_version=$app_version" >> "$GITHUB_OUTPUT"
-          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
-          echo "android_version_code=$android_version_code" >> "$GITHUB_OUTPUT"
-          echo "build_stamp=$build_stamp" >> "$GITHUB_OUTPUT"
-          echo "release_date=$release_date" >> "$GITHUB_OUTPUT"
-          echo "short_sha=$short_sha" >> "$GITHUB_OUTPUT"
-          echo "play_track=$play_track" >> "$GITHUB_OUTPUT"
-          echo "release_name=$release_name" >> "$GITHUB_OUTPUT"
+          {
+            echo "app_version=$app_version"
+            echo "version_code=$version_code"
+            echo "android_version_code=$android_version_code"
+            echo "build_stamp=$build_stamp"
+            echo "release_date=$release_date"
+            echo "short_sha=$short_sha"
+            echo "play_track=$play_track"
+            echo "release_name=$release_name"
+          } >> "$GITHUB_OUTPUT"
           echo "Google Play $play_track version: $app_version+$android_version_code"
 
   google-play:

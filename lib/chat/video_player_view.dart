@@ -2364,7 +2364,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                             const SizedBox(width: 12),
                             _playerChromeIconButton(
                               icon: HeroAppIcons.code,
-                              label: 'Stream inspector',
+                              label: AppStrings.t(
+                                AppStringKeys.videoPlayerStreamInspector,
+                              ),
                               onTap: () {
                                 setState(
                                   () => _debuggerVisible = !_debuggerVisible,
@@ -2381,7 +2383,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                             const SizedBox(width: 8),
                             _playerChromeIconButton(
                               icon: HeroAppIcons.ellipsisVertical,
-                              label: 'More',
+                              label: AppStrings.t(AppStringKeys.momentsMore),
                               onTap: _toggleMoreMenu,
                               size: 44,
                               iconSize: 23,
@@ -2660,7 +2662,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                     const SizedBox(width: 10),
                     _playerChromeIconButton(
                       icon: HeroAppIcons.code,
-                      label: 'Stream inspector',
+                      label: AppStrings.t(
+                        AppStringKeys.videoPlayerStreamInspector,
+                      ),
                       onTap: () {
                         setState(() => _debuggerVisible = !_debuggerVisible);
                         scope.actions.showControls();
@@ -2675,7 +2679,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                     const SizedBox(width: 8),
                     _playerChromeIconButton(
                       icon: HeroAppIcons.ellipsisVertical,
-                      label: 'More',
+                      label: AppStrings.t(AppStringKeys.momentsMore),
                       onTap: _toggleMoreMenu,
                       size: 44,
                       iconSize: 23,
@@ -2798,7 +2802,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       key: const ValueKey('video-on-demand-toggle'),
       child: _FocusableVideoIconButton(
         icon: HeroAppIcons.listCheck,
-        label: 'On-demand',
+        label: AppStrings.t(AppStringKeys.videoPlayerOnDemand),
         onPressed: _toggleOnDemandPanel,
         size: const Size.square(44),
         iconSize: 21,
@@ -3616,7 +3620,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       child: IgnorePointer(
         child: Semantics(
           liveRegion: true,
-          label: 'Video zoom',
+          label: AppStrings.t(AppStringKeys.videoPlayerVideoZoom),
           value: '$percentage%',
           child: Container(
             key: const ValueKey('video-zoom-indicator'),
@@ -4387,7 +4391,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
           ),
         ),
         PositionedDirectional(
-          top: MediaQuery.paddingOf(context).top +
+          top:
+              MediaQuery.paddingOf(context).top +
               iPadWindowChromeInsetOf(context) +
               6,
           start: 8,
@@ -4855,7 +4860,9 @@ class MithkaDesktopVideoChrome extends StatelessWidget {
                             const SizedBox(width: 12),
                             MithkaVideoChromeAction(
                               icon: HeroAppIcons.code,
-                              label: 'Stream inspector',
+                              label: AppStrings.t(
+                                AppStringKeys.videoPlayerStreamInspector,
+                              ),
                               onTap: () {
                                 onToggleInspector();
                                 scope.actions.showControls();
@@ -5317,9 +5324,9 @@ class _MithkaVideoOnDemandPanelState extends State<_MithkaVideoOnDemandPanel> {
                 ),
                 child: Row(
                   children: [
-                    const Text(
-                      'Autoplay',
-                      style: TextStyle(
+                    Text(
+                      AppStrings.t(AppStringKeys.videoPlayerAutoplay),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 13,
                         fontWeight: FontWeight.w400,
@@ -5339,7 +5346,11 @@ class _MithkaVideoOnDemandPanelState extends State<_MithkaVideoOnDemandPanel> {
   Widget _item(int index) {
     final item = widget.queue.items[index];
     final current = index == widget.queue.index;
-    final title = item.title.trim().isEmpty ? 'Video ${index + 1}' : item.title;
+    final title = item.title.trim().isEmpty
+        ? AppStrings.t(AppStringKeys.videoPlayerVideoNumber, {
+            'value1': index + 1,
+          })
+        : item.title;
     final duration = (item.durationSeconds ?? 0) > 0
         ? formatVideoPlayerDuration(Duration(seconds: item.durationSeconds!))
         : null;
@@ -5348,7 +5359,9 @@ class _MithkaVideoOnDemandPanelState extends State<_MithkaVideoOnDemandPanel> {
       child: AppInteractiveSurface(
         key: ValueKey('video-on-demand-item-${item.video.id}'),
         semanticLabel: title,
-        semanticValue: current ? 'Playing' : duration,
+        semanticValue: current
+            ? AppStrings.t(AppStringKeys.videoPlayerPlaying)
+            : duration,
         selected: current,
         onTap: current || widget.onSelect == null
             ? null
@@ -5431,9 +5444,9 @@ class _MithkaVideoOnDemandPanelState extends State<_MithkaVideoOnDemandPanel> {
                     ],
                     if (current) ...[
                       const SizedBox(height: 3),
-                      const Text(
-                        'Playing',
-                        style: TextStyle(
+                      Text(
+                        AppStrings.t(AppStringKeys.videoPlayerPlaying),
+                        style: const TextStyle(
                           color: Color(0xFF24DDD9),
                           fontSize: 12,
                           fontWeight: FontWeight.w400,
@@ -5452,8 +5465,12 @@ class _MithkaVideoOnDemandPanelState extends State<_MithkaVideoOnDemandPanel> {
 
   Widget _autoplayToggle() {
     return AppInteractiveSurface(
-      semanticLabel: 'Autoplay',
-      semanticValue: widget.autoplay ? 'On' : 'Off',
+      semanticLabel: AppStrings.t(AppStringKeys.videoPlayerAutoplay),
+      semanticValue: AppStrings.t(
+        widget.autoplay
+            ? AppStringKeys.privacyEnabled
+            : AppStringKeys.privacyDisabled,
+      ),
       toggled: widget.autoplay,
       onTap: () => widget.onAutoplayChanged(!widget.autoplay),
       borderRadius: BorderRadius.circular(16),
@@ -5507,7 +5524,7 @@ class _MithkaVideoCenterTransport extends StatelessWidget {
       children: [
         _MithkaVideoSeekButton(
           backwards: true,
-          label: 'Seek backward 10 seconds',
+          label: AppStrings.t(AppStringKeys.videoPlayerSeekBackwardTenSeconds),
           onTap: () =>
               unawaited(scope.actions.seekBy(const Duration(seconds: -10))),
         ),
@@ -5517,13 +5534,15 @@ class _MithkaVideoCenterTransport extends StatelessWidget {
             playing: value.isPlaying,
             onTap: () => unawaited(scope.actions.togglePlayback()),
             size: 86,
-            semanticLabel: 'Center playback',
+            semanticLabel: AppStrings.t(
+              AppStringKeys.videoPlaybackSettingsTitle,
+            ),
           ),
         ),
         const SizedBox(width: 18),
         _MithkaVideoSeekButton(
           backwards: false,
-          label: 'Seek forward 10 seconds',
+          label: AppStrings.t(AppStringKeys.videoPlayerSeekForwardTenSeconds),
           onTap: () =>
               unawaited(scope.actions.seekBy(const Duration(seconds: 10))),
         ),
@@ -5557,7 +5576,9 @@ class _MithkaVideoCompactTransport extends StatelessWidget {
         else
           _MithkaVideoSeekButton(
             backwards: true,
-            label: 'Seek backward 10 seconds',
+            label: AppStrings.t(
+              AppStringKeys.videoPlayerSeekBackwardTenSeconds,
+            ),
             compact: true,
             onTap: () =>
                 unawaited(scope.actions.seekBy(const Duration(seconds: -10))),
@@ -5568,7 +5589,9 @@ class _MithkaVideoCompactTransport extends StatelessWidget {
             playing: value.isPlaying,
             onTap: () => unawaited(scope.actions.togglePlayback()),
             size: 72,
-            semanticLabel: 'Center playback',
+            semanticLabel: AppStrings.t(
+              AppStringKeys.videoPlaybackSettingsTitle,
+            ),
           ),
         ),
         const SizedBox(width: 12),
@@ -5581,7 +5604,7 @@ class _MithkaVideoCompactTransport extends StatelessWidget {
         else
           _MithkaVideoSeekButton(
             backwards: false,
-            label: 'Seek forward 10 seconds',
+            label: AppStrings.t(AppStringKeys.videoPlayerSeekForwardTenSeconds),
             compact: true,
             onTap: () =>
                 unawaited(scope.actions.seekBy(const Duration(seconds: 10))),
