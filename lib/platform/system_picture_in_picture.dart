@@ -147,9 +147,9 @@ class SystemPictureInPicture {
   }) async {
     if (!isSupportedPlatform) return false;
     _attachHandler();
-    final channel = _backendById[id] == _PictureInPictureBackend.activeFvpPlayer
-        ? _activePlayerChannel
-        : _channel;
+    final isActivePlayer =
+        _backendById.containsKey(id) && _backendById[id] == _PictureInPictureBackend.activeFvpPlayer;
+    final channel = isActivePlayer ? _activePlayerChannel : _channel;
     try {
       return await channel.invokeMethod<bool>('startPrepared', {
             'id': id,
@@ -176,9 +176,9 @@ class SystemPictureInPicture {
   }) async {
     if (!isSupportedPlatform) return;
     _attachHandler();
-    final channel = _backendById[id] == _PictureInPictureBackend.activeFvpPlayer
-        ? _activePlayerChannel
-        : _channel;
+    final isActivePlayer =
+        _backendById.containsKey(id) && _backendById[id] == _PictureInPictureBackend.activeFvpPlayer;
+    final channel = isActivePlayer ? _activePlayerChannel : _channel;
     try {
       await channel.invokeMethod<void>('update', {
         'id': id,
@@ -217,7 +217,7 @@ class SystemPictureInPicture {
   }
 
   static bool usesActivePlayer(String id) =>
-      _backendById[id] == _PictureInPictureBackend.activeFvpPlayer;
+      _backendById.containsKey(id) && _backendById[id] == _PictureInPictureBackend.activeFvpPlayer;
 
   static void _attachHandler() {
     if (_handlerAttached) return;
