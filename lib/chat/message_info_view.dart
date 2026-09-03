@@ -58,7 +58,7 @@ class _MessageInfoViewState extends State<MessageInfoView> {
     } catch (error) {
       _error = error.toString();
     }
-    if (dialogContext.mounted) {
+    if (mounted) {
       setState(() => _loading = false);
     }
   }
