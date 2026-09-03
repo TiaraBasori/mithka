@@ -56,6 +56,7 @@ class _SearchViewState extends State<SearchView> {
   void dispose() {
     _controller.dispose();
     _focus.dispose();
+    _vm.removeListener(() => setState(() {}));
     _vm.dispose();
     super.dispose();
   }
