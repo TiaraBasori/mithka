@@ -203,30 +203,35 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       switch (action) {
         case 'edit':
           await _editCaption(id, story.obj('caption')?.str('text') ?? '');
+          break;
         case 'media':
           await _replaceMedia(id);
+          break;
         case 'privacy':
           await _changePrivacy(id);
+          break;
         case 'profile':
           await _service.setPostedToPage(
             widget.chatId,
             id,
             !(story.boolean('is_posted_to_chat_page') ?? false),
           );
+          break;
         case 'pin':
           final next = {..._pinned};
           if (!next.remove(id)) next.add(id);
           await _service.setPinned(widget.chatId, next.toList());
+          break;
         case 'viewers':
           if (mounted) {
             await Navigator.of(context).push(
               MaterialPageRoute(
                 fullscreenDialog: true,
-                builder: (_) =>
-                    StoryViewerView(chatId: widget.chatId, storyIds: [id]),
+                builder: (_) => StoryViewerView(chatId: widget.chatId, storyIds: [id]),
               ),
             );
           }
+          break;
         case 'delete':
           final confirmed = await confirmDialog(
             context,
@@ -235,6 +240,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             destructive: true,
           );
           if (confirmed) await _service.delete(widget.chatId, id);
+          break;
       }
       await _load();
     } catch (error) {
