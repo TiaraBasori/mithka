@@ -42,32 +42,35 @@ class _ChatMediaDropRegionState extends State<ChatMediaDropRegion> {
 
   Future<void> _handleNativeDropEvent(MethodCall call) async {
     switch (call.method) {
-      case 'dragEntered':
-        if (widget.enabled && !_draggingOver && mounted) {
-          setState(() => _draggingOver = true);
-        }
-      case 'dragExited':
-        if (_draggingOver && mounted) setState(() => _draggingOver = false);
-      case 'dropImages':
-        if (_draggingOver && mounted) setState(() => _draggingOver = false);
-        if (!widget.enabled) return;
-        final paths = (call.arguments as List<Object?>? ?? const [])
-            .whereType<String>()
-            .where((path) => path.isNotEmpty && File(path).existsSync())
-            .take(10);
-        final attachments = await resolveAttachmentListDimensions(
-          paths.map(
-            (path) => OutgoingAttachment(
-              path: path,
-              kind: _isGif(path)
-                  ? OutgoingAttachmentKind.animation
-                  : OutgoingAttachmentKind.photo,
-            ),
-          ),
-        );
-        if (mounted && attachments.isNotEmpty) {
-          await widget.onImagesDropped(attachments);
-        }
+          case 'dragEntered':
+            if (widget.enabled && !_draggingOver && mounted) {
+              setState(() => _draggingOver = true);
+            }
+            break;
+          case 'dragExited':
+            if (_draggingOver && mounted) setState(() => _draggingOver = false);
+            break;
+          case 'dropImages':
+            if (_draggingOver && mounted) setState(() => _draggingOver = false);
+            if (!widget.enabled) return;
+            final paths = (call.arguments as List<Object?>? ?? const [])
+                .whereType<String>()
+                .where((path) => path.isNotEmpty && File(path).existsSync())
+                .take(10);
+            final attachments = await resolveAttachmentListDimensions(
+              paths.map(
+                (path) => OutgoingAttachment(
+                  path: path,
+                  kind: _isGif(path)
+                      ? OutgoingAttachmentKind.animation
+                      : OutgoingAttachmentKind.photo,
+                ),
+              ),
+            );
+            if (mounted && attachments.isNotEmpty) {
+              await widget.onImagesDropped(attachments);
+            }
+            break;
     }
   }
 
