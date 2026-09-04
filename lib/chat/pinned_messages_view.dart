@@ -255,7 +255,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
     final c = context.colors;
     final caption = _caption(message);
     final media = message.image;
-    if (media != null) {
+    if (media != null || message.video != null) {
       final size = _mediaSize(message);
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,7 +306,7 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
 
     final text = message.text.trim().isEmpty
         ? telegramText(AppStringKeys.chatSearchMessageResultLabel)
-        : message.text.replaceAll('\n', ' ');
+        : message.text.replaceAll('\\n', ' ');
     return Text(
       text,
       maxLines: 4,
