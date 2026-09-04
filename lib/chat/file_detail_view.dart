@@ -49,18 +49,22 @@ class _FileDetailViewState extends State<FileDetailView> {
   Future<void> _start() async {
     final id = _fileId;
     if (id == 0) return;
-    _sub = TdClient.shared.subscribe().listen((u) {
-      if (u.type != 'updateFile') return;
-      final f = u.obj('file');
-      if (f != null && f.integer('id') == id) _apply(f);
-    });
+    StreamSubscription? localSub;
     try {
       final resp = await TdFileCenter.shared.downloadPriorityFile(
         id,
         total: _total,
       );
       if (resp != null) _apply(resp);
-    } catch (_) {}
+      localSub = TdClient.shared.subscribe().listen((u) {
+        if (u.type != 'updateFile') return;
+        final f = u.obj('file');
+        if (f != null && f.integer('id') == id) _apply(f);
+      });
+      _sub = localSub;
+    } finally {
+      unawaited(localSub?.cancel());
+    }
   }
 
   void _apply(Map<String, dynamic> file) {
