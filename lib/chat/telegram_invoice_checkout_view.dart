@@ -514,15 +514,19 @@ class _TelegramInvoiceCheckoutViewState
     final invoice = _invoice;
     if ((invoice?.str('terms_of_service_url') ?? '').isNotEmpty &&
         !_termsAccepted) {
-      setState(() => _error = 'Accept the payment terms to continue.');
+      setState(() {
+        _busy = false;
+        _error = 'Accept the payment terms to continue.';
+      });
       return;
     }
     if ((invoice?.str('recurring_payment_terms_of_service_url') ?? '')
             .isNotEmpty &&
         !_recurringTermsAccepted) {
-      setState(
-        () => _error = 'Accept the recurring payment terms to continue.',
-      );
+      setState(() {
+        _busy = false;
+        _error = 'Accept the recurring payment terms to continue.';
+      });
       return;
     }
     setState(() {
