@@ -1238,8 +1238,8 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
 
   @override
   void dispose() {
-    super.dispose();
     unawaited(stop());
+    super.dispose();
   }
 }
 
