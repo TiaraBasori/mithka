@@ -83,18 +83,11 @@ class _QrScannerViewState extends State<QrScannerView> {
 
   bool get _hasPanel => _choices.isNotEmpty || _detail != null;
 
-    @override
-    void initState() {
-      super.initState();
-      if (!mounted) return;
-      unawaited(_controller.start());
-    }
-
-    @override
-    void dispose() {
-      _controller.dispose();
-      super.dispose();
-    }
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   void _handleCapture(BarcodeCapture capture) {
     if (_paused) return;
