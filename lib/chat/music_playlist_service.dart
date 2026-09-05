@@ -158,7 +158,7 @@ class MusicPlaylistService {
           .map((message) => message.id)
           .reduce((a, b) => a < b ? a : b);
       if (messages.length < 100 || oldestId == fromMessageId) break;
-      fromMessageId = oldestId - 1;
+      fromMessageId = oldestId;
     }
     final seen = <int>{};
     final unique = result.where((message) => seen.add(message.id)).toList()
