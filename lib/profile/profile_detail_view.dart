@@ -115,12 +115,14 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
   final ChatWallpaperController _wallpaperController =
       ChatWallpaperController.shared;
 
-  @override
+    @override
   void initState() {
     super.initState();
     _wallpaperController.addListener(_onWallpaperChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
     _name = widget.name;
-    _load();
   }
 
   @override
