@@ -138,18 +138,9 @@ class MediaLibrarySaver {
       );
       return state.isAuth;
     }
+
     final sdk = int.tryParse(await PhotoManager.systemVersion()) ?? 29;
-    if (sdk > 28) {
-      final state = await PhotoManager.requestPermissionExtend(
-        requestOption: const PermissionRequestOption(
-          androidPermission: AndroidPermission(
-            type: RequestType.image,
-            mediaLocation: false,
-          ),
-        ),
-      );
-      return state.isAuth;
-    }
+    if (sdk > 28) return true;
     return (await Permission.storage.request()).isGranted;
   }
 }
