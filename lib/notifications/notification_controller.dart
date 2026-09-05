@@ -1113,7 +1113,6 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
     _presentInAppBanner(banner);
   }
 
-  void dismissInAppBanner() {
     _inAppBannerTimer?.cancel();
     _inAppBannerTimer = null;
     if (_inAppBanner == null) return;
