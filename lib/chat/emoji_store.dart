@@ -91,7 +91,7 @@ class EmojiStore extends ChangeNotifier {
       customPacks = result;
       notifyListeners();
     } catch (_) {
-      _loaded = false;  // allow retry on next loadIfNeeded()
+      _loaded = false; // allow retry on next loadIfNeeded()
     }
   }
 
