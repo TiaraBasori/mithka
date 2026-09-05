@@ -87,11 +87,6 @@ class _ProfileContactManagementViewState
         _client.query({'@type': 'getUser', 'user_id': widget.userId}),
         _client.query({'@type': 'getUserFullInfo', 'user_id': widget.userId}),
       ]);
-      for (final r in results) {
-        if (r is Map && r['@type'] == 'error') {
-          throw Exception(r['message'] as String? ?? 'Unknown TDLib error');
-        }
-      }
       final user = results[1];
       final full = results[2];
       if (!mounted) return;
