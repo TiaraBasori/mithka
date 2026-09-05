@@ -42,7 +42,7 @@ import 'chat_deep_link_controller.dart';
 class UnreadBadgeModel extends ChangeNotifier {
   int _chatCount = 0;
   int _messageCount = 0;
-  bool _started = false;
+  StreamSubscription? _unreadSubscription;
 
   int countFor(UnreadBadgeMode mode) => switch (mode) {
     UnreadBadgeMode.messages => _messageCount,
@@ -50,8 +50,7 @@ class UnreadBadgeModel extends ChangeNotifier {
   };
 
   void start() {
-    if (_started) return;
-    _started = true;
+    if (_unreadSubscription != null) return;
     TdClient.shared.subscribe().listen((update) {
       switch (update.type) {
         case 'updateUnreadChatCount':
@@ -72,6 +71,12 @@ class UnreadBadgeModel extends ChangeNotifier {
           notifyListeners();
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _unreadSubscription?.cancel();
+    super.dispose();
   }
 }
 
@@ -149,6 +154,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   void dispose() {
     _chatDeepLinks?.removeListener(_handlePendingChatDeepLink);
     _chatListController.dispose();
+    _unread.dispose();
     super.dispose();
   }
 
