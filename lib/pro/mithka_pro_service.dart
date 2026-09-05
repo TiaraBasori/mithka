@@ -138,9 +138,7 @@ class MethodChannelMithkaProGateway implements MithkaProGateway {
   @override
   Future<void> manage({String? productId}) => _channel.invokeMethod<void>(
     'manage',
-    <String, Object?>{
-      if (productId != null) 'productId': productId,
-    },
+    <String, Object?>{'productId': ?productId},
   );
 
   @override
