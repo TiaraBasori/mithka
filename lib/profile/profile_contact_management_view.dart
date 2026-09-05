@@ -350,6 +350,7 @@ class _ProfileContactManagementViewState
           context,
           context.l10n.t(AppStringKeys.profileToolsGiftSettingsUpdated),
         );
+        setState(() {}); // Force rebuild to update the toggle UI
       }
     } catch (error) {
       if (mounted) {
