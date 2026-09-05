@@ -1230,9 +1230,7 @@ class _TelegramMiniAppViewState extends State<TelegramMiniAppView>
       ],
     );
     _popupOpen = false;
-    if (id != null) {
-      await _emitEvent('popup_closed', {'button_id': id});
-    }
+    await _emitEvent('popup_closed', {'button_id': ?id});
   }
 
   Future<String?> _showNativeDialog({
