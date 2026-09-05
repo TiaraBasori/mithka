@@ -1085,7 +1085,6 @@ class ChatViewModel extends ChangeNotifier {
     _flushPendingDraftSave();
     _sub?.cancel();
     _sub = null;
-    _senderPatchTimer?.cancel();
     KeywordBlocker.shared.removeListener(_applyKeywordFilter);
     _client.send({'@type': 'closeChat', 'chat_id': chatId});
   }
