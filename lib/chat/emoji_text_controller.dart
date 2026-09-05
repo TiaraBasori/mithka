@@ -79,8 +79,6 @@ class EmojiTextEditingController extends TextEditingController {
       text: newText,
       selection: TextSelection.collapsed(offset: start + ch.length),
     );
-    notifyListeners();
-    notifyListeners();
   }
 
   /// Inserts plain text (e.g. a standard unicode emoji) at the selection.
