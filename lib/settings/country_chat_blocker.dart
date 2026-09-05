@@ -27,9 +27,7 @@ class CountryChatBlocker {
     CountryFolderSnapshot? folderSnapshot,
   }) : _filter = filter ?? CountryMessageFilter.shared,
        _queryOverride = query,
-       _folderSnapshotOverride = folderSnapshot {
-    _filter.addListener(_invalidateDecisions);
-  }
+       _folderSnapshotOverride = folderSnapshot;
 
   static final CountryChatBlocker shared = CountryChatBlocker();
   static const folderTitle = '_Blocked';
@@ -39,11 +37,6 @@ class CountryChatBlocker {
   final CountryFolderSnapshot? _folderSnapshotOverride;
   final Map<(int, int), bool> _decisions = <(int, int), bool>{};
   final Map<(int, int), Future<bool>> _pending = <(int, int), Future<bool>>{};
-
-  void _invalidateDecisions() {
-    _decisions.clear();
-    _pending.clear();
-  }
 
   bool suppressesChat(int chatId, int clientId) =>
       _decisions[(clientId, chatId)] ?? false;
