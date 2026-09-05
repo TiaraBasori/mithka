@@ -369,10 +369,8 @@ class _PinnedMessagesViewState extends State<PinnedMessagesView> {
 
   VideoPlaybackQueue _videoQueue(ChatMessage current) {
     final videos = _items.where((message) => message.video != null).toList();
+    if (!videos.any((message) => message.id == current.id)) videos.add(current);
     final index = videos.indexWhere((message) => message.id == current.id);
-    if (index < 0) {
-      videos.add(current);
-    }
     return VideoPlaybackQueue(
       items: [
         for (final message in videos)
