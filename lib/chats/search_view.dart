@@ -1495,6 +1495,7 @@ class _SearchViewState extends State<SearchView> {
     _searchDebounce?.cancel();
     _controller.dispose();
     _focus.dispose();
+    _vm.removeListener(() => setState(() {}));
     _vm.dispose();
     super.dispose();
   }
