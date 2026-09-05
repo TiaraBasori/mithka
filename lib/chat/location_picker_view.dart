@@ -155,16 +155,14 @@ class _LocationPickerViewState extends State<LocationPickerView> {
     try {
       final p = await resolveLocationPickerStart();
       if (Platform.isIOS) {
-        if (_appleCtrl != null) {
-          unawaited(
-            _appleCtrl!.animateCamera(
-              amap.CameraUpdate.newLatLngZoom(
-                amap.LatLng(p.latitude, p.longitude),
-                16,
-              ),
+        unawaited(
+          _appleCtrl?.animateCamera(
+            amap.CameraUpdate.newLatLngZoom(
+              amap.LatLng(p.latitude, p.longitude),
+              16,
             ),
-          );
-        }
+          ),
+        );
       } else {
         _map.move(p, 16);
       }
@@ -179,16 +177,14 @@ class _LocationPickerViewState extends State<LocationPickerView> {
     if ((next - _zoom).abs() < 0.01) return;
     setState(() => _zoom = next);
     if (Platform.isIOS) {
-      if (_appleCtrl != null) {
-        unawaited(
-          _appleCtrl!.animateCamera(
-            amap.CameraUpdate.newLatLngZoom(
-              amap.LatLng(_center.latitude, _center.longitude),
-              next,
-            ),
+      unawaited(
+        _appleCtrl?.animateCamera(
+          amap.CameraUpdate.newLatLngZoom(
+            amap.LatLng(_center.latitude, _center.longitude),
+            next,
           ),
-        );
-      }
+        ),
+      );
     } else {
       _map.move(_center, next);
     }
