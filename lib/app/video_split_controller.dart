@@ -85,7 +85,7 @@ class VideoSplitController extends ChangeNotifier {
 
   @override
   void dispose() {
-    super.dispose();
     close();
+    super.dispose();
   }
 }
