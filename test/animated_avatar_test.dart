@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/components/photo_avatar.dart';
 import 'package:mithka/tdlib/animated_avatar_repository.dart';
 import 'package:mithka/tdlib/avatar_animation_index.dart';
 import 'package:mithka/tdlib/td_models.dart';
@@ -6,6 +7,34 @@ import 'package:mithka/theme/theme_controller.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  test('avatar players require an active visible surface', () {
+    expect(
+      avatarAnimationIsEligible(
+        surfaceAllowsAnimation: true,
+        themeAllowsAnimation: true,
+        tickerEnabled: true,
+        appIsActive: true,
+      ),
+      isTrue,
+    );
+    for (final blocked in [
+      (surface: false, theme: true, ticker: true, app: true),
+      (surface: true, theme: false, ticker: true, app: true),
+      (surface: true, theme: true, ticker: false, app: true),
+      (surface: true, theme: true, ticker: true, app: false),
+    ]) {
+      expect(
+        avatarAnimationIsEligible(
+          surfaceAllowsAnimation: blocked.surface,
+          themeAllowsAnimation: blocked.theme,
+          tickerEnabled: blocked.ticker,
+          appIsActive: blocked.app,
+        ),
+        isFalse,
+      );
+    }
+  });
+
   test('profile photo parser preserves animated avatar metadata', () {
     final photo = TDParse.smallPhoto({
       '@type': 'profilePhoto',
@@ -14,7 +43,7 @@ void main() {
       'small': {
         '@type': 'file',
         'id': 2345,
-        'local': {'path': '/tmp/avatar.jpg'},
+        'local': {'path': '/tmp/avatar.jpg', 'is_downloading_completed': true},
       },
     });
 
@@ -61,7 +90,10 @@ void main() {
         'file': {
           '@type': 'file',
           'id': 8101,
-          'local': {'path': '/tmp/avatar-small.mp4'},
+          'local': {
+            'path': '/tmp/avatar-small.mp4',
+            'is_downloading_completed': true,
+          },
         },
       },
       'animation': {

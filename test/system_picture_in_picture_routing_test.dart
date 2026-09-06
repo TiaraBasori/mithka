@@ -12,38 +12,58 @@ void main() {
       'lib/app/video_split_controller.dart',
     ).readAsStringSync();
     final chat = File('lib/chat/chat_view.dart').readAsStringSync();
-    final bridge = File(
-      'lib/platform/system_picture_in_picture.dart',
-    ).readAsStringSync();
-    final android = File(
-      'third_party/system_picture_in_picture/android/src/main/kotlin/ad/neko/mithka/system_picture_in_picture/SystemPictureInPicturePlugin.kt',
-    ).readAsStringSync();
-    final iosPlugin = File(
-      'third_party/system_picture_in_picture/ios/Classes/SystemPictureInPicturePlugin.swift',
-    ).readAsStringSync();
     final appDelegate = File('ios/Runner/AppDelegate.swift').readAsStringSync();
     final mainActivity = File(
       'android/app/src/main/kotlin/ad/neko/mithka/MainActivity.kt',
     ).readAsStringSync();
+    final androidManifest = File(
+      'android/app/src/main/AndroidManifest.xml',
+    ).readAsStringSync();
 
-    expect(player, contains('SystemPictureInPicture.startPrepared('));
-    expect(player, contains('SystemPictureInPicture.start('));
+    expect(player, contains('FVideoPictureInPicture.startPrepared('));
+    expect(player, contains('FVideoPictureInPicture.start('));
     expect(splitHost, isNot(contains('OverlayEntry')));
     expect(controller, isNot(contains('VideoPiPController')));
     expect(chat, isNot(contains('_showVideoPictureInPicture')));
-    expect(bridge, contains('Platform.isIOS || Platform.isAndroid'));
-    expect(android, contains('enterPictureInPictureMode'));
-    expect(android, contains('setAspectRatio'));
-    expect(iosPlugin, contains('AVPictureInPictureController'));
-    expect(appDelegate, isNot(contains('SystemPictureInPictureBridge')));
-    expect(mainActivity, isNot(contains('SystemPictureInPicturePlugin')));
+    expect(appDelegate, isNot(contains('FVideoPictureInPictureBridge')));
+    expect(
+      mainActivity,
+      contains('FVideoPictureInPicturePlugin.onUserLeaveHint'),
+    );
+    expect(
+      mainActivity,
+      contains(
+        'add("com.iebb.f_videoplayer_pip.'
+        'FVideoPictureInPicturePlugin")',
+      ),
+    );
+    expect(mainActivity, contains('onPictureInPictureRequested'));
+    expect(mainActivity, contains('onPictureInPictureModeChanged'));
+    expect(
+      androidManifest,
+      contains('android:supportsPictureInPicture="true"'),
+    );
+    expect(androidManifest, isNot(contains('SYSTEM_ALERT_WINDOW')));
   });
 
-  test('display mode control opens split screen directly', () {
-    final player = File('lib/chat/video_player_view.dart').readAsStringSync();
+  test(
+    'package chrome owns presentation controls while the host routes them',
+    () {
+      final player = File('lib/chat/video_player_view.dart').readAsStringSync();
 
-    expect(player, contains('message: AppStringKeys.videoPlayerSplitScreen'));
-    expect(player, contains('callback(VideoDisplayMode.split);'));
-    expect(player, isNot(contains('PopupMenuButton<VideoDisplayMode>')));
-  });
+      expect(player, contains('onPictureInPictureChanged:'));
+      expect(player, contains('bottomTrailingBuilder:'));
+      expect(player, contains('topTrailingBuilder:'));
+      expect(player, contains('VideoDisplayMode.split'));
+      expect(player, contains('FVideoPictureInPicture.startPrepared('));
+      expect(player, contains('FVideoPictureInPicture.start('));
+      expect(player, contains('Widget _playerBottomTrailing('));
+      expect(player, contains('Widget _displayModeButton('));
+      // Fullscreen supplies its own chrome since the video redesign; every
+      // other presentation, picture-in-picture included, still takes the
+      // package's, so this stays conditional rather than unconditional.
+      expect(player, contains('chromeBuilder: widget.presentation =='));
+      expect(player, isNot(contains('FVideoInteractionMode.delegateToChrome')));
+    },
+  );
 }

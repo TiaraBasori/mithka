@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:archive/archive.dart';
 import 'package:flutter/widgets.dart';
@@ -8,10 +9,76 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as image_lib;
 import 'package:mithka/chat/chat_wallpaper.dart';
 import 'package:mithka/chat/chat_wallpaper_view.dart';
+import 'package:mithka/theme/telegram_cloud_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+Map<String, dynamic> _defaultBackgroundUpdate({
+  required bool dark,
+  required int id,
+  required int color,
+}) => <String, dynamic>{
+  '@type': 'updateDefaultBackground',
+  'for_dark_theme': dark,
+  'background': <String, dynamic>{
+    '@type': 'background',
+    'id': id,
+    'type': <String, dynamic>{
+      '@type': 'backgroundTypeFill',
+      'fill': <String, dynamic>{'@type': 'backgroundFillSolid', 'color': color},
+    },
+  },
+};
+
+Map<String, dynamic> _authorizationUpdate(String type) => <String, dynamic>{
+  '@type': 'updateAuthorizationState',
+  'authorization_state': <String, dynamic>{'@type': type},
+};
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  test('global chat wallpaper prioritizes the user selection', () {
+    const selectedWallpaper = ChatWallpaper.telegram(
+      backgroundId: 1,
+      remoteType: 'fill',
+      colors: [0x112233],
+    );
+    const cloudThemeWallpaper = ChatWallpaper.telegram(
+      backgroundId: 2,
+      remoteType: 'fill',
+      colors: [0x445566],
+    );
+    const globalThemeWallpaper = ChatWallpaper.telegram(
+      backgroundId: 3,
+      remoteType: 'fill',
+      colors: [0x778899],
+    );
+
+    expect(
+      selectGlobalChatWallpaper(
+        defaultWallpaper: selectedWallpaper,
+        cloudThemeWallpaper: cloudThemeWallpaper,
+        globalThemeWallpaper: globalThemeWallpaper,
+      ),
+      selectedWallpaper,
+    );
+    expect(
+      selectGlobalChatWallpaper(
+        defaultWallpaper: null,
+        cloudThemeWallpaper: cloudThemeWallpaper,
+        globalThemeWallpaper: globalThemeWallpaper,
+      ),
+      cloudThemeWallpaper,
+    );
+    expect(
+      selectGlobalChatWallpaper(
+        defaultWallpaper: null,
+        cloudThemeWallpaper: null,
+        globalThemeWallpaper: globalThemeWallpaper,
+      ),
+      globalThemeWallpaper,
+    );
+  });
 
   test('wallpaper JSON preserves preset and image values', () {
     const preset = ChatWallpaper.preset('sky');
@@ -122,6 +189,33 @@ void main() {
       );
     },
   );
+
+  testWidgets('wallpaper notifications are deferred during widget build', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final controller = ChatWallpaperController(
+      activeSlot: () => 0,
+      hasActiveClient: () => false,
+      listenForUpdates: false,
+    );
+    addTearDown(controller.dispose);
+
+    // Prime both preference slots so the load triggered below reaches
+    // notifyListeners synchronously while the child widget is building.
+    await controller.loadGlobalChatThemes();
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: _WallpaperListenerHost(controller: controller),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+  });
 
   test('custom gradients preserve colors and rotation independently', () {
     const pattern = ChatWallpaper.telegram(
@@ -460,6 +554,121 @@ void main() {
     expect(controller.defaultWallpaper(dark: false)?.isMoving, isTrue);
   });
 
+  test(
+    'restores a default wallpaper without waiting for the catalog',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      final requests = <Map<String, dynamic>>[];
+      final controller = ChatWallpaperController(
+        activeSlot: () => 0,
+        hasActiveClient: () => true,
+        listenForUpdates: false,
+        query: (request) async {
+          requests.add(request);
+          if (request['@type'] != 'getCurrentState') {
+            throw StateError('Unexpected wallpaper request: $request');
+          }
+          return jsonDecode(
+                jsonEncode({
+                  '@type': 'updates',
+                  'updates': [
+                    _authorizationUpdate('authorizationStateReady'),
+                    _defaultBackgroundUpdate(
+                      dark: false,
+                      id: 701,
+                      color: 0x123456,
+                    ),
+                    _defaultBackgroundUpdate(
+                      dark: true,
+                      id: 702,
+                      color: 0x654321,
+                    ),
+                  ],
+                }),
+              )
+              as Map<String, dynamic>;
+        },
+      );
+      addTearDown(controller.dispose);
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      await controller.loadDefaultWallpaper(dark: false);
+
+      expect(requests.map((request) => request['@type']), ['getCurrentState']);
+      expect(controller.defaultWallpaper(dark: false)?.backgroundId, 701);
+      expect(controller.defaultWallpaper(dark: false)?.colors, [0x123456]);
+      expect(controller.defaultWallpaper(dark: true), isNull);
+      expect(notifications, 1);
+      await pumpEventQueue();
+    },
+  );
+
+  test('retries default wallpaper restoration once TDLib is ready', () async {
+    SharedPreferences.setMockInitialValues({});
+    final updates = StreamController<Map<String, dynamic>>.broadcast(
+      sync: true,
+    );
+    var ready = false;
+    var currentStateRequests = 0;
+    final controller = ChatWallpaperController(
+      activeSlot: () => 0,
+      hasActiveClient: () => true,
+      subscribe: () => updates.stream,
+      query: (request) async {
+        if (request['@type'] != 'getCurrentState') {
+          throw StateError('Unexpected wallpaper request: $request');
+        }
+        currentStateRequests++;
+        if (!ready) {
+          return {
+            '@type': 'updates',
+            'updates': [
+              _authorizationUpdate('authorizationStateWaitTdlibParameters'),
+            ],
+          };
+        }
+        return {
+          '@type': 'updates',
+          'updates': [
+            _authorizationUpdate('authorizationStateReady'),
+            _defaultBackgroundUpdate(dark: false, id: 801, color: 0x112233),
+            _defaultBackgroundUpdate(dark: true, id: 802, color: 0x445566),
+          ],
+        };
+      },
+    );
+    addTearDown(() async {
+      controller.dispose();
+      await updates.close();
+    });
+    final restored = Completer<void>();
+    controller.addListener(() {
+      if (controller.defaultWallpaper(dark: false) != null &&
+          controller.defaultWallpaper(dark: true) != null &&
+          !restored.isCompleted) {
+        restored.complete();
+      }
+    });
+
+    await controller.loadDefaultWallpaper(dark: false);
+    expect(controller.defaultWallpaper(dark: false), isNull);
+    expect(currentStateRequests, 1);
+
+    updates.add(_authorizationUpdate('authorizationStateWaitPhoneNumber'));
+    await pumpEventQueue();
+    expect(currentStateRequests, 1);
+
+    ready = true;
+    updates.add(_authorizationUpdate('authorizationStateReady'));
+    await restored.future.timeout(const Duration(seconds: 2));
+
+    expect(currentStateRequests, 2);
+    expect(controller.defaultWallpaper(dark: false)?.backgroundId, 801);
+    expect(controller.defaultWallpaper(dark: true)?.backgroundId, 802);
+    await pumpEventQueue();
+  });
+
   test('uploads an extracted theme wallpaper without a remote id', () async {
     SharedPreferences.setMockInitialValues({});
     final root = await Directory.systemTemp.createTemp(
@@ -736,7 +945,7 @@ void main() {
         if (await root.exists()) await root.delete(recursive: true);
       });
       final source = File('${root.path}/pattern.tgv');
-      await source.writeAsBytes(GZipEncoder().encode(utf8.encode(svg))!);
+      await source.writeAsBytes(const GZipEncoder().encode(utf8.encode(svg)));
       final controller = ChatWallpaperController(
         activeSlot: () => 0,
         hasActiveClient: () => true,
@@ -896,7 +1105,12 @@ void main() {
 
   test('uses Telegram emoji theme background and outgoing palette', () async {
     SharedPreferences.setMockInitialValues({});
-    Map<String, dynamic> settings(int backgroundColor, int outgoingColor) => {
+    Map<String, dynamic> settings(
+      int backgroundColor,
+      int outgoingColor,
+      int accentColor,
+      int outgoingAccentColor,
+    ) => {
       '@type': 'themeSettings',
       'background': {
         '@type': 'background',
@@ -910,7 +1124,8 @@ void main() {
         '@type': 'backgroundFillSolid',
         'color': outgoingColor,
       },
-      'outgoing_message_accent_color': outgoingColor,
+      'accent_color': accentColor,
+      'outgoing_message_accent_color': outgoingAccentColor,
     };
 
     final themesUpdate = {
@@ -919,8 +1134,8 @@ void main() {
         {
           '@type': 'emojiChatTheme',
           'name': '🐣',
-          'light_settings': settings(0xFFF7C4, 0x44AA66),
-          'dark_settings': settings(0x102030, 0x337755),
+          'light_settings': settings(0xFFF7C4, 0x44AA66, 0x2255AA, 0xAA6633),
+          'dark_settings': settings(0x102030, 0x337755, 0x7799CC, 0xCC8844),
         },
       ],
     };
@@ -948,8 +1163,52 @@ void main() {
     final darkStyle = controller.themeStyleFor(99, dark: true)!;
     expect(lightStyle.incomingColor, isNot(const Color(0xFFFFFFFF)));
     expect(darkStyle.incomingColor, isNot(const Color(0xFF202427)));
+    expect(lightStyle.nameColor.toARGB32(), 0xFF2255AA);
+    expect(lightStyle.outgoingAccentColor.toARGB32(), 0xFFAA6633);
+    expect(darkStyle.nameColor.toARGB32(), 0xFF7799CC);
+    expect(darkStyle.outgoingAccentColor.toARGB32(), 0xFFCC8844);
+    final lightMessageColors = TelegramMessageColors.fromChatThemeStyle(
+      lightStyle,
+    );
+    expect(lightMessageColors.incomingLink.toARGB32(), 0xFF2255AA);
+    expect(lightMessageColors.outgoingLink.toARGB32(), 0xFFAA6633);
     expect(lightStyle.outgoingColor?.toARGB32(), 0xFF44AA66);
     expect(controller.wallpaperFor(99, dark: true)?.colors, [0x102030]);
+  });
+
+  test('stock chat themes keep outgoing message accents readable', () {
+    const style = ChatThemeStyle(
+      outgoingColors: [0x4FA3E3],
+      accentColor: 0x168ACD,
+      isDark: false,
+    );
+
+    final colors = TelegramMessageColors.fromChatThemeStyle(style);
+
+    expect(colors.incomingLink, style.nameColor);
+    expect(colors.outgoingLink, style.outgoingTextColor);
+    expect(colors.outgoingQuote, style.outgoingTextColor);
+    final lighter = math.max(
+      colors.outgoingLink.computeLuminance(),
+      style.outgoingColor!.computeLuminance(),
+    );
+    final darker = math.min(
+      colors.outgoingLink.computeLuminance(),
+      style.outgoingColor!.computeLuminance(),
+    );
+    final fallbackContrast = (lighter + 0.05) / (darker + 0.05);
+    final accentLighter = math.max(
+      style.nameColor.computeLuminance(),
+      style.outgoingColor!.computeLuminance(),
+    );
+    final accentDarker = math.min(
+      style.nameColor.computeLuminance(),
+      style.outgoingColor!.computeLuminance(),
+    );
+    expect(
+      fallbackContrast,
+      greaterThan((accentLighter + 0.05) / (accentDarker + 0.05)),
+    );
   });
 
   test(
@@ -1295,4 +1554,59 @@ void main() {
     expect(saved.single.intensity, 37);
     expect(saved.single.isMoving, isTrue);
   });
+}
+
+class _WallpaperListenerHost extends StatefulWidget {
+  const _WallpaperListenerHost({required this.controller});
+
+  final ChatWallpaperController controller;
+
+  @override
+  State<_WallpaperListenerHost> createState() => _WallpaperListenerHostState();
+}
+
+class _WallpaperListenerHostState extends State<_WallpaperListenerHost> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onWallpaperChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onWallpaperChanged);
+    super.dispose();
+  }
+
+  void _onWallpaperChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      _LoadWallpaperThemesDuringBuild(controller: widget.controller);
+}
+
+class _LoadWallpaperThemesDuringBuild extends StatefulWidget {
+  const _LoadWallpaperThemesDuringBuild({required this.controller});
+
+  final ChatWallpaperController controller;
+
+  @override
+  State<_LoadWallpaperThemesDuringBuild> createState() =>
+      _LoadWallpaperThemesDuringBuildState();
+}
+
+class _LoadWallpaperThemesDuringBuildState
+    extends State<_LoadWallpaperThemesDuringBuild> {
+  bool _loaded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) {
+      _loaded = true;
+      unawaited(widget.controller.loadGlobalChatThemes());
+    }
+    return const SizedBox.shrink();
+  }
 }

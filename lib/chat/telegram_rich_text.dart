@@ -50,6 +50,15 @@ class _TelegramRichTextState extends State<TelegramRichText> {
   );
 
   final _recognizers = <GestureRecognizer>[];
+  final Set<String> _revealedSpoilers = {};
+
+  List<InlineSpan>? _spanCache;
+  String? _spanCacheText;
+  List<MessageTextEntity>? _spanCacheEntities;
+  TextStyle? _spanCacheBaseStyle;
+  Color? _spanCacheLinkColor;
+  bool _spanCacheHashtagTap = false;
+  bool _spanCacheMentionTap = false;
 
   @override
   void dispose() {
@@ -58,6 +67,8 @@ class _TelegramRichTextState extends State<TelegramRichText> {
   }
 
   void _disposeRecognizers() {
+    // The cached spans hold these, so they die together.
+    _spanCache = null;
     for (final recognizer in _recognizers) {
       recognizer.dispose();
     }
@@ -66,7 +77,6 @@ class _TelegramRichTextState extends State<TelegramRichText> {
 
   @override
   Widget build(BuildContext context) {
-    _disposeRecognizers();
     final baseStyle =
         widget.style ??
         DefaultTextStyle.of(
@@ -74,20 +84,77 @@ class _TelegramRichTextState extends State<TelegramRichText> {
         ).style.copyWith(color: context.colors.textPrimary);
     final linkColor = widget.linkColor ?? context.colors.linkBlue;
     if (widget.quoteBackgroundColor != null && _hasBlockQuote()) {
+      _disposeRecognizers();
       return _richTextWithQuoteBlocks(context, baseStyle, linkColor);
     }
     return RichText(
+      textScaler: MediaQuery.textScalerOf(context),
       maxLines: widget.maxLines,
       overflow: widget.overflow,
       text: TextSpan(
         style: baseStyle,
-        children: _spans(context, baseStyle, linkColor),
+        children: _memoizedSpans(context, baseStyle, linkColor),
       ),
+      selectionRegistrar: SelectionContainer.maybeOf(context),
+      selectionColor:
+          Theme.of(context).textSelectionTheme.selectionColor ??
+          AppTheme.brand.withValues(alpha: 0.28),
     );
   }
 
-  bool _hasBlockQuote() =>
-      _validEntities(widget.text.length).any((entity) => entity.isBlockQuote);
+  /// Every rebuild otherwise mints fresh `TapGestureRecognizer`s, and
+  /// `TextSpan.==` folds in the recognizer — so the paragraph never compares
+  /// equal and `RenderParagraph` lays the whole thing out again.
+  List<InlineSpan> _memoizedSpans(
+    BuildContext context,
+    TextStyle baseStyle,
+    Color linkColor,
+  ) {
+    final hashtagTap = widget.onHashtagTap != null;
+    final mentionTap = widget.onMentionTap != null;
+    // A code span resolves the monospace family and the inline-code fill from
+    // the ambient theme, which no key below can see — leave those uncached.
+    final cacheable = !widget.entities.any(_isCodeEntity);
+    if (cacheable &&
+        _spanCache != null &&
+        _spanCacheText == widget.text &&
+        identical(_spanCacheEntities, widget.entities) &&
+        _spanCacheBaseStyle == baseStyle &&
+        _spanCacheLinkColor == linkColor &&
+        _spanCacheHashtagTap == hashtagTap &&
+        _spanCacheMentionTap == mentionTap) {
+      return _spanCache!;
+    }
+    _disposeRecognizers();
+    final spans = _spans(context, baseStyle, linkColor);
+    if (!cacheable) return spans;
+    _spanCache = spans;
+    _spanCacheText = widget.text;
+    _spanCacheEntities = widget.entities;
+    _spanCacheBaseStyle = baseStyle;
+    _spanCacheLinkColor = linkColor;
+    _spanCacheHashtagTap = hashtagTap;
+    _spanCacheMentionTap = mentionTap;
+    return spans;
+  }
+
+  static bool _isCodeEntity(MessageTextEntity entity) =>
+      entity.type == 'textEntityTypeCode' ||
+      entity.type == 'textEntityTypePre' ||
+      entity.type == 'textEntityTypePreCode';
+
+  static bool _isEntityInRange(MessageTextEntity entity, int textLength) =>
+      entity.length > 0 &&
+      entity.offset >= 0 &&
+      entity.offset < textLength &&
+      entity.end <= textLength;
+
+  bool _hasBlockQuote() {
+    final textLength = widget.text.length;
+    return widget.entities.any(
+      (entity) => entity.isBlockQuote && _isEntityInRange(entity, textLength),
+    );
+  }
 
   Widget _richTextWithQuoteBlocks(
     BuildContext context,
@@ -120,7 +187,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
             padding: const EdgeInsets.fromLTRB(10, 7, 10, 7),
             decoration: BoxDecoration(
               color: widget.quoteBackgroundColor,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(AppRadius.control),
             ),
             child: _richTextSegment(
               text,
@@ -171,6 +238,8 @@ class _TelegramRichTextState extends State<TelegramRichText> {
       maxLines: widget.maxLines,
       overflow: widget.overflow,
       onBotCommandTap: widget.onBotCommandTap,
+      onHashtagTap: widget.onHashtagTap,
+      onMentionTap: widget.onMentionTap,
     );
   }
 
@@ -196,6 +265,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
           userId: entity.userId,
           customEmojiId: entity.customEmojiId,
           language: entity.language,
+          typeData: entity.typeData,
         ),
       );
     }
@@ -238,13 +308,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
 
   List<MessageTextEntity> _validEntities(int textLength) {
     return widget.entities
-        .where(
-          (entity) =>
-              entity.length > 0 &&
-              entity.offset >= 0 &&
-              entity.offset < textLength &&
-              entity.end <= textLength,
-        )
+        .where((entity) => _isEntityInRange(entity, textLength))
         .toList()
       ..sort((a, b) {
         final start = a.offset.compareTo(b.offset);
@@ -259,36 +323,66 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     TextStyle baseStyle,
     Color linkColor,
   ) {
-    final style = _entityStyle(context, active, baseStyle, linkColor);
-    final customEmojiId = _customEmojiId(active);
+    final spoilerKey = _spoilerKey(active);
+    if (spoilerKey != null && !_revealedSpoilers.contains(spoilerKey)) {
+      final recognizer = TapGestureRecognizer()
+        ..onTap = () {
+          if (!mounted) return;
+          setState(() {
+            _revealedSpoilers.add(spoilerKey);
+            _spanCache = null;
+          });
+        };
+      _recognizers.add(recognizer);
+      return [
+        TextSpan(
+          text: segment,
+          style: _entityStyle(context, active, baseStyle, linkColor),
+          recognizer: recognizer,
+        ),
+      ];
+    }
+    final effectiveActive = spoilerKey == null
+        ? active
+        : active
+              .where((entity) => entity.type != 'textEntityTypeSpoiler')
+              .toList(growable: false);
+    final style = _entityStyle(context, effectiveActive, baseStyle, linkColor);
+    final customEmojiId = _customEmojiId(effectiveActive);
     if (customEmojiId != null) {
+      final ambientScaler = MediaQuery.textScalerOf(context);
       return [
         WidgetSpan(
           alignment: PlaceholderAlignment.middle,
-          child: CustomEmojiView(
+          child: SelectableCustomEmojiView(
             id: customEmojiId,
-            size: (style.fontSize ?? baseStyle.fontSize ?? 16) * 1.25,
+            fallbackText: segment,
+            size:
+                (style.fontSize ?? baseStyle.fontSize ?? 16) *
+                ambientScaler.scale(1.0) *
+                1.25,
             color: style.color,
           ),
         ),
       ];
     }
-    if (_hasMath(active)) return [_mathSpan(segment, style)];
-    if (_hasCode(active)) return [_codeSpan(segment, style)];
+    if (_hasMath(effectiveActive)) return [_mathSpan(segment, style)];
+    if (_hasCode(effectiveActive)) return [_codeSpan(segment, style)];
 
-    final mentionUserId = _mentionUserId(active);
+    final mentionUserId = _mentionUserId(effectiveActive);
     if (mentionUserId != null) {
-      final onTap = widget.onMentionTap;
-      if (onTap != null) {
-        final recognizer = TapGestureRecognizer()
-          ..onTap = () => onTap(mentionUserId, segment);
-        _recognizers.add(recognizer);
-        return [TextSpan(text: segment, style: style, recognizer: recognizer)];
+      if (widget.onMentionTap == null) {
+        return [TextSpan(text: segment, style: style)];
       }
-      return [TextSpan(text: segment, style: style)];
+      // Read through `widget` at tap time, so a memoized span still reaches the
+      // current callback.
+      final recognizer = TapGestureRecognizer()
+        ..onTap = () => widget.onMentionTap?.call(mentionUserId, segment);
+      _recognizers.add(recognizer);
+      return [TextSpan(text: segment, style: style, recognizer: recognizer)];
     }
 
-    final target = _entityTapTarget(segment, active);
+    final target = _entityTapTarget(segment, effectiveActive);
     if (target == '__bot_command__') {
       final recognizer = TapGestureRecognizer()
         ..onTap = () => widget.onBotCommandTap?.call(segment.trim());
@@ -326,7 +420,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
           decoration: BoxDecoration(
             color: _codeBackgroundColor,
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Text(segment, style: style),
         ),
@@ -371,7 +465,7 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     for (final entity in active) {
       switch (entity.type) {
         case 'textEntityTypeBold':
-          style = style.copyWith(fontWeight: FontWeight.w700);
+          style = style.copyWith(fontWeight: FontWeight.w600);
         case 'textEntityTypeItalic':
           style = style.copyWith(fontStyle: FontStyle.italic);
         case 'textEntityTypeUnderline':
@@ -434,6 +528,15 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     return null;
   }
 
+  String? _spoilerKey(List<MessageTextEntity> active) {
+    for (final entity in active) {
+      if (entity.type == 'textEntityTypeSpoiler') {
+        return '${entity.offset}:${entity.length}';
+      }
+    }
+    return null;
+  }
+
   bool _hasCode(List<MessageTextEntity> active) {
     return active.any(
       (entity) =>
@@ -490,7 +593,9 @@ class _TelegramRichTextState extends State<TelegramRichText> {
     var last = 0;
     for (final match in _linkRegExp.allMatches(text)) {
       if (match.start > last) {
-        spans.add(TextSpan(text: text.substring(last, match.start)));
+        spans.add(
+          TextSpan(text: text.substring(last, match.start), style: baseStyle),
+        );
       }
       final matched = text.substring(match.start, match.end);
       final isMention = match.group(2) != null;
@@ -520,19 +625,15 @@ class _TelegramRichTextState extends State<TelegramRichText> {
       spans.add(
         TextSpan(
           text: matched,
-          style: baseStyle.copyWith(
-            color: linkColor,
-            decoration: isMention || isHashtag
-                ? baseStyle.decoration
-                : TextDecoration.underline,
-            decorationColor: linkColor,
-          ),
+          style: baseStyle.copyWith(color: linkColor),
           recognizer: recognizer,
         ),
       );
       last = match.end;
     }
-    if (last < text.length) spans.add(TextSpan(text: text.substring(last)));
+    if (last < text.length) {
+      spans.add(TextSpan(text: text.substring(last), style: baseStyle));
+    }
     return spans;
   }
 

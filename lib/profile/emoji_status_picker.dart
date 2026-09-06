@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
@@ -9,6 +8,7 @@ import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 
 Future<void> showEmojiStatusPicker(
@@ -17,7 +17,7 @@ Future<void> showEmojiStatusPicker(
 }) async {
   EmojiStore.shared.loadIfNeeded();
   final optionsFuture = _statusOptions();
-  await showCupertinoModalPopup<void>(
+  await showAppCupertinoModalPopup<void>(
     context: context,
     builder: (sheetContext) {
       final c = sheetContext.colors;
@@ -256,7 +256,7 @@ Widget _statusTabStrip(
         margin: const EdgeInsets.symmetric(horizontal: 2),
         decoration: BoxDecoration(
           color: active ? c.searchFill : null,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         alignment: Alignment.center,
         child: child,

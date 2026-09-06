@@ -28,6 +28,127 @@ typedef TelegramThemeQuery =
 typedef TelegramThemeFilePath = Future<String?> Function(int fileId);
 typedef TelegramThemeSupportDirectory = Future<Directory> Function();
 
+// Deriving these three costs a few hundred palette probes plus HSL and
+// alpha-blend work, and they are read once per message row and twice per
+// ThemeData build. TelegramCloudTheme is const-constructible so the memo
+// cannot be an instance field; a weak side table keyed on the (immutable)
+// theme instance does the same job without retaining it.
+final Expando<AppColors> _uiColorsCache = Expando<AppColors>('uiColors');
+final Expando<TelegramMessageColors> _messageColorsCache =
+    Expando<TelegramMessageColors>('messageColors');
+final Expando<List<Color>> _senderNameColorsCache = Expando<List<Color>>(
+  'senderNameColors',
+);
+
+Color _distinctPinnedRowColor({
+  required Color background,
+  required Color candidate,
+  required Color accent,
+  required bool isDark,
+}) {
+  // Several Telegram palettes expose `chats_pinnedOverlay` as a translucent
+  // tint, not as a complete row surface. Chat rows sit above the always-painted
+  // swipe actions, so passing that tint through unchanged lets every action
+  // bleed through a closed pinned row. Resolve the overlay against the list
+  // background before comparing or returning it.
+  final resolvedCandidate = Color.alphaBlend(candidate, background);
+  int channel(int value, int shift) => (value >> shift) & 0xFF;
+  final backgroundValue = background.toARGB32();
+  final candidateValue = resolvedCandidate.toARGB32();
+  final difference = [16, 8, 0]
+      .map(
+        (shift) =>
+            (channel(backgroundValue, shift) - channel(candidateValue, shift))
+                .abs(),
+      )
+      .reduce((largest, value) => value > largest ? value : largest);
+  if (difference >= 6) return resolvedCandidate;
+
+  var tint = accent;
+  final accentValue = accent.toARGB32();
+  final accentDifference = [16, 8, 0]
+      .map(
+        (shift) =>
+            (channel(backgroundValue, shift) - channel(accentValue, shift))
+                .abs(),
+      )
+      .reduce((largest, value) => value > largest ? value : largest);
+  if (accentDifference < 12) {
+    tint = isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+  }
+  return Color.alphaBlend(
+    tint.withValues(alpha: isDark ? 0.07 : 0.045),
+    background,
+  );
+}
+
+Color _structuralDividerColor({
+  required Color background,
+  required Color surface,
+  required Color candidate,
+  required bool isDark,
+}) {
+  // Community themes occasionally use the Android `divider` token as a
+  // saturated decorative accent. That works for a handful of Telegram-owned
+  // surfaces, but Mithka's single structural token is also used for every
+  // list separator and panel border, where a vivid line becomes visual noise.
+  // Keep ordinary theme dividers intact and neutralize only a strongly
+  // chromatic, off-surface candidate. Resolve translucent imported surfaces
+  // first so the separator does not change with an unrelated ancestor.
+  final canvas = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
+  final opaqueBackground = Color.alphaBlend(background, canvas);
+  final resolvedSurface = Color.alphaBlend(surface, opaqueBackground);
+  final resolved = Color.alphaBlend(candidate, resolvedSurface);
+  final resolvedHsl = HSLColor.fromColor(resolved);
+
+  int channel(Color color, int shift) => (color.toARGB32() >> shift) & 0xFF;
+  final channelDifference = <int>[16, 8, 0].map(
+    (shift) =>
+        (channel(resolved, shift) - channel(resolvedSurface, shift)).abs(),
+  );
+  final largestDifference = channelDifference.reduce(
+    (largest, value) => value > largest ? value : largest,
+  );
+  final isVividOffSurface =
+      resolvedHsl.saturation >= 0.36 && largestDifference >= 32;
+  if (!isVividOffSurface) return candidate;
+
+  final neutral = readableForeground(
+    resolvedSurface,
+  ).withValues(alpha: isDark ? 0.12 : 0.10);
+  return Color.alphaBlend(neutral, resolvedSurface);
+}
+
+Color _distinctGroupedBackgroundColor({
+  required Color card,
+  required Color candidate,
+  required bool isDark,
+}) {
+  final canvas = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
+  final resolvedCard = Color.alphaBlend(card, canvas);
+  final resolvedCandidate = Color.alphaBlend(candidate, canvas);
+
+  int channel(Color color, int shift) => (color.toARGB32() >> shift) & 0xFF;
+  int difference(Color first, Color second) => <int>[16, 8, 0]
+      .map((shift) => (channel(first, shift) - channel(second, shift)).abs())
+      .reduce((largest, value) => value > largest ? value : largest);
+  if (difference(resolvedCard, resolvedCandidate) >= 6) return candidate;
+
+  // Grouped pages need a canvas distinct from their rounded cards. Telegram
+  // themes sometimes assign the same color to both Android tokens, erasing
+  // the card silhouette. Prefer the conventional darker canvas, then lift it
+  // only when the imported color is already too close to black to darken.
+  final darkened = Color.alphaBlend(
+    const Color(0xFF000000).withValues(alpha: isDark ? 0.12 : 0.045),
+    resolvedCandidate,
+  );
+  if (difference(resolvedCard, darkened) >= 6) return darkened;
+  return Color.alphaBlend(
+    const Color(0xFFFFFFFF).withValues(alpha: 0.07),
+    resolvedCandidate,
+  );
+}
+
 enum TelegramThemeSemanticColor {
   background,
   basicAccent,
@@ -44,6 +165,13 @@ enum TelegramThemeSemanticColor {
   tertiaryText,
   divider,
   accent,
+  onAccent,
+  dialogButton,
+  dialogText,
+  badgeBackground,
+  badgeText,
+  accentButton,
+  accentButtonText,
   chatBackground,
   searchFill,
   inputBarBackground,
@@ -55,6 +183,84 @@ enum TelegramThemeSemanticColor {
   outgoingBubble,
   outgoingText,
   senderName,
+}
+
+@immutable
+class TelegramMessageColors {
+  const TelegramMessageColors({
+    required this.incomingLink,
+    required this.outgoingLink,
+    required this.incomingQuote,
+    required this.outgoingQuote,
+    required this.incomingReplyLine,
+    required this.outgoingReplyLine,
+    required this.incomingReplyName,
+    required this.outgoingReplyName,
+    required this.incomingReplyText,
+    required this.outgoingReplyText,
+    required this.incomingReplyMediaText,
+    required this.outgoingReplyMediaText,
+    required this.incomingForwardedName,
+    required this.outgoingForwardedName,
+    required this.incomingPreviewLine,
+    required this.outgoingPreviewLine,
+    required this.incomingSiteName,
+    required this.outgoingSiteName,
+    required this.incomingTime,
+    required this.outgoingTime,
+  });
+
+  factory TelegramMessageColors.fromChatThemeStyle(ChatThemeStyle style) {
+    final incomingText = style.incomingTextColor;
+    final outgoingText = style.outgoingTextColor;
+    final incomingAccent = style.nameColor;
+    final outgoingAccent = style.outgoingMessageAccentColor == 0
+        ? outgoingText
+        : style.outgoingAccentColor;
+    return TelegramMessageColors(
+      incomingLink: incomingAccent,
+      outgoingLink: outgoingAccent,
+      incomingQuote: incomingAccent,
+      outgoingQuote: outgoingAccent,
+      incomingReplyLine: incomingAccent,
+      outgoingReplyLine: outgoingAccent,
+      incomingReplyName: incomingAccent,
+      outgoingReplyName: outgoingAccent,
+      incomingReplyText: incomingText.withValues(alpha: 0.72),
+      outgoingReplyText: outgoingText.withValues(alpha: 0.72),
+      incomingReplyMediaText: incomingText.withValues(alpha: 0.72),
+      outgoingReplyMediaText: outgoingText.withValues(alpha: 0.72),
+      incomingForwardedName: incomingAccent,
+      outgoingForwardedName: outgoingAccent,
+      incomingPreviewLine: incomingAccent,
+      outgoingPreviewLine: outgoingAccent,
+      incomingSiteName: incomingAccent,
+      outgoingSiteName: outgoingAccent,
+      incomingTime: incomingText.withValues(alpha: 0.65),
+      outgoingTime: outgoingText.withValues(alpha: 0.65),
+    );
+  }
+
+  final Color incomingLink;
+  final Color outgoingLink;
+  final Color incomingQuote;
+  final Color outgoingQuote;
+  final Color incomingReplyLine;
+  final Color outgoingReplyLine;
+  final Color incomingReplyName;
+  final Color outgoingReplyName;
+  final Color incomingReplyText;
+  final Color outgoingReplyText;
+  final Color incomingReplyMediaText;
+  final Color outgoingReplyMediaText;
+  final Color incomingForwardedName;
+  final Color outgoingForwardedName;
+  final Color incomingPreviewLine;
+  final Color outgoingPreviewLine;
+  final Color incomingSiteName;
+  final Color outgoingSiteName;
+  final Color incomingTime;
+  final Color outgoingTime;
 }
 
 @immutable
@@ -169,6 +375,106 @@ class TelegramCloudTheme {
     'textBubble_incoming',
     'historyTextInFg',
   ]);
+
+  /// Bubble fill while the message is selected. Telegram ships this as its own
+  /// key rather than tinting the base fill — the defaults are a wash over it
+  /// (#ecf7fd over white incoming, #d9f7c5 over #efffde outgoing), so a theme
+  /// is free to make the selected state anything it likes.
+  Color? get incomingSelectedColor =>
+      _paletteColor(const ['chat_inBubbleSelected', 'msgInBgSelected']);
+
+  Color? get outgoingSelectedColor =>
+      _paletteColor(const ['chat_outBubbleSelected', 'msgOutBgSelected']);
+
+  TelegramMessageColors get messageColors {
+    final cached = _messageColorsCache[this];
+    if (cached != null) return cached;
+    final computed = _computeMessageColors();
+    _messageColorsCache[this] = computed;
+    return computed;
+  }
+
+  TelegramMessageColors _computeMessageColors() {
+    final ui = uiColors;
+    final incomingText = incomingTextColor ?? ui.bubbleIncomingText;
+    final outgoingText =
+        outgoingTextColor ??
+        ((outgoingColor?.computeLuminance() ?? 1) > 0.58
+            ? const Color(0xFF171717)
+            : const Color(0xFFFFFFFF));
+    final incomingLink =
+        _paletteColor(const [
+          'chat_messageLinkIn',
+          'chat.message.incoming.linkText',
+          'linkBubble_incoming',
+          'historyLinkInFg',
+        ]) ??
+        accentColor;
+    final outgoingLink =
+        _paletteColor(const [
+          'chat_messageLinkOut',
+          'chat.message.outgoing.linkText',
+          'linkBubble_outgoing',
+          'historyLinkOutFg',
+        ]) ??
+        outgoingText;
+    final incomingQuote =
+        _paletteColor(const ['chat_inQuote', 'chat_inReplyLine']) ??
+        incomingLink;
+    final outgoingQuote =
+        _paletteColor(const ['chat_outQuote', 'chat_outReplyLine']) ??
+        outgoingLink;
+    final incomingReplyLine =
+        _paletteColor(const ['chat_inReplyLine']) ?? incomingQuote;
+    final outgoingReplyLine =
+        _paletteColor(const ['chat_outReplyLine']) ?? outgoingQuote;
+    final incomingReplyName =
+        _paletteColor(const ['chat_inReplyNameText']) ?? incomingReplyLine;
+    final outgoingReplyName =
+        _paletteColor(const ['chat_outReplyNameText']) ?? outgoingReplyLine;
+    final incomingReplyText =
+        _paletteColor(const ['chat_inReplyMessageText']) ??
+        incomingText.withValues(alpha: 0.72);
+    final outgoingReplyText =
+        _paletteColor(const ['chat_outReplyMessageText']) ??
+        outgoingText.withValues(alpha: 0.72);
+    return TelegramMessageColors(
+      incomingLink: incomingLink,
+      outgoingLink: outgoingLink,
+      incomingQuote: incomingQuote,
+      outgoingQuote: outgoingQuote,
+      incomingReplyLine: incomingReplyLine,
+      outgoingReplyLine: outgoingReplyLine,
+      incomingReplyName: incomingReplyName,
+      outgoingReplyName: outgoingReplyName,
+      incomingReplyText: incomingReplyText,
+      outgoingReplyText: outgoingReplyText,
+      incomingReplyMediaText:
+          _paletteColor(const ['chat_inReplyMediaMessageText']) ??
+          incomingReplyText,
+      outgoingReplyMediaText:
+          _paletteColor(const ['chat_outReplyMediaMessageText']) ??
+          outgoingReplyText,
+      incomingForwardedName:
+          _paletteColor(const ['chat_inForwardedNameText']) ?? incomingLink,
+      outgoingForwardedName:
+          _paletteColor(const ['chat_outForwardedNameText']) ?? outgoingLink,
+      incomingPreviewLine:
+          _paletteColor(const ['chat_inPreviewLine']) ?? incomingLink,
+      outgoingPreviewLine:
+          _paletteColor(const ['chat_outPreviewLine']) ?? outgoingLink,
+      incomingSiteName:
+          _paletteColor(const ['chat_inSiteNameText']) ?? incomingLink,
+      outgoingSiteName:
+          _paletteColor(const ['chat_outSiteNameText']) ?? outgoingLink,
+      incomingTime:
+          _paletteColor(const ['chat_inTimeText']) ??
+          incomingText.withValues(alpha: 0.65),
+      outgoingTime:
+          _paletteColor(const ['chat_outTimeText']) ??
+          outgoingText.withValues(alpha: 0.65),
+    );
+  }
 
   /// Resolves one reusable semantic variable using Telegram's fidelity order:
   /// Android, iOS, macOS, then TDesktop.
@@ -300,6 +606,60 @@ class TelegramCloudTheme {
           'link',
           'windowActiveTextFg',
         ],
+        // What Telegram draws *on top of* an accent fill — the glyph on the
+        // floating action button, the label on the blue "Add" button, the tick
+        // inside a filled checkbox. Every client stores this as its own key and
+        // none of them derive it from the accent, so neither do we.
+        TelegramThemeSemanticColor.onAccent => const [
+          'chats_actionIcon',
+          'featuredStickers_buttonText',
+          'checkboxCheck',
+          'list.itemCheckColors.foregroundColor',
+          'list.itemCheckColors.foreground',
+          'underSelectedColor',
+          'activeButtonFg',
+        ],
+        // Dialog buttons are flat text in every client, so this is the label
+        // colour rather than a fill.
+        TelegramThemeSemanticColor.dialogButton => const [
+          'dialogButton',
+          'actionSheet.controlAccent',
+          'accentColor',
+          'windowActiveTextFg',
+        ],
+        TelegramThemeSemanticColor.dialogText => const [
+          'dialogTextBlack',
+          'actionSheet.primaryText',
+          'textColor',
+          'windowFg',
+        ],
+        TelegramThemeSemanticColor.badgeBackground => const [
+          'chats_unreadCounter',
+          'chatList.unreadBadgeActive',
+          'badgeBackgroundColor',
+          'dialogsUnreadBg',
+        ],
+        TelegramThemeSemanticColor.badgeText => const [
+          'chats_unreadCounterText',
+          'chatList.unreadBadgeActiveText',
+          'badgeTextColor',
+          'dialogsUnreadFg',
+        ],
+        // The filled accent button. Telegram keys the fill and the label as
+        // two independent values, so a theme can restyle one without the
+        // other and neither is inferred from the accent.
+        TelegramThemeSemanticColor.accentButton => const [
+          'featuredStickers_addButton',
+          'list.itemCheckColors.fillColor',
+          'accentColor',
+          'activeButtonBg',
+        ],
+        TelegramThemeSemanticColor.accentButtonText => const [
+          'featuredStickers_buttonText',
+          'list.itemCheckColors.foregroundColor',
+          'underSelectedColor',
+          'activeButtonFg',
+        ],
         TelegramThemeSemanticColor.chatBackground => const [
           'chat_wallpaper',
           'chat_background',
@@ -415,51 +775,116 @@ class TelegramCloudTheme {
   /// fallback samples are reached only when an imported theme has no variable
   /// for that slot.
   List<Color> get senderNameColors {
-    const names = <String>[
-      'Red',
-      'Orange',
-      'Violet',
-      'Green',
-      'Cyan',
-      'Blue',
-      'Pink',
-    ];
-    const lowerNames = <String>[
-      'red',
-      'orange',
-      'violet',
-      'green',
-      'cyan',
-      'blue',
-      'pink',
-    ];
-    const fallback = <Color>[
-      Color(0xFFE2B4B4),
-      Color(0xFFE5EAA8),
-      Color(0xFFB39DC8),
-      Color(0xFFBAE2B4),
-      Color(0xFFA5E1DE),
-      Color(0xFFB4C4E2),
-      Color(0xFFD59EBB),
-    ];
-    return <Color>[
-      for (var index = 0; index < names.length; index++)
-        _paletteColor(<String>[
-              'avatar_nameInMessage${names[index]}',
-              'chat.message.incoming.authorName.${lowerNames[index]}',
-              'chat.message.incoming.authorName${names[index]}',
-              'chat.peerName.${lowerNames[index]}',
-              'chat_messageName${names[index]}',
-              'chat_messageAuthor${names[index]}',
-              'groupPeerName${names[index]}',
-              if (index == 5) 'groupPeerNameLightBlue',
-              'historyPeer${index + 1}NameFg',
-              'avatar_background${names[index]}',
-              'avatar_backgroundInProfile${names[index]}',
-            ]) ??
-            fallback[index],
-    ];
+    final cached = _senderNameColorsCache[this];
+    if (cached != null) return cached;
+    final computed = List<Color>.unmodifiable(<Color>[
+      for (var index = 0; index < _senderNameKeys.length; index++)
+        _paletteColor(_senderNameKeys[index]) ?? _senderNameFallback[index],
+    ]);
+    _senderNameColorsCache[this] = computed;
+    return computed;
   }
+
+  /// Per-slot lookup keys, spelled out rather than interpolated: this runs for
+  /// every incoming group message and the interpolated form allocated ~70
+  /// throwaway Strings per call.
+  static const List<List<String>> _senderNameKeys = [
+    [
+      'avatar_nameInMessageRed',
+      'chat.message.incoming.authorName.red',
+      'chat.message.incoming.authorNameRed',
+      'chat.peerName.red',
+      'chat_messageNameRed',
+      'chat_messageAuthorRed',
+      'groupPeerNameRed',
+      'historyPeer1NameFg',
+      'avatar_backgroundRed',
+      'avatar_backgroundInProfileRed',
+    ],
+    [
+      'avatar_nameInMessageOrange',
+      'chat.message.incoming.authorName.orange',
+      'chat.message.incoming.authorNameOrange',
+      'chat.peerName.orange',
+      'chat_messageNameOrange',
+      'chat_messageAuthorOrange',
+      'groupPeerNameOrange',
+      'historyPeer2NameFg',
+      'avatar_backgroundOrange',
+      'avatar_backgroundInProfileOrange',
+    ],
+    [
+      'avatar_nameInMessageViolet',
+      'chat.message.incoming.authorName.violet',
+      'chat.message.incoming.authorNameViolet',
+      'chat.peerName.violet',
+      'chat_messageNameViolet',
+      'chat_messageAuthorViolet',
+      'groupPeerNameViolet',
+      'historyPeer3NameFg',
+      'avatar_backgroundViolet',
+      'avatar_backgroundInProfileViolet',
+    ],
+    [
+      'avatar_nameInMessageGreen',
+      'chat.message.incoming.authorName.green',
+      'chat.message.incoming.authorNameGreen',
+      'chat.peerName.green',
+      'chat_messageNameGreen',
+      'chat_messageAuthorGreen',
+      'groupPeerNameGreen',
+      'historyPeer4NameFg',
+      'avatar_backgroundGreen',
+      'avatar_backgroundInProfileGreen',
+    ],
+    [
+      'avatar_nameInMessageCyan',
+      'chat.message.incoming.authorName.cyan',
+      'chat.message.incoming.authorNameCyan',
+      'chat.peerName.cyan',
+      'chat_messageNameCyan',
+      'chat_messageAuthorCyan',
+      'groupPeerNameCyan',
+      'historyPeer5NameFg',
+      'avatar_backgroundCyan',
+      'avatar_backgroundInProfileCyan',
+    ],
+    [
+      'avatar_nameInMessageBlue',
+      'chat.message.incoming.authorName.blue',
+      'chat.message.incoming.authorNameBlue',
+      'chat.peerName.blue',
+      'chat_messageNameBlue',
+      'chat_messageAuthorBlue',
+      'groupPeerNameBlue',
+      'groupPeerNameLightBlue',
+      'historyPeer6NameFg',
+      'avatar_backgroundBlue',
+      'avatar_backgroundInProfileBlue',
+    ],
+    [
+      'avatar_nameInMessagePink',
+      'chat.message.incoming.authorName.pink',
+      'chat.message.incoming.authorNamePink',
+      'chat.peerName.pink',
+      'chat_messageNamePink',
+      'chat_messageAuthorPink',
+      'groupPeerNamePink',
+      'historyPeer7NameFg',
+      'avatar_backgroundPink',
+      'avatar_backgroundInProfilePink',
+    ],
+  ];
+
+  static const List<Color> _senderNameFallback = [
+    Color(0xFFE2B4B4),
+    Color(0xFFE5EAA8),
+    Color(0xFFB39DC8),
+    Color(0xFFBAE2B4),
+    Color(0xFFA5E1DE),
+    Color(0xFFB4C4E2),
+    Color(0xFFD59EBB),
+  ];
 
   Color senderNameColorForAccentId(int accentColorId) {
     final colors = senderNameColors;
@@ -470,11 +895,19 @@ class TelegramCloudTheme {
   /// Semantic UI variables derived from Telegram's platform-specific keys.
   /// Consumers should use these tokens instead of reading raw palette keys.
   AppColors get uiColors {
+    final cached = _uiColorsCache[this];
+    if (cached != null) return cached;
+    final computed = _computeUiColors();
+    _uiColorsCache[this] = computed;
+    return computed;
+  }
+
+  AppColors _computeUiColors() {
     final base = isDark ? AppColors.dark : AppColors.light;
     Color value(TelegramThemeSemanticColor semantic, Color fallback) =>
         semanticColor(semantic) ?? fallback;
-    final background = value(
-      TelegramThemeSemanticColor.background,
+    final background = Color.alphaBlend(
+      value(TelegramThemeSemanticColor.background, base.background),
       base.background,
     );
     final card = value(TelegramThemeSemanticColor.card, base.card);
@@ -490,19 +923,36 @@ class TelegramCloudTheme {
         _wallpaperColor() ??
         value(TelegramThemeSemanticColor.chatBackground, base.chatBackground);
     final accent = value(TelegramThemeSemanticColor.accent, accentColor);
+    final groupedBackground = _distinctGroupedBackgroundColor(
+      card: card,
+      candidate: value(
+        TelegramThemeSemanticColor.groupedBackground,
+        base.groupedBackground,
+      ),
+      isDark: isDark,
+    );
+    final divider = _structuralDividerColor(
+      background: background,
+      surface: card,
+      candidate: value(TelegramThemeSemanticColor.divider, base.divider),
+      isDark: isDark,
+    );
+    final pinnedRow = _distinctPinnedRowColor(
+      background: background,
+      candidate: value(TelegramThemeSemanticColor.pinnedRow, background),
+      accent: accent,
+      isDark: isDark,
+    );
     return base.copyWith(
       background: background,
-      pinnedRow: value(TelegramThemeSemanticColor.pinnedRow, background),
+      pinnedRow: pinnedRow,
       listHeaderTint: value(
         TelegramThemeSemanticColor.listHeaderTint,
         background,
       ),
       card: card,
       navBar: value(TelegramThemeSemanticColor.navBar, card),
-      groupedBackground: value(
-        TelegramThemeSemanticColor.groupedBackground,
-        base.groupedBackground,
-      ),
+      groupedBackground: groupedBackground,
       chatBackground: chatBackground,
       searchFill: value(TelegramThemeSemanticColor.searchFill, base.searchFill),
       inputBarBackground: value(
@@ -527,9 +977,24 @@ class TelegramCloudTheme {
         TelegramThemeSemanticColor.tertiaryText,
         base.textTertiary,
       ),
-      divider: value(TelegramThemeSemanticColor.divider, base.divider),
+      divider: divider,
       linkBlue: accent,
-      onAccent: readableForeground(accent),
+      onAccent: value(TelegramThemeSemanticColor.onAccent, base.onAccent),
+      dialogButton: value(TelegramThemeSemanticColor.dialogButton, accent),
+      dialogText: value(TelegramThemeSemanticColor.dialogText, primary),
+      badgeBackground: value(
+        TelegramThemeSemanticColor.badgeBackground,
+        accent,
+      ),
+      badgeText: value(
+        TelegramThemeSemanticColor.badgeText,
+        value(TelegramThemeSemanticColor.onAccent, base.onAccent),
+      ),
+      accentButton: value(TelegramThemeSemanticColor.accentButton, accent),
+      accentButtonText: value(
+        TelegramThemeSemanticColor.accentButtonText,
+        value(TelegramThemeSemanticColor.onAccent, base.onAccent),
+      ),
     );
   }
 
@@ -1075,7 +1540,9 @@ String _documentName(Map<String, dynamic> document) {
 String _normalizedThemeLink(String raw) {
   final trimmed = raw.trim();
   final uri = Uri.tryParse(trimmed);
-  if (uri?.scheme.toLowerCase() == 'tg' && uri?.host == 'addtheme') {
+  const appSchemes = {'tg', 'mk', 'mithka'};
+  if (appSchemes.contains(uri?.scheme.toLowerCase()) &&
+      uri?.host == 'addtheme') {
     final slug = uri?.queryParameters['slug'] ?? '';
     if (slug.isEmpty) throw const FormatException('Theme slug is missing');
     return 'https://t.me/addtheme/$slug';
@@ -1126,13 +1593,15 @@ List<int> _outgoingFromPalette(Map<String, int> palette) {
   ]);
   if (first == null) return const [];
   final second = _firstPaletteValue(palette, const [
+    'chat_outBubbleGradient',
     'chat_outBubbleGradient1',
     'chat.message.outgoing.bubble.withWp.gradientBg',
     'chat.message.outgoing.bubble.withoutWp.gradientBg',
     'bubbleBackgroundGradient_outgoing',
-    'msgOutBgSelected',
   ]);
-  return second == null || second == first ? [first] : [first, second];
+  return second == null || second == 0 || second == first
+      ? [first]
+      : [first, second];
 }
 
 int? _firstPaletteValue(Map<String, int> palette, List<String> keys) {

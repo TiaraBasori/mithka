@@ -29,6 +29,7 @@ import 'package:mithka/chat/sticker_item.dart';
 import 'package:mithka/chat/sticker_store.dart';
 import 'package:mithka/chat/telegram_ai_service.dart';
 import 'package:mithka/components/app_icons.dart';
+import 'package:mithka/components/app_interactive_surface.dart';
 import 'package:mithka/components/keyboard_dismiss_on_tap.dart';
 import 'package:mithka/components/photo_avatar.dart';
 import 'package:mithka/components/ui_components.dart';
@@ -47,6 +48,8 @@ import 'package:mithka/theme/emoji_font_catalog.dart';
 import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'support/l10n_fixtures.dart';
 
 Future<MusicPlayerController> _pumpMusicPlayerBar(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
@@ -126,6 +129,12 @@ class _FocusTestChatViewModel extends ChatViewModel {
       for (final message in messages)
         if (message.id == replacement.id) replacement else message,
     ];
+    notifyListeners();
+  }
+
+  void completeInitialLoad({String remoteDraft = ''}) {
+    draft = remoteDraft;
+    initialLoaded = true;
     notifyListeners();
   }
 }
@@ -467,6 +476,18 @@ void main() {
 
       expect(labels, contains('Format'));
       expect(labels, contains('Insert'));
+
+      toolbar.buttonItems!
+          .singleWhere((item) => item.label == 'Insert')
+          .onPressed!();
+      await tester.pumpAndSettle();
+      final paragraph = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(const ValueKey('rich-insert-paragraph')),
+          matching: find.text('Paragraph'),
+        ),
+      );
+      expect(paragraph.style?.fontWeight, AppTextWeight.regular);
     });
 
     testWidgets('table title is editable and table actions stay clickable', (
@@ -807,6 +828,67 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('button row submits native TDLib button blocks', (
+      tester,
+    ) async {
+      RichTextComposerResult? result;
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: RichTextComposerView(
+            initialText: '',
+            allowMedia: false,
+            onSubmit: (value) => result = value,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.byTooltip('Button row'));
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('rich-button-row-editor')),
+        findsOneWidget,
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('rich-button-label-0')),
+        'Visit Mithka',
+      );
+      await tester.enterText(
+        find.byKey(const ValueKey('rich-button-url-0')),
+        'https://mithka.app',
+      );
+      await tester.tap(find.byKey(const ValueKey('rich-button-align-right')));
+      await tester.tap(find.byKey(const ValueKey('rich-button-style-success')));
+      await tester.pump();
+      await tester.tap(find.text('Post'));
+      await tester.pump();
+
+      expect(result, isNotNull);
+      expect(result!.text, isEmpty);
+      expect(result!.segments, hasLength(1));
+      final block = result!.segments.single.blocks.single;
+      expect(block['@type'], 'inputPageBlockButtonRow');
+      expect(
+        (block['align'] as Map)['@type'],
+        'pageBlockHorizontalAlignmentRight',
+      );
+      final button = (block['buttons'] as List).single as Map<String, dynamic>;
+      expect(button['text'], {
+        '@type': 'richTextPlain',
+        'text': 'Visit Mithka',
+      });
+      expect((button['type'] as Map)['url'], 'https://mithka.app');
+      expect((button['style'] as Map)['@type'], 'buttonStyleSuccess');
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('inserting a block replaces an empty paragraph', (
       tester,
     ) async {
@@ -852,6 +934,8 @@ void main() {
       int messageAutoDeleteTime = 0,
       bool targetIsOutgoing = false,
       bool? telegramReplySupported = true,
+      bool appleOnDeviceAvailable = false,
+      VoidCallback? onMessageSent,
       List<ChatMessage> leadingMessages = const [],
       List<ChatMessage> trailingMessages = const [],
       int targetId = 7,
@@ -866,6 +950,12 @@ void main() {
           invokeMethod: (_, _) async => {
             'available': false,
             'sdkAvailable': false,
+            'onDeviceSdkAvailable': appleOnDeviceAvailable,
+            'onDeviceAvailable': appleOnDeviceAvailable,
+            'onDeviceReason': appleOnDeviceAvailable
+                ? 'available'
+                : 'unavailable',
+            if (appleOnDeviceAvailable) 'onDeviceContextSize': 4096,
           },
         ),
         secureRead: (_) async => null,
@@ -970,7 +1060,7 @@ void main() {
                 child: ChatInputBar(
                   vm: vm,
                   onStartCall: (_) {},
-                  onMessageSent: () {},
+                  onMessageSent: onMessageSent ?? () {},
                   aiReplyGenerator: generator,
                   aiReplyStreamingGenerator: streamingGenerator,
                   aiReplyHistoryLoader:
@@ -990,6 +1080,49 @@ void main() {
       return (vm, target);
     }
 
+    testWidgets('quick reply focuses only after restoring the remote draft', (
+      tester,
+    ) async {
+      final vm = _FocusTestChatViewModel();
+      addTearDown(vm.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: ChatInputBar(
+                vm: vm,
+                requestInitialFocus: true,
+                onStartCall: (_) {},
+                onMessageSent: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      var field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.focusNode?.hasFocus, isFalse);
+      expect(field.controller?.text, isEmpty);
+
+      vm.completeInitialLoad(remoteDraft: 'Preserved Telegram draft');
+      await tester.pump();
+      await tester.pump();
+
+      field = tester.widget<TextField>(find.byType(TextField));
+      expect(field.controller?.text, 'Preserved Telegram draft');
+      expect(field.focusNode?.hasFocus, isTrue);
+    });
+
     testWidgets('shows AI Reply inside an empty input and inserts its draft', (
       tester,
     ) async {
@@ -1001,6 +1134,7 @@ void main() {
         requestCount++;
         return result.future;
       });
+      vm.meUsernames = const {'nekoko14'};
 
       final action = find.byKey(const ValueKey('composerAiReplyButton'));
       final inputBox = find.byKey(const ValueKey('composerTextInputBox'));
@@ -1045,9 +1179,144 @@ void main() {
       expect(vm.draft, 'I can join at three.');
       expect(vm.replyTo, isNull);
       expect(capturedRequest?.targetMessageId, target.id);
+      expect(capturedRequest?.currentUserUsernames, contains('nekoko14'));
       expect(requestCount, 1);
       expect(action, findsNothing);
       expect(find.byKey(const ValueKey('composerSendButton')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('composerAiReplyProgress')),
+        findsNothing,
+      );
+    });
+
+    testWidgets(
+      'long press opens the Reply model selector without generating',
+      (tester) async {
+        var generationCount = 0;
+        await pumpAiReplyComposer(tester, (_) async {
+          generationCount++;
+          return const TelegramAiFormattedText(text: 'Generated reply');
+        });
+
+        final action = find.byKey(const ValueKey('composerAiReplyButton'));
+        await tester.longPress(action);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('aiFeatureModelPicker-reply')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(
+            const ValueKey(
+              'aiFeatureModelOption-reply-builtin:telegram_cocoon',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(
+            const ValueKey('aiFeatureModelOption-reply-builtin:apple_pcc'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(
+            const ValueKey(
+              'aiFeatureModelOption-reply-builtin:apple_on_device',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(
+            const ValueKey(
+              'aiFeatureModelSelected-reply-builtin:telegram_cocoon',
+            ),
+          ),
+          findsOneWidget,
+        );
+        expect(generationCount, 0);
+        expect(
+          find.byKey(const ValueKey('composerAiReplyProgress')),
+          findsNothing,
+        );
+
+        await tester.tapAt(const Offset(8, 8));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('aiFeatureModelPicker-reply')),
+          findsNothing,
+        );
+        expect(generationCount, 0);
+      },
+    );
+
+    testWidgets('selected Reply model is persisted and used for generation', (
+      tester,
+    ) async {
+      const channel = MethodChannel(ApplePccApi.channelName);
+      MethodCall? summarizeCall;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (
+        call,
+      ) async {
+        if (call.method != 'summarize') return null;
+        summarizeCall = call;
+        return const {
+          'text': 'I can join at three.',
+          'provider': 'apple_on_device',
+        };
+      });
+      addTearDown(
+        () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          channel,
+          null,
+        ),
+      );
+      var sentCount = 0;
+      await pumpAiReplyComposer(
+        tester,
+        null,
+        appleOnDeviceAvailable: true,
+        onMessageSent: () => sentCount++,
+      );
+
+      final action = find.byKey(const ValueKey('composerAiReplyButton'));
+      final settings = Provider.of<AiSettingsController>(
+        tester.element(action),
+        listen: false,
+      );
+      await tester.longPress(action);
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(
+          const ValueKey('aiFeatureModelOption-reply-builtin:apple_on_device'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        settings.replyModelCandidateId,
+        AiSettingsController.appleOnDeviceModelCandidateId,
+      );
+      final preferences = await SharedPreferences.getInstance();
+      expect(
+        preferences.getString(
+          AiSettingsController.replyModelCandidatePreferenceKey,
+        ),
+        AiSettingsController.appleOnDeviceModelCandidateId,
+      );
+      expect(summarizeCall?.method, 'summarize');
+      expect(
+        (summarizeCall?.arguments as Map<Object?, Object?>)['modelMode'],
+        AppleAiModel.onDevice.bridgeValue,
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'I can join at three.',
+      );
+      expect(sentCount, 0);
       expect(
         find.byKey(const ValueKey('composerAiReplyProgress')),
         findsNothing,
@@ -1204,11 +1473,11 @@ void main() {
         );
         expect(
           tester
-              .widget<GestureDetector>(
+              .widget<AppInteractiveSurface>(
                 find.byKey(const ValueKey('composerSendButton')),
               )
-              .onTap,
-          isNull,
+              .enabled,
+          isFalse,
         );
 
         await tester.pumpAndSettle();
@@ -1226,11 +1495,11 @@ void main() {
         );
         expect(
           tester
-              .widget<GestureDetector>(
+              .widget<AppInteractiveSurface>(
                 find.byKey(const ValueKey('composerSendButton')),
               )
-              .onTap,
-          isNotNull,
+              .enabled,
+          isTrue,
         );
       },
     );
@@ -1244,7 +1513,11 @@ void main() {
           tester,
           null,
           streamingGenerator:
-              (request, {required AiReplyDraftCallback onDraft}) {
+              (
+                request, {
+                required AiReplyDraftCallback onDraft,
+                AiReplyProgressCallback? onProgress,
+              }) {
                 emitDraft = onDraft;
                 return result.future;
               },
@@ -1304,6 +1577,85 @@ void main() {
       },
     );
 
+    testWidgets(
+      'keeps generic AI phases collapsed above the send-ready draft',
+      (tester) async {
+        late AiReplyDraftCallback emitDraft;
+        late AiReplyProgressCallback emitProgress;
+        final result = Completer<TelegramAiFormattedText>();
+        var sentCount = 0;
+        final (vm, _) = await pumpAiReplyComposer(
+          tester,
+          null,
+          streamingGenerator:
+              (
+                request, {
+                required AiReplyDraftCallback onDraft,
+                AiReplyProgressCallback? onProgress,
+              }) {
+                emitDraft = onDraft;
+                emitProgress = onProgress!;
+                return result.future;
+              },
+          onMessageSent: () => sentCount++,
+        );
+
+        await tester.tap(find.byKey(const ValueKey('composerAiReplyButton')));
+        await tester.pump();
+
+        final process = find.byKey(const ValueKey('composerAiReplyProcess'));
+        final details = find.byKey(
+          const ValueKey('composerAiReplyProcessDetails'),
+        );
+        expect(process, findsOneWidget);
+        expect(details, findsNothing);
+        expect(vm.draft, isEmpty);
+
+        emitProgress(AiReplyProgressPhase.checkingEarlierContext);
+        await tester.pump();
+        expect(vm.draft, isEmpty);
+        await tester.tap(
+          find.byKey(const ValueKey('composerAiReplyProcessToggle')),
+        );
+        await tester.pump(const Duration(milliseconds: 220));
+
+        expect(details, findsOneWidget);
+        expect(
+          find.text('Reviewing recent messages and the reply target.'),
+          findsOneWidget,
+        );
+        expect(
+          find.text('Checking earlier chat context for relevant details.'),
+          findsOneWidget,
+        );
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          isEmpty,
+        );
+
+        emitProgress(AiReplyProgressPhase.writingReply);
+        emitDraft(const TelegramAiFormattedText(text: 'Direct reply'));
+        result.complete(const TelegramAiFormattedText(text: 'Direct reply'));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          'Direct reply',
+        );
+        expect(
+          find.text('Writing a send-ready response in your voice.'),
+          findsOneWidget,
+        );
+        expect(process, findsOneWidget);
+        expect(sentCount, 0);
+
+        await tester.enterText(find.byType(TextField), 'My edit');
+        await tester.pumpAndSettle();
+        expect(process, findsNothing);
+        expect(sentCount, 0);
+      },
+    );
+
     testWidgets('typing after a streamed draft rejects later AI chunks', (
       tester,
     ) async {
@@ -1312,10 +1664,15 @@ void main() {
       await pumpAiReplyComposer(
         tester,
         null,
-        streamingGenerator: (request, {required AiReplyDraftCallback onDraft}) {
-          emitDraft = onDraft;
-          return result.future;
-        },
+        streamingGenerator:
+            (
+              request, {
+              required AiReplyDraftCallback onDraft,
+              AiReplyProgressCallback? onProgress,
+            }) {
+              emitDraft = onDraft;
+              return result.future;
+            },
       );
 
       await tester.tap(find.byKey(const ValueKey('composerAiReplyButton')));
@@ -1349,10 +1706,15 @@ void main() {
       await pumpAiReplyComposer(
         tester,
         null,
-        streamingGenerator: (request, {required AiReplyDraftCallback onDraft}) {
-          emitDraft = onDraft;
-          return result.future;
-        },
+        streamingGenerator:
+            (
+              request, {
+              required AiReplyDraftCallback onDraft,
+              AiReplyProgressCallback? onProgress,
+            }) {
+              emitDraft = onDraft;
+              return result.future;
+            },
       );
 
       await tester.tap(find.byKey(const ValueKey('composerAiReplyButton')));
@@ -1679,7 +2041,11 @@ void main() {
           null,
           isGroup: true,
           streamingGenerator:
-              (request, {required AiReplyDraftCallback onDraft}) {
+              (
+                request, {
+                required AiReplyDraftCallback onDraft,
+                AiReplyProgressCallback? onProgress,
+              }) {
                 emitDraft = onDraft;
                 return result.future;
               },
@@ -1743,10 +2109,15 @@ void main() {
         tester,
         null,
         leadingMessages: [contextMessage],
-        streamingGenerator: (request, {required AiReplyDraftCallback onDraft}) {
-          emitDraft = onDraft;
-          return result.future;
-        },
+        streamingGenerator:
+            (
+              request, {
+              required AiReplyDraftCallback onDraft,
+              AiReplyProgressCallback? onProgress,
+            }) {
+              emitDraft = onDraft;
+              return result.future;
+            },
       );
 
       await tester.tap(find.byKey(const ValueKey('composerAiReplyButton')));
@@ -1833,10 +2204,34 @@ void main() {
       final action = find.byKey(const ValueKey('composerAiReplyButton'));
       await tester.tap(action);
       await tester.pump();
-      expect(
-        find.byKey(const ValueKey('composerAiReplyProgress')),
-        findsOneWidget,
+      final progress = find.byKey(const ValueKey('composerAiReplyProgress'));
+      expect(progress, findsOneWidget);
+      final thinkingIcon = find.descendant(
+        of: progress,
+        matching: find.byType(AppIcon),
       );
+      expect(thinkingIcon, findsOneWidget);
+      expect(
+        tester.widget<AppIcon>(thinkingIcon).icon,
+        HeroAppIcons.wandMagicSparkles,
+      );
+      expect(
+        find.descendant(
+          of: progress,
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsNothing,
+      );
+      final orbit = find.byKey(const ValueKey('composerAiReplyOrbit'));
+      final beforeRotation = List<double>.of(
+        tester.widget<Transform>(orbit).transform.storage,
+      );
+      await tester.pump(const Duration(milliseconds: 225));
+      final afterRotation = List<double>.of(
+        tester.widget<Transform>(orbit).transform.storage,
+      );
+      expect(afterRotation, isNot(equals(beforeRotation)));
+      expect(tester.widget<GestureDetector>(action).onLongPress, isNull);
 
       await tester.tap(action);
       await tester.pump();
@@ -1893,6 +2288,38 @@ void main() {
       expect(
         tester.getCenter(autoDelete).dx,
         lessThan(tester.getCenter(ai).dx),
+      );
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('bottom-aligns the sender identity beside wrapped text', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(320, 640);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      await pumpAiReplyComposer(
+        tester,
+        (_) async => const TelegramAiFormattedText(text: 'Generated reply'),
+        includeSenderOptions: true,
+      );
+
+      final field = find.byType(TextField);
+      final sender = find.byKey(const ValueKey('composerSenderPicker'));
+      await tester.enterText(
+        field,
+        'This longer message wraps across several lines in the narrow input.',
+      );
+      await tester.pump();
+
+      expect(
+        tester.getSize(field).height,
+        greaterThan(tester.getSize(sender).height),
+      );
+      expect(
+        tester.getRect(sender).bottom,
+        closeTo(tester.getRect(field).bottom, 0.1),
       );
       expect(tester.takeException(), isNull);
     });
@@ -2073,7 +2500,7 @@ void main() {
       );
     });
 
-    testWidgets('shows two-line AI action above the send button', (
+    testWidgets('shows a circular style action above the send button', (
       tester,
     ) async {
       final vm = _FocusTestChatViewModel()
@@ -2121,6 +2548,12 @@ void main() {
       expect(aiButton, findsOneWidget);
       final sendButton = find.byKey(const ValueKey('composerSendButton'));
       expect(sendButton, findsOneWidget);
+      expect(tester.getSize(aiButton), const Size.square(36));
+      final styleIcon = tester.widget<AppIcon>(
+        find.byKey(const ValueKey('composerAiStyleIcon')),
+      );
+      expect(styleIcon.icon, HeroAppIcons.palette);
+      expect(styleIcon.size, 19);
       expect(
         tester.getCenter(aiButton).dx,
         greaterThan(tester.getRect(field).right),
@@ -2350,9 +2783,13 @@ void main() {
       expect(everySentCallbackSawClosedPanel, isTrue);
     });
 
-    testWidgets('more panel paints the bottom safe area with its background', (
+    testWidgets('composer and panel paint one continuous bottom surface', (
       tester,
     ) async {
+      final themedColors = AppColors.light.copyWith(
+        inputBarBackground: const Color(0xA0224466),
+        panelBackground: const Color(0x99664422),
+      );
       final vm = ChatViewModel(
         chatId: 1,
         title: 'Test chat',
@@ -2362,6 +2799,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: ThemeData(extensions: [themedColors]),
           home: MediaQuery(
             data: const MediaQueryData(padding: EdgeInsets.only(bottom: 34)),
             child: Scaffold(
@@ -2381,17 +2819,25 @@ void main() {
       final safeAreaBackground = find.byKey(
         const ValueKey('chat-input-safe-area-background'),
       );
+      final panelSafeAreaBackground = find.byKey(
+        const ValueKey('chat-input-panel-safe-area-background'),
+      );
       final colors = tester.element(safeAreaBackground).colors;
       expect(
         tester.widget<ColoredBox>(safeAreaBackground).color,
         colors.inputBarBackground,
       );
+      expect(panelSafeAreaBackground, findsNothing);
 
       await tester.tap(find.byIcon(HeroAppIcons.circlePlus.data));
       await tester.pump();
 
       expect(
         tester.widget<ColoredBox>(safeAreaBackground).color,
+        colors.inputBarBackground,
+      );
+      expect(
+        tester.widget<ColoredBox>(panelSafeAreaBackground).color,
         colors.panelBackground,
       );
     });
@@ -2443,6 +2889,7 @@ void main() {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(platform: TargetPlatform.iOS),
           home: Scaffold(
             body: Align(
               alignment: Alignment.bottomCenter,
@@ -2484,20 +2931,40 @@ void main() {
           ),
           const PasteTextIntent(SelectionChangedCause.keyboard),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 100));
       });
-      await tester.pumpAndSettle();
-      expect(find.text('Cancel'), findsOneWidget);
-      expect(find.text('Edit in rich text'), findsOneWidget);
-      expect(find.text('Send'), findsOneWidget);
-      expect(find.byType(Image), findsOneWidget);
+      await _settleUntilFound(
+        tester,
+        find.byKey(const ValueKey('clipboardAttachment-0')),
+      );
       expect(
-        find.byKey(const ValueKey('clipboardImagePreview')),
+        find.byKey(const ValueKey('clipboardAttachmentStrip')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('clipboardAttachment-0')),
         findsOneWidget,
       );
 
-      await tester.tap(find.text('Cancel'));
-      await tester.pumpAndSettle();
+      await tester.runAsync(() async {
+        Actions.invoke(
+          tester.element(
+            find.descendant(
+              of: textFieldFinder,
+              matching: find.byType(EditableText),
+            ),
+          ),
+          const PasteTextIntent(SelectionChangedCause.keyboard),
+        );
+      });
+      await _settleUntilFound(
+        tester,
+        find.byKey(const ValueKey('clipboardAttachment-1')),
+      );
+      expect(
+        find.byKey(const ValueKey('clipboardAttachment-1')),
+        findsOneWidget,
+      );
+
       await tester.runAsync(() async {
         textField.contentInsertionConfiguration!.onContentInserted(
           const KeyboardInsertedContent(
@@ -2505,16 +2972,18 @@ void main() {
             uri: 'content://mithka/pasted-image',
           ),
         );
-        await Future<void>.delayed(const Duration(milliseconds: 100));
       });
-      await tester.pumpAndSettle();
+      await _settleUntilFound(
+        tester,
+        find.byKey(const ValueKey('clipboardAttachment-2')),
+      );
       expect(
-        find.byKey(const ValueKey('clipboardImagePreview')),
+        find.byKey(const ValueKey('clipboardAttachment-2')),
         findsOneWidget,
       );
       expect(
         clipboardMethods.where((method) => method == 'readImage'),
-        hasLength(1),
+        hasLength(2),
       );
       expect(clipboardMethods, contains('readImageUri'));
 
@@ -2659,7 +3128,10 @@ void main() {
           ),
         );
 
-        expect(find.text('小程序购买'), findsOneWidget);
+        // The mini-app launcher lives in the chat header now, not on the
+        // composer row — the composer shows the standard bot-menu icon.
+        expect(find.text('小程序购买'), findsNothing);
+        expect(find.bySemanticsLabel('Open bot menu'), findsOneWidget);
         expect(find.bySemanticsLabel('Show bot keyboard'), findsOneWidget);
         expect(find.text('购买套餐'), findsNothing);
 
@@ -2668,10 +3140,11 @@ void main() {
         expect(find.bySemanticsLabel('Hide bot keyboard'), findsOneWidget);
         expect(find.text('购买套餐'), findsOneWidget);
 
-        await tester.longPress(find.text('小程序购买'));
+        // Long-press forces the command sheet (tap may launch a legacy
+        // menu:// web app instead), matching the old pill's long-press.
+        await tester.longPress(find.bySemanticsLabel('Open bot menu'));
         await tester.pumpAndSettle();
         expect(find.text('/start'), findsOneWidget);
-        expect(find.byIcon(HeroAppIcons.code.data), findsOneWidget);
       },
     );
 
@@ -2775,7 +3248,7 @@ void main() {
         ),
       );
 
-      await tester.tap(find.byKey(const ValueKey('message-code-block')));
+      await tester.tap(find.byKey(const ValueKey('message-code-block-5-0-12')));
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.text('Copied'), findsOneWidget);
     });
@@ -2982,11 +3455,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Show 18+ content?'), findsOneWidget);
-      expect(find.text('Unblock All'), findsOneWidget);
+      expect(find.text('Turn On'), findsOneWidget);
+      expect(find.text('Keep Off'), findsOneWidget);
+      expect(find.text('Only for This Message'), findsOneWidget);
       expect(richTextContaining('Retained original text'), findsNothing);
     });
 
-    testWidgets('always shows one sent dot and two read dots', (tester) async {
+    testWidgets('shows distinct sending, sent, and read delivery states', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues({
         'showMessageMetaIndicators': false,
       });
@@ -2999,8 +3476,23 @@ void main() {
         text: 'sent',
         date: 1,
       );
+      var isRead = false;
 
-      Future<void> pumpBubble({required bool isRead}) {
+      ({Color color, bool isSending}) indicatorPaint(String statusKey) {
+        final customPaint = tester.widget<CustomPaint>(
+          find.descendant(
+            of: find.byKey(ValueKey(statusKey)),
+            matching: find.byType(CustomPaint),
+          ),
+        );
+        final dynamic painter = customPaint.painter;
+        return (
+          color: painter.color as Color,
+          isSending: painter.isSending as bool,
+        );
+      }
+
+      Future<void> pumpBubble() {
         return tester.pumpWidget(
           ChangeNotifierProvider<ThemeController>.value(
             value: theme,
@@ -3018,22 +3510,131 @@ void main() {
         );
       }
 
-      await pumpBubble(isRead: false);
+      message.isSending = true;
+      await pumpBubble();
       expect(
-        find.byKey(const ValueKey('messageDeliveryDot-0')),
+        find.byKey(const ValueKey('messageDeliverySending')),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('messageDeliveryDot-1')), findsNothing);
+      expect(indicatorPaint('messageDeliverySending').isSending, isTrue);
 
-      await pumpBubble(isRead: true);
+      message.isSendAcknowledged = true;
+      await pumpBubble();
+      expect(find.byKey(const ValueKey('messageDeliverySent')), findsOneWidget);
       expect(
-        find.byKey(const ValueKey('messageDeliveryDot-0')),
+        find.byKey(const ValueKey('messageDeliverySending')),
+        findsNothing,
+      );
+      expect(indicatorPaint('messageDeliverySent'), (
+        color: const Color(0xFFFFFFFF),
+        isSending: false,
+      ));
+
+      message.isSending = false;
+      await pumpBubble();
+      expect(find.byKey(const ValueKey('messageDeliverySent')), findsOneWidget);
+      expect(indicatorPaint('messageDeliverySent'), (
+        color: const Color(0xFFFFFFFF),
+        isSending: false,
+      ));
+
+      isRead = true;
+      await pumpBubble();
+      expect(find.byKey(const ValueKey('messageDeliveryRead')), findsOneWidget);
+      expect(find.byKey(const ValueKey('messageDeliverySent')), findsNothing);
+      expect(indicatorPaint('messageDeliveryRead'), (
+        color: const Color(0xFF34C759),
+        isSending: false,
+      ));
+
+      isRead = false;
+      await pumpBubble();
+      expect(find.byKey(const ValueKey('messageDeliverySent')), findsOneWidget);
+      expect(find.byKey(const ValueKey('messageDeliveryRead')), findsNothing);
+      expect(indicatorPaint('messageDeliverySent'), (
+        color: const Color(0xFFFFFFFF),
+        isSending: false,
+      ));
+
+      isRead = true;
+      message.isEdited = true;
+      await pumpBubble();
+      expect(
+        find.byKey(const ValueKey('messageDeliveryEdited')),
         findsOneWidget,
       );
-      expect(
-        find.byKey(const ValueKey('messageDeliveryDot-1')),
-        findsOneWidget,
+      expect(find.byKey(const ValueKey('messageDeliverySent')), findsNothing);
+      expect(find.byKey(const ValueKey('messageDeliveryRead')), findsNothing);
+      expect(find.byIcon(HeroAppIcons.penToSquare.data), findsOneWidget);
+    });
+
+    testWidgets('uses the same sent and read distinction on media bubbles', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+      final message = ChatMessage(
+        id: 2,
+        isOutgoing: true,
+        text: '',
+        date: 1,
+        contentType: 'messagePhoto',
+        image: TdFileRef(id: 22, miniThumb: Uint8List(0)),
+        imageWidth: 640,
+        imageHeight: 480,
       );
+      var isRead = false;
+
+      ({Color color, bool isSending}) indicatorPaint(String statusKey) {
+        final customPaint = tester.widget<CustomPaint>(
+          find.descendant(
+            of: find.byKey(ValueKey(statusKey)),
+            matching: find.byType(CustomPaint),
+          ),
+        );
+        final dynamic painter = customPaint.painter;
+        return (
+          color: painter.color as Color,
+          isSending: painter.isSending as bool,
+        );
+      }
+
+      Future<void> pumpBubble() => tester.pumpWidget(
+        ChangeNotifierProvider<ThemeController>.value(
+          value: theme,
+          child: MaterialApp(
+            home: Scaffold(
+              body: MessageBubble(
+                message: message,
+                peerTitle: 'Test',
+                isGroup: false,
+                isRead: isRead,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await pumpBubble();
+      expect(find.byKey(const ValueKey('messageDeliverySent')), findsOneWidget);
+      expect(indicatorPaint('messageDeliverySent'), (
+        color: const Color(0xFFFFFFFF),
+        isSending: false,
+      ));
+
+      isRead = true;
+      await pumpBubble();
+      expect(find.byKey(const ValueKey('messageDeliveryRead')), findsOneWidget);
+      expect(find.byKey(const ValueKey('messageDeliverySent')), findsNothing);
+      expect(indicatorPaint('messageDeliveryRead'), (
+        color: const Color(0xFF34C759),
+        isSending: false,
+      ));
+
+      // Expire the media lookup timeout scheduled by the image placeholder.
+      await tester.pump(const Duration(minutes: 3, seconds: 1));
     });
 
     testWidgets('keeps an outgoing photo repeat badge beside its bubble', (
@@ -3085,6 +3686,43 @@ void main() {
       await tester.pump(const Duration(minutes: 3, seconds: 1));
     });
 
+    testWidgets('keeps an outgoing text repeat badge beside its bubble', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+      final message = ChatMessage(id: 7, isOutgoing: true, text: '11', date: 1);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ThemeController>.value(
+          value: theme,
+          child: MaterialApp(
+            home: SizedBox(
+              width: 420,
+              child: Scaffold(
+                body: MessageBubble(
+                  message: message,
+                  peerTitle: 'Test',
+                  isGroup: false,
+                  showRepeat: true,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final badge = tester.getRect(
+        find.byKey(const ValueKey('messageRepeatBadge')),
+      );
+      final bubble = tester.getRect(
+        find.byKey(const ValueKey('messageTapTarget-7')),
+      );
+      expect((bubble.left - badge.right).abs(), lessThanOrEqualTo(7));
+    });
+
     testWidgets('shows detail time on tap unless always-on is enabled', (
       tester,
     ) async {
@@ -3118,12 +3756,14 @@ void main() {
         find.byKey(const ValueKey('messageTappedTimestamp')),
         findsNothing,
       );
+      final layoutRectBefore = tester.getRect(find.byType(MessageBubble));
       await tester.tap(find.byKey(const ValueKey('messageTapTarget-2')));
       await tester.pump();
       expect(
         find.byKey(const ValueKey('messageTappedTimestamp')),
         findsOneWidget,
       );
+      expect(tester.getRect(find.byType(MessageBubble)), layoutRectBefore);
       var bubbleRect = tester.getRect(
         find.byKey(const ValueKey('messageTextBubble-2')),
       );
@@ -3138,6 +3778,7 @@ void main() {
         find.byKey(const ValueKey('messageTappedTimestamp')),
         findsNothing,
       );
+      expect(tester.getRect(find.byType(MessageBubble)), layoutRectBefore);
 
       theme.alwaysShowMessageTime = true;
       addTearDown(theme.dispose);
@@ -3157,49 +3798,94 @@ void main() {
         find.byKey(const ValueKey('messageTappedTimestamp')),
       );
       expect(timestampRect.top, greaterThan(bubbleRect.bottom));
+      expect(tester.getRect(find.byType(MessageBubble)), layoutRectBefore);
     });
 
-    testWidgets('opens text selection through a double tap', (tester) async {
+    testWidgets('desktop hover overlays group time in the sender header', (
+      tester,
+    ) async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final theme = ThemeController(prefs);
       addTearDown(theme.dispose);
       final message = ChatMessage(
-        id: 3,
+        id: 21,
         isOutgoing: false,
-        text: 'selectable',
-        date: 1,
+        text: 'group timestamp',
+        date: DateTime(2024, 8, 3, 12, 15, 20).millisecondsSinceEpoch ~/ 1000,
+        senderName: 'Alice',
       );
-      ChatMessage? selected;
 
       await tester.pumpWidget(
         ChangeNotifierProvider<ThemeController>.value(
           value: theme,
           child: MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(1.4)),
+              child: child!,
+            ),
+            theme: ThemeData(
+              platform: TargetPlatform.macOS,
+              extensions: [AppColors.light],
+            ),
             home: Scaffold(
-              body: MessageBubble(
-                message: message,
-                peerTitle: 'Test',
-                isGroup: false,
-                onDoubleTap: (value) => selected = value,
+              body: Align(
+                child: SizedBox(
+                  width: 600,
+                  height: 90,
+                  child: MessageBubble(
+                    message: message,
+                    peerTitle: 'Group',
+                    isGroup: true,
+                  ),
+                ),
               ),
             ),
           ),
         ),
       );
 
-      final target = find.byKey(const ValueKey('messageTapTarget-3'));
-      await tester.tap(target);
-      await tester.pump(const Duration(milliseconds: 40));
-      await tester.tap(target);
+      final layoutRectBefore = tester.getRect(find.byType(MessageBubble));
+      expect(
+        find.byKey(const ValueKey('messageTappedTimestamp')),
+        findsNothing,
+      );
+
+      final mouse = await tester.createGesture(
+        kind: ui.PointerDeviceKind.mouse,
+      );
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(
+        tester.getCenter(find.byKey(const ValueKey('messageTapTarget-21'))),
+      );
       await tester.pump();
 
-      expect(selected, same(message));
+      final timestamp = find.byKey(const ValueKey('messageTappedTimestamp'));
+      final header = find.byKey(const ValueKey('messageSenderHeader-21'));
+      expect(timestamp, findsOneWidget);
+      expect(header, findsOneWidget);
+      expect(
+        tester.getRect(header).overlaps(tester.getRect(timestamp)),
+        isTrue,
+      );
+      expect(
+        tester.getSize(timestamp).height,
+        lessThanOrEqualTo(tester.getSize(header).height),
+      );
+      expect(tester.getRect(find.byType(MessageBubble)), layoutRectBefore);
+
+      await mouse.moveTo(Offset.zero);
+      await tester.pumpAndSettle();
+      expect(timestamp, findsNothing);
+      expect(tester.getRect(find.byType(MessageBubble)), layoutRectBefore);
     });
   });
 
   group('MessageBubble reply quote', () {
-    testWidgets('only the up arrow opens the original and media is inline', (
+    testWidgets('the full quote opens the original and media is inline', (
       tester,
     ) async {
       SharedPreferences.setMockInitialValues({});
@@ -3246,11 +3932,21 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('[图片]'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('messageReplyNavigateUpIcon')),
+        findsOneWidget,
+      );
+      expect(find.byType(AppArrowUpToLineIcon), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('messageReplyQuote')));
-      expect(openedMessageId, isNull);
+      expect(openedMessageId, 9);
 
-      await tester.tap(find.byKey(const ValueKey('messageReplyOpenOriginal')));
+      openedMessageId = null;
+      await tester.tapAt(
+        tester.getCenter(
+          find.byKey(const ValueKey('messageReplyMediaPreview')),
+        ),
+      );
       expect(openedMessageId, 9);
 
       // Expire the mocked TDLib download timeout before test teardown.
@@ -3663,6 +4359,71 @@ void main() {
         }
       }
     });
+
+    test('a tall album is scaled as a unit into the height cap', () {
+      const items = [
+        MediaAlbumItem(width: 900, height: 1600),
+        MediaAlbumItem(width: 768, height: 1024),
+        MediaAlbumItem(width: 900, height: 1600),
+        MediaAlbumItem(width: 768, height: 1024),
+        MediaAlbumItem(width: 900, height: 1600),
+        MediaAlbumItem(width: 768, height: 1024),
+      ];
+      final uncapped = buildTelegramMediaAlbumLayout(
+        items: items,
+        maxWidth: 430,
+      );
+      final capped = buildTelegramMediaAlbumLayout(
+        items: items,
+        maxWidth: 430,
+        maxHeight: 320,
+      );
+
+      expect(uncapped.height, greaterThan(320));
+      expect(capped.height, closeTo(320, 0.01));
+      expect(capped.width, lessThan(uncapped.width));
+      expect(capped.tiles, hasLength(uncapped.tiles.length));
+      // Scaling the album as a unit keeps every tile's aspect ratio.
+      for (var i = 0; i < capped.tiles.length; i++) {
+        expect(
+          capped.tiles[i].width / capped.tiles[i].height,
+          closeTo(uncapped.tiles[i].width / uncapped.tiles[i].height, 0.001),
+        );
+        expect(capped.tiles[i].right, lessThanOrEqualTo(capped.width + 0.01));
+        expect(capped.tiles[i].bottom, lessThanOrEqualTo(capped.height + 0.01));
+      }
+    });
+
+    test('a short album keeps the layout it already had', () {
+      const items = [
+        MediaAlbumItem(width: 1600, height: 900),
+        MediaAlbumItem(width: 1600, height: 900),
+      ];
+      final uncapped = buildTelegramMediaAlbumLayout(
+        items: items,
+        maxWidth: 430,
+      );
+      final capped = buildTelegramMediaAlbumLayout(
+        items: items,
+        maxWidth: 430,
+        maxHeight: 320,
+      );
+
+      expect(uncapped.height, lessThanOrEqualTo(320));
+      expect(capped.height, uncapped.height);
+      expect(capped.width, uncapped.width);
+    });
+
+    test('a single portrait album obeys the height cap', () {
+      final layout = buildTelegramMediaAlbumLayout(
+        items: const [MediaAlbumItem(width: 1080, height: 1920)],
+        maxWidth: 430,
+        maxHeight: 320,
+      );
+
+      expect(layout.height, closeTo(320, 0.01));
+      expect(layout.width, closeTo(180, 0.01));
+    });
   });
 
   group('ThemeController archived chats', () {
@@ -3764,46 +4525,6 @@ void main() {
       theme.chatFolderDisplayMode = ChatFolderDisplayMode.menu;
       expect(prefs.getString('chatFolderDisplayMode'), 'menu');
     });
-
-    test('migrates legacy folder swipe preferences', () async {
-      SharedPreferences.setMockInitialValues({
-        'chatFolderDisplayMode': 'tabs',
-        'disableChatListSwipeActions': true,
-        'chatListFolderSwipeSwitching': true,
-      });
-      final prefs = await SharedPreferences.getInstance();
-      final theme = ThemeController(prefs);
-
-      expect(theme.chatListSwipeBehavior, ChatListSwipeBehavior.switchFolders);
-      expect(theme.disableChatListSwipeActions, isTrue);
-      expect(theme.chatListFolderSwipeSwitching, isTrue);
-      expect(prefs.getString('chatListSwipeBehavior'), 'switchFolders');
-
-      theme.chatFolderDisplayMode = ChatFolderDisplayMode.menu;
-      expect(theme.disableChatListSwipeActions, isTrue);
-      expect(theme.chatListFolderSwipeSwitching, isTrue);
-    });
-
-    test('uses gesture defaults and persists explicit choices', () async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final theme = ThemeController(prefs);
-
-      expect(theme.chatListSwipeBehavior, ChatListSwipeBehavior.chatActions);
-      expect(
-        theme.threeFingerSwipeBehavior,
-        ThreeFingerSwipeBehavior.switchFolders,
-      );
-      expect(theme.chatListHoldSwipeActions, isFalse);
-
-      theme.chatListSwipeBehavior = ChatListSwipeBehavior.switchFolders;
-      theme.chatListHoldSwipeActions = true;
-      theme.threeFingerSwipeBehavior = ThreeFingerSwipeBehavior.switchAccounts;
-
-      expect(prefs.getString('chatListSwipeBehavior'), 'switchFolders');
-      expect(prefs.getBool('chatListHoldSwipeActions'), isTrue);
-      expect(prefs.getString('threeFingerSwipeBehavior'), 'switchAccounts');
-    });
   });
 
   group('ThemeController fonts', () {
@@ -3839,6 +4560,33 @@ void main() {
       final style = theme.applyAppTextStyle(const TextStyle());
       expect(style.fontFamily, 'Futura');
       expect(style.fontFamilyFallback, contains('PingFang SC'));
+    });
+
+    test('the platform UI face always ends the fallback chain', () async {
+      SharedPreferences.setMockInitialValues({
+        'fontFallbackChain': ['Futura', 'PingFang SC'],
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+
+      final chain = theme.effectiveFontFamilyChain();
+      // Whatever the chain misses lands on the platform's own UI face, which
+      // carries every weight and script the system can render.
+      expect(chain.last, AppFontChoice.system.fontFamily);
+      expect(chain.first, 'Futura');
+    });
+
+    test('the stock chain is the platform UI face, named once', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+
+      final chain = theme.effectiveFontFamilyChain();
+      final platform = AppFontChoice.system.fontFamily;
+      // Stock config already leads with the platform face, so the terminator
+      // dedupes away rather than naming it twice.
+      expect(chain.first, platform);
+      expect(chain.where((family) => family == platform).length, 1);
     });
 
     test('honors system bold text by increasing app text weights', () async {
@@ -4954,6 +5702,50 @@ void main() {
       expect(entry.emojiVersion, '15.0');
       expect(entry.extension, 'ttf');
     });
+
+    test(
+      'keeps the color Noto selection instead of remapping it to mono',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'emojiFontChoice': 'noto',
+          'emojiFontLabel': 'Google Noto Color Emoji',
+          'emojiFontLicense': 'Apache-2.0 / OFL-1.1',
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final theme = ThemeController(prefs);
+        addTearDown(theme.dispose);
+
+        expect(theme.emojiFontChoice.key, 'noto');
+        expect(theme.emojiFontChoice.label, 'Google Noto Color Emoji');
+
+        final restored = ThemeController(prefs);
+        addTearDown(restored.dispose);
+        expect(restored.emojiFontChoice.key, 'noto');
+      },
+    );
+
+    test('migrates pre-catalog keys exactly once', () async {
+      SharedPreferences.setMockInitialValues({'emojiFontChoice': 'noto'});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+
+      expect(theme.emojiFontChoice.key, 'noto-mono');
+      expect(prefs.getString('emojiFontChoice'), 'noto-mono');
+
+      final restored = ThemeController(prefs);
+      addTearDown(restored.dispose);
+      expect(restored.emojiFontChoice.key, 'noto-mono');
+    });
+
+    test('migrates the legacy color Noto key onto the catalog key', () async {
+      SharedPreferences.setMockInitialValues({'emojiFontChoice': 'notoColor'});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+
+      expect(theme.emojiFontChoice.key, 'noto');
+    });
   });
 
   group('TranslationController', () {
@@ -4967,6 +5759,7 @@ void main() {
       expect(controller.aiTranslationEnabled, isFalse);
       expect(controller.provider, TranslationProvider.tdlib);
       expect(controller.targetLanguageCode, 'zh-Hans');
+      expect(controller.displayStyle, TranslationDisplayStyle.quote);
       expect(
         controller.lingvaEndpoint,
         TranslationController.defaultLingvaEndpoint,
@@ -4980,6 +5773,7 @@ void main() {
       controller.aiTranslationEnabled = true;
       controller.provider = TranslationProvider.lingva;
       controller.targetLanguageCode = 'ja';
+      controller.displayStyle = TranslationDisplayStyle.both;
       controller.lingvaEndpoint = 'https://lingva.example.com/';
       controller.libreTranslateEndpoint = ' https://libre.example.com// ';
       controller.libreTranslateApiKey = ' secret-key ';
@@ -4992,6 +5786,7 @@ void main() {
       expect(reloaded.aiTranslationEnabled, isTrue);
       expect(reloaded.provider, TranslationProvider.lingva);
       expect(reloaded.targetLanguageCode, 'ja');
+      expect(reloaded.displayStyle, TranslationDisplayStyle.both);
       expect(reloaded.lingvaEndpoint, 'https://lingva.example.com');
       expect(reloaded.libreTranslateEndpoint, 'https://libre.example.com');
       expect(reloaded.libreTranslateApiKey, 'secret-key');
@@ -5006,6 +5801,42 @@ void main() {
       expect(dismissed.autoTranslateEnabledFor(42), isFalse);
       expect(dismissed.autoTranslateSuggestionDismissedFor(42), isTrue);
     });
+
+    test(
+      'keeps simplified and traditional Chinese exclusions independent',
+      () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final controller = TranslationController(prefs);
+        controller.targetLanguageCode = 'en';
+
+        controller.setIgnoredLanguage('zh-CN', true);
+        expect(controller.ignoredLanguageCodes, {'zh-Hans'});
+        controller.setIgnoredLanguage('zh-TW', true);
+        expect(controller.ignoredLanguageCodes, {'zh-Hans', 'zh-Hant'});
+        controller.setIgnoredLanguage('zh-Hans', false);
+        expect(controller.ignoredLanguageCodes, {'zh-Hant'});
+        expect(controller.shouldTranslateLanguage('zh-CN'), isTrue);
+        expect(controller.shouldTranslateLanguage('zh-HK'), isFalse);
+      },
+    );
+
+    test(
+      'migrates the legacy generic Chinese exclusion to both scripts',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'translation.ignoredLanguages': ['zh'],
+        });
+        final prefs = await SharedPreferences.getInstance();
+        final controller = TranslationController(prefs);
+
+        expect(controller.ignoredLanguageCodes, {'zh-Hans', 'zh-Hant'});
+        expect(prefs.getStringList('translation.ignoredLanguages'), [
+          'zh-Hans',
+          'zh-Hant',
+        ]);
+      },
+    );
 
     test(
       'loads stored provider and falls back to Telegram for unavailable values',
@@ -5082,14 +5913,7 @@ void main() {
       final keys = RegExp(
         r"static const [A-Za-z0-9_]+ = '([^']+)';",
       ).allMatches(source).map((match) => match.group(1)!).toSet();
-      final zhValues = <String, String>{};
-      final zhBlock = File('lib/l10n/messages/zh_hans.dart').readAsStringSync();
-      for (final match in RegExp(
-        r''' '([^']+)':\s*"((?:\\.|[^"])*)" '''.trim(),
-        dotAll: true,
-      ).allMatches(zhBlock)) {
-        zhValues[match.group(1)!] = match.group(2)!;
-      }
+      final zhValues = L10nFixtures.load().messages('zhHans');
       final intentionalHan = RegExp(r'^(appLocale|country|markdown|theme)');
       final han = RegExp(r'[\u3400-\u9fff]');
       final failures = <String>[];
@@ -5190,5 +6014,73 @@ void main() {
       expect(find.text('Messages'), findsOneWidget);
       expect(find.text('消息'), findsNothing);
     });
+
+    testWidgets('global AppStrings text follows language changes', (
+      tester,
+    ) async {
+      Intl.defaultLocale = null;
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final controller = AppLocaleController(prefs)
+        ..locale = const Locale.fromSubtags(
+          languageCode: 'zh',
+          scriptCode: 'Hans',
+        );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: controller,
+          child: Consumer<AppLocaleController>(
+            builder: (context, locale, _) {
+              return MaterialApp(
+                locale: locale.locale,
+                supportedLocales: AppLocalizations.supportedLocales,
+                localizationsDelegates: const [
+                  AppLocalizations.delegate,
+                  GlobalMaterialLocalizations.delegate,
+                  GlobalCupertinoLocalizations.delegate,
+                  GlobalWidgetsLocalizations.delegate,
+                ],
+                home: Text(
+                  AppStrings.t(AppStringKeys.businessSettingsTitle),
+                  textDirection: ui.TextDirection.ltr,
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      expect(find.text('企业资料'), findsOneWidget);
+
+      controller.locale = const Locale('en');
+      await tester.pumpAndSettle();
+      expect(find.text('Business Profile'), findsOneWidget);
+      expect(find.text('企业资料'), findsNothing);
+    });
   });
+}
+
+/// Pumps until [finder] matches, or gives up and lets the caller's expectation
+/// report the failure.
+///
+/// A paste crosses a platform channel and writes a temp file, so how long it
+/// takes depends on the machine and on whatever else the suite is running in
+/// parallel. Waiting a fixed span passes on an idle box and fails on a loaded
+/// one; waiting for the outcome is true on both.
+Future<void> _settleUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  Duration timeout = const Duration(seconds: 10),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (true) {
+    await tester.pumpAndSettle();
+    if (finder.evaluate().isNotEmpty) return;
+    if (!DateTime.now().isBefore(deadline)) return;
+    // Real time has to pass for the platform channel reply to arrive, which
+    // only runAsync allows.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 25)),
+    );
+  }
 }

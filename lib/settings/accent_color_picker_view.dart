@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import '../components/app_icons.dart';
+import '../components/app_interactive_surface.dart';
 import '../components/ui_components.dart';
 import '../theme/app_theme.dart';
 
@@ -50,61 +51,41 @@ class _AccentColorPickerViewState extends State<AccentColorPickerView> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
-    return Scaffold(
-      backgroundColor: c.groupedBackground,
-      body: Column(
-        children: [
-          NavHeader(
-            title: widget.title,
-            onBack: () => Navigator.of(context).pop(),
-            trailing: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => Navigator.of(context).pop(_sel),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: Text(
-                  AppStrings.t(AppStringKeys.accentColorPickerSave),
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.brand,
-                  ),
-                ),
-              ),
+    return SettingsPageScaffold(
+      title: widget.title,
+      onBack: () => Navigator.of(context).pop(),
+      trailing: AppInteractiveSurface(
+        semanticLabel: AppStrings.t(AppStringKeys.accentColorPickerSave),
+        onTap: () => Navigator.of(context).pop(_sel),
+        borderRadius: BorderRadius.circular(AppRadius.control),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            AppStrings.t(AppStringKeys.accentColorPickerSave),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.brand,
             ),
           ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
+        ),
+      ),
+      child: SettingsListView(
+        children: [
+          SettingsPanel(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: Wrap(
+              spacing: AppSpacing.xxl,
+              runSpacing: AppSpacing.xxl,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: c.card,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Wrap(
-                    spacing: 18,
-                    runSpacing: 18,
-                    children: [
-                      if (widget.allowNone) _swatch(-1, null),
-                      for (var i = 0; i < kAccentColors.length; i++)
-                        _swatch(i, kAccentColors[i]),
-                    ],
-                  ),
-                ),
-                if (widget.footnote != null)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 12, 4, 0),
-                    child: Text(
-                      widget.footnote!,
-                      style: TextStyle(fontSize: 13, color: c.textSecondary),
-                    ),
-                  ),
+                if (widget.allowNone) _swatch(-1, null),
+                for (var i = 0; i < kAccentColors.length; i++)
+                  _swatch(i, kAccentColors[i]),
               ],
             ),
           ),
+          if (widget.footnote case final footnote?)
+            SettingsNote(text: footnote),
         ],
       ),
     );

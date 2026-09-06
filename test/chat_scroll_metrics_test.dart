@@ -1,8 +1,505 @@
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/chat_scroll_metrics.dart';
 
 void main() {
+  test('history swipes never replace the window with the latest page', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final scrollStart = source.indexOf('void _onScroll()');
+    final scrollEnd = source.indexOf(
+      'bool _onTranscriptUserScroll(',
+      scrollStart,
+    );
+    final userScrollEnd = source.indexOf(
+      'bool _onTranscriptScrollNotification(',
+      scrollEnd,
+    );
+    expect(scrollStart, greaterThanOrEqualTo(0));
+    expect(scrollEnd, greaterThan(scrollStart));
+    expect(userScrollEnd, greaterThan(scrollEnd));
+    final dragHandlers = source.substring(scrollStart, userScrollEnd);
+    expect(dragHandlers, isNot(contains('_requestReturnToLatest(')));
+    expect(
+      source,
+      contains('_requestReturnToLatest(userInitiated: true);'),
+      reason: 'the explicit latest button and send flow remain available',
+    );
+  });
+
+  test('user-owned transcript scroll cancels async latest corrections', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final followStart = source.indexOf('bool _canFollowLoadedBottom()');
+    final followEnd = source.indexOf(
+      'void _scheduleBottomGeometryFollow(',
+      followStart,
+    );
+
+    expect(followStart, greaterThanOrEqualTo(0));
+    expect(followEnd, greaterThan(followStart));
+    expect(
+      source.substring(followStart, followEnd),
+      contains('!_transcriptViewportClaimedByUser'),
+    );
+    expect(source, contains('_initialTranscriptPositionCancelled = true;'));
+    expect(source, contains('_initialTranscriptPositioningAborted'));
+  });
+
+  test('targeted chats persist the position reached before exit', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final saveStart = source.indexOf(
+      'void _saveSessionScrollSnapshot({bool captureAnchor = true})',
+    );
+    final saveEnd = source.indexOf('bool get _sessionReopenPending', saveStart);
+    final cacheStart = source.indexOf('void _cacheCurrentTranscript(');
+    final cacheEnd = source.indexOf('void _handleBack()', cacheStart);
+
+    expect(saveStart, greaterThanOrEqualTo(0));
+    expect(saveEnd, greaterThan(saveStart));
+    expect(cacheStart, greaterThanOrEqualTo(0));
+    expect(cacheEnd, greaterThan(cacheStart));
+    expect(
+      source.substring(saveStart, saveEnd),
+      isNot(contains('widget.initialMessageId != null')),
+    );
+    expect(
+      source.substring(cacheStart, cacheEnd),
+      isNot(contains('widget.initialMessageId != null')),
+    );
+  });
+
+  test('desktop split replacements prepare chat geometry before setState', () {
+    final source = File('lib/app/main_tab_view.dart').readAsStringSync();
+    final selectionStart = source.indexOf('onChatSelected: (chat) {');
+    final selectionEnd = source.indexOf('onCommunitySelected:', selectionStart);
+    final selection = source.substring(selectionStart, selectionEnd);
+    expect(
+      selection.indexOf('_prepareMessageChatReplacement(chat);'),
+      lessThan(selection.indexOf('setState(() {')),
+    );
+
+    final replacementStart = source.indexOf(
+      'void _prepareMessageChatReplacement(',
+    );
+    final replacementEnd = source.indexOf(
+      'bool _usesTabletSplit(',
+      replacementStart,
+    );
+    final replacement = source.substring(replacementStart, replacementEnd);
+    expect(replacement, contains('_messageChatExitController.prepareExit();'));
+    expect(source, contains('exitController: _messageChatExitController,'));
+    expect(
+      source,
+      contains(
+        'if (_usesSplitSelection(context) && _selection == 0) {\n'
+        '      _messageChatExitController.prepareExit();',
+      ),
+    );
+    expect(
+      source,
+      contains(
+        'if (_wasUsingSplitSelection == true && !usesSplitSelection) {\n'
+        '      _messageChatExitController.prepareExit();',
+      ),
+    );
+    expect(source, contains('void _handleAccountStoreChanged() {'));
+  });
+
+  test(
+    'cold unread and evicted session anchors never create stale targets',
+    () {
+      final source = File('lib/chat/chat_view_model.dart').readAsStringSync();
+      final unreadStart = source.indexOf(
+        'Future<bool> _loadInitialAroundLastRead()',
+      );
+      final unreadEnd = source.indexOf(
+        'Future<void> _loadInitialLatestHistory()',
+        unreadStart,
+      );
+      final unreadMethod = source.substring(unreadStart, unreadEnd);
+      expect(unreadStart, greaterThanOrEqualTo(0));
+      expect(unreadEnd, greaterThan(unreadStart));
+      expect(
+        RegExp(r'loadAroundMessage\(').allMatches(unreadMethod),
+        hasLength(4),
+      );
+      expect(
+        RegExp(
+          r'loadAroundMessage\([\s\S]*?scrollToTarget: false[\s\S]*?\)',
+        ).allMatches(unreadMethod),
+        hasLength(4),
+      );
+
+      final sessionStart = source.indexOf(
+        '} else if (sessionAnchorMessageId != null) {',
+      );
+      final sessionEnd = source.indexOf('} else {', sessionStart);
+      final sessionLoad = source.substring(sessionStart, sessionEnd);
+      expect(sessionLoad, contains('onlyLocal: true'));
+      expect(
+        RegExp(r'loadAroundMessage\(').allMatches(sessionLoad),
+        hasLength(2),
+        reason: 'a local cache miss must retry the saved anchor remotely',
+      );
+    },
+  );
+
+  test('loaded message jumps wait for the retargeted key layout', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final methodStart = source.indexOf(
+      'Future<bool> _scrollToMessageAndReport(',
+    );
+    final methodEnd = source.indexOf('void _openHashtagSearch(', methodStart);
+    expect(methodStart, greaterThanOrEqualTo(0));
+    expect(methodEnd, greaterThan(methodStart));
+
+    final method = source.substring(methodStart, methodEnd);
+    final layoutWait = method.indexOf(
+      'await WidgetsBinding.instance.endOfFrame;',
+    );
+    final mountedGuard = method.indexOf('if (!mounted ||', layoutWait);
+    final loadedFastPath = method.indexOf('if (_vm.messages.any');
+    expect(layoutWait, greaterThanOrEqualTo(0));
+    expect(mountedGuard, greaterThan(layoutWait));
+    expect(mountedGuard, lessThan(loadedFastPath));
+  });
+
+  test('reply jumps flash their reached destination on desktop', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final openStart = source.indexOf('Future<void> _openReplyMessage(');
+    final openEnd = source.indexOf(
+      'Future<bool> _scrollToMessageAndReport(',
+      openStart,
+    );
+    expect(openStart, greaterThanOrEqualTo(0));
+    expect(openEnd, greaterThan(openStart));
+    final open = source.substring(openStart, openEnd);
+    expect(open, contains('final didReachTarget = await'));
+    expect(open, contains('if (!didReachTarget || !mounted) return;'));
+    expect(open, contains('isDesktopTargetPlatform'));
+    expect(open, contains('_flashLinkedMessageHighlight(messageId)'));
+
+    final highlightStart = source.indexOf(
+      'Widget _messageNavigationHighlight(',
+    );
+    final highlightEnd = source.indexOf(
+      'TranscriptPivotPartition<_TranscriptEntry> _partitionTranscript(',
+      highlightStart,
+    );
+    expect(highlightStart, greaterThanOrEqualTo(0));
+    expect(highlightEnd, greaterThan(highlightStart));
+    final highlight = source.substring(highlightStart, highlightEnd);
+    expect(highlight, contains('_linkedMessageHighlightId'));
+    expect(highlight, contains('_linkedMessageHighlightActive'));
+    expect(highlight, contains('? 0.18'));
+    expect(highlight, contains('AnimatedContainer('));
+  });
+
+  test('session unread history loads carry cancellation through mutation', () {
+    final viewSource = File('lib/chat/chat_view.dart').readAsStringSync();
+    final sessionJumpStart = viewSource.indexOf(
+      'Future<bool> _jumpToFirstUnreadImpl(',
+    );
+    final sessionJumpEnd = viewSource.indexOf(
+      'void _scheduleSendFailureDialog(',
+      sessionJumpStart,
+    );
+    final sessionJump = viewSource.substring(sessionJumpStart, sessionJumpEnd);
+    final boundaryLoad = sessionJump.indexOf('await _vm.loadAroundMessage(');
+    final boundaryLoadEnd = sessionJump.indexOf(');', boundaryLoad);
+    expect(boundaryLoad, greaterThanOrEqualTo(0));
+    expect(
+      sessionJump.substring(boundaryLoad, boundaryLoadEnd),
+      contains('isCancelled: isCancelled'),
+    );
+
+    final scrollStart = viewSource.indexOf(
+      'Future<bool> _scrollToMessageAndReport(',
+    );
+    final scrollEnd = viewSource.indexOf(
+      'void _openHashtagSearch(',
+      scrollStart,
+    );
+    final sessionScroll = viewSource.substring(scrollStart, scrollEnd);
+    final targetLoad = sessionScroll.indexOf('await _vm.loadAroundMessage(');
+    final targetLoadEnd = sessionScroll.indexOf(');', targetLoad);
+    expect(targetLoad, greaterThanOrEqualTo(0));
+    expect(
+      sessionScroll.substring(targetLoad, targetLoadEnd),
+      contains('isCancelled: targetCancelled'),
+    );
+
+    final modelSource = File(
+      'lib/chat/chat_view_model.dart',
+    ).readAsStringSync();
+    final modelMethodStart = modelSource.indexOf(
+      'Future<bool> loadAroundMessage(',
+    );
+    final modelMethodEnd = modelSource.indexOf(
+      'Future<int?> openNextUnreadMention(',
+      modelMethodStart,
+    );
+    final modelMethod = modelSource.substring(modelMethodStart, modelMethodEnd);
+    expect(modelMethod, contains('bool Function()? isCancelled'));
+
+    final initialCancellation = modelMethod.indexOf(
+      'if (_chatOpenWorkIsStale || cancelled()) return false;',
+    );
+    final generationMutation = modelMethod.indexOf(
+      '++_historyWindowGeneration',
+    );
+    expect(initialCancellation, greaterThanOrEqualTo(0));
+    expect(initialCancellation, lessThan(generationMutation));
+
+    final firstAwait = modelMethod.indexOf(
+      'final targetRaw = await _client.query(',
+    );
+    final firstPostAwaitCancellation = modelMethod.indexOf(
+      'if (cancelled()) return false;',
+      firstAwait,
+    );
+    final targetParse = modelMethod.indexOf(
+      'final target = TDParse.message(targetRaw);',
+      firstAwait,
+    );
+    expect(firstPostAwaitCancellation, greaterThan(firstAwait));
+    expect(firstPostAwaitCancellation, lessThan(targetParse));
+
+    final secondAwait = modelMethod.indexOf(
+      'final response = await _client.query(',
+      targetParse,
+    );
+    final secondPostAwaitCancellation = modelMethod.indexOf(
+      'if (cancelled()) return false;',
+      secondAwait,
+    );
+    final batchMutation = modelMethod.indexOf('batch.addAll(', secondAwait);
+    expect(secondPostAwaitCancellation, greaterThan(secondAwait));
+    expect(secondPostAwaitCancellation, lessThan(batchMutation));
+
+    final sharedMutation = modelMethod.indexOf(
+      'if (replaceCurrentWindow)',
+      batchMutation,
+    );
+    final finalCancellation = modelMethod.lastIndexOf(
+      'cancelled()',
+      sharedMutation,
+    );
+    expect(finalCancellation, greaterThan(batchMutation));
+    expect(finalCancellation, lessThan(sharedMutation));
+  });
+
+  test('external target navigation invalidates session reopen navigation', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+
+    final unreadWrapperStart = source.indexOf(
+      'Future<void> _jumpToFirstUnread()',
+    );
+    final unreadWrapperEnd = source.indexOf(
+      'Future<bool> _jumpToFirstUnreadForSession(',
+      unreadWrapperStart,
+    );
+    final unreadWrapper = source.substring(
+      unreadWrapperStart,
+      unreadWrapperEnd,
+    );
+    final unreadCancellation = unreadWrapper.indexOf(
+      '_claimTranscriptViewport();',
+    );
+    final unreadDelegate = unreadWrapper.indexOf(
+      'await _jumpToFirstUnreadImpl();',
+    );
+    expect(unreadCancellation, greaterThanOrEqualTo(0));
+    expect(unreadCancellation, lessThan(unreadDelegate));
+
+    final sessionUnreadWrapperEnd = source.indexOf(
+      'Future<bool> _jumpToFirstUnreadImpl(',
+      unreadWrapperEnd,
+    );
+    final sessionUnreadWrapper = source.substring(
+      unreadWrapperEnd,
+      sessionUnreadWrapperEnd,
+    );
+    expect(
+      sessionUnreadWrapper,
+      isNot(contains('_cancelSessionReopenNavigation')),
+    );
+
+    final targetWrapperStart = source.indexOf('Future<void> _scrollToMessage(');
+    final targetWrapperEnd = source.indexOf(
+      'Future<bool> _scrollToMessageAndReport(',
+      targetWrapperStart,
+    );
+    final targetWrapper = source.substring(
+      targetWrapperStart,
+      targetWrapperEnd,
+    );
+    final targetCancellation = targetWrapper.indexOf(
+      '_claimTranscriptViewport();',
+    );
+    final targetDelegate = targetWrapper.indexOf(
+      'await _scrollToMessageAndReport(',
+    );
+    expect(targetCancellation, greaterThanOrEqualTo(0));
+    expect(targetCancellation, lessThan(targetDelegate));
+
+    final reportEnd = source.indexOf(
+      'void _openHashtagSearch(',
+      targetWrapperEnd,
+    );
+    final sessionReport = source.substring(targetWrapperEnd, reportEnd);
+    expect(sessionReport, isNot(contains('_cancelSessionReopenNavigation')));
+
+    expect(source, contains('unawaited(_jumpToFirstUnread())'));
+    expect(source, contains('_scrollToMessage(pinned.id, pinnedJump: true)'));
+    expect(source, contains('await _scrollToMessage(messageId)'));
+    // Search hits — including a tapped hashtag — jump through the cancelling
+    // wrapper rather than the raw reporting call. Matched on the body of the
+    // jump rather than on one formatted line, so wrapping the argument list
+    // does not fail the check.
+    final searchJumpStart = source.indexOf('Future<void> _openSearchResult(');
+    expect(searchJumpStart, greaterThanOrEqualTo(0));
+    final searchJump = source.substring(
+      searchJumpStart,
+      source.indexOf('\n  }\n', searchJumpStart),
+    );
+    expect(searchJump, contains('await _scrollToMessage('));
+    expect(searchJump, contains('result.id'));
+    expect(searchJump, isNot(contains('_scrollToMessageAndReport(')));
+  });
+
+  test('transcript touches cancel target, anchor, and restore corrections', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final start = source.indexOf('void _onTranscriptPointerDown(');
+    final end = source.indexOf('void _onTranscriptPointerEnd(', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final pointerDown = source.substring(start, end);
+    expect(pointerDown, contains('++_transcriptGestureGeneration;'));
+    expect(pointerDown, contains('_invalidateScrollNavigation'));
+    expect(pointerDown, contains('_cancelSessionScrollAnchorMaintenance();'));
+    expect(pointerDown, contains('_maintainRestoredBottom = false;'));
+  });
+
+  test('message navigation owns one target key for every async pass', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final start = source.indexOf('Future<bool> _scrollToMessageAndReport(');
+    final end = source.indexOf('void _openHashtagSearch(', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final method = source.substring(start, end);
+    expect(method, contains('forceNavigation: true'));
+    expect(method, contains('final navigationGeneration'));
+    expect(method, contains('bool targetCancelled()'));
+    expect(method, contains('isCancelled: targetCancelled'));
+    expect(method, contains('navigationGeneration: navigationGeneration'));
+
+    final ensureStart = source.indexOf(
+      'Future<bool> _ensureMessageVisibleAndReport(',
+    );
+    final ensureEnd = source.indexOf('bool _isKeyMostlyVisible(', ensureStart);
+    final ensure = source.substring(ensureStart, ensureEnd);
+    expect(ensure, contains('final activeKey = _targetKey;'));
+    expect(ensure, isNot(contains('_pinnedKey')));
+    expect(ensure, contains('!_isCurrentScrollTarget'));
+  });
+
+  test('offscreen message navigation stages and settles the target', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final initialStart = source.indexOf(
+      'Future<void> _positionInitialTranscript()',
+    );
+    final initialEnd = source.indexOf(
+      'void _jumpToInitialEstimate()',
+      initialStart,
+    );
+    final initialPositioning = source.substring(initialStart, initialEnd);
+    expect(
+      initialPositioning,
+      contains('_stageMessageAtTranscriptCenter(initialTarget)'),
+    );
+
+    final ensureStart = source.indexOf(
+      'Future<bool> _ensureMessageVisibleAndReport(',
+    );
+    final ensureEnd = source.indexOf(
+      'Future<bool> _alignMessageTarget(',
+      ensureStart,
+    );
+    final ensure = source.substring(ensureStart, ensureEnd);
+    final stage = ensure.indexOf('_stageMessageAtTranscriptCenter(messageId)');
+    final frame = ensure.indexOf(
+      'await WidgetsBinding.instance.endOfFrame;',
+      stage,
+    );
+    expect(stage, greaterThanOrEqualTo(0));
+    expect(frame, greaterThan(stage));
+    expect(
+      ensure,
+      isNot(
+        contains('Future<void>.delayed(const Duration(milliseconds: 120))'),
+      ),
+    );
+
+    final alignStart = ensureEnd;
+    final alignEnd = source.indexOf(
+      'Future<bool> _alignPinnedMessage(',
+      alignStart,
+    );
+    final align = source.substring(alignStart, alignEnd);
+    expect(align, contains('for (var pass = 0; pass < 3; pass++)'));
+    expect(align, contains('await Scrollable.ensureVisible('));
+    expect(align, contains('await WidgetsBinding.instance.endOfFrame;'));
+    expect(align, contains('const Duration(milliseconds: 80)'));
+  });
+
+  test('short transcript positioning is awaited and cancelable', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    expect(
+      source,
+      contains('if (loadedAny) await _positionAfterShortFill(generation);'),
+    );
+    final start = source.indexOf('Future<void> _positionAfterShortFill(');
+    final end = source.indexOf('bool _isUnreadBoundaryLoaded(', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final method = source.substring(start, end);
+    expect(method, contains('int generation'));
+    expect(method, contains('_canContinueShortTranscriptFill(generation)'));
+    expect(method, contains('await Scrollable.ensureVisible('));
+  });
+
+  test('older-page reveal yields to a later user scroll direction', () {
+    final source = File('lib/chat/chat_view.dart').readAsStringSync();
+    final userScrollStart = source.indexOf(
+      'bool _onTranscriptUserScroll(UserScrollNotification notification)',
+    );
+    final userScrollEnd = source.indexOf(
+      'bool _onTranscriptScrollNotification(',
+      userScrollStart,
+    );
+    expect(userScrollStart, greaterThanOrEqualTo(0));
+    expect(userScrollEnd, greaterThan(userScrollStart));
+    final userScroll = source.substring(userScrollStart, userScrollEnd);
+    expect(userScroll, contains('ScrollDirection.reverse'));
+    expect(userScroll, contains('_revealLoadedOlderPage = false;'));
+    expect(userScroll, contains('_loadedOlderRevealPending = false;'));
+
+    final revealStart = source.indexOf('void _scheduleLoadedOlderReveal()');
+    final revealEnd = source.indexOf(
+      'bool get _hasTranscriptPointerDown',
+      revealStart,
+    );
+    expect(revealStart, greaterThanOrEqualTo(0));
+    expect(revealEnd, greaterThan(revealStart));
+    final reveal = source.substring(revealStart, revealEnd);
+    expect(reveal, contains('_loadedOlderRevealGestureGeneration'));
+    expect(reveal, contains('_scrollTargetId != null'));
+    expect(reveal, contains('_maintainSessionScrollAnchor'));
+    expect(reveal, contains('_maintainRestoredBottom'));
+  });
+
   group('oldest history pull', () {
     test(
       'fires once after accumulated clamped overscroll crosses threshold',
@@ -114,6 +611,106 @@ void main() {
       expect(isNearOldest(metrics, threshold: 0), isTrue);
       expect(isNearLatest(metrics, threshold: 0), isTrue);
     });
+
+    test('pinned target offsets reserve the banner inset and clamp', () {
+      final metrics = _metrics(min: -200, max: 800, pixels: 300);
+
+      expect(
+        pinnedMessageTargetScrollOffset(
+          metrics,
+          targetTop: 420,
+          viewportTop: 100,
+        ),
+        548,
+      );
+      expect(
+        pinnedMessageTargetScrollOffset(
+          metrics,
+          targetTop: -1000,
+          viewportTop: 100,
+        ),
+        -200,
+      );
+      expect(
+        pinnedMessageTargetScrollOffset(
+          metrics,
+          targetTop: 2000,
+          viewportTop: 100,
+        ),
+        800,
+      );
+    });
+  });
+
+  testWidgets('pinned targets clear the floating banner in either direction', (
+    tester,
+  ) async {
+    final controller = ScrollController(initialScrollOffset: 700);
+    final shortTargetKey = GlobalKey();
+    final tallTargetKey = GlobalKey();
+    const viewportKey = ValueKey('viewport');
+    const bannerKey = ValueKey('pinned-banner');
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Center(
+          child: SizedBox(
+            width: 300,
+            height: 400,
+            child: Stack(
+              children: [
+                SingleChildScrollView(
+                  key: viewportKey,
+                  controller: controller,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 100),
+                      SizedBox(key: shortTargetKey, height: 100),
+                      const SizedBox(height: 800),
+                      SizedBox(key: tallTargetKey, height: 620),
+                      const SizedBox(height: 800),
+                    ],
+                  ),
+                ),
+                const Positioned(
+                  top: 12,
+                  left: 0,
+                  right: 0,
+                  child: SizedBox(key: bannerKey, height: 48),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    Future<void> expectPinnedAlignment(GlobalKey targetKey) async {
+      final viewportTop = tester.getTopLeft(find.byKey(viewportKey)).dy;
+      final targetTop = tester.getTopLeft(find.byKey(targetKey)).dy;
+      controller.jumpTo(
+        pinnedMessageTargetScrollOffset(
+          controller.position,
+          targetTop: targetTop,
+          viewportTop: viewportTop,
+        ),
+      );
+      await tester.pump();
+
+      final alignedViewportTop = tester.getTopLeft(find.byKey(viewportKey)).dy;
+      final alignedTargetTop = tester.getTopLeft(find.byKey(targetKey)).dy;
+      final bannerBottom = tester.getBottomLeft(find.byKey(bannerKey)).dy;
+      expect(
+        alignedTargetTop - alignedViewportTop,
+        closeTo(pinnedMessageTargetTopInset, 0.01),
+      );
+      expect(alignedTargetTop, greaterThan(bannerBottom));
+    }
+
+    await expectPinnedAlignment(tallTargetKey);
+    await expectPinnedAlignment(shortTargetKey);
+    await expectPinnedAlignment(tallTargetKey);
   });
 }
 

@@ -9,6 +9,7 @@ import '../profile/profile_icon_picker_view.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import 'chat_sticker_set_picker_view.dart';
 import 'chat_theme_view.dart';
@@ -213,13 +214,11 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
       return;
     }
     final id = await Navigator.of(context).push<int>(
-      PageRouteBuilder<int>(
+      AppFadePageRoute<int>(
         pageBuilder: (_, _, _) => ProfileIconPickerView(
           selectedId: _profileIconId,
           title: AppStringKeys.groupAppearanceProfileIcon,
         ),
-        transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
       ),
     );
     if (!mounted || id == null || id == _profileIconId) return;
@@ -249,14 +248,12 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
       return;
     }
     final id = await Navigator.of(context).push<int>(
-      PageRouteBuilder<int>(
+      AppFadePageRoute<int>(
         pageBuilder: (_, _, _) => ProfileIconPickerView(
           selectedId: _emojiStatusId,
           title: AppStringKeys.groupAppearanceEmojiStatus,
           source: ProfileIconSource.status,
         ),
-        transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
       ),
     );
     if (!mounted || id == null || id == _emojiStatusId) return;
@@ -292,7 +289,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
     }
     final current = customEmoji ? _customEmojiSetId : _stickerSetId;
     final id = await Navigator.of(context).push<int>(
-      PageRouteBuilder<int>(
+      AppFadePageRoute<int>(
         pageBuilder: (_, _, _) => ChatStickerSetPickerView(
           title: customEmoji
               ? AppStringKeys.groupAppearanceEmojiPack
@@ -300,8 +297,6 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
           customEmoji: customEmoji,
           selectedId: current,
         ),
-        transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
       ),
     );
     if (!mounted || id == null || id == current) return;
@@ -355,11 +350,9 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
       return;
     }
     Navigator.of(context).push(
-      PageRouteBuilder<void>(
+      AppFadePageRoute<void>(
         pageBuilder: (_, _, _) =>
             ChatWallpaperView(chatId: widget.chatId, chatTitle: widget.title),
-        transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -370,11 +363,9 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
       return;
     }
     Navigator.of(context).push(
-      PageRouteBuilder<void>(
+      AppFadePageRoute<void>(
         pageBuilder: (_, _, _) =>
             ChatThemeView(chatId: widget.chatId, chatTitle: widget.title),
-        transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
       ),
     );
   }
@@ -415,7 +406,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Row(
         children: [
@@ -440,7 +431,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
       padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -536,7 +527,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
       _row(AppStringKeys.groupAppearanceWallpaper, onTap: _openWallpaper),
       if (widget.isChannel)
         _switchRow(
-          'Automatic translation',
+          AppStrings.t(AppStringKeys.groupAppearanceAutomaticTranslation),
           value: _automaticTranslation,
           requiredLevel: _isPremium ? 0 : _automaticTranslationLevel,
           onChanged: _setAutomaticTranslation,
@@ -545,7 +536,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -597,7 +588,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
                   ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF8B5CF6),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: BorderRadius.circular(AppRadius.control),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -614,7 +605,7 @@ class _GroupAppearanceViewState extends State<GroupAppearanceView> {
                         }),
                         style: const TextStyle(
                           fontSize: 10,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           color: Color(0xFFFFFFFF),
                         ),
                       ),

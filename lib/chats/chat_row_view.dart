@@ -10,14 +10,17 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../chat/custom_emoji.dart';
+import '../chat/group_remark_controller.dart';
 import '../components/app_icons.dart';
 import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import '../platform/adaptive_platform.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
 import '../theme/theme_controller.dart';
+import 'chat_folder_tag_controller.dart';
 
 const List<Color> _telegramAccentColors = [
   Color(0xFFCC5049),
@@ -36,29 +39,53 @@ class ChatRowView extends StatelessWidget {
     this.archived = false,
     this.selected = false,
     this.onClearUnread,
+    this.avatarBuilder,
+    this.titleTrailing,
+    this.trailingIndicator,
   });
   final ChatSummary chat;
   final bool archived;
   final bool selected;
   final VoidCallback? onClearUnread;
+  final Widget Function(double size)? avatarBuilder;
+  final Widget? titleTrailing;
+  final Widget? trailingIndicator;
 
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
     final theme = context.watch<ThemeController>();
-    final rowHeight = theme.rowHeight;
-    final bookmarkView =
-        chat.isSavedMessages && theme.savedMessagesBookmarkView;
+    final showSavedMessagesIdentity =
+        chat.isSavedMessages && theme.showSavedMessagesIdentity;
+    final title = showSavedMessagesIdentity
+        ? AppStrings.t(AppStringKeys.savedMessages)
+        : chat.kind == ChatKind.group
+        ? context.watch<GroupRemarkController?>()?.displayTitleFor(
+                chat.id,
+                chat.title,
+              ) ??
+              chat.title
+        : chat.title;
+    final rowHeight = chatListRowExtentFor(context);
+    final folderTags =
+        context.watch<ChatFolderTagController?>()?.tagsFor(chat.folderIds) ??
+        const <ChatFolderTag>[];
+    final avatarSize = AppMetric.chatListAvatarSize();
+    final titleFontSize = AppTextSize.chatListTitle();
+    final previewFontSize = AppTextSize.chatListPreview();
+    final timestampFontSize = AppTextSize.chatListTimestamp();
     final nameColor =
-        theme.chatListNameColorAudience.shows(isPremium: chat.peerIsPremium) &&
-            chat.peerAccentColorId >= 0 &&
-            !bookmarkView
+        !showSavedMessagesIdentity &&
+            theme.chatListNameColorAudience.shows(
+              isPremium: chat.peerIsPremium,
+            ) &&
+            chat.peerAccentColorId >= 0
         ? _accentColor(chat.peerAccentColorId)
         : c.textPrimary;
     final showStatus =
+        !showSavedMessagesIdentity &&
         theme.chatListStatusEmojiMode.visible &&
-        chat.peerEmojiStatusId != 0 &&
-        !bookmarkView;
+        chat.peerEmojiStatusId != 0;
     return Container(
       height: rowHeight,
       color: selected
@@ -67,7 +94,12 @@ class ChatRowView extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Row(
         children: [
-          _avatar(context),
+          _avatar(
+            context,
+            title,
+            avatarSize,
+            showSavedMessagesIdentity: showSavedMessagesIdentity,
+          ),
           const SizedBox(width: AppSpacing.lg),
           Expanded(
             child: Column(
@@ -86,20 +118,23 @@ class ChatRowView extends StatelessWidget {
                     ],
                     Flexible(
                       child: Text(
-                        bookmarkView
-                            ? AppStringKeys.savedMessages.l10n(context)
-                            : chat.title,
+                        title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: AppTextSize.body,
-                          fontWeight: chat.peerIsPremium && !bookmarkView
+                          fontSize: titleFontSize,
+                          fontWeight:
+                              chat.peerIsPremium && !showSavedMessagesIdentity
                               ? FontWeight.w600
                               : FontWeight.w500,
                           color: nameColor,
                         ),
                       ),
                     ),
+                    if (titleTrailing case final trailing?) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      trailing,
+                    ],
                     if (showStatus) ...[
                       const SizedBox(width: AppSpacing.xs),
                       StatusEmojiView(
@@ -113,16 +148,59 @@ class ChatRowView extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xs),
                 chat.draftText.trim().isNotEmpty
-                    ? ChatPreviewText(message: chat.draftText, draft: true)
+                    ? ChatPreviewText(
+                        message: chat.draftText,
+                        draft: true,
+                        fontSize: previewFontSize,
+                      )
                     : ChatPreviewText(
                         sender: chat.lastSender,
                         message: chat.lastMessage,
+                        fontSize: previewFontSize,
                       ),
+                if (folderTags.isNotEmpty) ...[
+                  const SizedBox(height: AppSpacing.xxs),
+                  _folderTags(context, folderTags),
+                ],
               ],
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          _rightColumn(context),
+          _rightColumn(context, rowHeight, timestampFontSize),
+        ],
+      ),
+    );
+  }
+
+  /// 文件夹标签, on their own line along the bottom of the row, under the
+  /// message preview. Names only, in each folder's own colour — a chat in five
+  /// folders would turn the row into a wall of chips otherwise.
+  Widget _folderTags(BuildContext context, List<ChatFolderTag> tags) {
+    final fontSize = AppTextSize.chatListFolderTag();
+    return SizedBox(
+      key: const ValueKey('chat-row-folder-tags'),
+      height: fontSize * 1.35,
+      child: Row(
+        children: [
+          for (final tag in tags) ...[
+            if (tag != tags.first) const SizedBox(width: AppSpacing.sm),
+            // Loose flex rather than a fixed width: a row of short folder
+            // names draws at its natural size, and only a set too wide for
+            // the row starts ellipsizing.
+            Flexible(
+              child: Text(
+                tag.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: fontSize,
+                  height: 1.0,
+                  fontWeight: AppTextWeight.medium,
+                  color: tag.color ?? AppTheme.brand,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -135,37 +213,40 @@ class ChatRowView extends StatelessWidget {
     return AppTheme.brand;
   }
 
-  Widget _avatar(BuildContext context) {
+  Widget _avatar(
+    BuildContext context,
+    String title,
+    double avatarSize, {
+    required bool showSavedMessagesIdentity,
+  }) {
     final theme = context.watch<ThemeController>();
     final circleGroups = theme.circularGroupAvatars;
-    final avatarSize = theme.avatarSize;
-    final bookmarkView =
-        chat.isSavedMessages && theme.savedMessagesBookmarkView;
     return SizedBox(
       width: avatarSize,
       height: avatarSize,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          bookmarkView
-              ? Container(
-                  width: avatarSize,
-                  height: avatarSize,
-                  decoration: BoxDecoration(
-                    color: context.colors.linkBlue,
-                    borderRadius: BorderRadius.circular(avatarSize / 2),
-                  ),
-                  child: AppIcon(
-                    HeroAppIcons.thumbtack,
-                    size: avatarSize * 0.5,
-                    color: const Color(0xFFFFFFFF),
-                  ),
-                )
-              : PhotoAvatar(
-                  title: chat.title,
+          if (showSavedMessagesIdentity)
+            AvatarSurface(
+              key: const ValueKey('saved-messages-avatar'),
+              size: avatarSize,
+              background: AppTheme.brand,
+              centerChild: true,
+              child: AppIcon(
+                HeroAppIcons.bookmark,
+                size: avatarSize * 0.46,
+                color: Colors.white,
+              ),
+            )
+          else
+            avatarBuilder?.call(avatarSize) ??
+                PhotoAvatar(
+                  title: title,
                   photo: chat.photo,
                   size: avatarSize,
                   square: chat.usesSquareAvatar && !circleGroups,
+                  allowAnimation: false,
                 ),
           if (chat.unreadCount > 0)
             Positioned(
@@ -198,14 +279,18 @@ class ChatRowView extends StatelessWidget {
     );
   }
 
-  Widget _rightColumn(BuildContext context) {
+  Widget _rightColumn(
+    BuildContext context,
+    double rowHeight,
+    double timestampFontSize,
+  ) {
     final c = context.colors;
-    final rowHeight = context.watch<ThemeController>().rowHeight;
+    final showTrailingIndicator = !isDesktopTargetPlatform();
     return SizedBox(
       height: rowHeight,
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          vertical: AppSpacing.lg + AppSpacing.xxs,
+          vertical: AppSpacing.md + AppSpacing.xxs,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -213,26 +298,39 @@ class ChatRowView extends StatelessWidget {
             Text(
               DateText.listLabel(chat.date),
               style: TextStyle(
-                fontSize: AppTextSize.caption,
+                fontSize: timestampFontSize,
                 color: c.textTertiary,
               ),
             ),
             const Spacer(),
-            if (chat.isMuted)
-              AppIcon(
-                HeroAppIcons.bellSlash,
-                size: AppIconSize.sm,
-                color: c.textTertiary,
-              )
-            else if (chat.isPinned)
-              Transform.rotate(
-                angle: 0.785, // 45°
-                child: AppIcon(
-                  HeroAppIcons.thumbtack,
-                  size: AppIconSize.xs,
-                  color: c.textTertiary,
-                ),
+            SizedBox(
+              height: AppIconSize.sm,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (chat.isPinned)
+                    AppPinIcon(
+                      key: const ValueKey('chat-row-pinned'),
+                      size: AppIconSize.sm,
+                      color: c.textTertiary,
+                    ),
+                  if (chat.isPinned && chat.isMuted)
+                    const SizedBox(width: AppSpacing.xs),
+                  if (chat.isMuted)
+                    AppIcon(
+                      HeroAppIcons.bellSlash,
+                      key: const ValueKey('chat-row-muted'),
+                      size: AppIconSize.sm,
+                      color: c.textTertiary,
+                    ),
+                  if ((chat.isPinned || chat.isMuted) &&
+                      showTrailingIndicator &&
+                      trailingIndicator != null)
+                    const SizedBox(width: AppSpacing.xs),
+                  if (showTrailingIndicator) ?trailingIndicator,
+                ],
               ),
+            ),
           ],
         ),
       ),

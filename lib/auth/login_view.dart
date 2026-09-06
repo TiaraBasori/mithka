@@ -16,20 +16,50 @@ import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../app/ipad_window_chrome.dart';
+import '../bot_api/bot_api_account.dart';
+import '../bot_api/bot_api_client.dart';
+import '../bot_api/bot_api_endpoint_config.dart';
 import '../components/app_icons.dart';
+import '../components/app_interactive_surface.dart';
+import '../components/country_flag.dart';
+import '../components/desktop_content_constraint.dart';
 import '../components/ui_components.dart';
 import '../settings/account_backup_view.dart';
 import '../settings/api_credentials_view.dart';
 import '../settings/proxy_config.dart';
 import '../settings/proxy_view.dart';
 import '../tdlib/td_client.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import 'account_backup_service.dart';
 import 'account_store.dart';
 import 'auth_manager.dart';
 import 'country_picker.dart';
 import 'terms_sheet.dart';
+
+/// Whether the login flow owns the back action instead of allowing the root
+/// app route to hand it to the platform as an app/window exit.
+bool loginHasBackAction({
+  required bool showBotLogin,
+  required bool forcePhone,
+  required AuthStep step,
+  required int configuredAccountCount,
+}) {
+  final beyondPhone =
+      step is AuthWaitCode ||
+      step is AuthWaitPremiumPurchase ||
+      step is AuthWaitEmailAddress ||
+      step is AuthWaitEmailCode ||
+      step is AuthWaitQrCode ||
+      step is AuthWaitPassword ||
+      step is AuthWaitRegistration;
+  return showBotLogin ||
+      (beyondPhone && !forcePhone) ||
+      configuredAccountCount > 1;
+}
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -47,6 +77,8 @@ class _LoginViewState extends State<LoginView> {
   final _password = ObscuringController();
   final _firstName = TextEditingController();
   final _lastName = TextEditingController();
+  final _botToken = ObscuringController();
+  final _botEndpoint = TextEditingController(text: 'https://api.telegram.org');
   Timer? _resendTimer;
   DateTime? _resendAvailableAt;
   int _resendRemainingSeconds = 0;
@@ -54,6 +86,9 @@ class _LoginViewState extends State<LoginView> {
   int _restorableBackupCount = 0;
   bool _backupConsent = false;
   bool _backupSupported = false;
+  bool _showBotLogin = false;
+  bool _botWorking = false;
+  String? _botError;
 
   // When true, show the phone-number step even though TDLib is still at a later
   // auth state — lets the user back out of QR / code / 2FA to fix the number.
@@ -66,6 +101,7 @@ class _LoginViewState extends State<LoginView> {
   void initState() {
     super.initState();
     _loadProxy();
+    unawaited(_loadBotEndpoint());
     if (Platform.isIOS || Platform.isAndroid) {
       unawaited(_initializeBackupConsent());
       unawaited(_loadRestorableBackupCount());
@@ -75,7 +111,16 @@ class _LoginViewState extends State<LoginView> {
   @override
   void dispose() {
     _resendTimer?.cancel();
-    for (final c in [_phone, _email, _code, _password, _firstName, _lastName]) {
+    for (final c in [
+      _phone,
+      _email,
+      _code,
+      _password,
+      _firstName,
+      _lastName,
+      _botToken,
+      _botEndpoint,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -84,6 +129,16 @@ class _LoginViewState extends State<LoginView> {
   Future<void> _loadProxy() async {
     final proxy = await ProxyConfig.load();
     if (mounted) setState(() => _proxy = proxy);
+  }
+
+  Future<void> _loadBotEndpoint() async {
+    final preferences = await SharedPreferences.getInstance();
+    final endpoint = BotApiEndpointConfig.load(
+      preferences,
+      legacyFallback: TdClient.shared.botApiEndpoint,
+    );
+    if (!mounted || _botEndpoint.text != 'https://api.telegram.org') return;
+    _botEndpoint.text = endpoint.toString();
   }
 
   Future<void> _loadRestorableBackupCount() async {
@@ -158,29 +213,34 @@ class _LoginViewState extends State<LoginView> {
     final auth = context.watch<AuthManager>();
     final accounts = context.watch<AccountStore>();
     final c = context.colors;
-    final beyondPhone =
-        auth.step is AuthWaitCode ||
-        auth.step is AuthWaitPremiumPurchase ||
-        auth.step is AuthWaitEmailAddress ||
-        auth.step is AuthWaitEmailCode ||
-        auth.step is AuthWaitQrCode ||
-        auth.step is AuthWaitPassword ||
-        auth.step is AuthWaitRegistration;
     // True when the phone-entry step is on screen (the natural state, or because
     // the user chose to re-enter the number).
-    final showingPhone = _forcePhone || auth.step is AuthWaitPhoneNumber;
+    final showingPhone =
+        !_showBotLogin && (_forcePhone || auth.step is AuthWaitPhoneNumber);
     _syncResendCountdown(auth);
     // A back affordance is useful once past the phone step, or whenever another
     // account exists to switch to.
-    final canGoBack =
-        (beyondPhone && !_forcePhone) ||
-        TdClient.shared.configuredSlots.length > 1;
-    final backToPhoneOnly = !_forcePhone && auth.step is AuthWaitQrCode;
+    final canGoBack = loginHasBackAction(
+      showBotLogin: _showBotLogin,
+      forcePhone: _forcePhone,
+      step: auth.step,
+      configuredAccountCount: TdClient.shared.configuredSlots.length,
+    );
+    final backToPhoneOnly =
+        _showBotLogin || (!_forcePhone && auth.step is AuthWaitQrCode);
     return PopScope(
-      canPop: !backToPhoneOnly,
+      // LoginView is the root content, so allowing the platform back action
+      // through while the visible back affordance exists exits the app instead
+      // of moving within the authentication flow.
+      canPop: !canGoBack,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop && backToPhoneOnly) {
-          _showPhoneEntry();
+        if (!didPop && canGoBack) {
+          _handleBack(
+            auth,
+            accounts,
+            backToPhoneOnly: backToPhoneOnly,
+            showingPhone: showingPhone,
+          );
         }
       },
       child: Scaffold(
@@ -191,32 +251,36 @@ class _LoginViewState extends State<LoginView> {
               children: [
                 _header(),
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _stepFor(auth, accounts),
-                        if (_backupSupported &&
-                            auth.step is! AuthMissingCredentials &&
-                            !accounts.isActiveSessionReplacementPending) ...[
-                          const SizedBox(height: 18),
-                          _backupConsentRow(),
-                        ],
-                        if (auth.errorMessage != null) ...[
-                          const SizedBox(height: 18),
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              auth.errorMessage!,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: AppTheme.unreadBadge,
+                  child: DesktopContentConstraint(
+                    maxWidth: 520,
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _stepFor(auth, accounts),
+                          if (_backupSupported &&
+                              !_showBotLogin &&
+                              auth.step is! AuthMissingCredentials &&
+                              !accounts.isActiveSessionReplacementPending) ...[
+                            const SizedBox(height: 18),
+                            _backupConsentRow(),
+                          ],
+                          if (auth.errorMessage != null) ...[
+                            const SizedBox(height: 18),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                auth.errorMessage!,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppTheme.unreadBadge,
+                                ),
                               ),
                             ),
-                          ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -225,18 +289,23 @@ class _LoginViewState extends State<LoginView> {
             ),
             if (canGoBack)
               Positioned(
-                top: MediaQuery.of(context).padding.top + 6,
+                top:
+                    MediaQuery.of(context).padding.top +
+                    iPadWindowChromeInsetOf(context) +
+                    6,
                 left: 6,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
+                child: AppInteractiveSurface(
+                  semanticLabel: AppStringKeys.navigationBack.l10n(context),
                   // QR back returns to the phone-number form. Aborting an
                   // add-account at the phone step has nothing to re-enter, so
                   // go straight back to the previous account.
-                  onTap: () => backToPhoneOnly
-                      ? _showPhoneEntry()
-                      : accounts.hasPendingAdd && showingPhone
-                      ? accounts.cancelAddAccount(auth)
-                      : _showBackOptions(auth),
+                  onTap: () => _handleBack(
+                    auth,
+                    accounts,
+                    backToPhoneOnly: backToPhoneOnly,
+                    showingPhone: showingPhone,
+                  ),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                   child: Padding(
                     padding: const EdgeInsets.all(10),
                     child: AppIcon(
@@ -248,7 +317,10 @@ class _LoginViewState extends State<LoginView> {
                 ),
               ),
             Positioned(
-              top: MediaQuery.of(context).padding.top + 6,
+              top:
+                  MediaQuery.of(context).padding.top +
+                  iPadWindowChromeInsetOf(context) +
+                  6,
               right: 6,
               child: _topRightActions(auth, showingPhone),
             ),
@@ -263,53 +335,53 @@ class _LoginViewState extends State<LoginView> {
     final label = Platform.isIOS
         ? AppStringKeys.accountBackupLoginICloud
         : AppStringKeys.accountBackupLoginAndroid;
-    return Semantics(
-      button: true,
-      enabled: true,
+    return AppInteractiveSurface(
       checked: _backupConsent,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => unawaited(_setBackupConsent(!_backupConsent)),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            color: c.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: c.divider, width: 0.7),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IgnorePointer(
-                child: AppCheckbox(value: _backupConsent, onChanged: (_) {}),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      AppStrings.t(label),
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: c.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      AppStrings.t(AppStringKeys.accountBackupLoginDescription),
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.3,
-                        color: c.textSecondary,
-                      ),
-                    ),
-                  ],
+      onTap: () => unawaited(_setBackupConsent(!_backupConsent)),
+      borderRadius: BorderRadius.circular(AppRadius.card),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          color: c.card,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: c.divider, width: 0.7),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ExcludeSemantics(
+              child: ExcludeFocus(
+                child: IgnorePointer(
+                  child: AppCheckbox(value: _backupConsent, onChanged: (_) {}),
                 ),
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    AppStrings.t(label),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: c.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    AppStrings.t(AppStringKeys.accountBackupLoginDescription),
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.3,
+                      color: c.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -320,8 +392,7 @@ class _LoginViewState extends State<LoginView> {
     return SafeArea(
       top: false,
       minimum: const EdgeInsets.fromLTRB(24, 0, 24, 14),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: AppInteractiveSurface(
         onTap: () => showTelegramTermsSheet(context),
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
@@ -338,6 +409,27 @@ class _LoginViewState extends State<LoginView> {
         ),
       ),
     );
+  }
+
+  void _handleBack(
+    AuthManager auth,
+    AccountStore accounts, {
+    required bool backToPhoneOnly,
+    required bool showingPhone,
+  }) {
+    if (backToPhoneOnly) {
+      if (_showBotLogin) {
+        _hideBotLogin();
+      } else {
+        _showPhoneEntry();
+      }
+      return;
+    }
+    if (accounts.hasPendingAdd && showingPhone) {
+      accounts.cancelAddAccount(auth);
+      return;
+    }
+    _showBackOptions(auth);
   }
 
   /// Back affordance for QR / code / 2FA / registration steps: re-enter the
@@ -359,7 +451,7 @@ class _LoginViewState extends State<LoginView> {
     final others = TdClient.shared.configuredSlots
         .where((s) => s != TdClient.shared.activeSlot)
         .toList();
-    showCupertinoModalPopup<void>(
+    showAppCupertinoModalPopup<void>(
       context: context,
       builder: (sheet) => CupertinoActionSheet(
         actions: [
@@ -418,6 +510,7 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Widget _stepFor(AuthManager auth, AccountStore accounts) {
+    if (_showBotLogin) return _botAccountStep(auth, accounts);
     if (_forcePhone) return _phoneStep(auth);
     return switch (auth.step) {
       AuthMissingCredentials() => _credentialsNotice(auth),
@@ -446,7 +539,7 @@ class _LoginViewState extends State<LoginView> {
             height: 88,
             decoration: BoxDecoration(
               gradient: AppTheme.brandGradient,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.18),
@@ -468,7 +561,7 @@ class _LoginViewState extends State<LoginView> {
             'Mithka',
             style: TextStyle(
               fontSize: 26,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w600,
               color: c.textPrimary,
             ),
           ),
@@ -494,21 +587,26 @@ class _LoginViewState extends State<LoginView> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           child: Row(
             children: [
-              GestureDetector(
+              AppInteractiveSurface(
+                semanticLabel:
+                    (_detectedCountry == null
+                        ? null
+                        : AppStrings.t(_detectedCountry!.name)) ??
+                    AppStringKeys.countryPickerSelectCountryOrRegion.l10n(
+                      context,
+                    ),
                 onTap: _showCountrySheet,
+                borderRadius: BorderRadius.circular(AppRadius.card),
                 child: SizedBox(
                   width: 42,
                   height: 42,
                   child: Center(
                     child: _detectedCountry != null
-                        ? Text(
-                            _detectedCountry!.flag,
-                            style: const TextStyle(fontSize: 30),
-                          )
+                        ? CountryFlag(iso: _detectedCountry!.iso, size: 30)
                         : AppIcon(
                             HeroAppIcons.globe,
                             size: 26,
@@ -522,6 +620,7 @@ class _LoginViewState extends State<LoginView> {
                 child: TextField(
                   controller: _phone,
                   keyboardType: TextInputType.phone,
+                  textInputAction: TextInputAction.done,
                   style: TextStyle(fontSize: 22, color: c.textPrimary),
                   decoration: InputDecoration(
                     hintText: AppStrings.t(
@@ -541,6 +640,11 @@ class _LoginViewState extends State<LoginView> {
                     }
                     setState(() {});
                   },
+                  onSubmitted: (_) {
+                    if (_phoneDigits.length >= 7 && !auth.isWorking) {
+                      unawaited(_submitPhone(auth));
+                    }
+                  },
                 ),
               ),
             ],
@@ -557,6 +661,13 @@ class _LoginViewState extends State<LoginView> {
           const SizedBox(height: 12),
           _loginPasskeyButton(auth),
         ],
+        const SizedBox(height: 12),
+        _secondaryLoginButton(
+          label: AppStrings.t(AppStringKeys.loginWithBotToken),
+          icon: HeroAppIcons.code,
+          enabled: !auth.isWorking,
+          onTap: _openBotLogin,
+        ),
         const SizedBox(height: 20),
         Text(
           AppStrings.t(AppStringKeys.loginCodeWillBeSentToNumber),
@@ -574,6 +685,129 @@ class _LoginViewState extends State<LoginView> {
     }
   }
 
+  Widget _botAccountStep(AuthManager auth, AccountStore accounts) {
+    final c = context.colors;
+    final enabled =
+        _botToken.text.trim().isNotEmpty &&
+        _botEndpoint.text.trim().isNotEmpty &&
+        !_botWorking;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          AppStrings.t(AppStringKeys.loginBotAccountTitle),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            color: c.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          AppStrings.t(AppStringKeys.loginBotAccountDescription),
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 14, height: 1.4, color: c.textSecondary),
+        ),
+        const SizedBox(height: 22),
+        InputField(
+          systemImage: HeroAppIcons.key.data,
+          placeholder: AppStrings.t(AppStringKeys.loginBotToken),
+          controller: _botToken,
+          secure: true,
+          textInputAction: TextInputAction.next,
+          onChanged: (_) => setState(() => _botError = null),
+        ),
+        const SizedBox(height: 12),
+        InputField(
+          systemImage: HeroAppIcons.server.data,
+          placeholder: AppStrings.t(AppStringKeys.loginBotApiEndpoint),
+          controller: _botEndpoint,
+          keyboardType: TextInputType.url,
+          textInputAction: TextInputAction.done,
+          onChanged: (_) => setState(() => _botError = null),
+          onSubmitted: (_) {
+            if (enabled) unawaited(_submitBotAccount(auth, accounts));
+          },
+        ),
+        const SizedBox(height: 8),
+        Text(
+          AppStrings.t(AppStringKeys.loginBotApiEndpointHint),
+          style: TextStyle(fontSize: 12, color: c.textTertiary),
+        ),
+        if (_botError case final error?) ...[
+          const SizedBox(height: 14),
+          Text(
+            error,
+            style: TextStyle(fontSize: 13, color: AppTheme.unreadBadge),
+          ),
+        ],
+        const SizedBox(height: 20),
+        _primaryButton(
+          auth,
+          AppStrings.t(AppStringKeys.loginBotSubmit),
+          enabled,
+          () => unawaited(_submitBotAccount(auth, accounts)),
+          working: _botWorking,
+        ),
+        const SizedBox(height: 12),
+        _secondaryLoginButton(
+          label: AppStrings.t(AppStringKeys.loginWithPhoneNumber),
+          icon: HeroAppIcons.phone,
+          enabled: !_botWorking,
+          onTap: _hideBotLogin,
+        ),
+      ],
+    );
+  }
+
+  void _openBotLogin() {
+    setState(() {
+      _forcePhone = false;
+      _showBotLogin = true;
+      _botError = null;
+    });
+  }
+
+  void _hideBotLogin() {
+    if (_botWorking) return;
+    setState(() {
+      _showBotLogin = false;
+      _botError = null;
+    });
+  }
+
+  Future<void> _submitBotAccount(
+    AuthManager auth,
+    AccountStore accounts,
+  ) async {
+    if (_botWorking) return;
+    setState(() {
+      _botWorking = true;
+      _botError = null;
+    });
+    try {
+      await accounts.addBotAccount(
+        token: _botToken.text,
+        endpoint: _botEndpoint.text,
+        auth: auth,
+      );
+      _botToken.clear();
+    } on BotApiException catch (error) {
+      if (mounted) setState(() => _botError = error.message);
+    } on FormatException catch (error) {
+      if (mounted) setState(() => _botError = error.message);
+    } on BotApiCredentialStoreException catch (error) {
+      if (mounted) setState(() => _botError = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _botError = AppStrings.t(AppStringKeys.loginBotFailed));
+      }
+    } finally {
+      if (mounted) setState(() => _botWorking = false);
+    }
+  }
+
   Widget _emailAddressStep(AuthManager auth) {
     final c = context.colors;
     return Column(
@@ -584,7 +818,7 @@ class _LoginViewState extends State<LoginView> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: c.textPrimary,
           ),
         ),
@@ -602,7 +836,7 @@ class _LoginViewState extends State<LoginView> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           child: Row(
             children: [
@@ -612,6 +846,7 @@ class _LoginViewState extends State<LoginView> {
                 child: TextField(
                   controller: _email,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.done,
                   autocorrect: false,
                   style: TextStyle(fontSize: 17, color: c.textPrimary),
                   decoration: InputDecoration(
@@ -619,6 +854,11 @@ class _LoginViewState extends State<LoginView> {
                     hintText: AppStrings.t(AppStringKeys.loginEmailAddress),
                   ),
                   onChanged: (_) => setState(() {}),
+                  onSubmitted: (_) {
+                    if (_email.text.trim().contains('@') && !auth.isWorking) {
+                      auth.submitEmailAddress(_email.text);
+                    }
+                  },
                 ),
               ),
             ],
@@ -647,7 +887,7 @@ class _LoginViewState extends State<LoginView> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: c.textPrimary,
           ),
         ),
@@ -665,7 +905,7 @@ class _LoginViewState extends State<LoginView> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: c.card,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
           ),
           child: Row(
             children: [
@@ -708,9 +948,9 @@ class _LoginViewState extends State<LoginView> {
           () => auth.submitEmailCode(_code.text),
         ),
         const SizedBox(height: 14),
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        AppInteractiveSurface(
           onTap: auth.isWorking ? null : auth.resendCode,
+          enabled: !auth.isWorking,
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: Text(
@@ -725,9 +965,9 @@ class _LoginViewState extends State<LoginView> {
           ),
         ),
         if (step.canReset)
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          AppInteractiveSurface(
             onTap: auth.isWorking ? null : auth.resetAuthenticationEmailAddress,
+            enabled: !auth.isWorking,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
@@ -757,7 +997,7 @@ class _LoginViewState extends State<LoginView> {
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 22,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             color: c.textPrimary,
           ),
         ),
@@ -778,11 +1018,11 @@ class _LoginViewState extends State<LoginView> {
         ),
         if (Platform.isIOS) ...[
           const SizedBox(height: 10),
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
+          AppInteractiveSurface(
             onTap: auth.isWorking
                 ? null
                 : () => unawaited(auth.purchaseRequiredPremium(restore: true)),
+            enabled: !auth.isWorking,
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
               child: Text(
@@ -830,7 +1070,7 @@ class _LoginViewState extends State<LoginView> {
             badgeCount: _restorableBackupCount,
             onTap: _openAccountRestore,
           ),
-        _proxyIconButton(),
+        if (!_showBotLogin) _proxyIconButton(),
       ],
     );
   }
@@ -838,51 +1078,48 @@ class _LoginViewState extends State<LoginView> {
   Widget _loginPasskeyButton(AuthManager auth) {
     final c = context.colors;
     final enabled = !auth.isWorking;
-    return Semantics(
-      button: true,
+    return AppInteractiveSurface(
+      semanticLabel: AppStrings.t(AppStringKeys.loginWithPasskey),
+      onTap: enabled ? () => unawaited(auth.loginWithPasskey()) : null,
       enabled: enabled,
-      label: AppStrings.t(AppStringKeys.loginWithPasskey),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: enabled ? () => unawaited(auth.loginWithPasskey()) : null,
-        child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 160),
-          opacity: enabled ? 1 : 0.46,
-          child: Container(
-            key: const ValueKey('android-login-passkey'),
-            height: 50,
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            decoration: BoxDecoration(
-              color: c.card,
-              borderRadius: BorderRadius.circular(25),
-              border: Border.all(color: c.divider, width: 0.8),
-            ),
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: AppIcon(
-                    HeroAppIcons.key,
-                    size: 21,
-                    color: AppTheme.brand,
+      borderRadius: BorderRadius.circular(25),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 160),
+        opacity: enabled ? 1 : 0.46,
+        child: Container(
+          key: const ValueKey('android-login-passkey'),
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: c.divider, width: 0.8),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: AppIcon(
+                  HeroAppIcons.key,
+                  size: 21,
+                  color: AppTheme.brand,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+                child: Text(
+                  AppStrings.t(AppStringKeys.loginWithPasskey),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: c.textPrimary,
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 30),
-                  child: Text(
-                    AppStrings.t(AppStringKeys.loginWithPasskey),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: c.textPrimary,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -900,9 +1137,11 @@ class _LoginViewState extends State<LoginView> {
     final badgeText = badgeCount > 99 ? '99+' : '$badgeCount';
     return Tooltip(
       message: tooltip,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: AppInteractiveSurface(
+        semanticLabel: tooltip,
         onTap: enabled ? onTap : null,
+        enabled: enabled,
+        borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Stack(
@@ -926,7 +1165,7 @@ class _LoginViewState extends State<LoginView> {
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
                       color: AppTheme.unreadBadge,
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(AppRadius.control),
                       border: Border.all(color: c.background, width: 1.2),
                     ),
                     child: Text(
@@ -934,7 +1173,7 @@ class _LoginViewState extends State<LoginView> {
                       style: const TextStyle(
                         color: Color(0xFFFFFFFF),
                         fontSize: 10,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         height: 1,
                         decoration: TextDecoration.none,
                       ),
@@ -976,10 +1215,12 @@ class _LoginViewState extends State<LoginView> {
     final enabled = _proxy?.isUsable ?? false;
     return Tooltip(
       message: AppStrings.t(AppStringKeys.proxyTitle),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: AppInteractiveSurface(
+        semanticLabel: AppStrings.t(AppStringKeys.proxyTitle),
         onTap: _openProxySetup,
         onLongPress: enabled ? _disableProxy : null,
+        onSecondaryTap: enabled ? _disableProxy : null,
+        borderRadius: BorderRadius.circular(AppRadius.card),
         child: Padding(
           padding: const EdgeInsets.all(10),
           child: Stack(
@@ -1064,7 +1305,7 @@ class _LoginViewState extends State<LoginView> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(22),
+              borderRadius: BorderRadius.circular(AppRadius.xl),
             ),
             child: link.isEmpty
                 ? const Center(
@@ -1084,7 +1325,7 @@ class _LoginViewState extends State<LoginView> {
             minimumSize: const Size.fromHeight(44),
             side: BorderSide(color: AppTheme.brand.withValues(alpha: 0.45)),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(AppRadius.card),
             ),
           ),
           child: Text(
@@ -1144,31 +1385,6 @@ class _LoginViewState extends State<LoginView> {
   Widget _codeStep(AuthManager auth, AuthCodeInfo info) {
     final c = context.colors;
     final prompt = _codePrompt(info);
-    if (auth.isReviewCodePolling) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              prompt,
-              style: TextStyle(fontSize: 13, color: c.textSecondary),
-            ),
-          ),
-          const SizedBox(height: 28),
-          Center(
-            child: SizedBox(
-              width: 28,
-              height: 28,
-              child: CircularProgressIndicator.adaptive(
-                strokeWidth: 2.4,
-                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.brand),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1293,14 +1509,14 @@ class _LoginViewState extends State<LoginView> {
         ? '$base (${_resendRemainingSeconds}s)'
         : base;
     return Center(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: AppInteractiveSurface(
         onTap: canResend
             ? () {
                 auth.resendCode();
                 _startResendCountdown(notify: true);
               }
             : null,
+        enabled: canResend,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Text(
@@ -1335,7 +1551,13 @@ class _LoginViewState extends State<LoginView> {
           placeholder: AppStrings.t(AppStringKeys.loginTwoStepPassword),
           controller: _password,
           secure: true,
+          textInputAction: TextInputAction.done,
           onChanged: (_) => setState(() {}),
+          onSubmitted: (_) {
+            if (_password.text.isNotEmpty && !auth.isWorking) {
+              auth.submitPassword(_password.text);
+            }
+          },
         ),
         const SizedBox(height: 16),
         _primaryButton(
@@ -1365,6 +1587,7 @@ class _LoginViewState extends State<LoginView> {
           systemImage: HeroAppIcons.solidCircleUser.data,
           placeholder: AppStrings.t(AppStringKeys.loginFirstName),
           controller: _firstName,
+          textInputAction: TextInputAction.next,
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 16),
@@ -1372,6 +1595,12 @@ class _LoginViewState extends State<LoginView> {
           systemImage: HeroAppIcons.circleUser.data,
           placeholder: AppStrings.t(AppStringKeys.loginLastNameOptional),
           controller: _lastName,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) {
+            if (_firstName.text.isNotEmpty && !auth.isWorking) {
+              auth.register(_firstName.text, _lastName.text);
+            }
+          },
         ),
         const SizedBox(height: 16),
         _primaryButton(
@@ -1418,6 +1647,13 @@ class _LoginViewState extends State<LoginView> {
             true,
             () => _openApiSetup(auth),
           ),
+          const SizedBox(height: 12),
+          _secondaryLoginButton(
+            label: AppStrings.t(AppStringKeys.loginWithBotToken),
+            icon: HeroAppIcons.code,
+            enabled: !auth.isWorking,
+            onTap: _openBotLogin,
+          ),
         ],
       ),
     );
@@ -1438,11 +1674,16 @@ class _LoginViewState extends State<LoginView> {
     AuthManager auth,
     String title,
     bool enabled,
-    VoidCallback action,
-  ) {
-    final on = enabled && !auth.isWorking;
-    return GestureDetector(
+    VoidCallback action, {
+    bool? working,
+  }) {
+    final busy = working ?? auth.isWorking;
+    final on = enabled && !busy;
+    return AppInteractiveSurface(
+      semanticLabel: title,
       onTap: on ? action : null,
+      enabled: on,
+      borderRadius: BorderRadius.circular(25),
       child: Container(
         height: 50,
         alignment: Alignment.center,
@@ -1450,7 +1691,7 @@ class _LoginViewState extends State<LoginView> {
           color: enabled ? AppTheme.brand : context.colors.textTertiary,
           borderRadius: BorderRadius.circular(25),
         ),
-        child: auth.isWorking
+        child: busy
             ? const SizedBox(
                 width: 22,
                 height: 22,
@@ -1467,6 +1708,56 @@ class _LoginViewState extends State<LoginView> {
                   color: Color(0xFFFFFFFF),
                 ),
               ),
+      ),
+    );
+  }
+
+  Widget _secondaryLoginButton({
+    required String label,
+    required AppIconData icon,
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    final c = context.colors;
+    return AppInteractiveSurface(
+      semanticLabel: label,
+      enabled: enabled,
+      onTap: enabled ? onTap : null,
+      borderRadius: BorderRadius.circular(25),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 160),
+        opacity: enabled ? 1 : 0.46,
+        child: Container(
+          height: 50,
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          decoration: BoxDecoration(
+            color: c.card,
+            borderRadius: BorderRadius.circular(25),
+            border: Border.all(color: c.divider, width: 0.8),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: AppIcon(icon, size: 21, color: AppTheme.brand),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: c.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1669,7 +1960,7 @@ class _VerificationCodeBox extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(AppRadius.card),
         border: Border.all(
           color: focused ? AppTheme.brand : c.divider,
           width: focused ? 1.8 : 1,
@@ -1690,7 +1981,7 @@ class _VerificationCodeBox extends StatelessWidget {
         style: TextStyle(
           color: c.textPrimary,
           fontSize: 24,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           height: 1,
           decoration: TextDecoration.none,
         ),
@@ -1710,8 +2001,10 @@ class InputField extends StatefulWidget {
     required this.controller,
     this.secure = false,
     this.keyboardType,
+    this.textInputAction,
     this.inputFormatters,
     this.onChanged,
+    this.onSubmitted,
   });
 
   final IconData systemImage;
@@ -1719,8 +2012,10 @@ class InputField extends StatefulWidget {
   final TextEditingController controller;
   final bool secure;
   final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
   final List<TextInputFormatter>? inputFormatters;
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
 
   @override
   State<InputField> createState() => _InputFieldState();
@@ -1769,8 +2064,10 @@ class _InputFieldState extends State<InputField> {
               keyboardType:
                   widget.keyboardType ??
                   (widget.secure ? TextInputType.text : null),
+              textInputAction: widget.textInputAction,
               inputFormatters: widget.inputFormatters,
               onChanged: widget.onChanged,
+              onSubmitted: widget.onSubmitted,
               autocorrect: false,
               enableSuggestions: false,
               style: TextStyle(color: c.textPrimary, fontSize: 16),
@@ -1782,12 +2079,19 @@ class _InputFieldState extends State<InputField> {
             ),
           ),
           if (widget.secure)
-            GestureDetector(
+            AppInteractiveSurface(
+              semanticLabel: AppStrings.t(
+                _obscure
+                    ? AppStringKeys.loginShowPassword
+                    : AppStringKeys.loginHidePassword,
+              ),
+              toggled: !_obscure,
               onTap: () => setState(() => _obscure = !_obscure),
+              borderRadius: BorderRadius.circular(10),
               child: Padding(
                 padding: const EdgeInsets.only(left: 8),
-                child: Icon(
-                  _obscure ? HeroAppIcons.eyeSlash.data : HeroAppIcons.eye.data,
+                child: AppIcon(
+                  _obscure ? HeroAppIcons.eyeSlash : HeroAppIcons.eye,
                   size: 20,
                   color: c.textTertiary,
                 ),

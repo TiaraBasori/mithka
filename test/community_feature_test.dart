@@ -1,14 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/chat/chat_community_service_card.dart';
+import 'package:mithka/chat/chat_view_model.dart';
+import 'package:mithka/chats/chat_row_view.dart';
 import 'package:mithka/communities/community_models.dart';
 import 'package:mithka/communities/community_view.dart';
+import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/photo_avatar.dart';
 import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/feature_settings_view.dart';
 import 'package:mithka/settings/safety_notice_controller.dart';
 import 'package:mithka/tdlib/td_models.dart';
+import 'package:mithka/theme/app_theme.dart';
 import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -118,6 +124,185 @@ void main() {
       expect(entries, hasLength(2));
     });
 
+    testWidgets('collapsed community row stacks two plates behind its avatar', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final theme = ThemeController(prefs);
+      addTearDown(theme.dispose);
+      final community = CommunitySummary(
+        id: 42,
+        name: 'Formula Paddock',
+        haveAccess: true,
+        isAdministrator: false,
+        canEditChatList: false,
+      );
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider<ThemeController>.value(
+          value: theme,
+          child: MaterialApp(
+            theme: ThemeData(
+              brightness: Brightness.light,
+              extensions: [AppColors.light],
+            ),
+            home: Scaffold(
+              body: CommunityChatListRow(
+                entry: CommunityGroupEntry(
+                  community: community,
+                  chats: [
+                    _chat(
+                      id: 1,
+                      title: 'Race Chat',
+                      order: 100,
+                      sender: 'Fexis',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final front = find.byKey(const ValueKey('community-avatar-front'));
+      final nearBack = find.byKey(const ValueKey('community-avatar-back-1'));
+      final farBack = find.byKey(const ValueKey('community-avatar-back-2'));
+      expect(front, findsOneWidget);
+      expect(nearBack, findsOneWidget);
+      expect(farBack, findsOneWidget);
+      expect(tester.getSize(front), Size.square(theme.avatarSize));
+      expect(
+        tester.getTopLeft(nearBack).dx,
+        lessThan(tester.getTopLeft(front).dx),
+      );
+      expect(
+        tester.getTopLeft(farBack).dx,
+        lessThan(tester.getTopLeft(nearBack).dx),
+      );
+      expect(
+        tester.getTopLeft(nearBack).dy,
+        greaterThan(tester.getTopLeft(front).dy),
+      );
+      expect(
+        tester.getTopLeft(farBack).dy,
+        greaterThan(tester.getTopLeft(nearBack).dy),
+      );
+      expect(tester.widget<PhotoAvatar>(front).allowAnimation, isFalse);
+      final preview = tester.widget<ChatPreviewText>(
+        find.byType(ChatPreviewText),
+      );
+      expect(preview.sender, 'Fexis');
+      expect(preview.message, 'Latest message');
+      final icons = tester.widgetList<AppIcon>(find.byType(AppIcon)).toList();
+      expect(
+        icons.any((icon) => icon.icon == HeroAppIcons.objectGroup),
+        isTrue,
+      );
+      expect(
+        icons.any((icon) => icon.icon == HeroAppIcons.chevronRight),
+        isTrue,
+      );
+      expect(icons.any((icon) => icon.icon == HeroAppIcons.bellSlash), isFalse);
+    });
+
+    testWidgets('collapsed community uses the shared desktop chat row', (
+      tester,
+    ) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      try {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final theme = ThemeController(prefs);
+        addTearDown(theme.dispose);
+        final community = CommunitySummary(
+          id: 42,
+          name: 'Formula Paddock',
+          haveAccess: true,
+          isAdministrator: false,
+          canEditChatList: false,
+        );
+        final latest =
+            _chat(
+                id: 1,
+                title: 'Race Chat',
+                order: 100,
+                unread: 3,
+                sender: 'Fexis',
+              )
+              ..isMuted = true
+              ..isPinned = true;
+        final marked = _chat(
+          id: 2,
+          title: 'Pit Chat',
+          order: 90,
+          unread: 2,
+          markedUnread: true,
+        )..isMuted = true;
+
+        await tester.pumpWidget(
+          ChangeNotifierProvider<ThemeController>.value(
+            value: theme,
+            child: MaterialApp(
+              theme: ThemeData(
+                brightness: Brightness.light,
+                extensions: [AppColors.light],
+              ),
+              home: Scaffold(
+                body: CommunityChatListRow(
+                  entry: CommunityGroupEntry(
+                    community: community,
+                    chats: [latest, marked],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        final sharedRowFinder = find.descendant(
+          of: find.byType(CommunityChatListRow),
+          matching: find.byType(ChatRowView),
+        );
+        expect(sharedRowFinder, findsOneWidget);
+        final sharedRow = tester.widget<ChatRowView>(sharedRowFinder);
+        expect(sharedRow.chat.title, 'Formula Paddock');
+        expect(sharedRow.chat.unreadCount, 5);
+        expect(sharedRow.chat.isMuted, isTrue);
+        expect(sharedRow.chat.isPinned, isTrue);
+        expect(sharedRow.chat.isMarkedUnread, isTrue);
+        expect(sharedRow.chat.lastSender, 'Fexis');
+        expect(sharedRow.chat.lastMessage, 'Latest message');
+        expect(sharedRow.avatarBuilder, isNotNull);
+        expect(sharedRow.titleTrailing, isNotNull);
+        expect(sharedRow.trailingIndicator, isNotNull);
+        expect(
+          tester.getSize(find.byType(CommunityChatListRow)).height,
+          AppMetric.chatListRowHeight(TargetPlatform.macOS),
+        );
+        expect(
+          tester.getSize(find.byKey(const ValueKey('community-avatar-front'))),
+          Size.square(AppMetric.chatListAvatarSize(TargetPlatform.macOS)),
+        );
+        final icons = tester.widgetList<AppIcon>(find.byType(AppIcon)).toList();
+        expect(
+          icons.any((icon) => icon.icon == HeroAppIcons.objectGroup),
+          isTrue,
+        );
+        expect(
+          icons.any((icon) => icon.icon == HeroAppIcons.bellSlash),
+          isTrue,
+        );
+        expect(
+          icons.any((icon) => icon.icon == HeroAppIcons.chevronRight),
+          isFalse,
+        );
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
     test('requests the native community peer catalog', () {
       expect(communityFullInfoRequest(42), {
         '@type': 'getCommunityFullInfo',
@@ -142,7 +327,11 @@ void main() {
     });
 
     test('recognizes community membership service messages', () {
-      final added = {'@type': 'messageChatAddedToCommunity'};
+      final added = <String, dynamic>{
+        '@type': 'messageChatAddedToCommunity',
+        'community_id': 42,
+        'community_name': 'Neko',
+      };
       final removed = {'@type': 'messageChatRemovedFromCommunity'};
 
       expect(TDParse.isServiceContent(added['@type']), isTrue);
@@ -155,6 +344,63 @@ void main() {
         TDParse.serviceText(removed),
         AppStrings.t(AppStringKeys.communityChatRemovedService),
       );
+      final message = TDParse.message({
+        '@type': 'message',
+        'id': 8,
+        'date': 1,
+        'sender_id': {'@type': 'messageSenderUser', 'user_id': 7},
+        'content': added,
+      })!;
+      expect(message.communityPreview?.id, 42);
+      expect(message.communityPreview?.name, 'Neko');
+      expect(message.serviceUserIds, [7]);
+      expect(
+        resolvedCommunityServiceText(
+          contentType: 'messageChatAddedToCommunity',
+          actorName: 'Miao',
+          communityName: 'Neko',
+        ),
+        'Miao added this group to the Neko community.',
+      );
+    });
+
+    testWidgets('renders a community service card with a view action', (
+      tester,
+    ) async {
+      var viewed = false;
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          theme: ThemeData(extensions: [AppColors.light]),
+          home: Scaffold(
+            body: ChatCommunityServiceCard(
+              preview: MessageCommunityPreview(id: 42, name: 'Neko'),
+              label: 'Miao added this group to the Neko community.',
+              onView: () => viewed = true,
+            ),
+          ),
+        ),
+      );
+
+      expect(
+        find.byKey(const ValueKey('chat-community-service-card')),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Miao added this group to the Neko community.'),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey('chat-community-service-view')),
+      );
+      expect(viewed, isTrue);
     });
 
     testWidgets('renders the iOS-style hub and toggles one-chat mode', (
@@ -203,7 +449,8 @@ void main() {
       expect(find.text('Race Chat'), findsOneWidget);
       expect(find.text('CHATS YOU CAN VIEW'), findsOneWidget);
       expect(find.text('Public Announcements'), findsOneWidget);
-      expect(find.text('Show as One Chat'), findsOneWidget);
+      expect(find.text('Show as One Chat'), findsNothing);
+      expect(find.byIcon(HeroAppIcons.magnifyingGlass.data), findsNothing);
 
       final header = find.byKey(const ValueKey('community-header'));
       final avatar = find.descendant(
@@ -220,8 +467,13 @@ void main() {
         greaterThan(tester.getTopRight(avatar).dx),
       );
 
-      await tester.tap(find.byType(AppSwitch));
-      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('community-header-menu')));
+      await tester.pumpAndSettle();
+      expect(find.text('Show as One Chat'), findsOneWidget);
+      expect(find.byIcon(HeroAppIcons.check.data), findsOneWidget);
+
+      await tester.tap(find.text('Show as One Chat'));
+      await tester.pumpAndSettle();
 
       expect(collapsed, isFalse);
     });
@@ -271,6 +523,7 @@ ChatSummary _chat({
   required int order,
   int unread = 0,
   bool markedUnread = false,
+  String? sender,
 }) {
   return ChatSummary(
     id: id,
@@ -282,6 +535,7 @@ ChatSummary _chat({
     order: order,
     isMuted: false,
     isMarkedUnread: markedUnread,
+    lastSender: sender,
     kind: ChatKind.group,
   );
 }

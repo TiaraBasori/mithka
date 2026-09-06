@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
@@ -8,13 +9,14 @@ import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import 'app_motion.dart';
 import 'app_theme.dart';
 import 'telegram_cloud_theme.dart';
 import 'theme_controller.dart';
 import 'theme_wallpaper_prompt.dart';
 
 /// Global Telegram .attheme management. This intentionally contains no chat
-/// emoji themes. Applying its palette to the rest of the app is opt-in.
+/// emoji themes. A selected theme supplies the matching app palette directly.
 class GlobalThemeView extends StatefulWidget {
   const GlobalThemeView({super.key, this.themeService});
 
@@ -35,9 +37,11 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
     Color(0xFFFF2D55),
     Color(0xFF8E8E93),
   ];
-  bool _requestedCommunityThemes = false;
   bool _initializedTargetBrightness = false;
   List<TelegramCloudTheme>? _communityThemes;
+  ThemeController? _communityThemeController;
+  String? _communityThemeCacheScope;
+  int _communityThemeRequestId = 0;
   Brightness _targetBrightness = Brightness.light;
   Brightness _appBrightness = Brightness.light;
   AppColors _pageColors = AppColors.light;
@@ -52,18 +56,63 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
       _initializedTargetBrightness = true;
       _targetBrightness = Theme.of(context).brightness;
     }
-    if (_requestedCommunityThemes) return;
-    _requestedCommunityThemes = true;
-    _synchronizeCommunityThemes(context.read<ThemeController>());
+    _bindCommunityThemeCache(context.watch<ThemeController>());
   }
 
-  Future<void> _synchronizeCommunityThemes(ThemeController controller) async {
+  void _bindCommunityThemeCache(ThemeController controller) {
+    final cacheScope = controller.installedCloudThemeCacheScope;
+    if (identical(_communityThemeController, controller) &&
+        _communityThemeCacheScope == cacheScope) {
+      return;
+    }
+
+    _communityThemeController?.removeListener(
+      _handleCommunityThemeControllerChanged,
+    );
+    _communityThemeController = controller;
+    controller.addListener(_handleCommunityThemeControllerChanged);
+    _communityThemeCacheScope = cacheScope;
+    _communityThemes = List.unmodifiable(controller.installedCloudThemes);
+    final requestId = ++_communityThemeRequestId;
+    _synchronizeCommunityThemes(controller, cacheScope, requestId);
+  }
+
+  Future<void> _synchronizeCommunityThemes(
+    ThemeController controller,
+    String cacheScope,
+    int requestId,
+  ) async {
+    final cacheRevision = controller.installedCloudThemeRevision;
     final themes = await _themeService.loadInstalled(
       fallback: controller.installedCloudThemes,
     );
-    if (!mounted) return;
+    if (!mounted ||
+        requestId != _communityThemeRequestId ||
+        !identical(_communityThemeController, controller) ||
+        _communityThemeCacheScope != cacheScope ||
+        controller.installedCloudThemeCacheScope != cacheScope ||
+        controller.installedCloudThemeRevision != cacheRevision) {
+      return;
+    }
     controller.synchronizeInstalledCloudThemes(themes);
-    setState(() => _communityThemes = themes);
+  }
+
+  void _handleCommunityThemeControllerChanged() {
+    final controller = _communityThemeController;
+    if (!mounted || controller == null) return;
+    final next = List<TelegramCloudTheme>.unmodifiable(
+      controller.installedCloudThemes,
+    );
+    if (listEquals(_communityThemes, next)) return;
+    setState(() => _communityThemes = next);
+  }
+
+  @override
+  void dispose() {
+    _communityThemeController?.removeListener(
+      _handleCommunityThemeControllerChanged,
+    );
+    super.dispose();
   }
 
   Future<void> _applyImportedTheme(
@@ -133,33 +182,22 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
     required ThemeController controller,
     required TelegramCloudTheme? theme,
   }) {
-    final c = _pageColors;
-    return ColoredBox(
-      color: c.groupedBackground,
-      child: Column(
+    return SettingsPageScaffold(
+      title: AppStringKeys.globalThemeTitle,
+      onBack: () => Navigator.of(previewContext).pop(),
+      child: SettingsListView(
         children: [
-          NavHeader(
-            title: AppStringKeys.globalThemeTitle,
-            onBack: () => Navigator.of(previewContext).pop(),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 24),
-              children: [
-                _brightnessPicker(),
-                const SizedBox(height: 14),
-                _activeThemeCard(controller, theme),
-                const SizedBox(height: 22),
-                _sectionTitle(AppStringKeys.globalThemeOfficial),
-                const SizedBox(height: 9),
-                _themeStrip(controller, theme, builtInTelegramCloudThemes),
-                const SizedBox(height: 22),
-                _sectionTitle(AppStringKeys.globalThemeCommunity),
-                const SizedBox(height: 9),
-                _communityThemeStrip(controller, theme),
-              ],
-            ),
-          ),
+          _brightnessPicker(),
+          const SizedBox(height: AppSpacing.xl),
+          _activeThemeCard(controller, theme),
+          const SizedBox(height: AppSpacing.section),
+          _sectionTitle(AppStringKeys.globalThemeOfficial),
+          const SizedBox(height: AppSpacing.md),
+          _themeStrip(controller, theme, builtInTelegramCloudThemes),
+          const SizedBox(height: AppSpacing.section),
+          _sectionTitle(AppStringKeys.globalThemeCommunity),
+          const SizedBox(height: AppSpacing.md),
+          _communityThemeStrip(controller, theme),
         ],
       ),
     );
@@ -173,7 +211,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: c.panelBackground,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -214,7 +252,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
           color: selected
               ? c.linkBlue.withValues(alpha: 0.15)
               : const Color(0x00000000),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(AppRadius.control),
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -368,7 +406,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
               clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: selected ? c.linkBlue : c.divider,
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.card),
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(selected ? 11.5 : 13),
@@ -446,7 +484,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,7 +500,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
                           AppStringKeys.globalThemeDefault.l10n(context),
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         color: c.textPrimary,
                       ),
                     ),
@@ -619,7 +657,7 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
   ) async {
     final rgb = theme.accentColor.toARGB32() & 0x00FFFFFF;
     final result = await Navigator.of(context).push<ChatWallpaper>(
-      PageRouteBuilder<ChatWallpaper>(
+      AppFadePageRoute<ChatWallpaper>(
         pageBuilder: (_, _, _) => ChatWallpaperColorView(
           controller: ChatWallpaperController.shared,
           dark: _targetBrightness == Brightness.dark,
@@ -630,8 +668,6 @@ class _GlobalThemeViewState extends State<GlobalThemeView> {
             colors: [rgb],
           ),
         ),
-        transitionsBuilder: (_, animation, _, child) =>
-            FadeTransition(opacity: animation, child: child),
       ),
     );
     if (!mounted || result == null || result.colors.isEmpty) return;

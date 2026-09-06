@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import '../components/app_icons.dart';
@@ -6,12 +9,18 @@ import '../components/toast.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
-import 'full_image_viewer.dart';
+import 'emoji_catalog.dart';
+import 'image_preview.dart';
+import 'message_action_menu.dart';
 import 'message_bubble.dart';
 import 'outgoing_attachment.dart';
 import 'rich_text_composer_view.dart';
 import 'rich_text_format.dart';
+import 'sticker_item.dart';
+import 'sticker_preview.dart';
+import 'sticker_store.dart';
 
 Map<String, dynamic> buildReplySheetTextRequest({
   required int chatId,
@@ -37,6 +46,67 @@ Map<String, dynamic> buildReplySheetTextRequest({
   };
 }
 
+List<Map<String, dynamic>> replySheetSendCandidates(
+  Map<String, dynamic> request,
+) {
+  final candidates = <Map<String, dynamic>>[Map<String, dynamic>.from(request)];
+  if (request.containsKey('message_thread_id')) {
+    candidates.add(
+      Map<String, dynamic>.from(request)..remove('message_thread_id'),
+    );
+  }
+  // A forum topic is an explicit destination, not optional metadata. If a
+  // scoped request is rejected, fail closed instead of replying in the chat's
+  // root conversation.
+  if (request.obj('topic_id')?.type == 'messageTopicForum') {
+    return candidates;
+  }
+  if (request.containsKey('topic_id') && request.containsKey('reply_to')) {
+    candidates.add(
+      Map<String, dynamic>.from(request)
+        ..remove('topic_id')
+        ..remove('message_thread_id'),
+    );
+  }
+  return candidates;
+}
+
+class MessageRepliesViewTarget {
+  const MessageRepliesViewTarget({
+    required this.chatId,
+    required this.messageId,
+    required this.title,
+  });
+
+  final int chatId;
+  final int messageId;
+  final String title;
+}
+
+@visibleForTesting
+MessageRepliesViewTarget resolveMessageRepliesViewTarget({
+  required int sourceChatId,
+  required int sourceMessageId,
+  required String sourceTitle,
+  int? threadChatId,
+  int? threadRootMessageId,
+  int? rootReplyToMessageId,
+  String? threadTitle,
+}) {
+  final hasThreadRoot = threadRootMessageId != null;
+  final resolvedChatId = hasThreadRoot
+      ? threadChatId ?? sourceChatId
+      : sourceChatId;
+  final resolvedTitle = (threadTitle ?? '').trim();
+  return MessageRepliesViewTarget(
+    chatId: resolvedChatId,
+    messageId: threadRootMessageId ?? rootReplyToMessageId ?? sourceMessageId,
+    title: resolvedChatId == sourceChatId || resolvedTitle.isEmpty
+        ? sourceTitle
+        : resolvedTitle,
+  );
+}
+
 Future<void> showMessageRepliesSheet({
   required BuildContext context,
   required int chatId,
@@ -53,8 +123,9 @@ Future<void> showMessageRepliesSheet({
   void Function(ChatMessage message, MessageButton button)? onButtonTap,
   ValueChanged<String>? onBotCommandTap,
   ValueChanged<String>? onHashtagTap,
+  ValueChanged<MessageRepliesViewTarget>? onViewInChat,
 }) {
-  return showModalBottomSheet<void>(
+  return showAppModalSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -74,6 +145,7 @@ Future<void> showMessageRepliesSheet({
       onButtonTap: onButtonTap,
       onBotCommandTap: onBotCommandTap,
       onHashtagTap: onHashtagTap,
+      onViewInChat: onViewInChat,
     ),
   );
 }
@@ -94,6 +166,7 @@ class _MessageRepliesSheet extends StatefulWidget {
     this.onButtonTap,
     this.onBotCommandTap,
     this.onHashtagTap,
+    this.onViewInChat,
   });
 
   final int chatId;
@@ -110,6 +183,7 @@ class _MessageRepliesSheet extends StatefulWidget {
   final void Function(ChatMessage message, MessageButton button)? onButtonTap;
   final ValueChanged<String>? onBotCommandTap;
   final ValueChanged<String>? onHashtagTap;
+  final ValueChanged<MessageRepliesViewTarget>? onViewInChat;
 
   @override
   State<_MessageRepliesSheet> createState() => _MessageRepliesSheetState();
@@ -121,15 +195,20 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
   final _messages = <ChatMessage>[];
   final _senders = <int, _ReplySender>{};
   _ReplyThreadTarget? _replyTarget;
+  String? _replyTargetTitle;
   ChatMessage? _replyTo;
   bool _loading = true;
   bool _unavailable = false;
   bool _canReply = false;
   bool _sending = false;
+  bool _emojiVisible = false;
+  bool _stickersVisible = false;
+  int? _stickerPackId;
 
   @override
   void initState() {
     super.initState();
+    StickerStore.shared.loadIfNeeded();
     _load();
   }
 
@@ -161,9 +240,10 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
       } catch (_) {}
 
       final replyTarget = await _resolveReplyTarget();
-      final chatCanSend = replyTarget == null
-          ? false
-          : await _targetChatCanSend(replyTarget.chatId);
+      final targetChatInfo = replyTarget == null
+          ? null
+          : await _targetChatInfo(replyTarget.chatId);
+      final chatCanSend = replyTarget == null ? false : targetChatInfo?.canSend;
       final linkedDiscussion =
           replyTarget != null && replyTarget.chatId != widget.chatId;
       final canReply =
@@ -211,6 +291,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
             quoted.senderName ?? quoted.senderTitle ?? widget.peerTitle;
         message.replyToPreview ??= quoted.text;
         message.replyToDate ??= quoted.date;
+        message.replyToEntities = quoted.textEntities;
         message.replyToImage ??= quoted.image;
         message.replyToImageWidth ??= quoted.imageWidth;
         message.replyToImageHeight ??= quoted.imageHeight;
@@ -218,6 +299,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
       if (!mounted) return;
       setState(() {
         _replyTarget = replyTarget;
+        _replyTargetTitle = targetChatInfo?.title;
         _canReply = canReply;
         _messages
           ..clear()
@@ -228,6 +310,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
       if (!mounted) return;
       setState(() {
         _replyTarget = null;
+        _replyTargetTitle = null;
         _replyTo = null;
         _canReply = false;
         _loading = false;
@@ -237,6 +320,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
       if (!mounted) return;
       setState(() {
         _replyTarget = null;
+        _replyTargetTitle = null;
         _replyTo = null;
         _canReply = false;
         _loading = false;
@@ -280,17 +364,33 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
     );
   }
 
-  Future<bool?> _targetChatCanSend(int chatId) async {
+  Future<_ReplyTargetChatInfo?> _targetChatInfo(int chatId) async {
     try {
       final chat = await TdClient.shared.query({
         '@type': 'getChat',
         'chat_id': chatId,
       });
-      return chat.obj('permissions')?.boolean('can_send_basic_messages') ??
-          true;
+      return _ReplyTargetChatInfo(
+        canSend:
+            chat.obj('permissions')?.boolean('can_send_basic_messages') ?? true,
+        title: chat.str('title'),
+      );
     } catch (_) {
       return null;
     }
+  }
+
+  MessageRepliesViewTarget _viewInChatTarget() {
+    final target = _replyTarget;
+    return resolveMessageRepliesViewTarget(
+      sourceChatId: widget.chatId,
+      sourceMessageId: widget.message.id,
+      sourceTitle: widget.peerTitle,
+      threadChatId: target?.chatId,
+      threadRootMessageId: target?.historyRootMessageId,
+      rootReplyToMessageId: target?.rootReplyToMessageId,
+      threadTitle: _replyTargetTitle,
+    );
   }
 
   Future<_ReplySender?> _resolveSender(int senderId) async {
@@ -329,7 +429,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
       context,
       initialText: _replyController.text,
       submitText: AppStringKeys.composerSend,
-      hintText: AppStringKeys.topicChatBeKindPrompt,
+      hintText: '',
     );
     if (result == null || !mounted) return;
     await _sendReply(result.formattedText, attachments: result.attachments);
@@ -339,6 +439,52 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
     final text = _replyController.text.trim();
     if (text.isEmpty) return;
     await _sendReply(FormattedTextPayload(text, const []));
+  }
+
+  Future<void> _sendSticker(StickerItem sticker) async {
+    final target = _replyTarget;
+    if (target == null || !_canReply || _sending) return;
+    final remoteId = sticker.remoteId?.trim();
+    final request = <String, dynamic>{
+      '@type': 'sendMessage',
+      'chat_id': target.chatId,
+      'topic_id': ?target.topicId,
+      'message_thread_id': ?target.legacyMessageThreadId,
+      if ((_replyTo?.id ?? target.rootReplyToMessageId) case final int id)
+        'reply_to': {'@type': 'inputMessageReplyToMessage', 'message_id': id},
+      'input_message_content': {
+        '@type': 'inputMessageSticker',
+        'sticker': {
+          '@type': 'inputSticker',
+          'sticker': remoteId != null && remoteId.isNotEmpty
+              ? {'@type': 'inputFileRemote', 'id': remoteId}
+              : {'@type': 'inputFileId', 'id': sticker.id},
+          'width': sticker.width,
+          'height': sticker.height,
+        },
+        'emoji': sticker.emoji,
+      },
+    };
+    setState(() => _sending = true);
+    try {
+      await _sendRequestWithCompatibility(request);
+      if (!mounted) return;
+      setState(() {
+        _replyTo = null;
+        _stickersVisible = false;
+      });
+      widget.onSent?.call();
+      await _load();
+    } catch (error) {
+      if (mounted) {
+        showToast(
+          context,
+          AppStrings.t(AppStringKeys.momentsReplyFailed, {'value1': error}),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
   }
 
   Future<void> _sendReply(
@@ -413,27 +559,18 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
   Future<void> _sendRequestWithCompatibility(
     Map<String, dynamic> request,
   ) async {
-    try {
-      await TdClient.shared.query(request);
-      return;
-    } catch (_) {
-      if (request.containsKey('message_thread_id')) {
-        final withoutLegacyThread = Map<String, dynamic>.from(request)
-          ..remove('message_thread_id');
-        try {
-          await TdClient.shared.query(withoutLegacyThread);
-          return;
-        } catch (_) {}
-      }
-      if (request.containsKey('topic_id') && request.containsKey('reply_to')) {
-        final replyOnly = Map<String, dynamic>.from(request)
-          ..remove('topic_id')
-          ..remove('message_thread_id');
-        await TdClient.shared.query(replyOnly);
+    Object? lastError;
+    StackTrace? lastStackTrace;
+    for (final candidate in replySheetSendCandidates(request)) {
+      try {
+        await TdClient.shared.query(candidate);
         return;
+      } catch (error, stackTrace) {
+        lastError = error;
+        lastStackTrace = stackTrace;
       }
-      rethrow;
     }
+    Error.throwWithStackTrace(lastError!, lastStackTrace!);
   }
 
   @override
@@ -458,30 +595,56 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
                 height: 6,
                 decoration: BoxDecoration(
                   color: c.divider,
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 10),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    AppStrings.t(AppStringKeys.topicChatCommentCount, {
-                      'value1': _displayCommentCount,
-                    }),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: c.textPrimary,
-                      decoration: TextDecoration.none,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        AppStrings.t(AppStringKeys.topicChatCommentCount, {
+                          'value1': _displayCommentCount,
+                        }),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: c.textPrimary,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
                     ),
-                  ),
+                    if (widget.onViewInChat != null && _replyTarget != null)
+                      GestureDetector(
+                        key: const ValueKey('messageRepliesViewInChat'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          final target = _viewInChatTarget();
+                          Navigator.of(context).pop();
+                          widget.onViewInChat!(target);
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 6, 0, 6),
+                          child: Text(
+                            AppStringKeys.messageViewInChat.l10n(context),
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: c.linkBlue,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               ),
               Expanded(child: _body(context)),
               if (_canReply) _replyComposer(),
+              if (_canReply && _emojiVisible) _emojiPanel(),
+              if (_canReply && _stickersVisible) _stickerPanel(),
             ],
           ),
         ),
@@ -588,16 +751,50 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
                       ),
                       border: OutlineInputBorder(
                         borderSide: BorderSide.none,
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(AppRadius.control),
                       ),
                       hintText: replyTo == null
-                          ? AppStringKeys.topicChatBeKindPrompt.l10n(context)
+                          ? null
                           : AppStrings.t(
                               AppStringKeys.momentsReplyToUserPlaceholder,
                               {'value1': _replySenderName(replyTo)},
                             ),
                       hintStyle: TextStyle(fontSize: 15, color: c.textTertiary),
                     ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                GestureDetector(
+                  key: const ValueKey('messageRepliesEmoji'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _replyFocus.unfocus();
+                    setState(() {
+                      _emojiVisible = !_emojiVisible;
+                      _stickersVisible = false;
+                    });
+                  },
+                  child: AppIcon(
+                    HeroAppIcons.solidFaceSmile,
+                    size: 25,
+                    color: _emojiVisible ? AppTheme.brand : c.textPrimary,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                GestureDetector(
+                  key: const ValueKey('messageRepliesStickers'),
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    _replyFocus.unfocus();
+                    setState(() {
+                      _stickersVisible = !_stickersVisible;
+                      _emojiVisible = false;
+                    });
+                  },
+                  child: AppIcon(
+                    HeroAppIcons.grip,
+                    size: 25,
+                    color: _stickersVisible ? AppTheme.brand : c.textPrimary,
                   ),
                 ),
                 const SizedBox(width: 14),
@@ -662,6 +859,210 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
     _replyFocus.requestFocus();
   }
 
+  Widget _emojiPanel() {
+    final emoji = EmojiCatalog.categories
+        .expand((category) => category.emojis)
+        .toList(growable: false);
+    return SizedBox(
+      key: const ValueKey('messageRepliesEmojiPanel'),
+      height: 240,
+      child: GridView.builder(
+        padding: const EdgeInsets.all(10),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 8,
+        ),
+        itemCount: emoji.length,
+        itemBuilder: (context, index) => GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            final value = emoji[index];
+            final selection = _replyController.selection;
+            final offset = selection.isValid
+                ? selection.baseOffset
+                : _replyController.text.length;
+            _replyController.text = _replyController.text.replaceRange(
+              offset,
+              offset,
+              value,
+            );
+            _replyController.selection = TextSelection.collapsed(
+              offset: offset + value.length,
+            );
+            setState(() {});
+          },
+          child: Center(
+            child: Text(emoji[index], style: const TextStyle(fontSize: 25)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stickerPanel() {
+    return AnimatedBuilder(
+      animation: StickerStore.shared,
+      builder: (context, _) {
+        final store = StickerStore.shared;
+        final packs = store.packs;
+        if (packs.isEmpty) {
+          return SizedBox(
+            height: 240,
+            child: Center(
+              child: store.loading
+                  ? const CircularProgressIndicator.adaptive(strokeWidth: 2)
+                  : Text(
+                      AppStringKeys.composerNoEmoji.l10n(context),
+                      style: TextStyle(color: context.colors.textSecondary),
+                    ),
+            ),
+          );
+        }
+        _stickerPackId ??= packs.first.id;
+        final pack = packs.firstWhere(
+          (value) => value.id == _stickerPackId,
+          orElse: () => packs.first,
+        );
+        if (!pack.loaded) unawaited(store.loadPack(pack.id));
+        return SizedBox(
+          key: const ValueKey('messageRepliesStickerPanel'),
+          height: 280,
+          child: Column(
+            children: [
+              SizedBox(
+                height: 44,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  children: [
+                    for (final candidate in packs)
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          setState(() => _stickerPackId = candidate.id);
+                          if (!candidate.loaded) {
+                            unawaited(store.loadPack(candidate.id));
+                          }
+                        },
+                        child: Container(
+                          alignment: Alignment.center,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          decoration: BoxDecoration(
+                            border: Border(
+                              bottom: BorderSide(
+                                color: candidate.id == pack.id
+                                    ? AppTheme.brand
+                                    : Colors.transparent,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          child: Text(
+                            candidate.title,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: candidate.id == pack.id
+                                  ? AppTheme.brand
+                                  : context.colors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: pack.loaded
+                    ? GridView.builder(
+                        padding: const EdgeInsets.all(10),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 4,
+                              mainAxisSpacing: 8,
+                              crossAxisSpacing: 8,
+                            ),
+                        itemCount: pack.stickers.length,
+                        itemBuilder: (context, index) {
+                          final sticker = pack.stickers[index];
+                          return GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () => unawaited(_sendSticker(sticker)),
+                            child: StickerPreview(item: sticker),
+                          );
+                        },
+                      )
+                    : const Center(
+                        child: CircularProgressIndicator.adaptive(
+                          strokeWidth: 2,
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showMessageMenu(ChatMessage message) async {
+    final action = await showAppModalSheet<_ReplySheetAction>(
+      context: context,
+      backgroundColor: context.colors.background,
+      builder: (menuContext) => SafeArea(
+        child: Wrap(
+          children: [
+            if (_canReply)
+              _messageMenuRow(
+                menuContext,
+                icon: HeroAppIcons.quoteLeft,
+                label: AppStringKeys.chatInputBarReply.l10n(menuContext),
+                action: _ReplySheetAction.reply,
+              ),
+            if (message.text.trim().isNotEmpty)
+              _messageMenuRow(
+                menuContext,
+                icon: HeroAppIcons.file,
+                label: AppStringKeys.messageActionCopy.l10n(menuContext),
+                action: _ReplySheetAction.copy,
+              ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) return;
+    switch (action) {
+      case _ReplySheetAction.reply:
+        _beginReply(message);
+      case _ReplySheetAction.copy:
+        await Clipboard.setData(ClipboardData(text: message.text));
+    }
+  }
+
+  Widget _messageMenuRow(
+    BuildContext menuContext, {
+    required AppIconData icon,
+    required String label,
+    required _ReplySheetAction action,
+  }) {
+    final c = menuContext.colors;
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => Navigator.of(menuContext).pop(action),
+      child: SizedBox(
+        height: 54,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: Row(
+            children: [
+              AppIcon(icon, size: 22, color: c.textPrimary),
+              const SizedBox(width: 14),
+              Text(label, style: TextStyle(fontSize: 16, color: c.textPrimary)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _emptyState(String key) {
     final c = context.colors;
     return Center(
@@ -696,6 +1097,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
       senderName: senderName,
       senderPhoto: sender?.photo ?? message.senderPhoto,
       onReply: _canReply ? _beginReply : null,
+      onLongPress: (message, _, source) => unawaited(_showMessageMenu(message)),
       onAvatarTap: widget.onAvatarTap,
       onOpenReply: widget.onOpenReply == null
           ? null
@@ -704,6 +1106,7 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
               widget.onOpenReply!(messageId);
             },
       onOpenImage: _openImage,
+      onOpenImageGallery: _openImageGallery,
       onOpenSticker: widget.onOpenSticker,
       onPlayVideo: widget.onPlayVideo,
       onPlayMusic: widget.onPlayMusic,
@@ -727,13 +1130,20 @@ class _MessageRepliesSheetState extends State<_MessageRepliesSheet> {
     }
     final images = imageMessages.map((candidate) => candidate.image!).toList();
     final start = images.indexWhere((image) => image.id == selected.id);
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (_) =>
-            FullImageViewer(items: images, startIndex: start < 0 ? 0 : start),
+    unawaited(
+      openImagePreview(
+        context,
+        items: images,
+        startIndex: start < 0 ? 0 : start,
       ),
     );
+  }
+
+  void _openImageGallery({
+    required List<TdFileRef> items,
+    required int startIndex,
+  }) {
+    unawaited(openImagePreview(context, items: items, startIndex: startIndex));
   }
 }
 
@@ -748,9 +1158,11 @@ class MessageReplySheetItem extends StatelessWidget {
     required this.senderName,
     this.senderPhoto,
     this.onReply,
+    this.onLongPress,
     this.onAvatarTap,
     this.onOpenReply,
     this.onOpenImage,
+    this.onOpenImageGallery,
     this.onOpenSticker,
     this.onPlayVideo,
     this.onPlayMusic,
@@ -764,9 +1176,16 @@ class MessageReplySheetItem extends StatelessWidget {
   final String senderName;
   final TdFileRef? senderPhoto;
   final ValueChanged<ChatMessage>? onReply;
+  final void Function(
+    ChatMessage message,
+    Rect? bounds,
+    MessageActionSource source,
+  )?
+  onLongPress;
   final ValueChanged<ChatMessage>? onAvatarTap;
   final ValueChanged<int>? onOpenReply;
   final ValueChanged<ChatMessage>? onOpenImage;
+  final ImageGalleryOpenCallback? onOpenImageGallery;
   final ValueChanged<ChatMessage>? onOpenSticker;
   final ValueChanged<ChatMessage>? onPlayVideo;
   final ValueChanged<ChatMessage>? onPlayMusic;
@@ -785,9 +1204,11 @@ class MessageReplySheetItem extends StatelessWidget {
       mePhoto: senderPhoto,
       forceShowTimestamp: true,
       onReply: onReply,
+      onLongPress: onLongPress,
       onAvatarTap: onAvatarTap,
       onOpenReply: onOpenReply,
       onOpenImage: onOpenImage,
+      onOpenImageGallery: onOpenImageGallery,
       onOpenSticker: onOpenSticker,
       onPlayVideo: onPlayVideo,
       onPlayMusic: onPlayMusic,
@@ -798,11 +1219,20 @@ class MessageReplySheetItem extends StatelessWidget {
   }
 }
 
+enum _ReplySheetAction { reply, copy }
+
 class _ReplySender {
   const _ReplySender({required this.name, this.photo});
 
   final String name;
   final TdFileRef? photo;
+}
+
+class _ReplyTargetChatInfo {
+  const _ReplyTargetChatInfo({required this.canSend, this.title});
+
+  final bool canSend;
+  final String? title;
 }
 
 class _ReplyThreadTarget {

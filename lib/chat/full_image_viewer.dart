@@ -9,8 +9,11 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../app/ipad_window_chrome.dart';
+import '../app/macos_desktop_title_bar.dart';
 import '../components/app_icons.dart';
 import '../components/ui_components.dart';
 import '../tdlib/td_image_loader.dart';
@@ -47,6 +50,13 @@ class _FullImageViewerState extends State<FullImageViewer> {
   bool _runningAction = false;
 
   int get _max => widget.items.isEmpty ? 0 : widget.items.length - 1;
+
+  /// Keeps the viewer's own controls clear of the macOS window controls, which
+  /// sit over this route because it covers the window edge to edge.
+  static double get _chromeInset =>
+      defaultTargetPlatform == TargetPlatform.macOS
+      ? MacosDesktopTitleBar.trafficLightLeadingClearance
+      : 0;
 
   @override
   void dispose() {
@@ -103,9 +113,15 @@ class _FullImageViewerState extends State<FullImageViewer> {
             ),
           ),
           Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            left: 16,
-            right: 16,
+            top:
+                MediaQuery.of(context).padding.top +
+                iPadWindowChromeInsetOf(context) +
+                8,
+            // The viewer covers the whole window, so on macOS the row would
+            // otherwise sit under the traffic lights. Both sides move in by the
+            // same clearance to keep the counter centred on the window.
+            left: 16 + _chromeInset,
+            right: 16 + _chromeInset,
             child: Opacity(
               opacity: 1 - progress,
               child: Row(
@@ -119,23 +135,33 @@ class _FullImageViewerState extends State<FullImageViewer> {
                     child: Center(
                       child: widget.items.length > 1
                           ? Container(
+                              key: const ValueKey('image-viewer-counter'),
+                              height: 32,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 12,
                               ),
-                              height: 32,
-                              alignment: Alignment.center,
                               decoration: BoxDecoration(
                                 color: const Color(
                                   0xFFFFFFFF,
                                 ).withValues(alpha: 0.18),
-                                borderRadius: BorderRadius.circular(16),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.lg,
+                                ),
                               ),
-                              child: Text(
-                                '${_index + 1} / ${widget.items.length}',
-                                style: const TextStyle(
-                                  color: Color(0xFFFFFFFF),
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w500,
+                              // A Container given an alignment grows to its
+                              // constraints, which here is the whole width
+                              // between the buttons: the counter rendered as a
+                              // bar across the window. Centring with a width
+                              // factor keeps the pill around its text.
+                              child: Center(
+                                widthFactor: 1,
+                                child: Text(
+                                  '${_index + 1} / ${widget.items.length}',
+                                  style: const TextStyle(
+                                    color: Color(0xFFFFFFFF),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w500,
+                                  ),
                                 ),
                               ),
                             )
@@ -159,8 +185,8 @@ class _FullImageViewerState extends State<FullImageViewer> {
           if (widget.primaryActionLabel != null &&
               widget.onPrimaryAction != null)
             Positioned(
-              left: 22,
-              right: 22,
+              left: 22 + _chromeInset,
+              right: 22 + _chromeInset,
               bottom: MediaQuery.of(context).padding.bottom + 18,
               child: Opacity(
                 opacity: 1 - progress,
@@ -178,7 +204,7 @@ class _FullImageViewerState extends State<FullImageViewer> {
                       alignment: Alignment.center,
                       decoration: BoxDecoration(
                         color: AppTheme.brand,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(AppRadius.card),
                         boxShadow: const [
                           BoxShadow(
                             color: Color(0x55000000),
@@ -241,18 +267,62 @@ class _ViewerPage extends StatefulWidget {
 class _ViewerPageState extends State<_ViewerPage> {
   final _controller = TransformationController();
   File? _file;
+  File? _thumbnailFile;
+  int _resolutionGeneration = 0;
 
   @override
   void initState() {
     super.initState();
     _controller.addListener(_onTransform);
-    TdFileCenter.shared.pathFor(widget.ref).then((path) {
-      if (mounted && path != null) setState(() => _file = File(path));
+    _resolveFiles();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ViewerPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isSameFile(oldWidget.ref, widget.ref)) {
+      _file = null;
+      _thumbnailFile = null;
+      _controller.value = Matrix4.identity();
+      widget.onZoomChanged(false);
+      _resolveFiles();
+    }
+  }
+
+  bool _isSameFile(TdFileRef a, TdFileRef b) =>
+      a.id == b.id &&
+      a.localPath == b.localPath &&
+      a.thumbnail?.id == b.thumbnail?.id &&
+      a.thumbnail?.localPath == b.thumbnail?.localPath;
+
+  void _resolveFiles() {
+    final generation = ++_resolutionGeneration;
+    final ref = widget.ref;
+    TdFileCenter.shared.pathFor(ref).then((path) {
+      if (!mounted || generation != _resolutionGeneration || path == null) {
+        return;
+      }
+      setState(() => _file = File(path));
+    });
+
+    final thumbnail = ref.thumbnail;
+    if (thumbnail == null || thumbnail.id == ref.id) return;
+    TdFileCenter.shared.pathFor(thumbnail).then((path) {
+      if (!mounted || generation != _resolutionGeneration || path == null) {
+        return;
+      }
+      setState(() => _thumbnailFile = File(path));
     });
   }
 
   void _onTransform() {
     widget.onZoomChanged(_controller.value.getMaxScaleOnAxis() > 1.01);
+  }
+
+  void _toggleZoom() {
+    final current = _controller.value.getMaxScaleOnAxis();
+    final next = current > 1.01 ? 1.0 : 2.0;
+    _controller.value = Matrix4.diagonal3Values(next, next, 1);
   }
 
   @override
@@ -264,16 +334,61 @@ class _ViewerPageState extends State<_ViewerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final cacheWidth = (media.size.width * media.devicePixelRatio).ceil();
-    final cacheHeight = (media.size.height * media.devicePixelRatio).ceil();
+    // Sized from the box this page is given, not MediaQuery: the viewer also
+    // runs inside a desktop window and a split-layout pane, where the screen is
+    // larger than the viewport and the image spilled past it.
+    return LayoutBuilder(builder: _buildPage);
+  }
+
+  Widget _buildPage(BuildContext context, BoxConstraints constraints) {
+    final ratio = MediaQuery.devicePixelRatioOf(context);
+    final size = constraints.biggest;
+    final cacheWidth = (size.width * ratio).ceil();
+    final cacheHeight = (size.height * ratio).ceil();
+    Widget fittedImage(ImageProvider<Object> image) => SizedBox(
+      width: size.width,
+      height: size.height,
+      child: Image(image: image, fit: BoxFit.contain),
+    );
+    Widget interactive(Widget child) => GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onDoubleTap: _toggleZoom,
+      child: InteractiveViewer(
+        transformationController: _controller,
+        minScale: 1,
+        maxScale: 5,
+        trackpadScrollCausesScale: true,
+        // Keep a finite viewport-sized child for both the real image and its
+        // full image and every thumbnail. Previously only a fully downloaded
+        // file or an in-memory mini-thumbnail was put in InteractiveViewer,
+        // so images still resolving from TDLib could not be zoomed at all.
+        child: child,
+      ),
+    );
     if (_file == null) {
+      if (_thumbnailFile != null) {
+        return interactive(
+          fittedImage(
+            ResizeImage(
+              FileImage(_thumbnailFile!),
+              width: cacheWidth,
+              height: cacheHeight,
+              policy: ResizeImagePolicy.fit,
+            ),
+          ),
+        );
+      }
       if (widget.ref.miniThumb != null) {
         return Center(
-          child: Image.memory(
-            widget.ref.miniThumb!,
-            cacheWidth: cacheWidth,
-            cacheHeight: cacheHeight,
+          child: interactive(
+            fittedImage(
+              ResizeImage(
+                MemoryImage(widget.ref.miniThumb!),
+                width: cacheWidth,
+                height: cacheHeight,
+                policy: ResizeImagePolicy.fit,
+              ),
+            ),
           ),
         );
       }
@@ -281,16 +396,13 @@ class _ViewerPageState extends State<_ViewerPage> {
         child: AppActivityIndicator(size: 24, color: Color(0xFFFFFFFF)),
       );
     }
-    return InteractiveViewer(
-      transformationController: _controller,
-      minScale: 1,
-      maxScale: 5,
-      child: Center(
-        child: Image.file(
-          _file!,
-          fit: BoxFit.contain,
-          cacheWidth: cacheWidth,
-          cacheHeight: cacheHeight,
+    return interactive(
+      fittedImage(
+        ResizeImage(
+          FileImage(_file!),
+          width: cacheWidth,
+          height: cacheHeight,
+          policy: ResizeImagePolicy.fit,
         ),
       ),
     );

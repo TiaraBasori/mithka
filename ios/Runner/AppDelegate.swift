@@ -28,6 +28,7 @@ import UserNotifications
   private var premiumAuthPurchaseBridge: PremiumAuthPurchaseBridge?
   private var mithkaProBridge: MithkaProBridge?
   private var applePCCBridge: ApplePCCBridge?
+  private var privacyShieldView: UIView?
 
   override func application(
     _ application: UIApplication,
@@ -45,6 +46,49 @@ import UserNotifications
       pendingNotificationTap = Self.stringKeyed(userInfo)
     }
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+  }
+
+  override func application(
+    _ application: UIApplication,
+    continue userActivity: NSUserActivity,
+    restorationHandler: @escaping ([UIUserActivityRestoring]?) -> Void
+  ) -> Bool {
+    if HandoffBridge.shared.accept(userActivity) {
+      return true
+    }
+    return super.application(
+      application,
+      continue: userActivity,
+      restorationHandler: restorationHandler
+    )
+  }
+
+  private func setPrivacyShieldVisible(_ visible: Bool) {
+    guard let window = Self.keyWindow() else { return }
+    if visible {
+      let shield = privacyShieldView ?? {
+        let view = UIView(frame: window.bounds)
+        view.backgroundColor = window.backgroundColor ?? .systemBackground
+        view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        return view
+      }()
+      if shield.superview !== window {
+        shield.removeFromSuperview()
+        window.addSubview(shield)
+      }
+      privacyShieldView = shield
+      window.bringSubviewToFront(shield)
+    } else {
+      privacyShieldView?.removeFromSuperview()
+      privacyShieldView = nil
+    }
+  }
+
+  private static func keyWindow() -> UIWindow? {
+    UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+      .first { $0.isKeyWindow }
   }
 
   private func configureNativeSentryIfNeeded() {
@@ -95,6 +139,9 @@ import UserNotifications
     case "blue": return "MithkaBlue"
     case "purple": return "MithkaPurple"
     case "pixel": return "MithkaPixel"
+    case "aurora": return "MithkaAurora"
+    case "prism": return "MithkaPrism"
+    case "signal": return "MithkaSignal"
     default: return nil
     }
   }
@@ -105,6 +152,9 @@ import UserNotifications
     case "MithkaBlue": return "blue"
     case "MithkaPurple": return "purple"
     case "MithkaPixel": return "pixel"
+    case "MithkaAurora": return "aurora"
+    case "MithkaPrism": return "prism"
+    case "MithkaSignal": return "signal"
     default: return "default"
     }
   }
@@ -121,6 +171,9 @@ import UserNotifications
     guard !didRegisterFlutterPlugins else { return }
     didRegisterFlutterPlugins = true
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    HandoffBridge.shared.register(
+      messenger: engineBridge.applicationRegistrar.messenger()
+    )
     let clipboardChannel = FlutterMethodChannel(
       name: "mithka/clipboard",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
@@ -371,6 +424,21 @@ import UserNotifications
       }
     }
 
+    let appLockPrivacyChannel = FlutterMethodChannel(
+      name: "mithka/app_lock_privacy",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    appLockPrivacyChannel.setMethodCallHandler { [weak self] call, result in
+      guard call.method == "setPrivacyShieldVisible" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      let arguments = call.arguments as? [String: Any]
+      let visible = arguments?["visible"] as? Bool ?? false
+      self?.setPrivacyShieldVisible(visible)
+      result(nil)
+    }
+
     let firebaseConfigurationChannel = FlutterMethodChannel(
       name: "mithka/firebase_configuration",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
@@ -400,6 +468,13 @@ import UserNotifications
       case "get":
         result(Double(UIScreen.main.brightness))
       case "set":
+        guard let value = call.arguments as? NSNumber else {
+          result(FlutterError(code: "invalid_brightness", message: "Expected a numeric value", details: nil))
+          return
+        }
+        UIScreen.main.brightness = CGFloat(max(0.01, min(1, value.doubleValue)))
+        result(nil)
+      case "restore":
         guard let value = call.arguments as? NSNumber else {
           result(FlutterError(code: "invalid_brightness", message: "Expected a numeric value", details: nil))
           return
@@ -1553,17 +1628,21 @@ private final class LiveCommunicationBridge: NSObject, ConversationManagerDelega
 }
 
 private final class AccountSessionBackupKeychain {
-  private let service: String
+  private let syncedService: String
+  private let localService: String
 
   init() {
     let bundleId = Bundle.main.bundleIdentifier ?? "ad.neko.mithka"
-    self.service = "\(bundleId).sessionsbackup"
+    self.syncedService = "\(bundleId).sessionsbackup"
+    self.localService = "\(bundleId).sessionsbackup.local"
   }
 
   func handle(call: FlutterMethodCall, result: FlutterResult) {
     do {
       switch call.method {
       case "isSupported":
+        result(true)
+      case "isLocalStorageSupported":
         result(true)
       case "saveSession":
         guard
@@ -1574,10 +1653,14 @@ private final class AccountSessionBackupKeychain {
         else {
           throw AccountSessionBackupError.invalidArguments
         }
-        try saveSession(id: id, data: data.data)
+        try saveSession(id: id, data: data.data, storage: storage(for: call))
         result(nil)
       case "getAllSessions":
-        result(try getAllSessions().map { FlutterStandardTypedData(bytes: $0) })
+        result(
+          try getAllSessions(storage: storage(for: call)).map {
+            FlutterStandardTypedData(bytes: $0)
+          }
+        )
       case "deleteSession":
         guard
           let args = call.arguments as? [String: Any],
@@ -1586,10 +1669,10 @@ private final class AccountSessionBackupKeychain {
         else {
           throw AccountSessionBackupError.invalidArguments
         }
-        try deleteSession(id: id)
+        try deleteSession(id: id, storage: storage(for: call))
         result(nil)
       case "deleteAllSessions":
-        try deleteAllSessions()
+        try deleteAllSessions(storage: storage(for: call))
         result(nil)
       default:
         result(FlutterMethodNotImplemented)
@@ -1605,37 +1688,62 @@ private final class AccountSessionBackupKeychain {
     }
   }
 
-  private func saveSession(id: String, data: Data) throws {
-    try saveSession(id: id, data: data, synchronizable: true)
+  private enum Storage: String {
+    case synced
+    case local
   }
 
-  private func saveSession(id: String, data: Data, synchronizable: Bool) throws {
+  private func storage(for call: FlutterMethodCall) -> Storage {
+    guard
+      let args = call.arguments as? [String: Any],
+      let value = args["storage"] as? String
+    else {
+      return .synced
+    }
+    return Storage(rawValue: value) ?? .synced
+  }
+
+  private func saveSession(id: String, data: Data, storage: Storage) throws {
+    try saveSession(
+      id: id,
+      data: data,
+      service: storage == .local ? localService : syncedService,
+      synchronizable: storage == .local ? false : true,
+      accessibility: storage == .local
+        ? kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        : kSecAttrAccessibleWhenUnlocked
+    )
+  }
+
+  private func saveSession(
+    id: String,
+    data: Data,
+    service: String,
+    synchronizable: Bool,
+    accessibility: CFString
+  ) throws {
     var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
       kSecAttrAccount as String: id,
       kSecValueData as String: data,
-      kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+      kSecAttrAccessible as String: accessibility,
+      kSecAttrSynchronizable as String: synchronizable
     ]
-    if synchronizable {
-      query[kSecAttrSynchronizable as String] = true
-    }
 
     let status = SecItemAdd(query as CFDictionary, nil)
     if status == errSecDuplicateItem {
       var updateQuery: [String: Any] = [
         kSecClass as String: kSecClassGenericPassword,
         kSecAttrService as String: service,
-        kSecAttrAccount as String: id
+        kSecAttrAccount as String: id,
+        kSecAttrSynchronizable as String: synchronizable
       ]
-      if synchronizable {
-        updateQuery[kSecAttrSynchronizable as String] = true
-      }
       let updateStatus = SecItemUpdate(
         updateQuery as CFDictionary,
         [
           kSecValueData as String: data,
-          kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+          kSecAttrAccessible as String: accessibility
         ] as CFDictionary
       )
       guard updateStatus == errSecSuccess else {
@@ -1646,16 +1754,25 @@ private final class AccountSessionBackupKeychain {
     }
   }
 
-  private func getAllSessions() throws -> [Data] {
+  private func getAllSessions(storage: Storage) throws -> [Data] {
+    if storage == .local {
+      return try getAllSessions(service: localService, synchronizable: false)
+    }
     do {
-      return try getAllSessions(synchronizable: kSecAttrSynchronizableAny)
+      return try getAllSessions(
+        service: syncedService,
+        synchronizable: kSecAttrSynchronizableAny
+      )
     } catch AccountSessionBackupError.keychain(let status)
       where isSynchronizableUnsupported(status) {
-      return try getAllSessions(synchronizable: nil)
+      return try getAllSessions(service: syncedService, synchronizable: nil)
     }
   }
 
-  private func getAllSessions(synchronizable: CFString?) throws -> [Data] {
+  private func getAllSessions(
+    service: String,
+    synchronizable: Any?
+  ) throws -> [Data] {
     var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
@@ -1676,16 +1793,28 @@ private final class AccountSessionBackupKeychain {
     return result as? [Data] ?? []
   }
 
-  private func deleteSession(id: String) throws {
+  private func deleteSession(id: String, storage: Storage) throws {
+    if storage == .local {
+      try deleteSession(id: id, service: localService, synchronizable: false)
+      return
+    }
     do {
-      try deleteSession(id: id, synchronizable: kSecAttrSynchronizableAny)
+      try deleteSession(
+        id: id,
+        service: syncedService,
+        synchronizable: kSecAttrSynchronizableAny
+      )
     } catch AccountSessionBackupError.keychain(let status)
       where isSynchronizableUnsupported(status) {
-      try deleteSession(id: id, synchronizable: nil)
+      try deleteSession(id: id, service: syncedService, synchronizable: nil)
     }
   }
 
-  private func deleteSession(id: String, synchronizable: CFString?) throws {
+  private func deleteSession(
+    id: String,
+    service: String,
+    synchronizable: Any?
+  ) throws {
     var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service,
@@ -1700,16 +1829,26 @@ private final class AccountSessionBackupKeychain {
     }
   }
 
-  private func deleteAllSessions() throws {
+  private func deleteAllSessions(storage: Storage) throws {
+    if storage == .local {
+      try deleteAllSessions(service: localService, synchronizable: false)
+      return
+    }
     do {
-      try deleteAllSessions(synchronizable: kSecAttrSynchronizableAny)
+      try deleteAllSessions(
+        service: syncedService,
+        synchronizable: kSecAttrSynchronizableAny
+      )
     } catch AccountSessionBackupError.keychain(let status)
       where isSynchronizableUnsupported(status) {
-      try deleteAllSessions(synchronizable: nil)
+      try deleteAllSessions(service: syncedService, synchronizable: nil)
     }
   }
 
-  private func deleteAllSessions(synchronizable: CFString?) throws {
+  private func deleteAllSessions(
+    service: String,
+    synchronizable: Any?
+  ) throws {
     var query: [String: Any] = [
       kSecClass as String: kSecClassGenericPassword,
       kSecAttrService as String: service

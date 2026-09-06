@@ -81,11 +81,19 @@ List<ChatMessage> mergeChatMessages(
     if (ignoredMessageIds.contains(message.id)) continue;
     final existing = byId[message.id];
     if (existing != null) {
+      message.isSendAcknowledged = existing.isSendAcknowledged;
       message.senderName ??= existing.senderName;
       message.senderIsChat = message.senderIsChat || existing.senderIsChat;
       message.senderPhoto ??= existing.senderPhoto;
       message.senderRole ??= existing.senderRole;
       message.senderTitle ??= existing.senderTitle;
+      if (!message.commentThreadMetadataKnown &&
+          existing.commentThreadMetadataKnown) {
+        message.hasCommentThread = existing.hasCommentThread;
+        message.commentCount = existing.commentCount;
+        message.lastCommentMessageId = existing.lastCommentMessageId;
+        message.commentThreadMetadataKnown = true;
+      }
     }
     byId[message.id] = message;
   }

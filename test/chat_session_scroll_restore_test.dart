@@ -171,6 +171,213 @@ void main() {
       );
     });
 
+    test('reopen precedence is target, new unread, saved, then default', () {
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: true,
+          hasSavedPosition: true,
+          prioritizeUnread: true,
+        ),
+        ChatReopenDisposition.explicitTarget,
+      );
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: false,
+          hasSavedPosition: true,
+          prioritizeUnread: true,
+        ),
+        ChatReopenDisposition.firstUnread,
+      );
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: false,
+          hasSavedPosition: true,
+          prioritizeUnread: false,
+        ),
+        ChatReopenDisposition.savedPosition,
+      );
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: false,
+          hasSavedPosition: false,
+          prioritizeUnread: false,
+        ),
+        ChatReopenDisposition.defaultPosition,
+      );
+    });
+
+    test('existing unread replaces only a saved anchor in read history', () {
+      expect(
+        shouldPrioritizeUnreadOnChatReopen(
+          currentUnreadCount: 3,
+          currentLastReadInboxId: 120,
+          savedAnchorMessageId: 80,
+          hasConfirmedNewUnread: false,
+        ),
+        isTrue,
+        reason: 'old browsed history must not hide the unread destination',
+      );
+      expect(
+        shouldPrioritizeUnreadOnChatReopen(
+          currentUnreadCount: 3,
+          currentLastReadInboxId: 120,
+          savedAnchorMessageId: 145,
+          hasConfirmedNewUnread: false,
+        ),
+        isFalse,
+        reason: 'an anchor within unread messages is reading progress',
+      );
+      expect(
+        shouldPrioritizeUnreadOnChatReopen(
+          currentUnreadCount: 3,
+          currentLastReadInboxId: 120,
+          savedAnchorMessageId: null,
+          hasConfirmedNewUnread: false,
+        ),
+        isTrue,
+        reason: 'raw pixels cannot prove the saved viewport is in unread',
+      );
+      expect(
+        shouldPrioritizeUnreadOnChatReopen(
+          currentUnreadCount: 0,
+          currentLastReadInboxId: 120,
+          savedAnchorMessageId: 80,
+          hasConfirmedNewUnread: false,
+        ),
+        isFalse,
+      );
+      expect(
+        shouldPrioritizeUnreadOnChatReopen(
+          currentUnreadCount: 0,
+          currentLastReadInboxId: 120,
+          savedAnchorMessageId: 145,
+          hasConfirmedNewUnread: true,
+        ),
+        isTrue,
+        reason: 'a concrete newer unread remains authoritative',
+      );
+    });
+
+    test('a concrete newer incoming unread confirms the reopen override', () {
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: false,
+          isService: false,
+          savedKnownLatestMessageId: 100,
+          currentLastReadInboxId: 90,
+        ),
+        isTrue,
+        reason: 'the concrete message remains proof if counts are stale',
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: true,
+          isService: false,
+          savedKnownLatestMessageId: 100,
+          currentLastReadInboxId: 90,
+        ),
+        isFalse,
+        reason: 'a newer outgoing message is not an incoming unread',
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: false,
+          isService: true,
+          savedKnownLatestMessageId: 100,
+          currentLastReadInboxId: 90,
+        ),
+        isFalse,
+        reason: 'service messages must not displace the saved viewport',
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 100,
+          isOutgoing: false,
+          isService: false,
+          savedKnownLatestMessageId: 100,
+          currentLastReadInboxId: 90,
+        ),
+        isFalse,
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: false,
+          isService: false,
+          savedKnownLatestMessageId: 100,
+          currentLastReadInboxId: 130,
+        ),
+        isFalse,
+        reason: 'a message already inside the read boundary is not unread',
+      );
+      expect(
+        isNewIncomingUnreadSinceChatSession(
+          messageId: 130,
+          isOutgoing: false,
+          isService: false,
+          savedKnownLatestMessageId: 0,
+          currentLastReadInboxId: 90,
+        ),
+        isFalse,
+        reason: 'an uncertain saved boundary must preserve the viewport',
+      );
+    });
+
+    test('history probing requires a nonzero unread count', () {
+      expect(
+        shouldProbeChatSessionUnreadHistory(
+          savedKnownLatestMessageId: 100,
+          currentKnownLatestMessageId: 130,
+          currentUnreadCount: 0,
+        ),
+        isFalse,
+        reason: 'zero unread must not issue a history query',
+      );
+      expect(
+        shouldProbeChatSessionUnreadHistory(
+          savedKnownLatestMessageId: 100,
+          currentKnownLatestMessageId: 130,
+          currentUnreadCount: 2,
+        ),
+        isTrue,
+      );
+      expect(
+        shouldProbeChatSessionUnreadHistory(
+          savedKnownLatestMessageId: 100,
+          currentKnownLatestMessageId: 100,
+          currentUnreadCount: 2,
+        ),
+        isFalse,
+      );
+    });
+
+    test('an inconclusive bounded probe preserves the saved position', () {
+      expect(
+        shouldContinueChatSessionUnreadHistoryProbe(pagesScanned: 0),
+        isTrue,
+      );
+      expect(
+        shouldContinueChatSessionUnreadHistoryProbe(pagesScanned: 4),
+        isTrue,
+      );
+      expect(
+        shouldContinueChatSessionUnreadHistoryProbe(pagesScanned: 5),
+        isFalse,
+        reason: 'five 100-message pages is the fixed probe budget',
+      );
+      expect(
+        resolveChatReopenDisposition(
+          hasExplicitTarget: false,
+          hasSavedPosition: true,
+          prioritizeUnread: false,
+        ),
+        ChatReopenDisposition.savedPosition,
+      );
+    });
+
     test('an explicit message target overrides session restoration', () {
       expect(
         shouldRestoreChatSessionOffset(

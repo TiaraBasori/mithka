@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import '../components/photo_avatar.dart';
 import '../components/ui_components.dart';
 import '../tdlib/td_models.dart';
+import '../theme/app_theme.dart';
+import '../theme/theme_controller.dart';
 
 /// A compact, realistic conversation sample used by appearance pickers.
 ///
@@ -22,7 +24,7 @@ class ChatAppearancePreview extends StatelessWidget {
     this.outgoingName = 'Jessica',
     this.incomingNameColor,
     this.outgoingNameColor,
-    this.showSenderNamePlate = false,
+    this.senderNameReadabilityMode = SenderNameReadabilityMode.blend,
   });
 
   final Color incomingBubbleColor;
@@ -35,7 +37,7 @@ class ChatAppearancePreview extends StatelessWidget {
   final String outgoingName;
   final Color? incomingNameColor;
   final Color? outgoingNameColor;
-  final bool showSenderNamePlate;
+  final SenderNameReadabilityMode senderNameReadabilityMode;
 
   @override
   Widget build(BuildContext context) {
@@ -48,7 +50,7 @@ class ChatAppearancePreview extends StatelessWidget {
           bubbleColor: incomingBubbleColor,
           textColor: incomingTextColor,
           nameColor: incomingNameColor ?? incomingTextColor,
-          showNamePlate: showSenderNamePlate,
+          readabilityMode: senderNameReadabilityMode,
           outgoing: false,
         ),
         const SizedBox(height: 11),
@@ -58,7 +60,7 @@ class ChatAppearancePreview extends StatelessWidget {
           bubbleColor: outgoingBubbleColor,
           textColor: outgoingTextColor,
           nameColor: outgoingNameColor ?? outgoingTextColor,
-          showNamePlate: showSenderNamePlate,
+          readabilityMode: senderNameReadabilityMode,
           outgoing: true,
         ),
       ],
@@ -66,19 +68,18 @@ class ChatAppearancePreview extends StatelessWidget {
   }
 }
 
-/// Adds a bubble-colored plate and soft shadow behind a sender name. Keeping
-/// this as a shared widget makes the appearance preview match real messages.
+/// Applies the selected readability treatment behind a sender name.
 class SenderNameReadabilityPlate extends StatelessWidget {
   const SenderNameReadabilityPlate({
     super.key,
-    required this.enabled,
+    required this.mode,
     required this.bubbleColor,
     required this.child,
     this.padding = const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
     this.connectedToLeading = false,
   });
 
-  final bool enabled;
+  final SenderNameReadabilityMode mode;
   final Color bubbleColor;
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -86,7 +87,15 @@ class SenderNameReadabilityPlate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!enabled) return child;
+    if (mode == SenderNameReadabilityMode.none) return child;
+    // Blend carries no decoration of its own — it is a colour applied to the
+    // name, which senderNameReadabilityColor resolves for the caller.
+    if (mode == SenderNameReadabilityMode.blend) {
+      return KeyedSubtree(
+        key: const ValueKey('senderNameReadabilityBlend'),
+        child: child,
+      );
+    }
     return DecoratedBox(
       key: const ValueKey('senderNameReadabilityPlate'),
       decoration: senderNameReadabilityDecoration(
@@ -104,54 +113,102 @@ class SenderNameReadabilityPlate extends StatelessWidget {
 class SenderIdentityPills extends StatelessWidget {
   const SenderIdentityPills({
     super.key,
-    required this.enabled,
+    required this.readabilityMode,
     required this.bubbleColor,
     required this.name,
     required this.nameStyle,
+    this.textColor,
     this.role,
     this.roleTitle,
+    this.roleAfterName = false,
+    this.trailing,
   });
 
-  final bool enabled;
+  final SenderNameReadabilityMode readabilityMode;
   final Color bubbleColor;
   final String name;
   final TextStyle nameStyle;
+
+  /// The bubble's own text colour, which the blend mode meets halfway.
+  final Color? textColor;
   final MemberRole? role;
   final String? roleTitle;
+  final bool roleAfterName;
+
+  /// Sits directly after the name, before any trailing role tag — an emoji
+  /// status belongs to the person, so it reads ahead of their badge.
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
-    final connected = enabled && role != null;
+    final resolvedColor = senderNameReadabilityColor(
+      mode: readabilityMode,
+      senderColor: nameStyle.color ?? const Color(0xFF000000),
+      textColor: textColor ?? nameStyle.color ?? const Color(0xFF000000),
+    );
+    final effectiveNameStyle = nameStyle.copyWith(
+      fontWeight: FontWeight.w500,
+      color: resolvedColor,
+    );
+    // The background treatment is one continuous pill — tag, then name joined
+    // to it. That geometry only reads as a single object with the tag leading,
+    // so it overrides the platform's preference for a trailing tag and desktop
+    // matches mobile here.
+    final tagAfterName =
+        roleAfterName &&
+        readabilityMode != SenderNameReadabilityMode.background;
+    final connected =
+        !tagAfterName &&
+        readabilityMode == SenderNameReadabilityMode.background &&
+        role != null;
     return Row(
       key: connected ? const ValueKey('connectedSenderIdentityPills') : null,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (role != null) ...[
+        if (role != null && !tagAfterName) ...[
           RoleTag(
             role: role!,
             title: roleTitle,
             connectedToTrailing: connected,
-            fontSize: connected ? nameStyle.fontSize : null,
+            fontSize: connected ? effectiveNameStyle.fontSize : null,
           ),
           if (!connected) const SizedBox(width: 4),
         ],
         Flexible(
           child: SenderNameReadabilityPlate(
-            enabled: enabled,
+            mode: readabilityMode,
             bubbleColor: bubbleColor,
             connectedToLeading: connected,
             child: Text(
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: nameStyle,
+              style: effectiveNameStyle,
             ),
           ),
         ),
+        if (trailing != null) ...[const SizedBox(width: 3), trailing!],
+        if (role != null && tagAfterName) ...[
+          const SizedBox(width: 4),
+          RoleTag(role: role!, title: roleTitle),
+        ],
       ],
     );
   }
 }
+
+/// The colour a sender's name renders in under [mode].
+///
+/// [SenderNameReadabilityMode.blend] meets the bubble's own text colour
+/// halfway, which keeps the sender's hue recognisable while holding contrast
+/// over a wallpaper — the job a shadow used to do, without the halo.
+Color senderNameReadabilityColor({
+  required SenderNameReadabilityMode mode,
+  required Color senderColor,
+  required Color textColor,
+}) => mode == SenderNameReadabilityMode.blend
+    ? Color.lerp(textColor, senderColor, 0.5) ?? senderColor
+    : senderColor;
 
 BoxDecoration senderNameReadabilityDecoration(
   Color bubbleColor, {
@@ -163,7 +220,7 @@ BoxDecoration senderNameReadabilityDecoration(
           topEnd: Radius.circular(8),
           bottomEnd: Radius.circular(8),
         )
-      : BorderRadius.circular(8),
+      : BorderRadius.circular(AppRadius.control),
   boxShadow: const [
     BoxShadow(color: Color(0x33000000), blurRadius: 5, offset: Offset(0, 2)),
   ],
@@ -176,7 +233,7 @@ class _PreviewMessage extends StatelessWidget {
     required this.bubbleColor,
     required this.textColor,
     required this.nameColor,
-    required this.showNamePlate,
+    required this.readabilityMode,
     required this.outgoing,
   });
 
@@ -185,7 +242,7 @@ class _PreviewMessage extends StatelessWidget {
   final Color bubbleColor;
   final Color textColor;
   final Color nameColor;
-  final bool showNamePlate;
+  final SenderNameReadabilityMode readabilityMode;
   final bool outgoing;
 
   @override
@@ -197,18 +254,16 @@ class _PreviewMessage extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SenderIdentityPills(
-          enabled: showNamePlate,
+          readabilityMode: readabilityMode,
           bubbleColor: bubbleColor,
+          textColor: textColor,
           name: name,
           nameStyle: TextStyle(
             color: nameColor,
             fontSize: 11,
-            fontWeight: FontWeight.w700,
-            shadows: showNamePlate
-                ? null
-                : const [Shadow(color: Color(0x66000000), blurRadius: 4)],
+            fontWeight: FontWeight.w500,
           ),
-          role: showNamePlate
+          role: readabilityMode == SenderNameReadabilityMode.background
               ? (outgoing ? MemberRole.owner : MemberRole.admin)
               : null,
         ),
@@ -218,7 +273,7 @@ class _PreviewMessage extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
           decoration: BoxDecoration(
             color: bubbleColor,
-            borderRadius: BorderRadius.circular(15),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
             boxShadow: const [
               BoxShadow(
                 color: Color(0x22000000),

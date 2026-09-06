@@ -96,11 +96,12 @@ class EmojiTextEditingController extends TextEditingController {
     if (start < 0 || end < start || end > text.length || userId <= 0) return;
     final mention = '@${label.trim()}';
     if (mention.length <= 1) return;
+    final replacement = '$mention ';
     final replaceEnd = end < text.length && _isWhitespace(text[end])
         ? end + 1
         : end;
-    final newText = text.replaceRange(start, replaceEnd, '$mention ');
-    _replaceEntityRange(start, replaceEnd, mention.length + 1);
+    final newText = text.replaceRange(start, replaceEnd, replacement);
+    _replaceEntityRange(start, replaceEnd, replacement.length);
     _entities.add(
       _ComposerTextEntity(
         offset: start,
@@ -111,7 +112,7 @@ class EmojiTextEditingController extends TextEditingController {
     _lastText = newText;
     super.value = TextEditingValue(
       text: newText,
-      selection: TextSelection.collapsed(offset: start + mention.length + 1),
+      selection: TextSelection.collapsed(offset: start + replacement.length),
     );
     notifyListeners();
   }
@@ -144,6 +145,11 @@ class EmojiTextEditingController extends TextEditingController {
   }
 
   bool get hasContent => text.trim().isNotEmpty;
+
+  bool get startsWithIdBackedMention => _validEntities().any(
+    (entity) =>
+        entity.offset == 0 && entity.typeName == 'textEntityTypeMentionName',
+  );
 
   void setFormattedText(String source, List<Map<String, dynamic>> entities) {
     _byCode.clear();
@@ -533,7 +539,9 @@ class EmojiTextEditingController extends TextEditingController {
     final other = _entities.where((entity) => entity.typeName != type).toList();
     final merged = <_ComposerTextEntity>[];
     for (final entity in same) {
-      if (merged.isEmpty || entity.offset > merged.last.end) {
+      if (merged.isEmpty ||
+          entity.offset > merged.last.end ||
+          !_sameEntityTypePayload(entity.type, merged.last.type)) {
         merged.add(entity);
       } else if (entity.end > merged.last.end) {
         merged.last.length = entity.end - merged.last.offset;
@@ -543,6 +551,19 @@ class EmojiTextEditingController extends TextEditingController {
       ..clear()
       ..addAll(other)
       ..addAll(merged);
+  }
+
+  bool _sameEntityTypePayload(
+    Map<String, dynamic> first,
+    Map<String, dynamic> second,
+  ) {
+    if (first.length != second.length) return false;
+    for (final entry in first.entries) {
+      if (!second.containsKey(entry.key) || second[entry.key] != entry.value) {
+        return false;
+      }
+    }
+    return true;
   }
 
   TextStyle? _entityStyle(
@@ -557,7 +578,7 @@ class EmojiTextEditingController extends TextEditingController {
       switch (entity.typeName) {
         case 'textEntityTypeBold':
           style = (style ?? const TextStyle()).copyWith(
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
           );
         case 'textEntityTypeItalic':
           style = (style ?? const TextStyle()).copyWith(

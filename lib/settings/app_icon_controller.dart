@@ -36,6 +36,24 @@ enum AppIconVariant {
     labelKey: AppStringKeys.appIconPixel,
     asset: 'assets/app_icons/pixel.png',
     colors: [Color(0xFF1A2034), Color(0xFF11B0D4)],
+  ),
+  aurora(
+    key: 'aurora',
+    labelKey: AppStringKeys.appIconAurora,
+    asset: 'assets/app_icons/aurora.png',
+    colors: [Color(0xFF071F42), Color(0xFF13B6C7)],
+  ),
+  prism(
+    key: 'prism',
+    labelKey: AppStringKeys.appIconPrism,
+    asset: 'assets/app_icons/prism.png',
+    colors: [Color(0xFF352873), Color(0xFFFF76CE)],
+  ),
+  signal(
+    key: 'signal',
+    labelKey: AppStringKeys.appIconSignal,
+    asset: 'assets/app_icons/signal.png',
+    colors: [Color(0xFFFF4F65), Color(0xFF7B183C)],
   );
 
   const AppIconVariant({
@@ -55,6 +73,20 @@ enum AppIconVariant {
     orElse: () => AppIconVariant.defaultIcon,
   );
 }
+
+bool appIconPickerAvailableForPlatform(
+  TargetPlatform platform, {
+  bool isWeb = kIsWeb,
+}) =>
+    !isWeb &&
+    switch (platform) {
+      TargetPlatform.android ||
+      TargetPlatform.iOS ||
+      TargetPlatform.macOS => true,
+      TargetPlatform.fuchsia ||
+      TargetPlatform.linux ||
+      TargetPlatform.windows => false,
+    };
 
 class AppIconController extends ChangeNotifier {
   AppIconController(this._prefs);
@@ -89,6 +121,7 @@ class AppIconController extends ChangeNotifier {
   }
 
   Future<bool> setVariant(AppIconVariant next) async {
+    if (!_supported) return false;
     if (_loading || next == _variant) return true;
     final previous = _variant;
     _variant = next;

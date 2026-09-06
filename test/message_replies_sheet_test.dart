@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/chat/message_action_menu.dart';
 import 'package:mithka/chat/message_bubble.dart';
 import 'package:mithka/chat/message_replies_sheet.dart';
 import 'package:mithka/chat/rich_text_format.dart';
@@ -30,6 +31,49 @@ void main() {
     );
     expect((thread['topic_id'] as Map)['@type'], 'messageTopicThread');
     expect(thread, isNot(contains('reply_to')));
+  });
+
+  test('view in chat targets the linked discussion root message', () {
+    final target = resolveMessageRepliesViewTarget(
+      sourceChatId: -1001,
+      sourceMessageId: 42,
+      sourceTitle: 'Channel',
+      threadChatId: -2002,
+      threadRootMessageId: 99,
+      threadTitle: 'Discussion',
+    );
+
+    expect(target.chatId, -2002);
+    expect(target.messageId, 99);
+    expect(target.title, 'Discussion');
+  });
+
+  test('view in chat keeps same-chat replies on their source message', () {
+    final target = resolveMessageRepliesViewTarget(
+      sourceChatId: -1001,
+      sourceMessageId: 42,
+      sourceTitle: 'Group',
+      threadChatId: -1001,
+      rootReplyToMessageId: 42,
+    );
+
+    expect(target.chatId, -1001);
+    expect(target.messageId, 42);
+    expect(target.title, 'Group');
+  });
+
+  test('view in chat never crosses chats without a resolved thread root', () {
+    final target = resolveMessageRepliesViewTarget(
+      sourceChatId: -1001,
+      sourceMessageId: 42,
+      sourceTitle: 'Channel',
+      threadChatId: -2002,
+      threadTitle: 'Discussion',
+    );
+
+    expect(target.chatId, -1001);
+    expect(target.messageId, 42);
+    expect(target.title, 'Channel');
   });
 
   testWidgets('reply sheet items render video and structured rich content', (
@@ -76,6 +120,7 @@ void main() {
     );
     ChatMessage? played;
     ChatMessage? replied;
+    ChatMessage? longPressed;
 
     await tester.pumpWidget(
       ChangeNotifierProvider<ThemeController>.value(
@@ -96,6 +141,9 @@ void main() {
                     peerTitle: 'Discussion',
                     senderName: 'Rich sender',
                     onReply: (message) => replied = message,
+                    onLongPress: (message, bounds, source) {
+                      longPressed = message;
+                    },
                   ),
                 ],
               ),
@@ -130,6 +178,8 @@ void main() {
     );
     richBubble.onReply?.call(rich);
     expect(replied, same(rich));
+    richBubble.onLongPress?.call(rich, Rect.zero, MessageActionSource.normal);
+    expect(longPressed, same(rich));
 
     final play = find.byWidgetPredicate(
       (widget) => widget is AppIcon && widget.icon == HeroAppIcons.play,

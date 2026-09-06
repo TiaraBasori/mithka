@@ -115,11 +115,16 @@ class _GlobalVideoSplitHostState extends State<GlobalVideoSplitHost> {
     return ColoredBox(
       color: Colors.black,
       child: VideoPlayerView(
-        key: ValueKey('${session.video.id}:${session.messageId ?? 0}'),
+        key: ValueKey(
+          '${session.accountSlot ?? 'active'}:${session.video.id}:${session.messageId ?? 0}',
+        ),
         video: session.video,
+        accountSlot: session.accountSlot,
         thumb: session.thumb,
+        title: session.title,
         width: session.width,
         height: session.height,
+        durationSeconds: session.durationSeconds,
         presentation: VideoPlayerPresentation.embedded,
         onClose: _videoSplit.close,
         sourceChatId: session.chatId,
@@ -173,10 +178,14 @@ class _GlobalVideoSplitHostState extends State<GlobalVideoSplitHost> {
         // is reached on iOS. Do not replace it with an in-app overlay.
         _videoSplit.close();
       case VideoDisplayMode.fullscreen:
+        // Keep a single playback owner. The queue is handed to fullscreen,
+        // then the embedded split player is removed before the new route is
+        // built so both controllers cannot decode and emit audio together.
+        _videoSplit.close();
         Navigator.of(context, rootNavigator: true).push(
           MaterialPageRoute(
             fullscreenDialog: true,
-            builder: (_) => VideoPlaylistPlayerView(queue: session.queue),
+            builder: (_) => VideoOnDemandPlayerView(queue: session.queue),
           ),
         );
     }

@@ -18,7 +18,9 @@ import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import '../components/app_icons.dart';
+import '../components/app_interactive_surface.dart';
 import '../components/photo_avatar.dart'; // PhotoAvatar + TDImage
+import '../theme/app_theme.dart';
 import 'call_manager.dart';
 
 class CallScreen extends StatefulWidget {
@@ -30,7 +32,6 @@ class CallScreen extends StatefulWidget {
 }
 
 class _CallScreenState extends State<CallScreen> {
-  Timer? _ticker;
   Timer? _overlayTimer;
   bool _videoWasActive = false;
   bool _overlayVisible = true;
@@ -48,9 +49,6 @@ class _CallScreenState extends State<CallScreen> {
     widget.manager.addListener(_handleManagerChanged);
     _videoWasActive = _isActiveVideo;
     if (_videoWasActive) _scheduleOverlayHide();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
-    });
   }
 
   @override
@@ -68,7 +66,6 @@ class _CallScreenState extends State<CallScreen> {
   @override
   void dispose() {
     widget.manager.removeListener(_handleManagerChanged);
-    _ticker?.cancel();
     _overlayTimer?.cancel();
     super.dispose();
   }
@@ -219,9 +216,14 @@ class _CallScreenState extends State<CallScreen> {
       fit: StackFit.expand,
       children: [
         if (hasPhoto)
-          ImageFiltered(
-            imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
-            child: TDImage(photo: call.peerPhoto, cornerRadius: 0),
+          // Boundary outside the filter: every manager notification repaints
+          // this screen, and without it the full-viewport gaussian is rastered
+          // again on each one instead of being re-composited.
+          RepaintBoundary(
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 32, sigmaY: 32),
+              child: TDImage(photo: call.peerPhoto, cornerRadius: 0),
+            ),
           )
         else
           const DecoratedBox(
@@ -270,7 +272,7 @@ class _CallScreenState extends State<CallScreen> {
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
           color: Colors.black.withValues(alpha: 0.4),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(AppRadius.card),
           border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
         ),
         child: showVideo
@@ -352,9 +354,9 @@ class _CallScreenState extends State<CallScreen> {
         color: Colors.white,
       ),
     );
-    final status = Text(
-      _statusLine(call),
-      style: TextStyle(
+    final status = _statusLine(
+      call,
+      TextStyle(
         fontSize: compact ? 13 : 15,
         color: Colors.white.withValues(alpha: 0.75),
       ),
@@ -381,33 +383,29 @@ class _CallScreenState extends State<CallScreen> {
     );
   }
 
-  String _statusLine(ActiveCall call) {
-    switch (call.phase) {
-      case CallPhase.requesting:
-      case CallPhase.ringingOutgoing:
-        return AppStrings.t(AppStringKeys.callWaitingForInviteAccept);
-      case CallPhase.ringingIncoming:
-        return AppStrings.t(AppStringKeys.callIncomingCallInvite, {
+  Widget _statusLine(ActiveCall call, TextStyle style) {
+    final text = switch (call.phase) {
+      CallPhase.requesting || CallPhase.ringingOutgoing => AppStrings.t(
+        AppStringKeys.callWaitingForInviteAccept,
+      ),
+      CallPhase.ringingIncoming =>
+        AppStrings.t(AppStringKeys.callIncomingCallInvite, {
           'value1': AppStrings.t(
             call.isVideo
                 ? AppStringKeys.sharedMediaVideos
                 : AppStringKeys.sharedMediaVoice,
           ),
-        });
-      case CallPhase.exchangingKeys:
-        return AppStrings.t(AppStringKeys.callConnecting);
-      case CallPhase.active:
-        return _durationText(call.startedAt);
-      case CallPhase.ending:
-        return AppStrings.t(AppStringKeys.callEnded);
+        }),
+      CallPhase.exchangingKeys => AppStrings.t(AppStringKeys.callConnecting),
+      // The elapsed time is the only line that changes on its own; it owns the
+      // 1 Hz tick so the rest of the call screen isn't relaid out every second.
+      CallPhase.active => null,
+      CallPhase.ending => AppStrings.t(AppStringKeys.callEnded),
+    };
+    if (text == null) {
+      return _CallDuration(startedAt: call.startedAt, style: style);
     }
-  }
-
-  String _durationText(DateTime? startedAt) {
-    if (startedAt == null) return '00:00';
-    final e = DateTime.now().difference(startedAt).inSeconds;
-    final s = e < 0 ? 0 : e;
-    return '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}';
+    return Text(text, style: style);
   }
 
   Widget _secureRow(List<String> emojis) {
@@ -415,7 +413,7 @@ class _CallScreenState extends State<CallScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 14),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -445,19 +443,43 @@ class _CallScreenState extends State<CallScreen> {
   Widget _controls(ActiveCall call, {bool horizontal = false}) {
     final m = widget.manager;
     if (call.phase == CallPhase.ringingIncoming) {
+      if (!m.supportsMediaCalls) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                AppStrings.t(AppStringKeys.callsUnavailableOnDesktop),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  height: 1.35,
+                  color: Colors.white.withValues(alpha: 0.72),
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            _CallButton(
+              icon: HeroAppIcons.phoneSlash,
+              label: AppStrings.t(AppStringKeys.callDecline),
+              background: const Color(0xFFFF3B30),
+              onTap: m.end,
+            ),
+          ],
+        );
+      }
       return Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _CallButton(
-            icon: HeroAppIcons.phoneSlash.data,
+            icon: HeroAppIcons.phoneSlash,
             label: AppStrings.t(AppStringKeys.callDecline),
             background: const Color(0xFFFF3B30),
             onTap: m.end,
           ),
           _CallButton(
-            icon: call.isVideo
-                ? HeroAppIcons.video.data
-                : HeroAppIcons.phone.data,
+            icon: call.isVideo ? HeroAppIcons.video : HeroAppIcons.phone,
             label: AppStrings.t(AppStringKeys.callAccept),
             background: const Color(0xFF07C160),
             onTap: m.accept,
@@ -472,8 +494,8 @@ class _CallScreenState extends State<CallScreen> {
           width: slotWidth,
           child: _CallToggle(
             icon: m.isMuted
-                ? HeroAppIcons.microphoneSlash.data
-                : HeroAppIcons.microphone.data,
+                ? HeroAppIcons.microphoneSlash
+                : HeroAppIcons.microphone,
             label: AppStrings.t(AppStringKeys.callMute),
             isOn: m.isMuted,
             compact: compact,
@@ -487,7 +509,7 @@ class _CallScreenState extends State<CallScreen> {
           key: const Key('callControlCamera'),
           width: slotWidth,
           child: _CallToggle(
-            icon: HeroAppIcons.video.data,
+            icon: HeroAppIcons.video,
             label: AppStrings.t(
               m.isVideoEnabled
                   ? AppStringKeys.callDisableVideo
@@ -502,7 +524,7 @@ class _CallScreenState extends State<CallScreen> {
           key: const Key('callControlSpeaker'),
           width: slotWidth,
           child: _CallToggle(
-            icon: HeroAppIcons.volumeHigh.data,
+            icon: HeroAppIcons.volumeHigh,
             label: AppStrings.t(AppStringKeys.callSpeakerphone),
             isOn: m.isSpeaker,
             compact: compact,
@@ -517,7 +539,7 @@ class _CallScreenState extends State<CallScreen> {
 
     Widget buildHangUp({required bool compact}) => _CallButton(
       key: const Key('callControlHangup'),
-      icon: HeroAppIcons.phoneSlash.data,
+      icon: HeroAppIcons.phoneSlash,
       label: AppStrings.t(AppStringKeys.callHangUp),
       background: const Color(0xFFFF3B30),
       size: compact ? 56 : 66,
@@ -568,6 +590,63 @@ class _CallScreenState extends State<CallScreen> {
   }
 }
 
+/// Elapsed call time, ticking on its own. Keeping the timer here instead of on
+/// the screen state is what stops the 1 Hz tick from rebuilding the video
+/// platform views, the scrim and every control once a second for the whole call.
+class _CallDuration extends StatefulWidget {
+  const _CallDuration({required this.startedAt, required this.style});
+
+  final DateTime? startedAt;
+  final TextStyle style;
+
+  @override
+  State<_CallDuration> createState() => _CallDurationState();
+}
+
+class _CallDurationState extends State<_CallDuration> {
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _syncTicker();
+  }
+
+  @override
+  void didUpdateWidget(covariant _CallDuration oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.startedAt != widget.startedAt) _syncTicker();
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  void _syncTicker() {
+    _ticker?.cancel();
+    _ticker = null;
+    if (widget.startedAt == null) return;
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final startedAt = widget.startedAt;
+    final elapsed = startedAt == null
+        ? 0
+        : DateTime.now().difference(startedAt).inSeconds;
+    final s = elapsed < 0 ? 0 : elapsed;
+    return Text(
+      '${(s ~/ 60).toString().padLeft(2, '0')}:${(s % 60).toString().padLeft(2, '0')}',
+      style: widget.style,
+    );
+  }
+}
+
 class _CallControlSlot extends StatelessWidget {
   const _CallControlSlot({super.key, required this.child, this.width = 104});
 
@@ -593,7 +672,7 @@ class _CallButton extends StatelessWidget {
     this.compact = false,
     required this.onTap,
   });
-  final IconData icon;
+  final AppIconData icon;
   final String label;
   final Color background;
   final double size;
@@ -605,9 +684,10 @@ class _CallButton extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        AppInteractiveSurface(
+          semanticLabel: label,
           onTap: onTap,
+          borderRadius: BorderRadius.circular(size / 2),
           child: Container(
             width: size,
             height: size,
@@ -616,17 +696,19 @@ class _CallButton extends StatelessWidget {
               color: background,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: size * 0.42, color: Colors.white),
+            child: AppIcon(icon, size: size * 0.42, color: Colors.white),
           ),
         ),
         const SizedBox(height: 10),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: compact ? 11 : 13,
-            color: Colors.white.withValues(alpha: 0.85),
+        ExcludeSemantics(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: compact ? 11 : 13,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
           ),
         ),
       ],
@@ -644,7 +726,7 @@ class _CallToggle extends StatelessWidget {
     this.compact = false,
     required this.onTap,
   });
-  final IconData icon;
+  final AppIconData icon;
   final String label;
   final bool isOn;
   final bool compact;
@@ -655,9 +737,11 @@ class _CallToggle extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        GestureDetector(
-          behavior: HitTestBehavior.opaque,
+        AppInteractiveSurface(
+          semanticLabel: label,
+          toggled: isOn,
           onTap: onTap,
+          borderRadius: BorderRadius.circular((compact ? 52 : 60) / 2),
           child: Container(
             width: compact ? 52 : 60,
             height: compact ? 52 : 60,
@@ -666,7 +750,7 @@ class _CallToggle extends StatelessWidget {
               color: isOn ? Colors.white : Colors.white.withValues(alpha: 0.18),
               shape: BoxShape.circle,
             ),
-            child: Icon(
+            child: AppIcon(
               icon,
               size: compact ? 22 : 24,
               color: isOn ? Colors.black : Colors.white,
@@ -674,13 +758,15 @@ class _CallToggle extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 10),
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: compact ? 11 : 13,
-            color: Colors.white.withValues(alpha: 0.85),
+        ExcludeSemantics(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: compact ? 11 : 13,
+              color: Colors.white.withValues(alpha: 0.85),
+            ),
           ),
         ),
       ],

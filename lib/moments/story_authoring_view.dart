@@ -12,12 +12,13 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../media/app_asset_picker.dart';
+import '../media/app_camera_view.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import 'story_area_editor_view.dart';
-import 'story_camera_view.dart';
 import 'story_media_preparer.dart';
 import 'story_service.dart';
 import 'story_ui_components.dart';
@@ -92,7 +93,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
       final saved = await _service.savedMessagesChatId();
       final ids = await _service.postableChatIds(savedMessagesId: saved);
       for (final id in ids) {
-        final title = id == saved ? 'My Story' : await _chatTitle(id);
+        final title = id == saved
+            ? AppStrings.t(AppStringKeys.storyAuthoringMyStory)
+            : await _chatTitle(id);
         _targets.add(_StoryTarget(id, title));
       }
       _targetChatId =
@@ -113,7 +116,11 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     // service query through TDLib's public client without leaking it into the
     // request builders.
     final raw = await StoryServiceTitleLoader.load(chatId);
-    return raw.isEmpty ? 'Chat $chatId' : raw;
+    return raw.isEmpty
+        ? AppStrings.t(AppStringKeys.storyAuthoringChatValue1, {
+            'value1': chatId,
+          })
+        : raw;
   }
 
   Future<void> _loadAlbums() async {
@@ -162,10 +169,14 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
   }
 
   Future<void> _openCamera() async {
-    final result = await Navigator.of(context).push<StoryCameraResult>(
+    if (Platform.isMacOS) {
+      await _pickGallery();
+      return;
+    }
+    final result = await Navigator.of(context).push<AppCameraResult>(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => const StoryCameraView(),
+        builder: (_) => const AppCameraView(),
       ),
     );
     if (!mounted || result == null) return;
@@ -230,7 +241,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     if (item.isVideo) {
       final value = await _numberDialog(
         title: AppStrings.t(AppStringKeys.storyAuthoringCoverFrame),
-        hint: 'Seconds from the start',
+        hint: AppStrings.t(AppStringKeys.storyAuthoringSecondsFromStart),
         initial: item.coverFrameTimestamp.toStringAsFixed(1),
       );
       if (value == null || !mounted) return;
@@ -276,19 +287,44 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
   };
 
   Future<void> _addArea() async {
-    final type = await showModalBottomSheet<String>(
+    final type = await showAppModalSheet<String>(
       context: context,
       backgroundColor: context.colors.background,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (_isPremium) _sheetAction('Link', HeroAppIcons.link, 'link'),
-            _sheetAction('Suggested reaction', HeroAppIcons.heart, 'reaction'),
-            _sheetAction('Message', HeroAppIcons.message, 'message'),
-            _sheetAction('Location', HeroAppIcons.locationDot, 'location'),
-            _sheetAction('Weather', HeroAppIcons.sun, 'weather'),
-            _sheetAction('Upgraded gift', HeroAppIcons.star, 'gift'),
+            if (_isPremium)
+              _sheetAction(
+                AppStrings.t(AppStringKeys.storyAuthoringAreaLink),
+                HeroAppIcons.link,
+                'link',
+              ),
+            _sheetAction(
+              AppStrings.t(AppStringKeys.storyAuthoringAreaSuggestedReaction),
+              HeroAppIcons.heart,
+              'reaction',
+            ),
+            _sheetAction(
+              AppStrings.t(AppStringKeys.storyAuthoringAreaMessage),
+              HeroAppIcons.message,
+              'message',
+            ),
+            _sheetAction(
+              AppStrings.t(AppStringKeys.storyAuthoringAreaLocation),
+              HeroAppIcons.locationDot,
+              'location',
+            ),
+            _sheetAction(
+              AppStrings.t(AppStringKeys.storyAuthoringAreaWeather),
+              HeroAppIcons.sun,
+              'weather',
+            ),
+            _sheetAction(
+              AppStrings.t(AppStringKeys.storyAuthoringAreaUpgradedGift),
+              HeroAppIcons.star,
+              'gift',
+            ),
           ],
         ),
       ),
@@ -332,7 +368,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     }
   }
 
-  Future<String?> _pickReaction() => showModalBottomSheet<String>(
+  Future<String?> _pickReaction() => showAppModalSheet<String>(
     context: context,
     backgroundColor: context.colors.background,
     builder: (sheetContext) => SafeArea(
@@ -365,7 +401,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: context.colors.searchFill,
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                   ),
                   child: Text(emoji, style: const TextStyle(fontSize: 25)),
                 ),
@@ -400,7 +436,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     });
     final messages = history.objects('messages') ?? const [];
     if (!mounted) return null;
-    final chosen = await showModalBottomSheet<Map<String, dynamic>>(
+    final chosen = await showAppModalSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: context.colors.background,
@@ -419,7 +455,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   style: TextStyle(
                     color: context.colors.textPrimary,
                     fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -495,12 +531,14 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
         '';
     if (text.trim().isNotEmpty) return text.trim();
     return switch (content?.type) {
-      'messagePhoto' => 'Photo',
-      'messageVideo' => 'Video',
+      'messagePhoto' => AppStrings.t(AppStringKeys.storyAuthoringContentPhoto),
+      'messageVideo' => AppStrings.t(AppStringKeys.storyAuthoringContentVideo),
       'messageAnimation' => 'GIF',
-      'messageDocument' => 'Document',
-      'messagePoll' => 'Poll',
-      _ => 'Message',
+      'messageDocument' => AppStrings.t(
+        AppStringKeys.storyAuthoringContentDocument,
+      ),
+      'messagePoll' => AppStrings.t(AppStringKeys.storyAuthoringContentPoll),
+      _ => AppStrings.t(AppStringKeys.storyAuthoringContentMessage),
     };
   }
 
@@ -590,7 +628,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
         );
         return null;
       }
-      return showModalBottomSheet<String>(
+      return showAppModalSheet<String>(
         context: context,
         backgroundColor: context.colors.background,
         builder: (sheetContext) => SafeArea(
@@ -664,7 +702,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
   }) => showStoryTextEntry(context, title: title, hint: hint, initial: initial);
 
   Future<void> _pickTarget() async {
-    final selected = await showModalBottomSheet<int>(
+    final selected = await showAppModalSheet<int>(
       context: context,
       backgroundColor: context.colors.background,
       builder: (sheetContext) => SafeArea(
@@ -730,7 +768,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     if (chatId == null || _media.isEmpty || _publishing) return;
     setState(() {
       _publishing = true;
-      _progress = 'Preparing media…';
+      _progress = AppStrings.t(AppStringKeys.storyAuthoringPreparingMedia);
     });
     var posted = 0;
     try {
@@ -743,7 +781,12 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
       for (var i = 0; i < _media.length; i++) {
         final item = _media[i];
         if (mounted) {
-          setState(() => _progress = 'Preparing ${i + 1} of ${_media.length}…');
+          setState(
+            () => _progress = AppStrings.t(
+              AppStringKeys.storyAuthoringPreparingValue1OfValue2,
+              {'value1': i + 1, 'value2': _media.length},
+            ),
+          );
         }
         if (item.isVideo) {
           final segments = await widget.mediaPreparer.prepareVideo(
@@ -752,7 +795,10 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
             onProgress: (completed, total) {
               if (mounted) {
                 setState(
-                  () => _progress = 'Encoding segment $completed of $total…',
+                  () => _progress = AppStrings.t(
+                    AppStringKeys.storyAuthoringEncodingValue1OfValue2,
+                    {'value1': completed, 'value2': total},
+                  ),
                 );
               }
             },
@@ -782,7 +828,10 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
       for (var i = 0; i < prepared.length; i++) {
         if (mounted) {
           setState(
-            () => _progress = 'Publishing ${i + 1} of ${prepared.length}…',
+            () => _progress = AppStrings.t(
+              AppStringKeys.storyAuthoringPublishingValue1OfValue2,
+              {'value1': i + 1, 'value2': prepared.length},
+            ),
           );
         }
         await _service.post(
@@ -811,7 +860,9 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
         showToast(
           context,
           posted == 0
-              ? 'Story could not be published: $error'
+              ? AppStrings.t(AppStringKeys.storyAuthoringPublishFailedValue1, {
+                  'value1': error,
+                })
               : '$posted stories published before an error: $error',
         );
       }
@@ -827,17 +878,27 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
 
   String _capabilityMessage(Map<String, dynamic> result) =>
       switch (result.type) {
-        'canPostStoryResultPremiumNeeded' => 'Telegram Premium is required',
-        'canPostStoryResultBoostNeeded' => 'This chat needs more boosts',
-        'canPostStoryResultActiveStoryLimitExceeded' =>
-          'The active story limit is reached',
-        'canPostStoryResultWeeklyLimitExceeded' =>
-          'The weekly story limit is reached',
-        'canPostStoryResultMonthlyLimitExceeded' =>
-          'The monthly story limit is reached',
-        'canPostStoryResultLiveStoryIsActive' =>
-          'A live story is already active',
-        _ => result.type ?? 'Story posting is unavailable',
+        'canPostStoryResultPremiumNeeded' => AppStrings.t(
+          AppStringKeys.storyAuthoringPremiumRequired,
+        ),
+        'canPostStoryResultBoostNeeded' => AppStrings.t(
+          AppStringKeys.storyAuthoringBoostsNeeded,
+        ),
+        'canPostStoryResultActiveStoryLimitExceeded' => AppStrings.t(
+          AppStringKeys.storyAuthoringActiveLimitReached,
+        ),
+        'canPostStoryResultWeeklyLimitExceeded' => AppStrings.t(
+          AppStringKeys.storyAuthoringWeeklyLimitReached,
+        ),
+        'canPostStoryResultMonthlyLimitExceeded' => AppStrings.t(
+          AppStringKeys.storyAuthoringMonthlyLimitReached,
+        ),
+        'canPostStoryResultLiveStoryIsActive' => AppStrings.t(
+          AppStringKeys.storyAuthoringLiveAlreadyActive,
+        ),
+        _ =>
+          result.type ??
+              AppStrings.t(AppStringKeys.storyAuthoringPostingUnavailable),
       };
 
   @override
@@ -860,7 +921,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
           children: [
             Expanded(
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
+                borderRadius: BorderRadius.circular(AppRadius.xxl),
                 child: ColoredBox(
                   color: const Color(0xFF1C1C1E),
                   child: Stack(
@@ -880,8 +941,10 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                                   color: AppTheme.brand.withValues(alpha: 0.16),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const AppIcon(
-                                  HeroAppIcons.camera,
+                                child: AppIcon(
+                                  Platform.isMacOS
+                                      ? HeroAppIcons.images
+                                      : HeroAppIcons.camera,
                                   size: 38,
                                   color: Colors.white,
                                 ),
@@ -893,7 +956,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 20,
-                                  fontWeight: FontWeight.w700,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -934,12 +997,13 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   AppStringKeys.storyGallery.l10n(context),
                   _pickGallery,
                 ),
-                _captureAction(
-                  HeroAppIcons.camera,
-                  AppStringKeys.storyCamera.l10n(context),
-                  _openCamera,
-                  prominent: true,
-                ),
+                if (!Platform.isMacOS)
+                  _captureAction(
+                    HeroAppIcons.camera,
+                    AppStringKeys.storyCamera.l10n(context),
+                    _openCamera,
+                    prominent: true,
+                  ),
               ],
             ),
           ],
@@ -1011,14 +1075,14 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                       ),
                       decoration: BoxDecoration(
                         color: const Color(0xFF2C2C2E),
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
                       ),
                       child: Text(
                         '${_media.length}',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 13,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -1032,7 +1096,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10),
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(AppRadius.xxl),
                 child: ColoredBox(
                   color: const Color(0xFF1C1C1E),
                   child: Stack(
@@ -1093,7 +1157,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   vertical: 13,
                 ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                   borderSide: BorderSide.none,
                 ),
               ),
@@ -1121,8 +1185,10 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
             child: Row(
               children: [
                 _darkRoundButton(HeroAppIcons.images, _pickGallery),
-                const SizedBox(width: 10),
-                _darkRoundButton(HeroAppIcons.camera, _openCamera),
+                if (!Platform.isMacOS) ...[
+                  const SizedBox(width: 10),
+                  _darkRoundButton(HeroAppIcons.camera, _openCamera),
+                ],
                 const SizedBox(width: 10),
                 _darkRoundButton(
                   _areas.isEmpty ? HeroAppIcons.link : HeroAppIcons.check,
@@ -1152,7 +1218,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 15,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -1195,7 +1261,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
             margin: const EdgeInsets.only(right: 8),
             decoration: BoxDecoration(
               color: const Color(0xFF2C2C2E),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(AppRadius.control),
               border: Border.all(color: AppTheme.brand, width: 2),
               image: item.isVideo
                   ? null
@@ -1238,7 +1304,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
 
   Future<void> _openShareSettings() async {
     if (_targets.isEmpty || _targetChatId == null || _media.isEmpty) return;
-    final confirmed = await showModalBottomSheet<bool>(
+    final confirmed = await showAppModalSheet<bool>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
@@ -1274,7 +1340,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   style: TextStyle(
                     color: c.textPrimary,
                     fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Positioned(
@@ -1334,7 +1400,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: AppTheme.brand,
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
                     boxShadow: [
                       BoxShadow(
                         color: AppTheme.brand.withValues(alpha: 0.28),
@@ -1357,7 +1423,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -1378,7 +1444,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
       style: TextStyle(
         color: context.colors.textSecondary,
         fontSize: 12,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         letterSpacing: 0.5,
       ),
     ),
@@ -1400,7 +1466,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(22),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
           border: Border.all(color: c.divider),
         ),
         child: Row(
@@ -1429,7 +1495,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                 style: TextStyle(
                   color: c.textPrimary,
                   fontSize: 16,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -1470,7 +1536,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     return Container(
       decoration: BoxDecoration(
         color: context.colors.card,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(color: context.colors.divider),
       ),
       child: Column(
@@ -1554,7 +1620,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
                   style: TextStyle(
                     color: c.textPrimary,
                     fontSize: 16,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -1575,7 +1641,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
     return Container(
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(color: c.divider),
       ),
       child: Column(
@@ -1674,7 +1740,7 @@ class _StoryAuthoringViewState extends State<StoryAuthoringView> {
             172800: '48 hours',
           }
         : const {86400: '24 hours'};
-    final value = await showModalBottomSheet<int>(
+    final value = await showAppModalSheet<int>(
       context: context,
       backgroundColor: context.colors.background,
       builder: (sheetContext) => SafeArea(

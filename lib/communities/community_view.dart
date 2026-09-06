@@ -21,9 +21,10 @@ import '../l10n/app_localizations.dart';
 import '../settings/topic_group_display_mode.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_theme.dart';
-import '../theme/date_text.dart';
 import '../theme/theme_controller.dart';
 import 'community_models.dart';
+
+enum _CommunityHeaderAction { toggleCollapsed }
 
 class CommunityChatListRow extends StatelessWidget {
   const CommunityChatListRow({
@@ -42,151 +43,105 @@ class CommunityChatListRow extends StatelessWidget {
     final c = context.colors;
     final theme = context.watch<ThemeController>();
     final latest = entry.latestChat;
-    final preview = _preview(context, latest);
-    return Container(
-      height: theme.rowHeight,
-      color: selected
-          ? c.listHeaderTint
-          : (entry.isPinned ? c.pinnedRow : c.background),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-      child: Row(
+    final summary = ChatSummary(
+      id: -entry.community.id.abs(),
+      title: entry.community.name,
+      lastMessage: latest.lastMessage.trim().isEmpty
+          ? AppStrings.plural(
+              AppStringKeys.communityChatCount,
+              entry.chats.length,
+            )
+          : latest.lastMessage,
+      lastMessageId: latest.lastMessageId,
+      date: latest.date,
+      unreadCount: entry.unreadCount,
+      order: latest.order,
+      isMuted: entry.isMuted,
+      lastSender: latest.lastSender,
+      isPinned: entry.isPinned,
+      isMarkedUnread: entry.isMarkedUnread,
+    );
+    return ChatRowView(
+      chat: summary,
+      selected: selected,
+      onClearUnread: onClearUnread,
+      avatarBuilder: (size) => _CommunityStackedAvatar(
+        title: entry.community.name,
+        photo: entry.community.photo,
+        size: size,
+        square: !theme.circularGroupAvatars,
+      ),
+      titleTrailing: AppIcon(
+        HeroAppIcons.objectGroup,
+        size: 14,
+        color: c.textTertiary,
+      ),
+      trailingIndicator: AppIcon(
+        HeroAppIcons.chevronRight,
+        size: AppIconSize.sm,
+        color: c.textTertiary,
+      ),
+    );
+  }
+}
+
+class _CommunityStackedAvatar extends StatelessWidget {
+  const _CommunityStackedAvatar({
+    required this.title,
+    required this.photo,
+    required this.size,
+    required this.square,
+  });
+
+  final String title;
+  final TdFileRef? photo;
+  final double size;
+  final bool square;
+
+  @override
+  Widget build(BuildContext context) {
+    final backColor = context.colors.textTertiary;
+    final cornerRadius = square
+        ? size * AppTheme.groupAvatarCornerRatio
+        : size / 2;
+    Widget plate(Key key, double opacity) => Container(
+      key: key,
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: backColor.withValues(alpha: opacity),
+        borderRadius: BorderRadius.circular(cornerRadius),
+      ),
+    );
+
+    return SizedBox(
+      key: const ValueKey('community-stacked-avatar'),
+      width: size,
+      height: size,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          SizedBox(
-            width: theme.avatarSize,
-            height: theme.avatarSize,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                PhotoAvatar(
-                  title: entry.community.name,
-                  photo: entry.community.photo,
-                  size: theme.avatarSize,
-                  square: !theme.circularGroupAvatars,
-                ),
-                if (entry.unreadCount > 0)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: UnreadBadge(
-                      count: entry.unreadCount,
-                      muted: entry.isMuted,
-                      onClear: onClearUnread,
-                    ),
-                  )
-                else if (entry.isMarkedUnread)
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(
-                        AppMetric.badgeOutlinePadding,
-                      ),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: RedDot(
-                        size: AppMetric.unreadDot,
-                        muted: entry.isMuted,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+          Positioned(
+            left: -size * 0.18,
+            top: size * 0.12,
+            child: plate(const ValueKey('community-avatar-back-2'), 0.28),
           ),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        entry.community.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: AppTextSize.body,
-                          fontWeight: FontWeight.w600,
-                          color: c.textPrimary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    AppIcon(
-                      HeroAppIcons.objectGroup,
-                      size: 14,
-                      color: c.textTertiary,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                Text(
-                  preview,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: AppTextSize.callout,
-                    color: c.textSecondary,
-                  ),
-                ),
-              ],
-            ),
+          Positioned(
+            left: -size * 0.09,
+            top: size * 0.06,
+            child: plate(const ValueKey('community-avatar-back-1'), 0.42),
           ),
-          const SizedBox(width: AppSpacing.md),
-          SizedBox(
-            height: theme.rowHeight,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: AppSpacing.lg + AppSpacing.xxs,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    DateText.listLabel(latest.date),
-                    style: TextStyle(
-                      fontSize: AppTextSize.caption,
-                      color: c.textTertiary,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (entry.isMuted)
-                    AppIcon(
-                      HeroAppIcons.bellSlash,
-                      size: AppIconSize.sm,
-                      color: c.textTertiary,
-                    )
-                  else
-                    AppIcon(
-                      HeroAppIcons.chevronRight,
-                      size: AppIconSize.sm,
-                      color: c.textTertiary,
-                    ),
-                ],
-              ),
-            ),
+          PhotoAvatar(
+            key: const ValueKey('community-avatar-front'),
+            title: title,
+            photo: photo,
+            size: size,
+            square: square,
+            allowAnimation: false,
           ),
         ],
       ),
     );
-  }
-
-  String _preview(BuildContext context, ChatSummary latest) {
-    final message = latest.lastMessage.trim();
-    final sender = latest.lastSender?.trim();
-    final body = [
-      if (sender != null && sender.isNotEmpty) sender,
-      if (message.isNotEmpty) message,
-    ].join(': ');
-    if (body.isEmpty) {
-      return AppStrings.t(AppStringKeys.communityChatCount, {
-        'value1': entry.chats.length,
-      });
-    }
-    return '${latest.title}: $body';
   }
 }
 
@@ -221,11 +176,7 @@ class CommunityView extends StatefulWidget {
 }
 
 class _CommunityViewState extends State<CommunityView> {
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocus = FocusNode();
   late bool _collapsed = widget.community.collapsed;
-  bool _searching = false;
-  String _query = '';
 
   List<ChatSummary> get _currentChats =>
       widget.chatsProvider?.call() ?? widget.chats;
@@ -253,8 +204,6 @@ class _CommunityViewState extends State<CommunityView> {
   @override
   void dispose() {
     widget.updates?.removeListener(_handleUpdates);
-    _searchController.dispose();
-    _searchFocus.dispose();
     super.dispose();
   }
 
@@ -265,9 +214,8 @@ class _CommunityViewState extends State<CommunityView> {
   @override
   Widget build(BuildContext context) {
     final c = context.colors;
-    final query = _query.trim().toLowerCase();
-    final chats = _filtered(_currentChats, query);
-    final viewableChats = _filtered(_currentViewableChats, query);
+    final chats = _currentChats;
+    final viewableChats = _currentViewableChats;
     final hasResults = chats.isNotEmpty || viewableChats.isNotEmpty;
     return Scaffold(
       backgroundColor: c.groupedBackground,
@@ -278,31 +226,14 @@ class _CommunityViewState extends State<CommunityView> {
             onBack: widget.showBackButton
                 ? widget.onBack ?? () => Navigator.of(context).pop()
                 : null,
-            trailing: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _toggleSearch,
-              child: SizedBox(
-                width: AppMetric.hitTarget,
-                height: AppMetric.hitTarget,
-                child: AppIcon(
-                  _searching
-                      ? HeroAppIcons.xmark
-                      : HeroAppIcons.magnifyingGlass,
-                  size: AppIconSize.nav - 2,
-                  color: c.textPrimary,
-                ),
-              ),
-            ),
+            trailing: _headerMenu(),
           ),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(12, 14, 12, 28),
               children: [
                 _communityHeader(),
-                if (_searching) ...[const SizedBox(height: 12), _searchField()],
                 const SizedBox(height: 14),
-                _collapseCard(),
-                const SizedBox(height: 20),
                 if (!hasResults)
                   _chatCard(const [])
                 else ...[
@@ -327,16 +258,43 @@ class _CommunityViewState extends State<CommunityView> {
     );
   }
 
-  List<ChatSummary> _filtered(List<ChatSummary> chats, String query) {
-    if (query.isEmpty) return chats;
-    return chats
-        .where(
-          (chat) =>
-              chat.title.toLowerCase().contains(query) ||
-              chat.lastMessage.toLowerCase().contains(query),
-        )
-        .toList();
-  }
+  Widget _headerMenu() => PopupMenuButton<_CommunityHeaderAction>(
+    key: const ValueKey('community-header-menu'),
+    tooltip: '',
+    color: context.colors.background,
+    padding: EdgeInsets.zero,
+    onSelected: (_) => _setCollapsed(!_collapsed),
+    itemBuilder: (context) => [
+      PopupMenuItem<_CommunityHeaderAction>(
+        value: _CommunityHeaderAction.toggleCollapsed,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              child: _collapsed
+                  ? AppIcon(
+                      HeroAppIcons.check,
+                      size: 16,
+                      color: context.colors.linkBlue,
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 8),
+            Text(AppStringKeys.communityShowAsOneChat.l10n(context)),
+          ],
+        ),
+      ),
+    ],
+    child: SizedBox(
+      width: AppMetric.hitTarget,
+      height: AppMetric.hitTarget,
+      child: AppIcon(
+        HeroAppIcons.ellipsis,
+        size: AppIconSize.nav,
+        color: context.colors.textPrimary,
+      ),
+    ),
+  );
 
   Widget _sectionHeader(String title) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -358,7 +316,7 @@ class _CommunityViewState extends State<CommunityView> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: c.card,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Row(
         children: [
@@ -381,18 +339,19 @@ class _CommunityViewState extends State<CommunityView> {
                   textAlign: TextAlign.left,
                   style: TextStyle(
                     fontSize: AppTextSize.title,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     color: c.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  AppStrings.t(AppStringKeys.communityChatCount, {
-                    'value1': {
+                  AppStrings.plural(
+                    AppStringKeys.communityChatCount,
+                    {
                       ..._currentChats.map((chat) => chat.id),
                       ..._currentViewableChats.map((chat) => chat.id),
                     }.length,
-                  }),
+                  ),
                   textAlign: TextAlign.left,
                   style: TextStyle(
                     fontSize: AppTextSize.callout,
@@ -407,84 +366,9 @@ class _CommunityViewState extends State<CommunityView> {
     );
   }
 
-  Widget _searchField() {
-    final c = context.colors;
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: c.searchFill,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Row(
-        children: [
-          AppIcon(
-            HeroAppIcons.magnifyingGlass,
-            size: 16,
-            color: c.textTertiary,
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: EditableText(
-              controller: _searchController,
-              focusNode: _searchFocus,
-              style: TextStyle(fontSize: 15, color: c.textPrimary),
-              cursorColor: c.linkBlue,
-              backgroundCursorColor: c.textTertiary,
-              textInputAction: TextInputAction.search,
-              onChanged: (value) => setState(() => _query = value),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _collapseCard() {
-    final c = context.colors;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-      decoration: BoxDecoration(
-        color: c.card,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  AppStringKeys.communityShowAsOneChat.l10n(context),
-                  style: TextStyle(
-                    fontSize: AppTextSize.body,
-                    fontWeight: FontWeight.w500,
-                    color: c.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  AppStringKeys.communityShowAsOneChatDescription.l10n(context),
-                  style: TextStyle(
-                    fontSize: AppTextSize.caption,
-                    height: 1.3,
-                    color: c.textTertiary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          AppSwitch(
-            value: _collapsed,
-            onChanged: (value) {
-              setState(() => _collapsed = value);
-              widget.onCollapsedChanged(value);
-            },
-          ),
-        ],
-      ),
-    );
+  void _setCollapsed(bool value) {
+    setState(() => _collapsed = value);
+    widget.onCollapsedChanged(value);
   }
 
   Widget _chatCard(List<ChatSummary> chats) {
@@ -494,7 +378,7 @@ class _CommunityViewState extends State<CommunityView> {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 38),
         decoration: BoxDecoration(
           color: c.card,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(AppRadius.card),
         ),
         child: Column(
           children: [
@@ -513,7 +397,7 @@ class _CommunityViewState extends State<CommunityView> {
       );
     }
     return ClipRRect(
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(AppRadius.card),
       child: ColoredBox(
         color: c.card,
         child: Column(
@@ -532,29 +416,13 @@ class _CommunityViewState extends State<CommunityView> {
     );
   }
 
-  void _toggleSearch() {
-    setState(() {
-      _searching = !_searching;
-      if (!_searching) {
-        _query = '';
-        _searchController.clear();
-        _searchFocus.unfocus();
-      }
-    });
-    if (_searching) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _searchFocus.requestFocus();
-      });
-    }
-  }
-
   Future<void> _openChat(ChatSummary chat) async {
     final onChatSelected = widget.onChatSelected;
     if (onChatSelected != null) {
       onChatSelected(chat);
       return;
     }
-    if (chat.isForum) {
+    if (chat.supportsTopics) {
       final mode = await TopicGroupDisplayPreference.load();
       if (!mounted) return;
       if (!mode.isChat) {
@@ -576,7 +444,7 @@ class _CommunityViewState extends State<CommunityView> {
     unawaited(
       pushAppChatRoute(
         context,
-        MaterialPageRoute(
+        AppChatPageRoute<void>(
           builder: (_) => ChatView(
             chatId: chat.id,
             title: chat.title,

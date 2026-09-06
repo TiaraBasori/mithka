@@ -100,6 +100,306 @@ void main() {
     );
   });
 
+  test('first restored-position gesture cannot return to latest', () {
+    final guard = ChatRestoredPositionGuard(true);
+
+    expect(guard.blocksAutomaticReturn, isTrue);
+    guard.noteUserScroll();
+    expect(guard.finishUserScroll(), isTrue);
+    expect(guard.blocksAutomaticReturn, isFalse);
+    expect(guard.finishUserScroll(), isFalse);
+  });
+
+  test('pointer activity alone does not consume restored-position guard', () {
+    final guard = ChatRestoredPositionGuard(true);
+
+    expect(guard.finishUserScroll(), isFalse);
+    expect(guard.blocksAutomaticReturn, isTrue);
+    guard.cancel();
+    expect(guard.blocksAutomaticReturn, isFalse);
+  });
+
+  test(
+    'automatic latest return only runs at the end of an anchored window',
+    () {
+      bool decide({
+        bool protected = false,
+        bool pointerDown = false,
+        bool hasScrollTarget = false,
+        bool hasScrollClients = true,
+        bool isNearLatestEdge = true,
+      }) => shouldRequestAutomaticReturnToLatest(
+        anchoredHistory: true,
+        restoredPositionProtected: protected,
+        pointerDown: pointerDown,
+        hasScrollTarget: hasScrollTarget,
+        hasScrollClients: hasScrollClients,
+        isNearLatestEdge: isNearLatestEdge,
+      );
+
+      expect(decide(), isTrue);
+      expect(decide(protected: true), isFalse);
+      expect(decide(pointerDown: true), isFalse);
+      expect(decide(hasScrollTarget: true), isFalse);
+      expect(decide(hasScrollClients: false), isFalse);
+      expect(decide(isNearLatestEdge: false), isFalse);
+      expect(
+        shouldRequestAutomaticReturnToLatest(
+          anchoredHistory: false,
+          restoredPositionProtected: false,
+          pointerDown: false,
+          hasScrollTarget: false,
+          hasScrollClients: true,
+          isNearLatestEdge: true,
+        ),
+        isFalse,
+      );
+    },
+  );
+
+  test('session snapshots only round an exact latest position to bottom', () {
+    bool decide(double distance, {bool anchored = false}) =>
+        isChatSessionAtLoadedBottom(
+          anchoredHistory: anchored,
+          distanceToLoadedBottom: distance,
+        );
+
+    expect(decide(0), isTrue);
+    expect(decide(0.5), isTrue);
+    expect(decide(0.51), isFalse);
+    expect(decide(1), isFalse);
+    expect(decide(40), isFalse);
+    expect(decide(79), isFalse);
+    expect(decide(0, anchored: true), isFalse);
+    expect(decide(double.nan), isFalse);
+  });
+
+  test(
+    'anchored unread entry positions the first unread before its window',
+    () {
+      final unread = resolveChatInitialViewportTarget(
+        explicitMessageId: null,
+        pendingMessageId: null,
+        openAtBottom: false,
+        anchoredHistory: true,
+        unreadCount: 4,
+        firstUnreadMessageId: 101,
+        unreadBoundaryLoaded: true,
+        lastReadInboxId: 100,
+      );
+
+      expect(unread.kind, ChatInitialViewportTargetKind.firstUnread);
+      expect(unread.messageId, 101);
+
+      final boundaryFallback = resolveChatInitialViewportTarget(
+        explicitMessageId: null,
+        pendingMessageId: null,
+        openAtBottom: false,
+        anchoredHistory: true,
+        unreadCount: 4,
+        firstUnreadMessageId: 140,
+        unreadBoundaryLoaded: false,
+        lastReadInboxId: 100,
+      );
+      expect(boundaryFallback.kind, ChatInitialViewportTargetKind.readBoundary);
+      expect(boundaryFallback.messageId, 100);
+    },
+  );
+
+  test('explicit targets and latest entry retain positioning precedence', () {
+    final explicit = resolveChatInitialViewportTarget(
+      explicitMessageId: 777,
+      pendingMessageId: 666,
+      openAtBottom: true,
+      anchoredHistory: true,
+      unreadCount: 4,
+      firstUnreadMessageId: 101,
+      unreadBoundaryLoaded: true,
+      lastReadInboxId: 100,
+    );
+    expect(explicit.kind, ChatInitialViewportTargetKind.message);
+    expect(explicit.messageId, 777);
+
+    final bottom = resolveChatInitialViewportTarget(
+      explicitMessageId: null,
+      pendingMessageId: null,
+      openAtBottom: true,
+      anchoredHistory: false,
+      unreadCount: 4,
+      firstUnreadMessageId: 101,
+      unreadBoundaryLoaded: true,
+      lastReadInboxId: 100,
+    );
+    expect(bottom.kind, ChatInitialViewportTargetKind.loadedBottom);
+
+    final anchored = resolveChatInitialViewportTarget(
+      explicitMessageId: null,
+      pendingMessageId: null,
+      openAtBottom: false,
+      anchoredHistory: true,
+      unreadCount: 0,
+      firstUnreadMessageId: null,
+      unreadBoundaryLoaded: false,
+      lastReadInboxId: 0,
+    );
+    expect(
+      anchored.kind,
+      ChatInitialViewportTargetKind.preserveAnchoredHistory,
+    );
+  });
+
+  test('user takeover invalidates pending reopen navigation', () {
+    final guard = ChatSessionReopenNavigationGuard();
+    final pendingGeneration = guard.begin();
+
+    expect(guard.isCurrent(pendingGeneration), isTrue);
+    guard.cancel();
+    expect(guard.isCurrent(pendingGeneration), isFalse);
+  });
+
+  test('a newer reopen resolution invalidates the older generation', () {
+    final guard = ChatSessionReopenNavigationGuard();
+    final firstGeneration = guard.begin();
+    final secondGeneration = guard.begin();
+
+    expect(guard.isCurrent(firstGeneration), isFalse);
+    expect(guard.isCurrent(secondGeneration), isTrue);
+  });
+
+  test('latest loading includes anchored and stale transcript windows', () {
+    expect(
+      shouldLoadLatestChatHistory(
+        anchoredHistory: true,
+        historyReachesLatest: true,
+      ),
+      isTrue,
+      reason: 'an anchored window must be replaced even if it includes latest',
+    );
+    expect(
+      shouldLoadLatestChatHistory(
+        anchoredHistory: false,
+        historyReachesLatest: false,
+      ),
+      isTrue,
+      reason: 'a non-anchored restored cache may still be stale',
+    );
+    expect(
+      shouldLoadLatestChatHistory(
+        anchoredHistory: true,
+        historyReachesLatest: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldLoadLatestChatHistory(
+        anchoredHistory: false,
+        historyReachesLatest: true,
+      ),
+      isFalse,
+    );
+  });
+
+  test('pending reopen navigation blocks automatic and exit read marking', () {
+    expect(
+      shouldAllowAutomaticChatRead(
+        sessionReopenPending: true,
+        restoredPositionProtected: false,
+        preservesViewport: false,
+        historyReachesLatest: true,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldMarkChatReadOnExit(
+        isAtLoadedBottom: true,
+        sessionReopenPending: true,
+        restoredPositionProtected: false,
+        preservesViewport: false,
+        historyReachesLatest: true,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldMarkChatReadOnExit(
+        isAtLoadedBottom: true,
+        sessionReopenPending: false,
+        restoredPositionProtected: false,
+        preservesViewport: false,
+        historyReachesLatest: true,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldMarkChatReadOnExit(
+        isAtLoadedBottom: false,
+        sessionReopenPending: false,
+        restoredPositionProtected: false,
+        preservesViewport: false,
+        historyReachesLatest: true,
+      ),
+      isFalse,
+    );
+  });
+
+  test('a protected or stale restored viewport cannot mark messages read', () {
+    bool allows({
+      bool protected = false,
+      bool preservesViewport = false,
+      bool historyReachesLatest = true,
+    }) => shouldAllowAutomaticChatRead(
+      sessionReopenPending: false,
+      restoredPositionProtected: protected,
+      preservesViewport: preservesViewport,
+      historyReachesLatest: historyReachesLatest,
+    );
+
+    expect(allows(protected: true), isFalse);
+    expect(allows(preservesViewport: true), isFalse);
+    expect(allows(historyReachesLatest: false), isFalse);
+    expect(allows(), isTrue);
+  });
+
+  test('failed or pending reopen jumps preserve the previous snapshot', () {
+    expect(
+      shouldSaveChatSessionScrollSnapshot(
+        sessionReopenPending: true,
+        preservingSnapshotAfterFailedJump: false,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldSaveChatSessionScrollSnapshot(
+        sessionReopenPending: false,
+        preservingSnapshotAfterFailedJump: true,
+      ),
+      isFalse,
+    );
+    expect(
+      shouldSaveChatSessionScrollSnapshot(
+        sessionReopenPending: false,
+        preservingSnapshotAfterFailedJump: false,
+      ),
+      isTrue,
+    );
+  });
+
+  test('a live inbox update wins over a stale initial header response', () {
+    expect(
+      shouldApplyInitialChatReadState(
+        readInboxRevisionAtRequestStart: 3,
+        currentReadInboxRevision: 3,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldApplyInitialChatReadState(
+        readInboxRevisionAtRequestStart: 3,
+        currentReadInboxRevision: 4,
+      ),
+      isFalse,
+    );
+  });
+
   test('bottom follow corrects only while laid-out geometry has a gap', () {
     final coordinator = ChatBottomFollowCoordinator();
     final callbacks = <void Function()>[];

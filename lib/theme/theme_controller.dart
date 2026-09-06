@@ -8,6 +8,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -18,8 +19,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../chat/quick_reaction_choice.dart';
 import '../components/app_icons.dart';
+import '../platform/adaptive_platform.dart';
 import 'app_theme.dart';
+import 'custom_message_bubble_background.dart';
 import 'emoji_font_catalog.dart';
+import 'google_font_weights.dart';
+import 'message_bubble_background.dart';
 import 'system_font_catalog.dart';
 import 'telegram_cloud_theme.dart';
 
@@ -93,6 +98,18 @@ enum ArchivedChatsDisplayMode {
       this == ArchivedChatsDisplayMode.firstPosition ||
       this == ArchivedChatsDisplayMode.nextPage;
 
+  ArchivedChatsDisplayMode effectiveForPlatform({
+    TargetPlatform? platform,
+    bool isWeb = kIsWeb,
+  }) {
+    if (!isWeb &&
+        isDesktopTargetPlatform(platform) &&
+        this == ArchivedChatsDisplayMode.pullDown) {
+      return ArchivedChatsDisplayMode.firstPosition;
+    }
+    return this;
+  }
+
   int insertionIndex({required int chatCount, required int visibleRows}) {
     return switch (this) {
       ArchivedChatsDisplayMode.firstPosition => 0,
@@ -115,15 +132,64 @@ enum ChatFolderDisplayMode {
   IconData get icon => _icon.data;
 }
 
-enum ChatListSwipeBehavior {
-  chatActions(AppStringKeys.gesturesChatActions, HeroAppIcons.message),
-  switchFolders(AppStringKeys.gesturesSwitchFolders, HeroAppIcons.folder);
+enum ChatListSwipeMode {
+  chatActions(
+    AppStringKeys.gesturesChatActions,
+    AppStringKeys.gesturesChatActionsModeDescription,
+    HeroAppIcons.message,
+  ),
+  switchFolders(
+    AppStringKeys.gesturesSwitchFolders,
+    AppStringKeys.gesturesSwitchFoldersModeDescription,
+    HeroAppIcons.folder,
+  );
 
-  const ChatListSwipeBehavior(this.label, this._icon);
+  const ChatListSwipeMode(this.label, this.description, this.icon);
+
   final String label;
-  final AppIconData _icon;
+  final String description;
+  final AppIconData icon;
+}
 
-  IconData get icon => _icon.data;
+/// Where ordinary web links leave the chat surface.
+///
+/// Telegram links still resolve through TDLib and are unaffected by this
+/// device-wide preference.
+enum LinkOpenMode {
+  askEveryTime(
+    AppStringKeys.linkBrowserAskEveryTime,
+    AppStringKeys.linkBrowserAskEveryTimeDescription,
+    HeroAppIcons.questionCircle,
+  ),
+  internalBrowser(
+    AppStringKeys.linkBrowserMithkaBrowser,
+    AppStringKeys.linkBrowserMithkaBrowserDescription,
+    HeroAppIcons.globe,
+  ),
+  defaultBrowser(
+    AppStringKeys.linkBrowserDefaultBrowser,
+    AppStringKeys.linkBrowserDefaultBrowserDescription,
+    HeroAppIcons.arrowTopRight,
+  );
+
+  const LinkOpenMode(this.label, this.description, this.icon);
+
+  final String label;
+  final String description;
+  final AppIconData icon;
+}
+
+enum MobileMessageActionMenuStyle {
+  grid(AppStringKeys.appearanceMessageActionMenuGrid, HeroAppIcons.grip),
+  dropdown(
+    AppStringKeys.appearanceMessageActionMenuDropdown,
+    HeroAppIcons.listCheck,
+  );
+
+  const MobileMessageActionMenuStyle(this.label, this.icon);
+
+  final String label;
+  final AppIconData icon;
 }
 
 enum NameColorAudience {
@@ -160,17 +226,11 @@ enum StatusEmojiDisplayMode {
   bool get animate => this == StatusEmojiDisplayMode.animated;
 }
 
-enum ThreeFingerSwipeBehavior {
-  switchFolders(AppStringKeys.gesturesSwitchFolders, HeroAppIcons.folder),
-  switchAccounts(AppStringKeys.gesturesSwitchAccounts, HeroAppIcons.users),
-  disabled(AppStringKeys.gesturesDoNothing, HeroAppIcons.ban);
-
-  const ThreeFingerSwipeBehavior(this.label, this._icon);
-  final String label;
-  final AppIconData _icon;
-
-  IconData get icon => _icon.data;
-}
+/// How a sender's name is kept legible over a wallpaper.
+///
+/// [blend] pulls the sender colour halfway to the bubble's text colour, which
+/// holds contrast without the halo a shadow leaves around the glyphs.
+enum SenderNameReadabilityMode { background, blend, none }
 
 enum AppFontChoice {
   system(
@@ -854,13 +914,26 @@ enum AppMonospaceFontChoice {
   }
 }
 
+enum MessageBubbleApplicationScope { ownMessages, allMessages }
+
 class ThemeController extends ChangeNotifier {
-  ThemeController(this._prefs, {int initialAccountSlot = 0})
-    : _activeAccountSlot = initialAccountSlot {
+  ThemeController(
+    this._prefs, {
+    int initialAccountSlot = 0,
+    int? initialAccountUserId,
+    EmojiFontCatalog? emojiFontCatalog,
+  }) : _emojiFontCatalog = emojiFontCatalog ?? EmojiFontCatalog.shared,
+       _activeAccountSlot = initialAccountSlot,
+       _activeAccountUserId = initialAccountUserId {
+    GoogleFontWeightLoader.shared.addListener(_onGoogleFontWeightsLoaded);
     // Theming existed unconditionally before this preference was introduced,
     // so both new installs and migrated users retain the established behavior.
     _themingEnabled = _prefs.getBool(_themingEnabledKey) ?? true;
     _usePerAccountTheming = _prefs.getBool(_usePerAccountThemingKey) ?? false;
+    final initialUserId = _activeAccountUserId;
+    if (_usePerAccountTheming && initialUserId != null) {
+      _migrateLegacyAccountTheme(_activeAccountSlot, initialUserId);
+    }
     _mode = AppearanceMode.values.firstWhere(
       (m) => m.name == _prefs.getString(_scopedThemeKey(_modeKey)),
       orElse: () => AppearanceMode.system,
@@ -880,36 +953,52 @@ class ThemeController extends ChangeNotifier {
       }
     }
     _installedCloudThemes = [];
-    try {
-      final encodedThemes = _prefs.getString(_installedCloudThemesKey);
-      final decodedThemes = encodedThemes == null
-          ? const <Object?>[]
-          : jsonDecode(encodedThemes) as List;
-      for (final value in decodedThemes) {
-        final theme = TelegramCloudTheme.fromJson(value);
+    _loadInstalledCloudThemeCache(migrateLegacy: true);
+    // Shared appearance selections may have been chosen by another Telegram
+    // account. They remain valid shared selections, but must never be injected
+    // into this account's installed-theme membership cache. Per-account
+    // selections are already bound to the same stable identity and can repair
+    // a cache from an older build that stored only the active selection.
+    if (_usePerAccountTheming) {
+      for (final theme in [
+        legacyCloudTheme,
+        _lightCloudTheme,
+        _darkCloudTheme,
+      ]) {
         if (theme != null) _addInstalledCloudTheme(theme);
       }
-    } catch (_) {}
-    for (final theme in [legacyCloudTheme, _lightCloudTheme, _darkCloudTheme]) {
-      if (theme != null) _addInstalledCloudTheme(theme);
     }
     if (legacyCloudTheme != null) {
       _prefs.remove(_scopedThemeKey(_cloudThemeKey));
       _persistCloudThemes();
     }
-    final hadTelegramUiPreference = _prefs.containsKey(
-      _scopedThemeKey(_useTelegramThemeForUiKey),
+    // Cloud themes now own the app palette whenever they are installed. Drop
+    // the retired opt-out preference so an older `false` value cannot keep a
+    // selected theme from applying to the interface.
+    _prefs.remove(_scopedThemeKey(_legacyUseTelegramThemeForUiKey));
+    _customMessageBubbleBackground = _decodeCustomMessageBubbleBackground(
+      _scopedThemeKey(_customMessageBubbleBackgroundKey),
     );
-    _useTelegramThemeForUi =
-        _prefs.getBool(_scopedThemeKey(_useTelegramThemeForUiKey)) ?? false;
-    if (!hasCloudTheme) {
-      _useTelegramThemeForUi = false;
-      _prefs.setBool(_scopedThemeKey(_useTelegramThemeForUiKey), false);
-    } else if (!hadTelegramUiPreference &&
+    _messageBubblesEnabled =
+        _prefs.getBool(_scopedThemeKey(_messageBubblesEnabledKey)) ?? true;
+    _messageBubbleBackground = MessageBubbleBackground.fromStorage(
+      _prefs.getString(_scopedThemeKey(_messageBubbleBackgroundKey)),
+    );
+    _messageBubbleApplicationScope = MessageBubbleApplicationScope.values
+        .firstWhere(
+          (scope) =>
+              scope.name ==
+              _prefs.getString(
+                _scopedThemeKey(_messageBubbleApplicationScopeKey),
+              ),
+          orElse: () => MessageBubbleApplicationScope.allMessages,
+        );
+    _repairMissingCustomMessageBubble();
+    if (hasCloudTheme &&
         (_prefs.containsKey(_preCloudThemeModeKey) ||
             _prefs.containsKey(_preCloudThemeBrandKey))) {
-      // Themes installed by older builds always replaced the app palette.
-      // Migrate those users to the new, explicitly disabled-by-default mode.
+      // Older builds coupled theme installation to mode and brand changes.
+      // Restore those independent choices while retaining the selected theme.
       _restoreUiBeforeCloudTheme();
     }
     _fontChoice = AppFontChoice.values.firstWhere(
@@ -930,19 +1019,27 @@ class ThemeController extends ChangeNotifier {
     );
     _customMonospaceFontFamily =
         _prefs.getString(_customMonospaceFontFamilyKey)?.trim() ?? '';
+    final storedEmojiFontKey = _prefs.getString(_emojiFontChoiceKey);
     final emojiFontKey = _normalizeEmojiFontKey(
-      _prefs.getString(_emojiFontChoiceKey),
+      storedEmojiFontKey,
+      migrated: _emojiFontKeysAreMigrated,
     );
+    if (emojiFontKey != storedEmojiFontKey?.trim()) {
+      unawaited(_prefs.setString(_emojiFontChoiceKey, emojiFontKey));
+    }
+    unawaited(_prefs.setInt(_emojiFontSchemaKey, _emojiFontSchemaVersion));
     _emojiFontChoice = EmojiFontChoice(
       key: emojiFontKey,
       label: emojiFontKey == EmojiFontChoice.system.key
           ? EmojiFontChoice.system.label
           : _prefs.getString(_emojiFontLabelKey) ?? emojiFontKey,
       license: _prefs.getString(_emojiFontLicenseKey),
+      fontFamily: _emojiFontCatalog.loadedFamilyForKey(emojiFontKey),
     );
     _fontFallbackChain = dedupeFontFamilies(
       _prefs.getStringList(_fontFallbackChainKey) ?? const <String>[],
     );
+    _invalidateFontCaches();
     unawaited(_normalizeStoredPlatformFontFamilies());
     _fontScale = _prefs.getDouble(_fontKey) ?? 1.0;
     _interfaceScale = _prefs.getDouble(_interfaceScaleKey) ?? 1.0;
@@ -960,41 +1057,32 @@ class ThemeController extends ChangeNotifier {
             : ChatFolderDisplayMode.hidden;
       },
     );
-    _showChatListSearch = _prefs.getBool(_chatListSearchKey) ?? true;
-    final storedSwipeBehavior = _prefs.getString(_chatListSwipeBehaviorKey);
-    _chatListSwipeBehavior = ChatListSwipeBehavior.values.firstWhere(
-      (behavior) => behavior.name == storedSwipeBehavior,
+    final storedChatListSwipeMode = _prefs.getString(_chatListSwipeModeKey);
+    final hasStoredChatListSwipeMode = ChatListSwipeMode.values.any(
+      (mode) => mode.name == storedChatListSwipeMode,
+    );
+    _chatListSwipeMode = ChatListSwipeMode.values.firstWhere(
+      (mode) => mode.name == storedChatListSwipeMode,
       orElse: () {
+        final legacyBehavior = _prefs.getString(
+          _legacyChatListSwipeBehaviorKey,
+        );
         final legacySwitchesFolders =
-            (_prefs.getBool(_disableChatListSwipeActionsKey) ?? false) &&
-            (_prefs.getBool(_chatListFolderSwipeSwitchingKey) ?? false);
+            legacyBehavior == ChatListSwipeMode.switchFolders.name ||
+            (legacyBehavior == null &&
+                (_prefs.getBool(_legacyDisableChatListSwipeActionsKey) ??
+                    false) &&
+                (_prefs.getBool(_legacyChatListFolderSwipeSwitchingKey) ??
+                    false));
         return legacySwitchesFolders
-            ? ChatListSwipeBehavior.switchFolders
-            : ChatListSwipeBehavior.chatActions;
+            ? ChatListSwipeMode.switchFolders
+            : ChatListSwipeMode.chatActions;
       },
     );
-    if (storedSwipeBehavior == null) {
-      _prefs.setString(_chatListSwipeBehaviorKey, _chatListSwipeBehavior.name);
+    if (!hasStoredChatListSwipeMode) {
+      _prefs.setString(_chatListSwipeModeKey, _chatListSwipeMode.name);
     }
-    _chatListHoldSwipeActions =
-        _prefs.getBool(_chatListHoldSwipeActionsKey) ?? false;
-    final storedThreeFingerBehavior = _prefs.getString(
-      _threeFingerSwipeBehaviorKey,
-    );
-    _threeFingerSwipeBehavior = ThreeFingerSwipeBehavior.values.firstWhere(
-      (behavior) => behavior.name == storedThreeFingerBehavior,
-      orElse: () => ThreeFingerSwipeBehavior.switchFolders,
-    );
-    final storedSavedMessagesBookmarkView = _prefs.getBool(
-      _savedMessagesBookmarkViewKey,
-    );
-    _savedMessagesBookmarkView =
-        storedSavedMessagesBookmarkView ??
-        _prefs.getBool(_legacyDisplayOwnChatAsFavoritesKey) ??
-        false;
-    if (storedSavedMessagesBookmarkView == null) {
-      _prefs.setBool(_savedMessagesBookmarkViewKey, _savedMessagesBookmarkView);
-    }
+    _showChatListSearch = _prefs.getBool(_chatListSearchKey) ?? true;
     _hideSidebarPhone = _prefs.getBool(_hideSidebarPhoneKey) ?? false;
     _showMemberTags = _prefs.getBool(_memberTagsKey) ?? false;
     _showPlainMemberRoleTags = _prefs.getBool(_plainMemberRoleTagsKey) ?? false;
@@ -1027,12 +1115,38 @@ class ThemeController extends ChangeNotifier {
           ? StatusEmojiDisplayMode.animated
           : StatusEmojiDisplayMode.static,
     );
-    _showSenderNameReadabilityPlate =
-        _prefs.getBool(_senderNameReadabilityPlateKey) ?? false;
+    final storedSenderNameReadability = _prefs.getString(
+      _senderNameReadabilityModeKey,
+    );
+    _senderNameReadabilityMode = SenderNameReadabilityMode.values.firstWhere(
+      (mode) => mode.name == storedSenderNameReadability,
+      // 'shadow' is what this mode was called before it became a colour blend;
+      // a stored preference still names it.
+      orElse: () => storedSenderNameReadability == 'shadow'
+          ? SenderNameReadabilityMode.blend
+          : switch (_prefs.getBool(_senderNameReadabilityPlateKey)) {
+              true => SenderNameReadabilityMode.background,
+              false => SenderNameReadabilityMode.none,
+              null => SenderNameReadabilityMode.blend,
+            },
+    );
     _showMessageMetaIndicators =
         _prefs.getBool(_messageMetaIndicatorsKey) ?? false;
     _alwaysShowMessageTime = _prefs.getBool(_alwaysShowMessageTimeKey) ?? false;
+    _mobileMessageActionMenuStyle = MobileMessageActionMenuStyle.values
+        .firstWhere(
+          (style) =>
+              style.name == _prefs.getString(_mobileMessageActionMenuStyleKey),
+          orElse: () => MobileMessageActionMenuStyle.grid,
+        );
+    _enterToSend = _prefs.getBool(_enterToSendKey) ?? false;
     _openChatsAtLatest = _prefs.getBool(_openChatsAtLatestKey) ?? false;
+    _linkOpenMode = LinkOpenMode.values.firstWhere(
+      (mode) => mode.name == _prefs.getString(_linkOpenModeKey),
+      orElse: () => LinkOpenMode.defaultBrowser,
+    );
+    _showSavedMessagesIdentity =
+        _prefs.getBool(_showSavedMessagesIdentityKey) ?? false;
     _preserveSenderWhenRepeating =
         _prefs.getBool(_preserveSenderWhenRepeatingKey) ?? true;
     _quickRepliesEnabled = _prefs.getBool(_quickRepliesEnabledKey) ?? true;
@@ -1052,6 +1166,8 @@ class ThemeController extends ChangeNotifier {
     _showMomentsTab = _prefs.getBool(_showMomentsTabKey) ?? true;
     _showShortVideos = _prefs.getBool(_showShortVideosKey) ?? true;
     _communitiesEnabled = _prefs.getBool(_communitiesEnabledKey) ?? true;
+    _saveCapturedPhotosToAlbum =
+        _prefs.getBool(_saveCapturedPhotosToAlbumKey) ?? false;
     final storedArchivedChatsMode = _prefs.getString(
       _archivedChatsDisplayModeKey,
     );
@@ -1081,7 +1197,13 @@ class ThemeController extends ChangeNotifier {
   static const _lightCloudThemeKey = 'telegramCloudThemeLight';
   static const _darkCloudThemeKey = 'telegramCloudThemeDark';
   static const _installedCloudThemesKey = 'installedTelegramCloudThemes';
-  static const _useTelegramThemeForUiKey = 'useTelegramThemeForUi';
+  static const _legacyUseTelegramThemeForUiKey = 'useTelegramThemeForUi';
+  static const _messageBubblesEnabledKey = 'messageBubblesEnabled.v1';
+  static const _messageBubbleBackgroundKey = 'messageBubbleBackground.v1';
+  static const _messageBubbleApplicationScopeKey =
+      'messageBubbleApplicationScope.v1';
+  static const _customMessageBubbleBackgroundKey =
+      'customMessageBubbleBackground.v1';
   static const _usePerAccountThemingKey = 'usePerAccountTheming';
   static const _preCloudThemeModeKey = 'preTelegramCloudThemeMode';
   static const _preCloudThemeBrandKey = 'preTelegramCloudThemeBrand';
@@ -1094,6 +1216,7 @@ class ThemeController extends ChangeNotifier {
   static const _emojiFontChoiceKey = 'emojiFontChoice';
   static const _emojiFontLabelKey = 'emojiFontLabel';
   static const _emojiFontLicenseKey = 'emojiFontLicense';
+  static const _emojiFontSchemaKey = 'emojiFontChoiceSchema';
   static const _fontFallbackChainKey = 'fontFallbackChain';
   static const _fontKey = 'fontScale';
   static const _interfaceScaleKey = 'interfaceScale';
@@ -1101,18 +1224,15 @@ class ThemeController extends ChangeNotifier {
   static const _animateAvatarsKey = 'animateAvatars';
   static const _animateStatusEmojiKey = 'animateStatusEmoji';
   static const _chatFolderDisplayModeKey = 'chatFolderDisplayMode';
+  static const _chatListSwipeModeKey = 'chatListSwipeMode.v1';
+  static const _legacyChatListSwipeBehaviorKey = 'chatListSwipeBehavior';
+  static const _legacyDisableChatListSwipeActionsKey =
+      'disableChatListSwipeActions';
+  static const _legacyChatListFolderSwipeSwitchingKey =
+      'chatListFolderSwipeSwitching';
   // Retained only to migrate the former show/hide toggle.
   static const _chatFolderFilterKey = 'showChatFolderFilter';
   static const _chatListSearchKey = 'showChatListSearch';
-  static const _disableChatListSwipeActionsKey = 'disableChatListSwipeActions';
-  static const _chatListFolderSwipeSwitchingKey =
-      'chatListFolderSwipeSwitching';
-  static const _chatListSwipeBehaviorKey = 'chatListSwipeBehavior';
-  static const _chatListHoldSwipeActionsKey = 'chatListHoldSwipeActions';
-  static const _threeFingerSwipeBehaviorKey = 'threeFingerSwipeBehavior';
-  static const _savedMessagesBookmarkViewKey = 'savedMessagesBookmarkView';
-  static const _legacyDisplayOwnChatAsFavoritesKey =
-      'displayOwnChatAsFavorites';
   static const _hideSidebarPhoneKey = 'hideSidebarPhone';
   static const _memberTagsKey = 'showMemberTags';
   static const _plainMemberRoleTagsKey = 'showPlainMemberRoleTags';
@@ -1128,9 +1248,15 @@ class ThemeController extends ChangeNotifier {
   static const _chatStatusEmojiModeKey = 'chatStatusEmojiMode.v1';
   static const _senderNameReadabilityPlateKey =
       'showSenderNameReadabilityPlate';
+  static const _senderNameReadabilityModeKey = 'senderNameReadabilityMode.v1';
   static const _messageMetaIndicatorsKey = 'showMessageMetaIndicators';
   static const _alwaysShowMessageTimeKey = 'alwaysShowMessageTime';
+  static const _mobileMessageActionMenuStyleKey =
+      'mobileMessageActionMenuStyle.v1';
+  static const _enterToSendKey = 'enterToSend';
   static const _openChatsAtLatestKey = 'openChatsAtLatest';
+  static const _linkOpenModeKey = 'linkOpenMode.v1';
+  static const _showSavedMessagesIdentityKey = 'showSavedMessagesIdentity';
   static const _preserveSenderWhenRepeatingKey = 'preserveSenderWhenRepeating';
   static const _quickRepliesEnabledKey = 'quickRepliesEnabled';
   static const _quickReactionsKey = 'quickReactions';
@@ -1140,17 +1266,22 @@ class ThemeController extends ChangeNotifier {
   static const _showMomentsTabKey = 'showMomentsTab';
   static const _showShortVideosKey = 'showShortVideos';
   static const _communitiesEnabledKey = 'communitiesEnabled';
+  static const _saveCapturedPhotosToAlbumKey = 'saveCapturedPhotosToAlbum';
   static const _archivedChatsDisplayModeKey = 'archivedChatsDisplayMode';
   static const _unreadBadgeModeKey = 'unreadBadgeMode';
   static const _unreadBadgeOverflowModeKey = 'unreadBadgeOverflowMode';
 
   static const double minFontScale = 0.8;
-  static const double maxFontScale = 1.4;
-  static const double minInterfaceScale = 0.66;
-  static const double maxInterfaceScale = 1.50;
+  // Text reflows inside bubbles and rows that grow with it, so a generous
+  // ceiling is safe: 2.0 covers users the old 1.4 cap left behind.
+  static const double maxFontScale = 2.0;
+  static const double minInterfaceScale = 0.66 * 0.66;
+  static const double maxInterfaceScale = 1.50 * 1.50;
 
   final SharedPreferences _prefs;
+  final EmojiFontCatalog _emojiFontCatalog;
   int _activeAccountSlot;
+  int? _activeAccountUserId;
   late bool _usePerAccountTheming;
   late bool _themingEnabled;
   late AppearanceMode _mode;
@@ -1158,7 +1289,11 @@ class ThemeController extends ChangeNotifier {
   TelegramCloudTheme? _lightCloudTheme;
   TelegramCloudTheme? _darkCloudTheme;
   late List<TelegramCloudTheme> _installedCloudThemes;
-  late bool _useTelegramThemeForUi;
+  int _installedCloudThemeRevision = 0;
+  late bool _messageBubblesEnabled;
+  late MessageBubbleBackground _messageBubbleBackground;
+  late MessageBubbleApplicationScope _messageBubbleApplicationScope;
+  CustomMessageBubbleBackground? _customMessageBubbleBackground;
   late AppFontChoice _fontChoice;
   late AppFontChoice _cjkFontChoice;
   late String _customPrimaryFontFamily;
@@ -1166,18 +1301,27 @@ class ThemeController extends ChangeNotifier {
   late AppMonospaceFontChoice _monospaceFontChoice;
   late String _customMonospaceFontFamily;
   late EmojiFontChoice _emojiFontChoice;
+  int _emojiFontSelectionRevision = 0;
   late List<String> _fontFallbackChain;
+
+  // The font chain is rebuilt from scratch on every applyAppTextStyle call
+  // (three dedupe passes each), and applyAppTextTheme runs 15 of those per
+  // TextTheme. Nothing here changes between builds, so memoize until a font
+  // preference actually moves — see _invalidateFontCaches.
+  List<String>? _normalFontFamilyChainCache;
+  List<String>? _effectiveFontFamilyChainCache;
+  final Map<(TextStyle, bool), TextStyle> _appTextStyleCache = {};
   late double _fontScale;
   late double _interfaceScale;
+  Timer? _scalePersistTimer;
+  bool _fontScaleNeedsPersist = false;
+  bool _interfaceScaleNeedsPersist = false;
   late bool _circularGroupAvatars;
   late bool _animateAvatars;
   late bool _animateStatusEmoji;
   late ChatFolderDisplayMode _chatFolderDisplayMode;
+  late ChatListSwipeMode _chatListSwipeMode;
   bool _showChatListSearch = true;
-  late ChatListSwipeBehavior _chatListSwipeBehavior;
-  bool _chatListHoldSwipeActions = false;
-  late ThreeFingerSwipeBehavior _threeFingerSwipeBehavior;
-  bool _savedMessagesBookmarkView = false;
   bool _hideSidebarPhone = false;
   bool _showMemberTags = false;
   bool _showPlainMemberRoleTags = false;
@@ -1186,10 +1330,15 @@ class ThemeController extends ChangeNotifier {
   StatusEmojiDisplayMode _chatListStatusEmojiMode =
       StatusEmojiDisplayMode.static;
   StatusEmojiDisplayMode _chatStatusEmojiMode = StatusEmojiDisplayMode.static;
-  bool _showSenderNameReadabilityPlate = false;
+  SenderNameReadabilityMode _senderNameReadabilityMode =
+      SenderNameReadabilityMode.blend;
   bool _showMessageMetaIndicators = false;
   bool _alwaysShowMessageTime = false;
+  late MobileMessageActionMenuStyle _mobileMessageActionMenuStyle;
+  bool _enterToSend = false;
   bool _openChatsAtLatest = false;
+  late LinkOpenMode _linkOpenMode;
+  bool _showSavedMessagesIdentity = false;
   bool _preserveSenderWhenRepeating = true;
   bool _quickRepliesEnabled = true;
   late List<QuickReactionChoice> _quickReactions;
@@ -1199,6 +1348,7 @@ class ThemeController extends ChangeNotifier {
   bool _showMomentsTab = true;
   bool _showShortVideos = true;
   bool _communitiesEnabled = true;
+  bool _saveCapturedPhotosToAlbum = false;
   late ArchivedChatsDisplayMode _archivedChatsDisplayMode;
   late UnreadBadgeMode _unreadBadgeMode;
   late UnreadBadgeOverflowMode _unreadBadgeOverflowMode;
@@ -1212,6 +1362,8 @@ class ThemeController extends ChangeNotifier {
   bool get hasCloudTheme => _lightCloudTheme != null || _darkCloudTheme != null;
   List<TelegramCloudTheme> get installedCloudThemes =>
       List.unmodifiable(_installedCloudThemes);
+  String get installedCloudThemeCacheScope => _installedCloudThemeCacheKey();
+  int get installedCloudThemeRevision => _installedCloudThemeRevision;
   TelegramCloudTheme? cloudThemeFor(Brightness brightness) => !_themingEnabled
       ? null
       : brightness == Brightness.dark
@@ -1223,13 +1375,173 @@ class ThemeController extends ChangeNotifier {
     AppearanceMode.system =>
       WidgetsBinding.instance.platformDispatcher.platformBrightness,
   });
-  bool get useTelegramThemeForUi => _themingEnabled && _useTelegramThemeForUi;
+  bool usesCloudThemeForUi(Brightness brightness) =>
+      cloudThemeFor(brightness) != null;
+  bool get messageBubblesEnabled => _messageBubblesEnabled;
+  MessageBubbleBackground get messageBubbleBackground =>
+      _messageBubbleBackground;
+  MessageBubbleBackground get effectiveMessageBubbleBackground =>
+      _themingEnabled
+      ? _messageBubbleBackground
+      : MessageBubbleBackground.standard;
+  CustomMessageBubbleBackground? get customMessageBubbleBackground =>
+      _customMessageBubbleBackground;
+  MessageBubbleBackgroundSpec get messageBubbleBackgroundSpec =>
+      MessageBubbleBackgroundSpec.resolve(
+        _messageBubbleBackground,
+        custom: _customMessageBubbleBackground,
+      );
+  MessageBubbleBackgroundSpec get effectiveMessageBubbleBackgroundSpec =>
+      _themingEnabled
+      ? messageBubbleBackgroundSpec
+      : MessageBubbleBackgroundSpec.standard;
+  MessageBubbleApplicationScope get messageBubbleApplicationScope =>
+      _messageBubbleApplicationScope;
+  MessageBubbleBackgroundSpec effectiveMessageBubbleBackgroundSpecFor({
+    required bool outgoing,
+  }) {
+    // Turning the preference off drops the custom image and falls back to the
+    // theme's own bubble; the selection is kept so re-enabling restores it.
+    if (!_messageBubblesEnabled ||
+        !_themingEnabled ||
+        (!outgoing &&
+            _messageBubbleApplicationScope ==
+                MessageBubbleApplicationScope.ownMessages)) {
+      return MessageBubbleBackgroundSpec.standard;
+    }
+    return messageBubbleBackgroundSpec;
+  }
+
+  bool shouldRenderMessageBubbleSurface({
+    required bool outgoing,
+    required Brightness brightness,
+    bool hasCustomChatTheme = false,
+  }) {
+    // Messages always sit on a bubble. The preference chooses whether that
+    // bubble is the custom image or the theme's own default fill — see
+    // [effectiveMessageBubbleBackgroundSpecFor] — it does not remove the
+    // surface. Dropping it left incoming messages as bare text on the
+    // wallpaper while outgoing kept a bubble.
+    return true;
+  }
+
+  MessageBubbleBackgroundSpec messageBubbleBackgroundSpecFor(
+    MessageBubbleBackground selection,
+  ) => MessageBubbleBackgroundSpec.resolve(
+    selection,
+    custom: _customMessageBubbleBackground,
+  );
   bool get usePerAccountTheming => _usePerAccountTheming;
 
-  String _scopedThemeKey(String key, [int? accountSlot]) =>
-      _usePerAccountTheming
-      ? '$key.account.${accountSlot ?? _activeAccountSlot}'
-      : key;
+  String _scopedThemeKey(String key) {
+    if (!_usePerAccountTheming) return key;
+    final userId = _activeAccountUserId;
+    return userId == null
+        ? '$key.account.$_activeAccountSlot'
+        : '$key.account.user.$userId';
+  }
+
+  /// Installed Telegram themes belong to the signed-in Telegram account even
+  /// when appearance selections themselves are shared between accounts. Keep
+  /// their cache isolated by stable user identity (falling back to the local
+  /// slot until TDLib has resolved the user).
+  String _installedCloudThemeCacheKey() {
+    final userId = _activeAccountUserId;
+    return userId == null
+        ? _installedCloudThemeSlotCacheKey(_activeAccountSlot)
+        : _installedCloudThemeIdentityCacheKey(userId);
+  }
+
+  String _installedCloudThemeSlotCacheKey(int slot) =>
+      '$_installedCloudThemesKey.account.$slot';
+
+  String _installedCloudThemeIdentityCacheKey(int userId) =>
+      '$_installedCloudThemesKey.account.user.$userId';
+
+  void _loadInstalledCloudThemeCache({bool migrateLegacy = false}) {
+    final cacheKey = _installedCloudThemeCacheKey();
+    if (migrateLegacy) {
+      final candidates = <String>[
+        if (_activeAccountUserId != null)
+          _installedCloudThemeSlotCacheKey(_activeAccountSlot),
+        _installedCloudThemesKey,
+      ];
+      if (!_prefs.containsKey(cacheKey)) {
+        for (final candidate in candidates) {
+          if (candidate == cacheKey) continue;
+          final encoded = _prefs.getString(candidate);
+          if (encoded == null) continue;
+          _prefs.setString(cacheKey, encoded);
+          break;
+        }
+      }
+      // Migration sources are provisional, not shared stores. Clear them
+      // even when the identity cache already exists so a later account cannot
+      // inherit stale membership while its own identity is resolving.
+      for (final candidate in candidates) {
+        if (candidate != cacheKey) _prefs.remove(candidate);
+      }
+    }
+
+    _installedCloudThemes = [];
+    try {
+      final encodedThemes = _prefs.getString(cacheKey);
+      final decodedThemes = encodedThemes == null
+          ? const <Object?>[]
+          : jsonDecode(encodedThemes) as List;
+      for (final value in decodedThemes) {
+        final theme = TelegramCloudTheme.fromJson(value);
+        if (theme != null) _addInstalledCloudTheme(theme);
+      }
+    } catch (_) {
+      // A malformed or partially-written cache must not prevent Appearance
+      // from opening. The next successful refresh replaces it.
+    }
+  }
+
+  void _migrateInstalledCloudThemeCache(int slot, int userId) {
+    final slotKey = _installedCloudThemeSlotCacheKey(slot);
+    final identityKey = _installedCloudThemeIdentityCacheKey(userId);
+    if (!_prefs.containsKey(identityKey)) {
+      final encoded = _prefs.getString(slotKey);
+      if (encoded != null) _prefs.setString(identityKey, encoded);
+    }
+    // Once TDLib resolves a stable user identity, the slot fallback has
+    // completed its job. Remove it even when an identity cache already exists
+    // so a later account reusing this slot cannot briefly see another user's
+    // themes while its own identity is still resolving.
+    _prefs.remove(slotKey);
+  }
+
+  void _migrateLegacyAccountTheme(int slot, int userId) {
+    for (final key in const [
+      _modeKey,
+      _brandKey,
+      _cloudThemeKey,
+      _lightCloudThemeKey,
+      _darkCloudThemeKey,
+      _legacyUseTelegramThemeForUiKey,
+      _messageBubblesEnabledKey,
+      _messageBubbleBackgroundKey,
+      _messageBubbleApplicationScopeKey,
+      _customMessageBubbleBackgroundKey,
+    ]) {
+      final legacyKey = '$key.account.$slot';
+      final identityKey = '$key.account.user.$userId';
+      final value = _prefs.get(legacyKey);
+      if (value == null) continue;
+      if (!_prefs.containsKey(identityKey)) {
+        if (value is bool) {
+          _prefs.setBool(identityKey, value);
+        } else if (value is int) {
+          _prefs.setInt(identityKey, value);
+        } else if (value is String) {
+          _prefs.setString(identityKey, value);
+        }
+      }
+      _prefs.remove(legacyKey);
+    }
+  }
 
   TelegramCloudTheme? _decodeTheme(String key) {
     try {
@@ -1239,6 +1551,40 @@ class ThemeController extends ChangeNotifier {
           : TelegramCloudTheme.fromJson(jsonDecode(encoded));
     } catch (_) {
       return null;
+    }
+  }
+
+  CustomMessageBubbleBackground? _decodeCustomMessageBubbleBackground(
+    String key,
+  ) {
+    try {
+      final encoded = _prefs.getString(key);
+      if (encoded == null) return null;
+      final decoded = jsonDecode(encoded);
+      if (decoded is! Map) return null;
+      return CustomMessageBubbleBackground.fromJson(
+        Map<String, dynamic>.from(decoded),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  void _repairMissingCustomMessageBubble() {
+    final custom = _customMessageBubbleBackground;
+    if (custom == null) {
+      _prefs.remove(_scopedThemeKey(_customMessageBubbleBackgroundKey));
+    } else if (!custom.fileExists) {
+      _customMessageBubbleBackground = null;
+      _prefs.remove(_scopedThemeKey(_customMessageBubbleBackgroundKey));
+    }
+    if (_messageBubbleBackground == MessageBubbleBackground.custom &&
+        _customMessageBubbleBackground == null) {
+      _messageBubbleBackground = MessageBubbleBackground.standard;
+      _prefs.setString(
+        _scopedThemeKey(_messageBubbleBackgroundKey),
+        MessageBubbleBackground.standard.name,
+      );
     }
   }
 
@@ -1253,22 +1599,68 @@ class ThemeController extends ChangeNotifier {
     );
     _lightCloudTheme = _decodeTheme(_scopedThemeKey(_lightCloudThemeKey));
     _darkCloudTheme = _decodeTheme(_scopedThemeKey(_darkCloudThemeKey));
-    _useTelegramThemeForUi =
-        _prefs.getBool(_scopedThemeKey(_useTelegramThemeForUiKey)) ?? false;
-    if (!hasCloudTheme) _useTelegramThemeForUi = false;
+    _prefs.remove(_scopedThemeKey(_legacyUseTelegramThemeForUiKey));
+    _customMessageBubbleBackground = _decodeCustomMessageBubbleBackground(
+      _scopedThemeKey(_customMessageBubbleBackgroundKey),
+    );
+    _messageBubblesEnabled =
+        _prefs.getBool(_scopedThemeKey(_messageBubblesEnabledKey)) ?? true;
+    _messageBubbleBackground = MessageBubbleBackground.fromStorage(
+      _prefs.getString(_scopedThemeKey(_messageBubbleBackgroundKey)),
+    );
+    _messageBubbleApplicationScope = MessageBubbleApplicationScope.values
+        .firstWhere(
+          (scope) =>
+              scope.name ==
+              _prefs.getString(
+                _scopedThemeKey(_messageBubbleApplicationScopeKey),
+              ),
+          orElse: () => MessageBubbleApplicationScope.allMessages,
+        );
+    _repairMissingCustomMessageBubble();
     AppTheme.applyBrand(_brandColor);
   }
 
   void _persistScopedThemeSettings() {
     _prefs.setString(_scopedThemeKey(_modeKey), _mode.name);
     _prefs.setInt(_scopedThemeKey(_brandKey), _brandColor.toARGB32());
+    _prefs.setBool(
+      _scopedThemeKey(_messageBubblesEnabledKey),
+      _messageBubblesEnabled,
+    );
+    _prefs.setString(
+      _scopedThemeKey(_messageBubbleBackgroundKey),
+      _messageBubbleBackground.name,
+    );
+    _prefs.setString(
+      _scopedThemeKey(_messageBubbleApplicationScopeKey),
+      _messageBubbleApplicationScope.name,
+    );
+    final custom = _customMessageBubbleBackground;
+    if (custom == null) {
+      _prefs.remove(_scopedThemeKey(_customMessageBubbleBackgroundKey));
+    } else {
+      _prefs.setString(
+        _scopedThemeKey(_customMessageBubbleBackgroundKey),
+        jsonEncode(custom.toJson()),
+      );
+    }
     _persistCloudThemes();
   }
 
-  void setActiveAccountSlot(int value) {
-    if (_activeAccountSlot == value) return;
+  void setActiveAccountSlot(int value, {int? userId}) {
+    if (_activeAccountSlot == value && _activeAccountUserId == userId) return;
     _activeAccountSlot = value;
-    if (!_usePerAccountTheming) return;
+    _activeAccountUserId = userId;
+    if (userId != null) {
+      _migrateInstalledCloudThemeCache(value, userId);
+    }
+    _loadInstalledCloudThemeCache(migrateLegacy: true);
+    if (!_usePerAccountTheming) {
+      notifyListeners();
+      return;
+    }
+    if (userId != null) _migrateLegacyAccountTheme(value, userId);
     _loadScopedThemeSettings();
     notifyListeners();
   }
@@ -1279,7 +1671,10 @@ class ThemeController extends ChangeNotifier {
     final brand = _brandColor;
     final light = _lightCloudTheme;
     final dark = _darkCloudTheme;
-    final useForUi = _useTelegramThemeForUi;
+    final messageBubblesEnabled = _messageBubblesEnabled;
+    final bubbleBackground = _messageBubbleBackground;
+    final bubbleApplicationScope = _messageBubbleApplicationScope;
+    final customBubbleBackground = _customMessageBubbleBackground;
     _usePerAccountTheming = value;
     _prefs.setBool(_usePerAccountThemingKey, value);
     if (value) {
@@ -1288,13 +1683,23 @@ class ThemeController extends ChangeNotifier {
           _prefs.containsKey(_scopedThemeKey(_brandKey)) ||
           _prefs.containsKey(_scopedThemeKey(_lightCloudThemeKey)) ||
           _prefs.containsKey(_scopedThemeKey(_darkCloudThemeKey)) ||
-          _prefs.containsKey(_scopedThemeKey(_useTelegramThemeForUiKey));
+          _prefs.containsKey(_scopedThemeKey(_messageBubblesEnabledKey)) ||
+          _prefs.containsKey(_scopedThemeKey(_messageBubbleBackgroundKey)) ||
+          _prefs.containsKey(
+            _scopedThemeKey(_messageBubbleApplicationScopeKey),
+          ) ||
+          _prefs.containsKey(
+            _scopedThemeKey(_customMessageBubbleBackgroundKey),
+          );
       if (!accountHasSelection) {
         _mode = mode;
         _brandColor = brand;
         _lightCloudTheme = light;
         _darkCloudTheme = dark;
-        _useTelegramThemeForUi = useForUi;
+        _messageBubblesEnabled = messageBubblesEnabled;
+        _messageBubbleBackground = bubbleBackground;
+        _messageBubbleApplicationScope = bubbleApplicationScope;
+        _customMessageBubbleBackground = customBubbleBackground;
         _persistScopedThemeSettings();
       } else {
         _loadScopedThemeSettings();
@@ -1306,10 +1711,10 @@ class ThemeController extends ChangeNotifier {
   }
 
   /// The reusable semantic palette for every app surface at [brightness].
-  /// Chat wallpaper and bubble theming remain independent of this UI opt-in.
+  /// A selected cloud theme always owns the matching interface palette.
   AppColors uiColorsFor(Brightness brightness) {
     final theme = cloudThemeFor(brightness);
-    if (useTelegramThemeForUi && theme != null) return theme.uiColors;
+    if (theme != null) return theme.uiColors;
     return brightness == Brightness.dark ? AppColors.dark : AppColors.light;
   }
 
@@ -1361,16 +1766,8 @@ class ThemeController extends ChangeNotifier {
   bool get animateAvatars => _animateAvatars;
   bool get animateStatusEmoji => _animateStatusEmoji;
   ChatFolderDisplayMode get chatFolderDisplayMode => _chatFolderDisplayMode;
+  ChatListSwipeMode get chatListSwipeMode => _chatListSwipeMode;
   bool get showChatListSearch => _showChatListSearch;
-  ChatListSwipeBehavior get chatListSwipeBehavior => _chatListSwipeBehavior;
-  bool get chatListHoldSwipeActions => _chatListHoldSwipeActions;
-  ThreeFingerSwipeBehavior get threeFingerSwipeBehavior =>
-      _threeFingerSwipeBehavior;
-  bool get disableChatListSwipeActions =>
-      _chatListSwipeBehavior == ChatListSwipeBehavior.switchFolders;
-  bool get chatListFolderSwipeSwitching =>
-      _chatListSwipeBehavior == ChatListSwipeBehavior.switchFolders;
-  bool get savedMessagesBookmarkView => _savedMessagesBookmarkView;
   bool get hideSidebarPhone => _hideSidebarPhone;
   bool get showMemberTags => _showMemberTags;
   bool get showPlainMemberRoleTags => _showPlainMemberRoleTags;
@@ -1385,10 +1782,16 @@ class ThemeController extends ChangeNotifier {
   bool get showChatNameColors =>
       _chatNameColorAudience != NameColorAudience.nobody;
   bool get showChatPremiumEmojiStatus => _chatStatusEmojiMode.visible;
-  bool get showSenderNameReadabilityPlate => _showSenderNameReadabilityPlate;
+  SenderNameReadabilityMode get senderNameReadabilityMode =>
+      _senderNameReadabilityMode;
   bool get showMessageMetaIndicators => _showMessageMetaIndicators;
   bool get alwaysShowMessageTime => _alwaysShowMessageTime;
+  MobileMessageActionMenuStyle get mobileMessageActionMenuStyle =>
+      _mobileMessageActionMenuStyle;
+  bool get enterToSend => _enterToSend;
   bool get openChatsAtLatest => _openChatsAtLatest;
+  LinkOpenMode get linkOpenMode => _linkOpenMode;
+  bool get showSavedMessagesIdentity => _showSavedMessagesIdentity;
   bool get preserveSenderWhenRepeating => _preserveSenderWhenRepeating;
   bool get quickRepliesEnabled => _quickRepliesEnabled;
   List<QuickReactionChoice> get quickReactions =>
@@ -1399,6 +1802,7 @@ class ThemeController extends ChangeNotifier {
   bool get showMomentsTab => _showMomentsTab;
   bool get showShortVideos => _showShortVideos;
   bool get communitiesEnabled => _communitiesEnabled;
+  bool get saveCapturedPhotosToAlbum => _saveCapturedPhotosToAlbum;
   ArchivedChatsDisplayMode get archivedChatsDisplayMode =>
       _archivedChatsDisplayMode;
   UnreadBadgeMode get unreadBadgeMode => _unreadBadgeMode;
@@ -1439,28 +1843,70 @@ class ThemeController extends ChangeNotifier {
     return value;
   }
 
-  /// App-wide text scale factor, applied at the root via MediaQuery.textScaler.
+  /// App-wide text scale factor, applied at the root via MediaQuery.textScaler
+  /// by the scaled app views. Every surface follows it — chat transcripts,
+  /// chat list, navigation and settings alike.
   double get fontScale => _fontScale;
-  double chatTextSize(double base) =>
-      base * _fontScale.clamp(minFontScale, maxFontScale).toDouble();
-  double get interfaceScale => _interfaceScale;
-  double get rowHeight => AppMetric.listRowHeight;
+
+  /// The scale text actually renders at: the user's own font size preference
+  /// on top of the platform accessibility text size, capped at the range the
+  /// app's layouts are tested against so an extreme system setting cannot
+  /// break a fixed layout on its own.
+  ///
+  /// The system size only ever enlarges. This control owns how small the app
+  /// gets — it shows its setting as a percentage, and a device asking for
+  /// text below the platform default would otherwise render 100% smaller than
+  /// the sizes the app is designed at. Enlarging still composes, so a system
+  /// accessibility size carries into the app on its own.
+  double effectiveTextScale(TextScaler systemScaler) =>
+      (_fontScale * math.max(systemScaler.scale(1.0), 1.0)).clamp(
+        minFontScale,
+        maxFontScale,
+      );
+
+  // Font scaling is applied once by the root MediaQuery; Text applies it
+  // implicitly and RichText reads it explicitly. Returning an already scaled
+  // size here made chat typography grow twice.
+  double chatTextSize(double base) => base;
+
+  /// Squared value shown by the Interface Size control. For example, the
+  /// historical 1.5 render scale is presented as 225%.
+  double get interfaceScale => _interfaceScale * _interfaceScale;
+  double get renderedInterfaceScale => math.sqrt(interfaceScale);
   double get avatarSize => AppMetric.avatarSize;
   double get navHeaderHeight => AppMetric.navHeaderHeight;
   double scaled(double base) => base;
+
+  /// Drops every derived font cache. Called from anywhere a font preference is
+  /// assigned, including the preference reload — a setter-only sweep would
+  /// serve a stale TextTheme after an account switch.
+  void _invalidateFontCaches() {
+    _normalFontFamilyChainCache = null;
+    _effectiveFontFamilyChainCache = null;
+    _appTextStyleCache.clear();
+  }
+
+  /// The cached chains are shared with every caller; treat them as read-only.
   List<String> _normalFontFamilyChain([TextStyle? base]) {
-    final textFamilies = _fontFallbackChain.isNotEmpty
-        ? _fontFallbackChain
-        : [AppFontChoice._platformFontFamily()];
-    return dedupeFontFamilies([
-      ...textFamilies,
+    return _normalFontFamilyChainCache ??= dedupeFontFamilies([
+      ...(_fontFallbackChain.isNotEmpty
+          ? _fontFallbackChain
+          : [AppFontChoice._platformFontFamily()]),
       ...AppFontChoice._platformFontFallback(),
+      // Last resort. The platform's own UI face carries every weight and every
+      // script the system can render, so a chain that misses a glyph lands
+      // somewhere sane instead of on the engine's fallback of last resort.
+      // Deduping keeps it from appearing twice under the stock configuration,
+      // where it is already the primary.
+      AppFontChoice._platformFontFamily(),
     ]);
   }
 
   List<String> effectiveFontFamilyChain([TextStyle? base]) {
+    final cached = _effectiveFontFamilyChainCache;
+    if (cached != null) return cached;
     final textFamilies = _normalFontFamilyChain(base);
-    return dedupeFontFamilies([
+    return _effectiveFontFamilyChainCache = dedupeFontFamilies([
       textFamilies.first,
       ..._emojiFontChoice.fontFamilies,
       ...textFamilies.skip(1),
@@ -1468,6 +1914,19 @@ class ThemeController extends ChangeNotifier {
   }
 
   TextStyle applyAppTextStyle(TextStyle base, {bool boldText = false}) {
+    final cacheKey = (base, boldText);
+    final cached = _appTextStyleCache[cacheKey];
+    if (cached != null) return cached;
+    final styled = _computeAppTextStyle(base, boldText: boldText);
+    // The distinct base styles are the ~30 entries of two TextThemes plus the
+    // root body style; the guard only exists so an unexpected caller cannot
+    // grow this without bound.
+    if (_appTextStyleCache.length >= 128) _appTextStyleCache.clear();
+    _appTextStyleCache[cacheKey] = styled;
+    return styled;
+  }
+
+  TextStyle _computeAppTextStyle(TextStyle base, {bool boldText = false}) {
     final families = effectiveFontFamilyChain(base);
     final weightedBase = base.copyWith(
       fontWeight: AppTextWeight.forSystemBoldText(
@@ -1480,7 +1939,7 @@ class ThemeController extends ChangeNotifier {
     final googleFamily = _googleFamilyFor(first);
     final withPrimary = googleFamily == null
         ? weightedBase.copyWith(fontFamily: first)
-        : GoogleFonts.getFont(googleFamily, textStyle: weightedBase);
+        : _googleTextStyle(googleFamily, weightedBase);
     return withPrimary.copyWith(
       fontFamilyFallback: dedupeFontFamilies([
         ..._emojiFontChoice.fontFamilies,
@@ -1488,6 +1947,20 @@ class ThemeController extends ChangeNotifier {
         ...families.skip(1),
       ]),
     );
+  }
+
+  /// Names the family that holds every weight face once it is registered.
+  ///
+  /// Until then this falls back to google_fonts' own per-variant family, whose
+  /// single face makes the app's w600 labels a synthetic embolden rather than
+  /// the designed SemiBold. [GoogleFontWeightLoader] reports back when the real
+  /// faces land, and the cached styles are recomputed against them.
+  TextStyle _googleTextStyle(String googleFamily, TextStyle weightedBase) {
+    final loader = GoogleFontWeightLoader.shared;
+    final unified = loader.loadedFamily(googleFamily);
+    if (unified != null) return weightedBase.copyWith(fontFamily: unified);
+    unawaited(loader.ensure(googleFamily));
+    return GoogleFonts.getFont(googleFamily, textStyle: weightedBase);
   }
 
   TextTheme applyAppTextTheme(TextTheme textTheme, {bool boldText = false}) {
@@ -1526,20 +1999,30 @@ class ThemeController extends ChangeNotifier {
     );
   }
 
+  /// Google-hosted families indexed by every name they answer to. The linear
+  /// scan this replaces walked 60 enum entries and evaluated `fontFamily` on
+  /// each, allocating a `replaceAll` String per Google entry.
+  ///
+  /// Only Google entries are indexed: a non-Google entry resolved to its own
+  /// null `googleFamily`, which is what a miss returns anyway, and no
+  /// non-Google family name collides with a Google one.
+  static final Map<String, String> _googleFamilyByFamilyName = {
+    for (final font in AppFontChoice.values)
+      if (font.googleFamily case final google?) ...{
+        google: google,
+        font.fontFamily: google,
+      },
+    for (final font in AppMonospaceFontChoice.values)
+      if (font.googleFamily case final google?) ...{
+        google: google,
+        font.fontFamily: google,
+      },
+  };
+
   static String? _googleFamilyFor(String family) {
     final storedGoogleFamily = decodeGoogleFontFamily(family);
     if (storedGoogleFamily != null) return storedGoogleFamily;
-    for (final font in AppFontChoice.values) {
-      if (font.googleFamily == family || font.fontFamily == family) {
-        return font.googleFamily;
-      }
-    }
-    for (final font in AppMonospaceFontChoice.values) {
-      if (font.googleFamily == family || font.fontFamily == family) {
-        return font.googleFamily;
-      }
-    }
-    return null;
+    return _googleFamilyByFamilyName[family];
   }
 
   set mode(AppearanceMode value) {
@@ -1571,16 +2054,67 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  set useTelegramThemeForUi(bool value) {
-    _setUseTelegramThemeForUi(value, notify: true);
+  set messageBubblesEnabled(bool value) {
+    if (_messageBubblesEnabled == value) return;
+    _messageBubblesEnabled = value;
+    _prefs.setBool(_scopedThemeKey(_messageBubblesEnabledKey), value);
+    notifyListeners();
   }
 
-  void _setUseTelegramThemeForUi(bool value, {required bool notify}) {
-    if (value && !hasCloudTheme) return;
-    if (_useTelegramThemeForUi == value) return;
-    _useTelegramThemeForUi = value;
-    _prefs.setBool(_scopedThemeKey(_useTelegramThemeForUiKey), value);
-    if (notify) notifyListeners();
+  set messageBubbleBackground(MessageBubbleBackground value) {
+    if (value == MessageBubbleBackground.custom &&
+        _customMessageBubbleBackground == null) {
+      return;
+    }
+    if (_messageBubbleBackground == value) return;
+    _messageBubbleBackground = value;
+    _prefs.setString(_scopedThemeKey(_messageBubbleBackgroundKey), value.name);
+    notifyListeners();
+  }
+
+  set messageBubbleApplicationScope(MessageBubbleApplicationScope value) {
+    if (_messageBubbleApplicationScope == value) return;
+    _messageBubbleApplicationScope = value;
+    _prefs.setString(
+      _scopedThemeKey(_messageBubbleApplicationScopeKey),
+      value.name,
+    );
+    notifyListeners();
+  }
+
+  void installCustomMessageBubbleBackground(
+    CustomMessageBubbleBackground value,
+  ) {
+    _customMessageBubbleBackground = value;
+    _messageBubblesEnabled = true;
+    _messageBubbleBackground = MessageBubbleBackground.custom;
+    _prefs.setBool(_scopedThemeKey(_messageBubblesEnabledKey), true);
+    _prefs.setString(
+      _scopedThemeKey(_customMessageBubbleBackgroundKey),
+      jsonEncode(value.toJson()),
+    );
+    _prefs.setString(
+      _scopedThemeKey(_messageBubbleBackgroundKey),
+      MessageBubbleBackground.custom.name,
+    );
+    notifyListeners();
+  }
+
+  void clearCustomMessageBubbleBackground() {
+    if (_customMessageBubbleBackground == null &&
+        _messageBubbleBackground != MessageBubbleBackground.custom) {
+      return;
+    }
+    _customMessageBubbleBackground = null;
+    _prefs.remove(_scopedThemeKey(_customMessageBubbleBackgroundKey));
+    if (_messageBubbleBackground == MessageBubbleBackground.custom) {
+      _messageBubbleBackground = MessageBubbleBackground.standard;
+      _prefs.setString(
+        _scopedThemeKey(_messageBubbleBackgroundKey),
+        MessageBubbleBackground.standard.name,
+      );
+    }
+    notifyListeners();
   }
 
   void clearCloudTheme([Brightness? brightness]) {
@@ -1591,10 +2125,6 @@ class ThemeController extends ChangeNotifier {
     } else {
       _lightCloudTheme = null;
       _darkCloudTheme = null;
-    }
-    if (!hasCloudTheme) {
-      _useTelegramThemeForUi = false;
-      _prefs.setBool(_scopedThemeKey(_useTelegramThemeForUiKey), false);
     }
     _persistCloudThemes();
     notifyListeners();
@@ -1616,6 +2146,7 @@ class ThemeController extends ChangeNotifier {
       refreshed[theme.slug] = theme;
     }
     _installedCloudThemes = refreshed.values.toList(growable: true);
+    _installedCloudThemeRevision += 1;
     final light = _lightCloudTheme;
     if (light != null && refreshed.containsKey(light.slug)) {
       _lightCloudTheme = refreshed[light.slug];
@@ -1640,7 +2171,7 @@ class ThemeController extends ChangeNotifier {
     persist(_scopedThemeKey(_lightCloudThemeKey), _lightCloudTheme);
     persist(_scopedThemeKey(_darkCloudThemeKey), _darkCloudTheme);
     _prefs.setString(
-      _installedCloudThemesKey,
+      _installedCloudThemeCacheKey(),
       jsonEncode(_installedCloudThemes.map((theme) => theme.toJson()).toList()),
     );
   }
@@ -1663,6 +2194,7 @@ class ThemeController extends ChangeNotifier {
 
   set fontChoice(AppFontChoice value) {
     _fontChoice = value;
+    _invalidateFontCaches();
     _prefs.setString(_fontChoiceKey, value.name);
     notifyListeners();
   }
@@ -1670,36 +2202,43 @@ class ThemeController extends ChangeNotifier {
   set cjkFontChoice(AppFontChoice value) {
     if (!value.isCjk) return;
     _cjkFontChoice = value;
+    _invalidateFontCaches();
     _prefs.setString(_cjkFontChoiceKey, value.name);
     notifyListeners();
   }
 
   set customPrimaryFontFamily(String value) {
     _customPrimaryFontFamily = value.trim();
+    _invalidateFontCaches();
     _prefs.setString(_customPrimaryFontFamilyKey, _customPrimaryFontFamily);
     notifyListeners();
   }
 
   set customCjkFontFamily(String value) {
     _customCjkFontFamily = value.trim();
+    _invalidateFontCaches();
     _prefs.setString(_customCjkFontFamilyKey, _customCjkFontFamily);
     notifyListeners();
   }
 
   set monospaceFontChoice(AppMonospaceFontChoice value) {
     _monospaceFontChoice = value;
+    _invalidateFontCaches();
     _prefs.setString(_monospaceFontChoiceKey, value.name);
     notifyListeners();
   }
 
   set customMonospaceFontFamily(String value) {
     _customMonospaceFontFamily = value.trim();
+    _invalidateFontCaches();
     _prefs.setString(_customMonospaceFontFamilyKey, _customMonospaceFontFamily);
     notifyListeners();
   }
 
   void useSystemEmojiFont() {
+    _emojiFontSelectionRevision++;
     _emojiFontChoice = EmojiFontChoice.system;
+    _invalidateFontCaches();
     _prefs.setString(_emojiFontChoiceKey, EmojiFontChoice.system.key);
     _prefs.remove(_emojiFontLabelKey);
     _prefs.remove(_emojiFontLicenseKey);
@@ -1708,51 +2247,94 @@ class ThemeController extends ChangeNotifier {
 
   Future<void> loadSelectedEmojiFontIfAvailable() async {
     final key = _emojiFontChoice.key;
-    if (key == EmojiFontChoice.system.key) return;
-    final family = await EmojiFontCatalog.shared.loadCachedOrDownload(key);
-    if (family == null) return;
+    if (key == EmojiFontChoice.system.key ||
+        _emojiFontChoice.fontFamily != null) {
+      return;
+    }
+    final revision = _emojiFontSelectionRevision;
+    final family = await _emojiFontCatalog.loadCachedOrDownload(key);
+    if (family == null ||
+        revision != _emojiFontSelectionRevision ||
+        _emojiFontChoice.key != key) {
+      return;
+    }
     _emojiFontChoice = EmojiFontChoice(
       key: key,
       label: _emojiFontChoice.label,
       license: _emojiFontChoice.license,
       fontFamily: family,
     );
+    _invalidateFontCaches();
     notifyListeners();
   }
 
   Future<void> setEmojiFont(EmojiFontManifestEntry entry) async {
-    final family = await EmojiFontCatalog.shared.downloadAndLoad(entry);
+    final revision = ++_emojiFontSelectionRevision;
+    final family = await _emojiFontCatalog.downloadAndLoad(entry);
+    if (revision != _emojiFontSelectionRevision) return;
     _emojiFontChoice = EmojiFontChoice(
       key: entry.key,
       label: entry.label,
       license: entry.license,
       fontFamily: family,
     );
+    _invalidateFontCaches();
     unawaited(_prefs.setString(_emojiFontChoiceKey, entry.key));
     unawaited(_prefs.setString(_emojiFontLabelKey, entry.label));
     unawaited(_prefs.setString(_emojiFontLicenseKey, entry.license));
     notifyListeners();
   }
 
-  static String _normalizeEmojiFontKey(String? value) {
-    return switch (value?.trim()) {
-      null || '' || 'system' => EmojiFontChoice.system.key,
-      'notoColor' => 'noto',
-      'noto' => 'noto-mono',
-      'blobmoji' => 'blobmoji',
-      'fluent' => 'fluent',
-      'fluentMono' => 'fluent-mono',
-      'fluentFlat' => 'fluent-flat',
-      'twemoji' => 'twemoji',
-      'openMoji' => 'openmoji',
-      'emojiTwo' => 'emojitwo',
-      'tossFace' => 'tossface',
-      final key => key,
-    };
+  /// Registers an already-cached selected emoji font before the first frame.
+  /// Missing cache entries are intentionally not downloaded on the launch
+  /// path; the normal idle loader can fetch those without delaying startup.
+  static Future<void> preloadCachedEmojiFont(SharedPreferences prefs) async {
+    final storedKey = prefs.getString(_emojiFontChoiceKey);
+    final migrated =
+        (prefs.getInt(_emojiFontSchemaKey) ?? 0) >= _emojiFontSchemaVersion ||
+        prefs.getString(_emojiFontLabelKey) != null;
+    final key = _normalizeEmojiFontKey(storedKey, migrated: migrated);
+    if (key == EmojiFontChoice.system.key) return;
+    try {
+      await EmojiFontCatalog.shared.loadCached(key);
+    } catch (error) {
+      debugPrint(
+        '[theme_controller] cached emoji font preload failed '
+        'type=${error.runtimeType}',
+      );
+    }
+  }
+
+  /// Bumped when stored emoji font keys need another one-shot migration.
+  static const _emojiFontSchemaVersion = 1;
+
+  /// Names of the pre-catalog `EmojiFontChoice` enum mapped onto catalog keys.
+  /// `noto` meant the monochrome font back then and means the color one in the
+  /// catalog, so this may only ever be applied to a pre-catalog preference —
+  /// see [_emojiFontKeysAreMigrated].
+  static const _legacyEmojiFontKeys = {
+    'notoColor': 'noto',
+    'noto': 'noto-mono',
+  };
+
+  /// Whether the stored emoji font key already uses catalog keys. Only the
+  /// catalog writes a label alongside the key, so its presence identifies a
+  /// preference that must be left alone even before the schema was stamped.
+  bool get _emojiFontKeysAreMigrated =>
+      (_prefs.getInt(_emojiFontSchemaKey) ?? 0) >= _emojiFontSchemaVersion ||
+      _prefs.getString(_emojiFontLabelKey) != null;
+
+  static String _normalizeEmojiFontKey(String? value, {bool migrated = true}) {
+    final key = value?.trim() ?? '';
+    if (key.isEmpty || key == EmojiFontChoice.system.key) {
+      return EmojiFontChoice.system.key;
+    }
+    return migrated ? key : _legacyEmojiFontKeys[key] ?? key;
   }
 
   void setFontFallbackChain(List<String> value) {
     _fontFallbackChain = dedupeFontFamilies(value);
+    _invalidateFontCaches();
     _prefs.setStringList(_fontFallbackChainKey, _fontFallbackChain);
     notifyListeners();
   }
@@ -1801,7 +2383,10 @@ class ThemeController extends ChangeNotifier {
       unawaited(_prefs.setStringList(_fontFallbackChainKey, nextChain));
       changed = true;
     }
-    if (changed) notifyListeners();
+    if (changed) {
+      _invalidateFontCaches();
+      notifyListeners();
+    }
   }
 
   void addFontToFallbackChain(String family) {
@@ -1824,14 +2409,68 @@ class ThemeController extends ChangeNotifier {
   }
 
   set fontScale(double value) {
-    _fontScale = value.clamp(minFontScale, maxFontScale);
-    _prefs.setDouble(_fontKey, _fontScale);
+    final next = value.clamp(minFontScale, maxFontScale);
+    if (_fontScale == next) return;
+    _fontScale = next;
+    _fontScaleNeedsPersist = true;
+    _scheduleScalePersist();
     notifyListeners();
   }
 
   set interfaceScale(double value) {
-    _interfaceScale = value.clamp(minInterfaceScale, maxInterfaceScale);
-    _prefs.setDouble(_interfaceScaleKey, _interfaceScale);
+    // Guard the stored value, not the argument: the getter squares it back, so
+    // a round-tripped double would never compare equal to what came in.
+    final next = math.sqrt(value.clamp(minInterfaceScale, maxInterfaceScale));
+    if (_interfaceScale == next) return;
+    _interfaceScale = next;
+    _interfaceScaleNeedsPersist = true;
+    _scheduleScalePersist();
+    notifyListeners();
+  }
+
+  /// The appearance sliders assign at pointer rate and every SharedPreferences
+  /// write rewrites the whole store (which also holds the cloud-theme blobs),
+  /// so the in-memory value moves now and the disk write waits for the drag.
+  /// The delay stays under the desktop settings-window sync debounce (350 ms),
+  /// which reloads the primary engine's preferences from the store.
+  void _scheduleScalePersist() {
+    _scalePersistTimer?.cancel();
+    _scalePersistTimer = Timer(
+      const Duration(milliseconds: 200),
+      _persistScales,
+    );
+  }
+
+  /// Only the scale that actually moved is written: on desktop the settings
+  /// window runs its own engine with its own controller, so writing back a
+  /// scale this instance never changed can push a stale cached value over one
+  /// the other window just stored.
+  void _persistScales() {
+    _scalePersistTimer = null;
+    if (_fontScaleNeedsPersist) {
+      _fontScaleNeedsPersist = false;
+      _prefs.setDouble(_fontKey, _fontScale);
+    }
+    if (_interfaceScaleNeedsPersist) {
+      _interfaceScaleNeedsPersist = false;
+      _prefs.setDouble(_interfaceScaleKey, _interfaceScale);
+    }
+  }
+
+  @override
+  void dispose() {
+    GoogleFontWeightLoader.shared.removeListener(_onGoogleFontWeightsLoaded);
+    if (_scalePersistTimer != null) {
+      _scalePersistTimer!.cancel();
+      _persistScales();
+    }
+    super.dispose();
+  }
+
+  /// The styles handed out so far name google_fonts' single-face family, so
+  /// drop them and rebuild against the one that now carries every weight.
+  void _onGoogleFontWeightsLoaded() {
+    _invalidateFontCaches();
     notifyListeners();
   }
 
@@ -1862,49 +2501,16 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  set savedMessagesBookmarkView(bool value) {
-    if (_savedMessagesBookmarkView == value) return;
-    _savedMessagesBookmarkView = value;
-    _prefs.setBool(_savedMessagesBookmarkViewKey, value);
+  set chatListSwipeMode(ChatListSwipeMode value) {
+    if (_chatListSwipeMode == value) return;
+    _chatListSwipeMode = value;
+    _prefs.setString(_chatListSwipeModeKey, value.name);
     notifyListeners();
   }
 
   set showChatListSearch(bool value) {
     _showChatListSearch = value;
     _prefs.setBool(_chatListSearchKey, value);
-    notifyListeners();
-  }
-
-  set disableChatListSwipeActions(bool value) {
-    chatListSwipeBehavior = value
-        ? ChatListSwipeBehavior.switchFolders
-        : ChatListSwipeBehavior.chatActions;
-  }
-
-  set chatListFolderSwipeSwitching(bool value) {
-    chatListSwipeBehavior = value
-        ? ChatListSwipeBehavior.switchFolders
-        : ChatListSwipeBehavior.chatActions;
-  }
-
-  set chatListSwipeBehavior(ChatListSwipeBehavior value) {
-    if (_chatListSwipeBehavior == value) return;
-    _chatListSwipeBehavior = value;
-    _prefs.setString(_chatListSwipeBehaviorKey, value.name);
-    notifyListeners();
-  }
-
-  set chatListHoldSwipeActions(bool value) {
-    if (_chatListHoldSwipeActions == value) return;
-    _chatListHoldSwipeActions = value;
-    _prefs.setBool(_chatListHoldSwipeActionsKey, value);
-    notifyListeners();
-  }
-
-  set threeFingerSwipeBehavior(ThreeFingerSwipeBehavior value) {
-    if (_threeFingerSwipeBehavior == value) return;
-    _threeFingerSwipeBehavior = value;
-    _prefs.setString(_threeFingerSwipeBehaviorKey, value.name);
     notifyListeners();
   }
 
@@ -1979,10 +2585,10 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
-  set showSenderNameReadabilityPlate(bool value) {
-    if (_showSenderNameReadabilityPlate == value) return;
-    _showSenderNameReadabilityPlate = value;
-    _prefs.setBool(_senderNameReadabilityPlateKey, value);
+  set senderNameReadabilityMode(SenderNameReadabilityMode value) {
+    if (_senderNameReadabilityMode == value) return;
+    _senderNameReadabilityMode = value;
+    _prefs.setString(_senderNameReadabilityModeKey, value.name);
     notifyListeners();
   }
 
@@ -1999,9 +2605,38 @@ class ThemeController extends ChangeNotifier {
     notifyListeners();
   }
 
+  set mobileMessageActionMenuStyle(MobileMessageActionMenuStyle value) {
+    if (_mobileMessageActionMenuStyle == value) return;
+    _mobileMessageActionMenuStyle = value;
+    _prefs.setString(_mobileMessageActionMenuStyleKey, value.name);
+    notifyListeners();
+  }
+
+  set enterToSend(bool value) {
+    if (_enterToSend == value) return;
+    _enterToSend = value;
+    _prefs.setBool(_enterToSendKey, value);
+    notifyListeners();
+  }
+
   set openChatsAtLatest(bool value) {
+    if (_openChatsAtLatest == value) return;
     _openChatsAtLatest = value;
     _prefs.setBool(_openChatsAtLatestKey, value);
+    notifyListeners();
+  }
+
+  set linkOpenMode(LinkOpenMode value) {
+    if (_linkOpenMode == value) return;
+    _linkOpenMode = value;
+    _prefs.setString(_linkOpenModeKey, value.name);
+    notifyListeners();
+  }
+
+  set showSavedMessagesIdentity(bool value) {
+    if (_showSavedMessagesIdentity == value) return;
+    _showSavedMessagesIdentity = value;
+    _prefs.setBool(_showSavedMessagesIdentityKey, value);
     notifyListeners();
   }
 
@@ -2079,6 +2714,13 @@ class ThemeController extends ChangeNotifier {
     if (_communitiesEnabled == value) return;
     _communitiesEnabled = value;
     _prefs.setBool(_communitiesEnabledKey, value);
+    notifyListeners();
+  }
+
+  set saveCapturedPhotosToAlbum(bool value) {
+    if (_saveCapturedPhotosToAlbum == value) return;
+    _saveCapturedPhotosToAlbum = value;
+    _prefs.setBool(_saveCapturedPhotosToAlbumKey, value);
     notifyListeners();
   }
 

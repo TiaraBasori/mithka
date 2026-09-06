@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../components/app_icons.dart';
 import '../l10n/app_localizations.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 
 const telegramTermsUrl = 'https://telegram.org/tos';
@@ -13,7 +14,7 @@ Future<void> showTelegramTermsSheet(
   bool isDismissible = true,
   bool enableDrag = true,
 }) {
-  return showModalBottomSheet<void>(
+  return showAppModalSheet<void>(
     context: context,
     isDismissible: isDismissible,
     enableDrag: enableDrag,
@@ -85,7 +86,7 @@ class _TermsSheet extends StatelessWidget {
                   Row(
                     children: [
                       ClipRRect(
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(AppRadius.card),
                         child: const Image(
                           image: AssetImage('assets/penguin.png'),
                           width: 48,
@@ -98,7 +99,7 @@ class _TermsSheet extends StatelessWidget {
                           AppStrings.t(AppStringKeys.loginTermsTitle),
                           style: TextStyle(
                             fontSize: 22,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                             color: c.textPrimary,
                           ),
                         ),
@@ -130,7 +131,7 @@ class _TermsSheet extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: c.searchFill,
-                        borderRadius: BorderRadius.circular(14),
+                        borderRadius: BorderRadius.circular(AppRadius.card),
                       ),
                       child: Row(
                         children: [
@@ -201,7 +202,7 @@ class _TermsAcceptButtonState extends State<_TermsAcceptButton> {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: AppTheme.brand,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
@@ -221,11 +222,11 @@ class _TermsAcceptButtonState extends State<_TermsAcceptButton> {
                     // Markdown emphasis markers in several language packs.
                     // This app-owned action uses our plain localized label so
                     // those markers are never rendered literally.
-                    AppStrings.tLocal(AppStringKeys.loginTermsAccept),
+                    AppStrings.t(AppStringKeys.loginTermsAccept),
                     style: const TextStyle(
                       color: Color(0xFFFFFFFF),
                       fontSize: 16,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
           ),

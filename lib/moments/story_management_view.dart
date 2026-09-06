@@ -12,6 +12,7 @@ import '../l10n/app_localizations.dart';
 import '../media/app_asset_picker.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_models.dart';
+import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
 import '../theme/date_text.dart';
 import 'story_authoring_view.dart';
@@ -135,7 +136,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
   Future<void> _storyAction(Map<String, dynamic> story) async {
     final id = story.integer('id');
     if (id == null) return;
-    final action = await showModalBottomSheet<String>(
+    final action = await showAppModalSheet<String>(
       context: context,
       backgroundColor: context.colors.background,
       builder: (sheetContext) => SafeArea(
@@ -145,51 +146,57 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             if (story.boolean('can_be_edited') ?? false)
               _actionRow(
                 sheetContext,
-                'Edit caption',
+                AppStrings.t(AppStringKeys.storyManagementEditCaption),
                 HeroAppIcons.pen,
                 'edit',
               ),
             if (story.boolean('can_be_edited') ?? false)
               _actionRow(
                 sheetContext,
-                'Replace media',
+                AppStrings.t(AppStringKeys.storyManagementReplaceMedia),
                 HeroAppIcons.images,
                 'media',
               ),
             if (story.boolean('can_set_privacy_settings') ?? false)
               _actionRow(
                 sheetContext,
-                'Change privacy',
+                AppStrings.t(AppStringKeys.storyManagementChangePrivacy),
                 HeroAppIcons.lock,
                 'privacy',
               ),
             if (story.boolean('can_toggle_is_posted_to_chat_page') ?? false)
               _actionRow(
                 sheetContext,
-                story.boolean('is_posted_to_chat_page') == true
-                    ? 'Remove from profile'
-                    : 'Keep on profile',
+                AppStrings.t(
+                  story.boolean('is_posted_to_chat_page') == true
+                      ? AppStringKeys.storyManagementRemoveFromProfile
+                      : AppStringKeys.storyManagementKeepOnProfile,
+                ),
                 HeroAppIcons.inbox,
                 'profile',
               ),
             if (story.boolean('is_posted_to_chat_page') == true)
               _actionRow(
                 sheetContext,
-                _pinned.contains(id) ? 'Unpin from profile' : 'Pin to profile',
+                AppStrings.t(
+                  _pinned.contains(id)
+                      ? AppStringKeys.storyManagementUnpinFromProfile
+                      : AppStringKeys.storyManagementPinToProfile,
+                ),
                 HeroAppIcons.thumbtack,
                 'pin',
               ),
             if (story.boolean('can_get_interactions') ?? false)
               _actionRow(
                 sheetContext,
-                'View interactions',
+                AppStrings.t(AppStringKeys.storyManagementViewInteractions),
                 HeroAppIcons.eye,
                 'viewers',
               ),
             if (story.boolean('can_be_deleted') ?? false)
               _actionRow(
                 sheetContext,
-                'Delete story',
+                AppStrings.t(AppStringKeys.storyManagementDeleteStory),
                 HeroAppIcons.trash,
                 'delete',
                 destructive: true,
@@ -284,9 +291,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
 
   Future<void> _editCaption(int storyId, String initial) async {
     final value = await _textDialog(
-      'Edit caption',
+      AppStrings.t(AppStringKeys.storyManagementEditCaption),
       initial: initial,
-      hint: 'Caption',
+      hint: AppStrings.t(AppStringKeys.storyManagementCaptionHint),
     );
     if (value == null) return;
     await _service.edit(
@@ -316,7 +323,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       final prepared = await const StoryMediaPreparer().prepareVideo(path);
       if (prepared.length != 1) {
         throw StateError(
-          'Replacing a story requires a video no longer than 60 seconds',
+          AppStrings.t(AppStringKeys.storyManagementReplaceNeedsShortVideo),
         );
       }
       media = prepared.single;
@@ -327,18 +334,26 @@ class _StoryManagementViewState extends State<StoryManagementView> {
   }
 
   Future<void> _changePrivacy(int storyId) async {
-    final kind = await showModalBottomSheet<StoryPrivacyKind>(
+    final kind = await showAppModalSheet<StoryPrivacyKind>(
       context: context,
       backgroundColor: context.colors.background,
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _privacyRow(sheetContext, 'Everyone', StoryPrivacyKind.everyone),
-            _privacyRow(sheetContext, 'My contacts', StoryPrivacyKind.contacts),
             _privacyRow(
               sheetContext,
-              'Close friends',
+              AppStrings.t(AppStringKeys.storyManagementPrivacyEveryone),
+              StoryPrivacyKind.everyone,
+            ),
+            _privacyRow(
+              sheetContext,
+              AppStrings.t(AppStringKeys.storyManagementPrivacyMyContacts),
+              StoryPrivacyKind.contacts,
+            ),
+            _privacyRow(
+              sheetContext,
+              AppStrings.t(AppStringKeys.storyManagementPrivacyCloseFriends),
               StoryPrivacyKind.closeFriends,
             ),
           ],
@@ -386,7 +401,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         if (story.integer('id') case final int id) id: story,
     };
     final selected = initial.toSet();
-    return showModalBottomSheet<List<int>>(
+    return showAppModalSheet<List<int>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -494,7 +509,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             style: TextStyle(
               color: context.colors.textPrimary,
               fontSize: 18,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -517,7 +532,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
   String _storyLabel(Map<String, dynamic> story) {
     final id = story.integer('id') ?? 0;
     final caption = story.obj('caption')?.str('text')?.trim() ?? '';
-    return caption.isEmpty ? 'Story $id' : '$caption · $id';
+    return caption.isEmpty
+        ? AppStrings.t(AppStringKeys.storyManagementStoryValue1, {'value1': id})
+        : '$caption · $id';
   }
 
   Future<List<int>> _albumStoryIds(int albumId) async {
@@ -534,7 +551,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       for (final story in [..._profile, ..._archive])
         if (story.integer('id') case final int id) id: story,
     };
-    return showModalBottomSheet<List<int>>(
+    return showAppModalSheet<List<int>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -573,7 +590,9 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                               margin: const EdgeInsets.only(bottom: 6),
                               decoration: BoxDecoration(
                                 color: context.colors.searchFill,
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: BorderRadius.circular(
+                                  AppRadius.card,
+                                ),
                               ),
                               child: Row(
                                 children: [
@@ -626,12 +645,12 @@ class _StoryManagementViewState extends State<StoryManagementView> {
 
   Future<void> _createAlbum() async {
     final name = await _textDialog(
-      'New album',
-      hint: 'Album name (1–12 characters)',
+      AppStrings.t(AppStringKeys.storyManagementNewAlbum),
+      hint: AppStrings.t(AppStringKeys.storyManagementAlbumNameHint),
     );
     if (name == null || name.isEmpty) return;
     final ids = await _storyIdDialog(
-      'Add stories',
+      AppStrings.t(AppStringKeys.storyManagementAddStories),
       initial: _storyIds.take(10).toList(),
     );
     if (ids == null) return;
@@ -643,39 +662,54 @@ class _StoryManagementViewState extends State<StoryManagementView> {
     final album = _albums[index];
     final id = album.integer('id');
     if (id == null) return;
-    final action = await showModalBottomSheet<String>(
+    final action = await showAppModalSheet<String>(
       context: context,
       backgroundColor: context.colors.background,
       builder: (sheetContext) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _actionRow(sheetContext, 'Rename', HeroAppIcons.pen, 'rename'),
-            _actionRow(sheetContext, 'Add stories', HeroAppIcons.plus, 'add'),
             _actionRow(
               sheetContext,
-              'Remove stories',
+              AppStrings.t(AppStringKeys.storyManagementRename),
+              HeroAppIcons.pen,
+              'rename',
+            ),
+            _actionRow(
+              sheetContext,
+              AppStrings.t(AppStringKeys.storyManagementAddStories),
+              HeroAppIcons.plus,
+              'add',
+            ),
+            _actionRow(
+              sheetContext,
+              AppStrings.t(AppStringKeys.storyManagementRemoveStories),
               HeroAppIcons.minus,
               'remove',
             ),
             _actionRow(
               sheetContext,
-              'Reorder stories',
+              AppStrings.t(AppStringKeys.storyManagementReorderStories),
               HeroAppIcons.arrowsUpDown,
               'stories',
             ),
             if (index > 0)
-              _actionRow(sheetContext, 'Move up', HeroAppIcons.arrowUp, 'up'),
+              _actionRow(
+                sheetContext,
+                AppStrings.t(AppStringKeys.storyManagementMoveUp),
+                HeroAppIcons.arrowUp,
+                'up',
+              ),
             if (index < _albums.length - 1)
               _actionRow(
                 sheetContext,
-                'Move down',
+                AppStrings.t(AppStringKeys.storyManagementMoveDown),
                 HeroAppIcons.arrowDown,
                 'down',
               ),
             _actionRow(
               sheetContext,
-              'Delete album',
+              AppStrings.t(AppStringKeys.storyManagementDeleteAlbum),
               HeroAppIcons.trash,
               'delete',
               destructive: true,
@@ -689,14 +723,16 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       switch (action) {
         case 'rename':
           final name = await _textDialog(
-            'Rename album',
+            AppStrings.t(AppStringKeys.storyManagementRenameAlbum),
             initial: album.str('name') ?? '',
           );
           if (name != null && name.isNotEmpty) {
             await _service.renameAlbum(widget.chatId, id, name);
           }
         case 'add':
-          final ids = await _storyIdDialog('Add stories');
+          final ids = await _storyIdDialog(
+            AppStrings.t(AppStringKeys.storyManagementAddStories),
+          );
           if (ids != null && ids.isNotEmpty) {
             await _service.addAlbumStories(widget.chatId, id, ids);
           }
@@ -704,7 +740,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
           final currentIds = await _albumStoryIds(id);
           if (!mounted) return;
           final ids = await _storyIdDialog(
-            'Remove stories',
+            AppStrings.t(AppStringKeys.storyManagementRemoveStories),
             initial: currentIds,
           );
           if (ids != null) {
@@ -718,7 +754,10 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         case 'stories':
           final currentIds = await _albumStoryIds(id);
           if (!mounted) return;
-          final ids = await _reorderStoryIds('Story order', currentIds);
+          final ids = await _reorderStoryIds(
+            AppStrings.t(AppStringKeys.storyManagementStoryOrder),
+            currentIds,
+          );
           if (ids != null && ids.isNotEmpty) {
             await _service.reorderAlbumStories(widget.chatId, id, ids);
           }
@@ -769,7 +808,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
   }
 
   Future<void> _showPageActions() async {
-    final action = await showModalBottomSheet<String>(
+    final action = await showAppModalSheet<String>(
       context: context,
       backgroundColor: context.colors.background,
       builder: (sheetContext) => SafeArea(
@@ -884,19 +923,38 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             ),
           ),
           _tabs(),
+          // Sliver grids, not shrink-wrapped ones: a shrink-wrapping viewport
+          // lays out — and decodes the artwork of — every archived story, and
+          // the archive pages in up to 10k of those.
           Expanded(
             child: _loading
                 ? const Center(child: StoryActivityIndicator())
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 32),
-                    children: [
-                      _storySectionHeader(),
-                      const SizedBox(height: 10),
-                      if (_stories.isEmpty) _emptyStories() else _storyGrid(),
-                      const SizedBox(height: 24),
-                      _albumSectionHeader(),
-                      const SizedBox(height: 10),
-                      if (_albums.isEmpty) _emptyAlbums() else _albumGrid(),
+                : CustomScrollView(
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+                        sliver: SliverToBoxAdapter(
+                          child: _storySectionHeader(),
+                        ),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        sliver: _stories.isEmpty
+                            ? SliverToBoxAdapter(child: _emptyStories())
+                            : _storyGrid(),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(12, 24, 12, 10),
+                        sliver: SliverToBoxAdapter(
+                          child: _albumSectionHeader(),
+                        ),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 32),
+                        sliver: _albums.isEmpty
+                            ? SliverToBoxAdapter(child: _emptyAlbums())
+                            : _albumGrid(),
+                      ),
                     ],
                   ),
           ),
@@ -944,7 +1002,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         color: context.colors.searchFill,
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(AppRadius.card),
       ),
       child: Row(
         children: [
@@ -964,7 +1022,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: _tab == value ? context.colors.background : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(AppRadius.control),
         boxShadow: _tab == value
             ? const [
                 BoxShadow(
@@ -982,7 +1040,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
               ? context.colors.textPrimary
               : context.colors.textSecondary,
           fontSize: 14,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
         ),
       ),
     ),
@@ -1005,10 +1063,8 @@ class _StoryManagementViewState extends State<StoryManagementView> {
     );
   }
 
-  Widget _storyGrid() => GridView.builder(
+  Widget _storyGrid() => SliverGrid.builder(
     key: ValueKey('story-grid-$_tab'),
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
     itemCount: _stories.length,
     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: 3,
@@ -1039,7 +1095,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         onTap: () => _openStory(index),
         onLongPress: () => _storyAction(story),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -1102,7 +1158,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                           color: Colors.white,
                           fontSize: 13,
                           height: 1.15,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           shadows: [Shadow(blurRadius: 4)],
                         ),
                       ),
@@ -1242,7 +1298,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             style: const TextStyle(
               color: Colors.white,
               fontSize: 10,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -1288,7 +1344,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 22),
       decoration: BoxDecoration(
         color: context.colors.background,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: context.colors.divider),
       ),
       child: Column(
@@ -1317,7 +1373,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             style: TextStyle(
               color: context.colors.textPrimary,
               fontSize: 16,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 5),
@@ -1344,7 +1400,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   decoration: BoxDecoration(
                     color: AppTheme.brand,
-                    borderRadius: BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1360,7 +1416,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -1384,7 +1440,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
             style: TextStyle(
               color: context.colors.textPrimary,
               fontSize: 18,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -1405,7 +1461,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                     style: TextStyle(
                       color: AppTheme.brand,
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ],
@@ -1417,9 +1473,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
     ),
   );
 
-  Widget _albumGrid() => GridView.builder(
-    shrinkWrap: true,
-    physics: const NeverScrollableScrollPhysics(),
+  Widget _albumGrid() => SliverGrid.builder(
     itemCount: _albums.length,
     gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
       crossAxisCount: 2,
@@ -1445,7 +1499,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         onTap: () => _openAlbum(index),
         onLongPress: () => _albumAction(index),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -1504,7 +1558,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                       style: const TextStyle(
                         color: Colors.white,
                         fontSize: 14,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1562,7 +1616,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
         padding: const EdgeInsets.symmetric(horizontal: 16),
         decoration: BoxDecoration(
           color: context.colors.background,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(color: context.colors.divider),
         ),
         child: Row(
@@ -1573,7 +1627,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppTheme.brand.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(AppRadius.card),
               ),
               child: AppIcon(
                 HeroAppIcons.folder,
@@ -1592,7 +1646,7 @@ class _StoryManagementViewState extends State<StoryManagementView> {
                     style: TextStyle(
                       color: context.colors.textPrimary,
                       fontSize: 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -1732,7 +1786,7 @@ class _LiveStorySetupViewState extends State<LiveStorySetupView> {
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: context.colors.card,
-                  borderRadius: BorderRadius.circular(13),
+                  borderRadius: BorderRadius.circular(AppRadius.card),
                 ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1853,15 +1907,19 @@ class _LiveStorySetupViewState extends State<LiveStorySetupView> {
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: _storyId == null ? AppTheme.brand : AppTheme.tagRed,
-                    borderRadius: BorderRadius.circular(13),
+                    borderRadius: BorderRadius.circular(AppRadius.card),
                   ),
                   child: Text(
-                    _storyId == null
-                        ? (_starting ? 'Starting…' : 'Start live story')
-                        : 'End live story',
+                    AppStrings.t(
+                      _storyId == null
+                          ? (_starting
+                                ? AppStringKeys.storyManagementStarting
+                                : AppStringKeys.storyManagementStartLiveStory)
+                          : AppStringKeys.storyManagementEndLiveStory,
+                    ),
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
