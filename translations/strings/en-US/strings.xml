@@ -1310,6 +1310,8 @@
     <string name="desktopWindowClose">Close window</string>
     <string name="desktopWindowMaximizeRestore">Maximize or restore</string>
     <string name="desktopWindowMinimize">Minimize</string>
+    <string name="developerBadgeDescription">A core developer who helps build and maintain Mithka.</string>
+    <string name="developerBadgeTitle">Mithka Developer</string>
     <string name="developerModePiPBoundsOverlay">PiP bounds overlay</string>
     <string name="developerModePiPBoundsOverlayDescription">Shows the app-level PiP frame and viewport size to diagnose rotation, clipping, or overlay coverage.</string>
     <string name="developerModeTitle">Developer Mode</string>

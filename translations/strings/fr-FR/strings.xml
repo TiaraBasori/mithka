@@ -1310,6 +1310,8 @@
     <string name="desktopWindowClose">Fermer la fenêtre</string>
     <string name="desktopWindowMaximizeRestore">Agrandir ou restaurer</string>
     <string name="desktopWindowMinimize">Réduire</string>
+    <string name="developerBadgeDescription">Participe à la création et à la maintenance de Mithka.</string>
+    <string name="developerBadgeTitle">Développeur Mithka</string>
     <string name="developerModePiPBoundsOverlay">Contour PiP</string>
     <string name="developerModePiPBoundsOverlayDescription">Affiche le cadre PiP de l’app et la taille de la fenêtre pour diagnostiquer une rotation, un recadrage ou une superposition.</string>
     <string name="developerModeTitle">Mode développeur</string>

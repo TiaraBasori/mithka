@@ -1303,6 +1303,8 @@
     <string name="desktopWindowClose">关闭窗口</string>
     <string name="desktopWindowMaximizeRestore">最大化或还原</string>
     <string name="desktopWindowMinimize">最小化</string>
+    <string name="developerBadgeDescription">参与了软件的构建与维护。</string>
+    <string name="developerBadgeTitle">Mithka 开发者</string>
     <string name="developerModePiPBoundsOverlay">画中画边界叠层</string>
     <string name="developerModePiPBoundsOverlayDescription">显示应用内画中画的实际边框和视口尺寸，用于检查旋转、裁切或被其他层遮挡的问题。</string>
     <string name="developerModeTitle">开发者模式</string>

@@ -1435,6 +1435,8 @@ abstract final class AppStringKeys {
   static const createGroupFailed = 'createGroupFailed';
   static const createGroupOptionalLabel = 'createGroupOptionalLabel';
   static const createGroupStartGroupChat = 'createGroupStartGroupChat';
+  static const developerBadgeDescription = 'developerBadgeDescription';
+  static const developerBadgeTitle = 'developerBadgeTitle';
   static const developerModePiPBoundsOverlay = 'developerModePiPBoundsOverlay';
   static const developerModePiPBoundsOverlayDescription =
       'developerModePiPBoundsOverlayDescription';

@@ -1303,6 +1303,8 @@
     <string name="desktopWindowClose">關閉視窗</string>
     <string name="desktopWindowMaximizeRestore">最大化或還原</string>
     <string name="desktopWindowMinimize">最小化</string>
+    <string name="developerBadgeDescription">參與了軟體的建構與維護。</string>
+    <string name="developerBadgeTitle">Mithka 開發者</string>
     <string name="developerModePiPBoundsOverlay">子母畫面邊界疊層</string>
     <string name="developerModePiPBoundsOverlayDescription">顯示應用內子母畫面的實際邊框與視窗尺寸，用於檢查旋轉、裁切或被其他層遮擋的問題。</string>
     <string name="developerModeTitle">開發者模式</string>

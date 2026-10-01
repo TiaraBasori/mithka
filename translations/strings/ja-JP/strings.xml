@@ -1303,6 +1303,8 @@
     <string name="desktopWindowClose">ウインドウを閉じる</string>
     <string name="desktopWindowMaximizeRestore">最大化または元に戻す</string>
     <string name="desktopWindowMinimize">最小化</string>
+    <string name="developerBadgeDescription">このアプリの開発と保守に携わっています。</string>
+    <string name="developerBadgeTitle">Mithka 開発者</string>
     <string name="developerModePiPBoundsOverlay">PiP 境界オーバーレイ</string>
     <string name="developerModePiPBoundsOverlayDescription">アプリ内 PiP の枠と表示領域サイズを表示し、回転、クリップ、他のレイヤーによる覆いを確認します。</string>
     <string name="developerModeTitle">開発者モード</string>

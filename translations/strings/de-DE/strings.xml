@@ -1310,6 +1310,8 @@
     <string name="desktopWindowClose">Fenster schließen</string>
     <string name="desktopWindowMaximizeRestore">Maximieren oder wiederherstellen</string>
     <string name="desktopWindowMinimize">Minimieren</string>
+    <string name="developerBadgeDescription">Wirkt an Entwicklung und Pflege von Mithka mit.</string>
+    <string name="developerBadgeTitle">Mithka-Entwickler</string>
     <string name="developerModePiPBoundsOverlay">PiP-Rahmen einblenden</string>
     <string name="developerModePiPBoundsOverlayDescription">Zeigt den App-PiP-Rahmen und die Fenstergröße, um Rotation, Zuschnitt oder überdeckende Ebenen zu prüfen.</string>
     <string name="developerModeTitle">Entwicklermodus</string>
