@@ -35,6 +35,7 @@ import '../chat/voice_audio.dart';
 import '../components/app_confirm_dialog.dart';
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
+import '../components/developer_badge.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
@@ -831,22 +832,27 @@ class _ProfileDetailViewState extends State<ProfileDetailView> {
               GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: _isMe ? _changeAvatar : null,
-                child: Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: c.card, width: 4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.08),
-                        blurRadius: 16,
-                        offset: const Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: PhotoAvatar(
-                    title: _name.isEmpty ? '?' : _name,
-                    photo: _photo,
-                    size: 80,
+                child: DeveloperAvatarBadge.wrap(
+                  userId: widget.userId,
+                  avatarSize: 88,
+                  interactive: true,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: c.card, width: 4),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 16,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
+                    ),
+                    child: PhotoAvatar(
+                      title: _name.isEmpty ? '?' : _name,
+                      photo: _photo,
+                      size: 80,
+                    ),
                   ),
                 ),
               ),
