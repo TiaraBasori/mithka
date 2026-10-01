@@ -21,6 +21,7 @@ import 'package:mithka/l10n/app_localizations.dart';
 import 'package:provider/provider.dart';
 
 import '../components/app_icons.dart';
+import '../components/developer_badge.dart';
 import '../components/document_file_icon.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
@@ -1055,31 +1056,35 @@ class _MessageBubbleState extends State<MessageBubble>
                 ),
                 const SizedBox(width: 8),
                 _avatarTapTarget(
-                  PhotoAvatar(
-                    // Resolved here rather than up front: an incoming message
-                    // never needs it, and the fallback runs a localisation
-                    // lookup.
-                    title: message.senderIsChat
-                        ? (message.senderName ?? widget.meName)
-                        : widget.meName.l10n(context),
-                    photo: message.senderIsChat
-                        ? message.senderPhoto
-                        : widget.mePhoto,
-                    size: 38,
+                  _developerBadge(
+                    PhotoAvatar(
+                      // Resolved here rather than up front: an incoming
+                      // message never needs it, and the fallback runs a
+                      // localisation lookup.
+                      title: message.senderIsChat
+                          ? (message.senderName ?? widget.meName)
+                          : widget.meName.l10n(context),
+                      photo: message.senderIsChat
+                          ? message.senderPhoto
+                          : widget.mePhoto,
+                      size: 38,
+                    ),
                   ),
                   withLongPress: false,
                 ),
               ]
             : [
                 _avatarTapTarget(
-                  PhotoAvatar(
-                    title: widget.isGroup
-                        ? (message.senderName ?? widget.peerTitle)
-                        : widget.peerTitle,
-                    photo: widget.isGroup
-                        ? message.senderPhoto
-                        : widget.peerPhoto,
-                    size: 38,
+                  _developerBadge(
+                    PhotoAvatar(
+                      title: widget.isGroup
+                          ? (message.senderName ?? widget.peerTitle)
+                          : widget.peerTitle,
+                      photo: widget.isGroup
+                          ? message.senderPhoto
+                          : widget.peerPhoto,
+                      size: 38,
+                    ),
                   ),
                   withLongPress: true,
                 ),
@@ -1225,6 +1230,13 @@ class _MessageBubbleState extends State<MessageBubble>
       ),
     );
   }
+
+  /// Marks a Mithka developer's avatar. A chat posting as itself is never one.
+  Widget _developerBadge(Widget avatar) => DeveloperAvatarBadge.wrap(
+    userId: message.senderIsChat ? null : message.senderId,
+    avatarSize: 38,
+    child: avatar,
+  );
 
   /// The avatar only needs a recognizer when a caller actually wants the taps;
   /// previews and tests pass neither.

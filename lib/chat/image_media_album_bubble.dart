@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart' show SelectedContent;
 import 'package:provider/provider.dart';
 
 import '../components/app_icons.dart';
+import '../components/developer_badge.dart';
 import '../components/photo_avatar.dart';
 import '../l10n/app_localizations.dart';
 import '../platform/adaptive_platform.dart';
@@ -144,7 +145,11 @@ class ImageMediaAlbumBubble extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () => onAvatarTap?.call(first),
       onLongPress: outgoing ? null : () => onAvatarLongPress?.call(first),
-      child: PhotoAvatar(title: avatarTitle, photo: avatarPhoto, size: 38),
+      child: DeveloperAvatarBadge.wrap(
+        userId: first.senderIsChat ? null : first.senderId,
+        avatarSize: 38,
+        child: PhotoAvatar(title: avatarTitle, photo: avatarPhoto, size: 38),
+      ),
     );
 
     return LayoutBuilder(

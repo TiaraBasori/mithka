@@ -25,6 +25,7 @@ import '../chat/rich_text_composer_view.dart';
 import '../chat/rich_text_format.dart';
 import '../components/app_icons.dart';
 import '../components/confirm_dialog.dart';
+import '../components/developer_badge.dart';
 import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
@@ -1446,7 +1447,13 @@ class _TopicPostRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              PhotoAvatar(title: name, photo: sender?.photo, size: 48),
+              DeveloperAvatarBadge.wrap(
+                userId: post.message.senderIsChat
+                    ? null
+                    : post.message.senderId,
+                avatarSize: 48,
+                child: PhotoAvatar(title: name, photo: sender?.photo, size: 48),
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -1949,7 +1956,15 @@ class _SearchResultRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PhotoAvatar(title: name, photo: message.senderPhoto, size: 38),
+          DeveloperAvatarBadge.wrap(
+            userId: message.senderIsChat ? null : message.senderId,
+            avatarSize: 38,
+            child: PhotoAvatar(
+              title: name,
+              photo: message.senderPhoto,
+              size: 38,
+            ),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
