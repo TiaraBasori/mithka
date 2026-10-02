@@ -21,6 +21,7 @@ const Set<int> mithkaDeveloperUserIds = {
   7041948142,
   176871465,
   5896096480,
+  5754487330,
 };
 
 bool isMithkaDeveloper(int? userId) =>
