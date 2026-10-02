@@ -16,7 +16,13 @@ const _avatar = SizedBox.square(key: ValueKey('avatar'), dimension: 88);
 
 void main() {
   test('only the listed accounts are developers', () {
-    for (final id in [5555116287, 7041948142, 176871465, 5896096480]) {
+    for (final id in [
+      5555116287,
+      7041948142,
+      176871465,
+      5896096480,
+      5754487330,
+    ]) {
       expect(isMithkaDeveloper(id), isTrue, reason: '$id');
     }
     expect(isMithkaDeveloper(null), isFalse);
