@@ -47,6 +47,29 @@ class _EnterToSendViewModel extends ChatViewModel {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('composer reply banner displays only the selected quote', (
+    tester,
+  ) async {
+    final vm = await _pumpComposer(tester, enterToSend: true);
+    vm.setReply(
+      ChatMessage(
+        id: 7,
+        isOutgoing: false,
+        date: 1,
+        text: 'before selected after',
+        senderName: 'Sender',
+        contentType: 'messageText',
+      ),
+      quote: const MessageTextQuote(text: 'selected', position: 7),
+    );
+    await tester.pump();
+    expect(find.text('Sender:selected'), findsOneWidget);
+    expect(find.textContaining('before selected after'), findsNothing);
+    vm.setReply(null);
+    await tester.pump();
+    expect(find.text('Sender:selected'), findsNothing);
+  });
+
   test('Android IME fallback accepts only an unmodified terminal newline', () {
     const oldValue = TextEditingValue(
       text: 'hello',
@@ -56,6 +79,20 @@ void main() {
       text: 'hello\n',
       selection: TextSelection.collapsed(offset: 6),
     );
+
+    for (final altPressed in [true, false]) {
+      expect(
+        isComposerImeEnterFallback(
+          oldValue,
+          terminalNewline,
+          shiftPressed: false,
+          controlPressed: false,
+          altPressed: altPressed,
+          metaPressed: !altPressed,
+        ),
+        isFalse,
+      );
+    }
 
     expect(
       isComposerImeEnterFallback(
@@ -538,29 +575,31 @@ void main() {
     expect(vm.sentTexts, ['候補']);
   });
 
-  testWidgets('disabled desktop Ctrl-Enter sends while Enter stays multiline', (
-    tester,
-  ) async {
-    final vm = await _pumpComposer(
-      tester,
-      enterToSend: false,
-      platform: TargetPlatform.macOS,
-    );
-    final field = find.byType(TextField);
+  testWidgets(
+    'disabled desktop Ctrl-Enter sends while Enter stays multiline',
+    (tester) async {
+      final vm = await _pumpComposer(
+        tester,
+        enterToSend: false,
+        platform: TargetPlatform.macOS,
+      );
+      final field = find.byType(TextField);
 
-    await tester.tap(field);
-    await tester.enterText(field, 'first');
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pump();
-    expect(vm.sentTexts, isEmpty);
-    expect(tester.widget<TextField>(field).controller?.text, 'first\n');
+      await tester.tap(field);
+      await tester.enterText(field, 'first');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(vm.sentTexts, isEmpty);
+      expect(tester.widget<TextField>(field).controller?.text, 'first\n');
 
-    await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
-    await tester.pump();
-    expect(vm.sentTexts, ['first\n']);
-  });
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
+      await tester.pump();
+      expect(vm.sentTexts, ['first\n']);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
 }
 
 Future<_EnterToSendViewModel> _pumpComposer(

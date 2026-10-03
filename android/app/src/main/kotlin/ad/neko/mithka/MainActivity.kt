@@ -23,6 +23,8 @@ import android.view.DragEvent
 import android.view.WindowManager
 import android.webkit.MimeTypeMap
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.iebb.f_videoplayer_pip.FVideoPictureInPicturePlugin
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.languageid.LanguageIdentification
@@ -54,6 +56,7 @@ class MainActivity : FlutterFragmentActivity() {
     private var shareIntentChannel: MethodChannel? = null
     private var pendingSharePayload: Map<String, Any?>? = null
     private var acceptingImageDrop = false
+    private var fullscreenSystemUi = false
     private val translators = mutableMapOf<String, Translator>()
     private val languageIdentifierDelegate = lazy<LanguageIdentifier> {
         LanguageIdentification.getClient()
@@ -75,6 +78,23 @@ class MainActivity : FlutterFragmentActivity() {
     override fun onResume() {
         super.onResume()
         FVideoPictureInPicturePlugin.onActivityResumed(this)
+        if (fullscreenSystemUi) applyFullscreenSystemUi()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus && fullscreenSystemUi) applyFullscreenSystemUi()
+    }
+
+    private fun applyFullscreenSystemUi() {
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (fullscreenSystemUi) {
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+        }
     }
 
     override fun onPause() {
@@ -111,6 +131,16 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         registerPlugins(flutterEngine)
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "mithka/fullscreen_system_ui")
+            .setMethodCallHandler { call, result ->
+                if (call.method == "setFullscreen") {
+                    fullscreenSystemUi = call.arguments == true
+                    applyFullscreenSystemUi()
+                    result.success(null)
+                } else {
+                    result.notImplemented()
+                }
+            }
         configureShareIntentChannel(flutterEngine)
         telegramPasskeys = TelegramPasskeyPlugin(
             this,
@@ -800,8 +830,13 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private fun registerPlugins(flutterEngine: FlutterEngine) {
+        // Keep per-plugin isolation while matching the generated production registry.
+        // test/android_plugin_registration_test.dart guards dependency drift.
         val pluginClasses = buildList {
+            add("com.llfbandit.app_links.AppLinksPlugin")
             add("com.ryanheise.audio_session.AudioSessionPlugin")
+            add("io.flutter.plugins.camerax.CameraAndroidCameraxPlugin")
+            add("com.fluttercavalry.fc_native_video_thumbnail.FcNativeVideoThumbnailPlugin")
             add("com.mr.flutter.plugin.filepicker.FilePickerPlugin")
             add("io.flutter.plugins.firebase.analytics.FlutterFirebaseAnalyticsPlugin")
             add("io.flutter.plugins.firebase.core.FlutterFirebaseCorePlugin")
@@ -814,16 +849,21 @@ class MainActivity : FlutterFragmentActivity() {
             add("io.flutter.plugins.imagepicker.ImagePickerPlugin")
             add("com.fluttercandies.photo_manager.PhotoManagerPlugin")
             add("com.github.dart_lang.jni.JniPlugin")
+            add("com.gurfdev.light_compressor_v2.LightCompressorPlugin")
             add("io.flutter.plugins.localauth.LocalAuthPlugin")
+            add("dev.steenbakker.mobile_scanner.MobileScannerPlugin")
             add("com.crazecoder.openfile.OpenFilePlugin")
             add("dev.fluttercommunity.plus.packageinfo.PackageInfoPlugin")
             add("io.flutter.plugins.pathprovider.PathProviderPlugin")
             add("com.baseflow.permissionhandler.PermissionHandlerPlugin")
+            add("com.llfbandit.record.RecordPlugin")
+            add("dev.fluttercommunity.plus.sensors.SensorsPlugin")
             add("io.sentry.flutter.SentryFlutterPlugin")
             add("io.flutter.plugins.sharedpreferences.SharedPreferencesPlugin")
             add("com.iebb.f_videoplayer_pip.FVideoPictureInPicturePlugin")
             add("io.flutter.plugins.urllauncher.UrlLauncherPlugin")
             add("io.flutter.plugins.videoplayer.VideoPlayerPlugin")
+            add("io.flutter.plugins.webviewflutter.WebViewFlutterPlugin")
         }
 
         for (className in pluginClasses) {

@@ -17,6 +17,7 @@ import 'package:mithka/notifications/scope_notification_settings.dart';
 
 import '../notifications/notification_settings_payload.dart';
 import '../settings/blocked_user_service.dart';
+import '../settings/hidden_sender_store.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/json_helpers.dart';
 import '../tdlib/td_client.dart';
@@ -36,6 +37,7 @@ import 'forward_options.dart';
 import 'gif_item.dart';
 import 'message_reaction_availability.dart';
 import 'message_send_options.dart';
+import 'message_text_quote.dart';
 import 'outgoing_attachment.dart';
 import 'poll_composer_view.dart';
 import 'quick_reaction_choice.dart';
@@ -100,6 +102,10 @@ class _SenderInfo {
 
 @visibleForTesting
 int unreadMentionCountAfterReading(int currentCount, int readCount) =>
+    math.max(0, currentCount - math.max(0, readCount));
+
+@visibleForTesting
+int unreadReactionCountAfterReading(int currentCount, int readCount) =>
     math.max(0, currentCount - math.max(0, readCount));
 
 @visibleForTesting
@@ -428,13 +434,30 @@ class ChatViewModel extends ChangeNotifier {
   String _draftFormattedText = '';
   List<Map<String, dynamic>> _draftFormattedEntities = const [];
   final List<_DraftMention> _draftMentions = [];
-  ChatMessage? replyTo;
+  ChatMessage? _replyTo;
+  MessageTextQuote? _replyQuote;
+  ChatMessage? get replyTo => _replyTo;
+  set replyTo(ChatMessage? message) {
+    _replyTo = message;
+    _replyQuote = null;
+  }
+
+  MessageTextQuote? get replyQuote => _replyQuote;
+  Map<String, dynamic>? get replyToInput => replyTo == null
+      ? null
+      : {
+          '@type': 'inputMessageReplyToMessage',
+          'message_id': replyTo!.id,
+          if (!isSecretChat && _replyQuote != null)
+            'quote': _replyQuote!.toInputJson(),
+        };
   ChatMessage? editingMessage;
   String? _draftBeforeEditing;
   String _formattedDraftBeforeEditing = '';
   List<Map<String, dynamic>> _entitiesBeforeEditing = const [];
   List<_DraftMention> _mentionsBeforeEditing = const [];
   ChatMessage? _replyBeforeEditing;
+  MessageTextQuote? _replyQuoteBeforeEditing;
   List<MessageSenderOption> availableMessageSenders = const [];
   MessageSenderOption? selectedMessageSender;
   Map<String, dynamic>? _messageSenderFromChat;
@@ -448,6 +471,7 @@ class ChatViewModel extends ChangeNotifier {
   UnreadChatRangeSnapshot? unreadSummarySnapshot;
   bool _didCaptureUnreadSummaryRange = false;
   int unreadMentionCount = 0;
+  int unreadReactionCount = 0;
   bool isMarkedUnread = false; // manual unread marker on the chat row
   bool initialLoaded = false; // first history page (+ unread boundary) is in
   bool anchoredHistory = false; // transcript is centered on an arbitrary target
@@ -494,6 +518,7 @@ class ChatViewModel extends ChangeNotifier {
   BotMenuInfo? botMenu;
   List<BotCommandOption> botCommands = const [];
   bool isForum = false;
+  bool hasForumTabs = false;
   bool supportsBotTopics = false;
   bool get supportsTopics => isForum || supportsBotTopics;
   bool forumTopicsLoading = false;
@@ -519,6 +544,8 @@ class ChatViewModel extends ChangeNotifier {
   StreamSubscription? _sub;
   final ChatLiveMessageBuffer _liveIncomingMessages = ChatLiveMessageBuffer();
   bool _isLoadingOlder = false;
+  bool _isLoadingNewer = false;
+  final Set<int> _newerHistoryDeletedMessageIds = {};
   bool _hasOlderHistory = true;
   int? _pendingScrollToId;
   int? _lastForcedReadMessageId;
@@ -547,6 +574,7 @@ class ChatViewModel extends ChangeNotifier {
   final Set<int> _messagePropertiesLoading = {};
   final Map<int, bool> _speechRecognitionEligibility = {};
   final Set<int> _locallyViewedMentionIds = {};
+  final Set<int> _locallyViewedReactionIds = {};
   final Set<int> _blockedSenderIds = {};
   final Set<int> _discardedPendingMessageIds = {};
   final Set<int> _settledPendingMessageIds = {};
@@ -599,6 +627,12 @@ class ChatViewModel extends ChangeNotifier {
       _allMessages.isNotEmpty &&
       _hasOlderHistory;
   bool get isLoadingOlder => _isLoadingOlder;
+  bool get canLoadNewer =>
+      !_chatOpenWorkIsStale &&
+      !_isLoadingNewer &&
+      !_latestHistoryLoadInFlight &&
+      !_historyReachesLatest &&
+      latestServerMessageId(_allMessages) > 0;
   bool get isLoadingLatest => _latestHistoryLoadInFlight;
   bool get hasOlderHistory => _hasOlderHistory;
   int get _oldestServerMessageId {
@@ -840,6 +874,8 @@ class ChatViewModel extends ChangeNotifier {
     _subscribeToUpdates();
     KeywordBlocker.shared.removeListener(_applyKeywordFilter);
     KeywordBlocker.shared.addListener(_applyKeywordFilter);
+    HiddenSenderStore.shared.removeListener(_applyKeywordFilter);
+    HiddenSenderStore.shared.addListener(_applyKeywordFilter);
     () async {
       unawaited(_loadMe());
       unawaited(_loadAiCapabilities());
@@ -1086,6 +1122,7 @@ class ChatViewModel extends ChangeNotifier {
     _sub?.cancel();
     _sub = null;
     KeywordBlocker.shared.removeListener(_applyKeywordFilter);
+    HiddenSenderStore.shared.removeListener(_applyKeywordFilter);
     _client.send({'@type': 'closeChat', 'chat_id': chatId});
   }
 
@@ -1093,6 +1130,7 @@ class ChatViewModel extends ChangeNotifier {
   void dispose() {
     _isDisposed = true;
     KeywordBlocker.shared.removeListener(_applyKeywordFilter);
+    HiddenSenderStore.shared.removeListener(_applyKeywordFilter);
     _sub?.cancel();
     _typingTimer?.cancel();
     _draftSaveTimer?.cancel();
@@ -1163,6 +1201,7 @@ class ChatViewModel extends ChangeNotifier {
     ];
     _mentionsBeforeEditing = List<_DraftMention>.from(_draftMentions);
     _replyBeforeEditing = replyTo;
+    _replyQuoteBeforeEditing = _replyQuote;
     editingMessage = message;
     replyTo = null;
     draft = message.text;
@@ -1214,12 +1253,14 @@ class ChatViewModel extends ChangeNotifier {
         ..clear()
         ..addAll(_mentionsBeforeEditing);
       replyTo = _replyBeforeEditing;
+      _replyQuote = _replyQuoteBeforeEditing;
     }
     _draftBeforeEditing = null;
     _formattedDraftBeforeEditing = '';
     _entitiesBeforeEditing = const [];
     _mentionsBeforeEditing = const [];
     _replyBeforeEditing = null;
+    _replyQuoteBeforeEditing = null;
     if (scheduleDraftSave) _scheduleDraftSave();
     if (notify) notifyListeners();
   }
@@ -1440,10 +1481,7 @@ class ChatViewModel extends ChangeNotifier {
       },
     };
     if (replyTo != null) {
-      request['reply_to'] = {
-        '@type': 'inputMessageReplyToMessage',
-        'message_id': replyTo!.id,
-      };
+      request['reply_to'] = replyToInput;
     }
     final sent = await _submitMessageRequest(request);
     if (!sent) return false;
@@ -1564,10 +1602,7 @@ class ChatViewModel extends ChangeNotifier {
       },
     };
     if (replyTo != null) {
-      request['reply_to'] = {
-        '@type': 'inputMessageReplyToMessage',
-        'message_id': replyTo!.id,
-      };
+      request['reply_to'] = replyToInput;
     }
     final sent = await _submitMessageRequest(request);
     if (!sent) return false;
@@ -1602,10 +1637,7 @@ class ChatViewModel extends ChangeNotifier {
           : richMessageInputContent(blocks),
     };
     if (replyTo != null) {
-      request['reply_to'] = {
-        '@type': 'inputMessageReplyToMessage',
-        'message_id': replyTo!.id,
-      };
+      request['reply_to'] = replyToInput;
     }
     replyTo = null;
     final pendingMessage = await _client.query(
@@ -1725,10 +1757,7 @@ class ChatViewModel extends ChangeNotifier {
       'input_message_content': {'@type': 'inputMessageDice', 'emoji': emoji},
     };
     if (replyTo != null) {
-      request['reply_to'] = {
-        '@type': 'inputMessageReplyToMessage',
-        'message_id': replyTo!.id,
-      };
+      request['reply_to'] = replyToInput;
     }
     final sent = await _submitMessageRequest(request);
     if (!sent) return false;
@@ -1742,12 +1771,30 @@ class ChatViewModel extends ChangeNotifier {
   ///
   /// The reply metadata already addresses the sender. Mentions remain an
   /// explicit action so replying cannot accidentally invoke inline-bot search.
-  void setReply(ChatMessage? message) {
+  void setReply(ChatMessage? message, {MessageTextQuote? quote}) {
     if (editingMessage != null) {
       _restoreComposerAfterMessageEdit(notify: false);
     }
     replyTo = message;
+    if (message != null && !isSecretChat && quote != null) {
+      _replyQuote = quote;
+    }
     notifyListeners();
+  }
+
+  bool get canQuoteText =>
+      canSendMessages && !isSecretChat && !hasProtectedContent;
+
+  Future<int> messageQuoteLengthLimit() async {
+    try {
+      final option = await _client.query({
+        '@type': 'getOption',
+        'name': 'message_reply_quote_length_max',
+      });
+      final limit = option.integer('value');
+      if (limit != null && limit > 0) return limit;
+    } catch (_) {}
+    return defaultMessageQuoteLengthLimit;
   }
 
   List<Map<String, dynamic>> _mentionEntitiesFor(
@@ -1798,15 +1845,12 @@ class ChatViewModel extends ChangeNotifier {
       ...captionEntities,
       ..._mentionEntitiesFor(caption, captionEntities),
     ];
-    final reply = replyTo;
     final requests = buildAttachmentSendRequests(
       chatId: chatId,
       attachments: attachments,
       caption: caption,
       captionEntities: allEntities,
-      replyTo: reply == null
-          ? null
-          : {'@type': 'inputMessageReplyToMessage', 'message_id': reply.id},
+      replyTo: replyToInput,
       sendConfiguration: sendConfiguration,
     );
     replyTo = null;
@@ -3146,7 +3190,8 @@ class ChatViewModel extends ChangeNotifier {
     if (senderId != null && _blockedSenderIds.contains(senderId)) return false;
     final keywordBlocker = KeywordBlocker.shared;
     if (keywordBlocker.isSenderBlocked(senderId) ||
-        keywordBlocker.matches(message.text)) {
+        keywordBlocker.matches(message.text) ||
+        HiddenSenderStore.shared.hides(senderId, chatId)) {
       return false;
     }
     final senderKey = aiReplySenderKey(
@@ -3294,6 +3339,71 @@ class ChatViewModel extends ChangeNotifier {
     return true;
   }
 
+  /// Extends the current window toward the latest message without discarding
+  /// unread history or changing its viewport anchor. A short TDLib page is not
+  /// proof that we have reached the end of the chat.
+  Future<bool> loadNewer() async {
+    if (!canLoadNewer) return false;
+    final fromMessageId = latestServerMessageId(_allMessages);
+    final requestGeneration = _historyWindowGeneration;
+    _isLoadingNewer = true;
+    _newerHistoryDeletedMessageIds.clear();
+    try {
+      final response = await _client.query({
+        '@type': 'getChatHistory',
+        'chat_id': chatId,
+        'from_message_id': fromMessageId,
+        'offset': -30,
+        'limit': 31,
+        'only_local': false,
+      });
+      if (_chatOpenWorkIsStale ||
+          requestGeneration != _historyWindowGeneration) {
+        return false;
+      }
+      final parsed =
+          (response.objects('messages') ?? const <Map<String, dynamic>>[])
+              .map(TDParse.message)
+              .whereType<ChatMessage>()
+              .where(
+                (message) =>
+                    !_newerHistoryDeletedMessageIds.contains(message.id),
+              )
+              .toList();
+      final newestId = latestServerMessageId(parsed);
+      if (newestId <= fromMessageId) return false;
+      _historyReachesLatest =
+          _knownLatestMessageId > 0 && newestId >= _knownLatestMessageId;
+      _knownLatestMessageId = math.max(_knownLatestMessageId, newestId);
+      _merge(parsed);
+      _resolveRichMessagesIfNeeded(parsed);
+      _resolveSendersIfNeeded(parsed);
+      _resolveRepliesIfNeeded(parsed);
+      _resolveForwardsIfNeeded(parsed);
+      _resolveServiceUsersIfNeeded(parsed);
+      return true;
+    } catch (error) {
+      if (!_chatOpenWorkIsStale &&
+          requestGeneration == _historyWindowGeneration &&
+          _markPeerRestricted(error)) {
+        notifyListeners();
+      }
+      return false;
+    } finally {
+      _isLoadingNewer = false;
+      _newerHistoryDeletedMessageIds.clear();
+    }
+  }
+
+  /// Called only after the reader reaches the actual latest edge. Unlike an
+  /// explicit jump-to-latest, this keeps every paged message and its geometry.
+  void resumeLatestHistoryIfLoaded() {
+    if (!anchoredHistory || !_historyReachesLatest) return;
+    anchoredHistory = false;
+    _historyAnchorMessageId = null;
+    notifyListeners();
+  }
+
   /// Prevents an in-flight latest-history response from replacing the current
   /// anchored window after the user takes control of the transcript.
   ///
@@ -3336,6 +3446,7 @@ class ChatViewModel extends ChangeNotifier {
       unreadCount = chat.integer('unread_count') ?? 0;
     }
     unreadMentionCount = chat.integer('unread_mention_count') ?? 0;
+    unreadReactionCount = chat.integer('unread_reaction_count') ?? 0;
     isMarkedUnread = chat.boolean('is_marked_as_unread') ?? false;
     hasProtectedContent =
         chat.boolean('has_protected_content') ?? hasProtectedContent;
@@ -3508,6 +3619,7 @@ class ChatViewModel extends ChangeNotifier {
             isAdministeredDirectMessagesGroup =
                 sg.boolean('is_administered_direct_messages_group') ?? false;
             isForum = isForum || (sg.boolean('is_forum') ?? false);
+            hasForumTabs = sg.boolean('has_forum_tabs') ?? false;
             joinByRequest = sg.boolean('join_by_request') ?? false;
             _setPaidMessageStarCount(_paidMessageStars(sg), notify: false);
             _applyGroupStatus(sg.obj('status'));
@@ -4320,24 +4432,65 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  Future<int?> openNextUnreadReaction() async {
+    try {
+      final response = await _client.query({
+        '@type': 'searchChatMessages',
+        'chat_id': chatId,
+        'query': '',
+        'sender_id': null,
+        'from_message_id': 0,
+        'offset': 0,
+        'limit': math.min(
+          100,
+          math.max(10, unreadReactionCount + _locallyViewedReactionIds.length),
+        ),
+        'filter': {'@type': 'searchMessagesFilterUnreadReaction'},
+      });
+      final rawMessages =
+          response.objects('messages') ?? const <Map<String, dynamic>>[];
+      if (rawMessages.isEmpty) {
+        _setUnreadReactionCount(0, emitLocalUpdate: true);
+        return null;
+      }
+      final reactions = rawMessages
+          .map(TDParse.message)
+          .whereType<ChatMessage>()
+          .where((message) => !_locallyViewedReactionIds.contains(message.id))
+          .toList();
+      final reaction = reactions.isEmpty ? null : reactions.first;
+      return reaction?.id;
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Reports the exact messages that entered the viewport. TDLib tracks
-  /// unread mentions independently from the ordinary inbox boundary, so only
-  /// advancing `last_read_inbox_message_id` leaves `unread_mention_count`
-  /// behind. Sending the concrete IDs clears both states correctly.
+  /// unread mentions and reactions independently from the ordinary inbox
+  /// boundary. Sending the concrete IDs clears all three states correctly.
   void markVisibleMessagesViewed(Iterable<ChatMessage> visibleMessages) {
-    final incoming = visibleMessages
-        .where((message) => !message.isOutgoing && !message.isService)
+    final viewed = visibleMessages
+        .where(
+          (message) =>
+              (!message.isOutgoing && !message.isService) ||
+              message.hasUnreadReactions,
+        )
         .toList(growable: false);
-    if (incoming.isEmpty) return;
+    if (viewed.isEmpty) return;
     _client.send({
       '@type': 'viewMessages',
       'chat_id': chatId,
-      'message_ids': incoming.map((message) => message.id).toList(),
+      'message_ids': viewed.map((message) => message.id).toSet().toList(),
       'force_read': true,
     });
     _consumeViewedMentions(
-      incoming
+      viewed
           .where((message) => message.containsUnreadMention)
+          .map((message) => message.id),
+    );
+    _consumeViewedReactions(
+      viewed
+          .where((message) => message.hasUnreadReactions)
           .map((message) => message.id),
     );
   }
@@ -4357,6 +4510,20 @@ class ChatViewModel extends ChangeNotifier {
       return;
     }
     _consumeViewedMentions([messageId], force: true);
+  }
+
+  Future<void> markUnreadReactionRead(int messageId) async {
+    try {
+      await _client.query({
+        '@type': 'viewMessages',
+        'chat_id': chatId,
+        'message_ids': [messageId],
+        'force_read': true,
+      });
+    } catch (_) {
+      return;
+    }
+    _consumeViewedReactions([messageId], force: true);
   }
 
   void _consumeViewedMentions(Iterable<int> messageIds, {bool force = false}) {
@@ -4391,7 +4558,39 @@ class ChatViewModel extends ChangeNotifier {
     );
   }
 
-  void _setUnreadMentionCount(int count, {bool emitLocalUpdate = false}) {
+  void _consumeViewedReactions(Iterable<int> messageIds, {bool force = false}) {
+    final candidates = messageIds
+        .where((id) => id > 0 && !_locallyViewedReactionIds.contains(id))
+        .toSet();
+    if (candidates.isEmpty) return;
+    final unreadIds = force
+        ? candidates
+        : _allMessages
+              .where(
+                (message) =>
+                    candidates.contains(message.id) &&
+                    message.hasUnreadReactions,
+              )
+              .map((message) => message.id)
+              .toSet();
+    if (unreadIds.isEmpty) return;
+
+    _locallyViewedReactionIds.addAll(unreadIds);
+    while (_locallyViewedReactionIds.length > 512) {
+      _locallyViewedReactionIds.remove(_locallyViewedReactionIds.first);
+    }
+    for (final message in _allMessages) {
+      if (unreadIds.contains(message.id)) {
+        message.hasUnreadReactions = false;
+      }
+    }
+    _setUnreadReactionCount(
+      unreadReactionCountAfterReading(unreadReactionCount, unreadIds.length),
+      emitLocalUpdate: true,
+    );
+  }
+
+  bool _setUnreadMentionCount(int count, {bool emitLocalUpdate = false}) {
     final next = math.max(0, count);
     final changed = unreadMentionCount != next;
     unreadMentionCount = next;
@@ -4403,6 +4602,22 @@ class ChatViewModel extends ChangeNotifier {
         'unread_mention_count': next,
       });
     }
+    return changed;
+  }
+
+  bool _setUnreadReactionCount(int count, {bool emitLocalUpdate = false}) {
+    final next = math.max(0, count);
+    final changed = unreadReactionCount != next;
+    unreadReactionCount = next;
+    if (changed) notifyListeners();
+    if (emitLocalUpdate) {
+      _client.emitLocalUpdate({
+        '@type': 'updateChatUnreadReactionCount',
+        'chat_id': chatId,
+        'unread_reaction_count': next,
+      });
+    }
+    return changed;
   }
 
   Future<bool> _fetchHistory(
@@ -4685,6 +4900,9 @@ class ChatViewModel extends ChangeNotifier {
     'updateMessageContent',
     'updateMessageSuggestedPostInfo',
     'updateChatUnreadMentionCount',
+    'updateMessageMentionRead',
+    'updateChatUnreadReactionCount',
+    'updateMessageUnreadReactions',
     'updateMessageSendSucceeded',
     'updateMessageSendAcknowledged',
     'updateMessageSendFailed',
@@ -4778,6 +4996,10 @@ class ChatViewModel extends ChangeNotifier {
         final messageId = update.int64('message_id');
         final content = update.obj('new_content');
         if (messageId == null || content == null) return;
+        // Apply concealment immediately, before an asynchronous media refresh.
+        for (final message in _messageRefs(messageId)) {
+          message.hasSpoiler = content.boolean('has_spoiler') ?? false;
+        }
         if (content.type == 'messageChatHasProtectedContentToggled') {
           hasProtectedContent =
               content.boolean('new_has_protected_content') ??
@@ -4826,6 +5048,62 @@ class ChatViewModel extends ChangeNotifier {
         _setUnreadMentionCount(
           update.integer('unread_mention_count') ?? unreadMentionCount,
         );
+
+      case 'updateMessageMentionRead':
+        if (update.int64('chat_id') != chatId) return;
+        final messageId = update.int64('message_id');
+        if (messageId == null) return;
+        _locallyViewedMentionIds.add(messageId);
+        while (_locallyViewedMentionIds.length > 512) {
+          _locallyViewedMentionIds.remove(_locallyViewedMentionIds.first);
+        }
+        final targets = _messageRefs(messageId);
+        final flagChanged = targets.any(
+          (message) => message.containsUnreadMention,
+        );
+        for (final message in targets) {
+          message.containsUnreadMention = false;
+        }
+        final countChanged = _setUnreadMentionCount(
+          update.integer('unread_mention_count') ?? unreadMentionCount,
+        );
+        if (flagChanged && !countChanged) {
+          _notifyLocalizedMessages([messageId]);
+        }
+
+      case 'updateChatUnreadReactionCount':
+        if (update.int64('chat_id') != chatId) return;
+        _setUnreadReactionCount(
+          update.integer('unread_reaction_count') ?? unreadReactionCount,
+        );
+
+      case 'updateMessageUnreadReactions':
+        if (update.int64('chat_id') != chatId) return;
+        final messageId = update.int64('message_id');
+        if (messageId == null) return;
+        final hasUnreadReactions =
+            (update.objects('unread_reactions') ?? const []).isNotEmpty;
+        if (hasUnreadReactions) {
+          _locallyViewedReactionIds.remove(messageId);
+        } else {
+          _locallyViewedReactionIds.add(messageId);
+          while (_locallyViewedReactionIds.length > 512) {
+            _locallyViewedReactionIds.remove(_locallyViewedReactionIds.first);
+          }
+        }
+        final targets = _messageRefs(messageId);
+        final flagChanged = targets.any(
+          (message) => message.hasUnreadReactions != hasUnreadReactions,
+        );
+        for (final message in targets) {
+          message.hasUnreadReactions = hasUnreadReactions;
+        }
+        final countChanged = _setUnreadReactionCount(
+          update.integer('unread_reaction_count') ?? unreadReactionCount,
+        );
+        if (flagChanged && !countChanged) {
+          _notifyLocalizedMessages([messageId]);
+        }
 
       case 'updateMessageSendSucceeded':
         if (messageSendUpdateChatId(update) != chatId) return;
@@ -4910,6 +5188,10 @@ class ChatViewModel extends ChangeNotifier {
           ++_chatReadInboxRevision;
           ++_chatReadStateRevision;
         }
+        unreadMentionCount =
+            chat.integer('unread_mention_count') ?? unreadMentionCount;
+        unreadReactionCount =
+            chat.integer('unread_reaction_count') ?? unreadReactionCount;
         messageAutoDeleteTime = _autoDeleteSeconds(chat);
         _setPaidMessageStarCount(_paidMessageStars(chat), notify: false);
         hasProtectedContent =
@@ -4976,6 +5258,9 @@ class ChatViewModel extends ChangeNotifier {
         if (update.boolean('is_permanent') != true) return;
         final deletedIds = update.int64Array('message_ids') ?? const <int>[];
         ++_chatReadStateRevision;
+        if (_isLoadingNewer) {
+          _newerHistoryDeletedMessageIds.addAll(deletedIds);
+        }
         if (_latestHistoryLoadInFlight) {
           _latestHistoryDeletedMessageIds.addAll(deletedIds);
           for (final messageId in deletedIds) {
@@ -5098,6 +5383,17 @@ class ChatViewModel extends ChangeNotifier {
         final supergroup = update.obj('supergroup');
         if (supergroup == null || supergroup.int64('id') != peerSupergroupId) {
           return;
+        }
+        final nextIsForum = supergroup.boolean('is_forum') ?? isForum;
+        final nextHasForumTabs =
+            supergroup.boolean('has_forum_tabs') ?? hasForumTabs;
+        if (isForum != nextIsForum || hasForumTabs != nextHasForumTabs) {
+          isForum = nextIsForum;
+          hasForumTabs = nextHasForumTabs;
+          notifyListeners();
+          if (supportsTopics && forumTopics.isEmpty) {
+            unawaited(loadForumTopics());
+          }
         }
         _setPaidMessageStarCount(_paidMessageStars(supergroup));
 
@@ -5586,7 +5882,7 @@ class ChatViewModel extends ChangeNotifier {
     m.replyToPreview = _replyPreview(quoted);
     m.replyToDate = quoted.date;
     m.replyToEntities = quoted.textEntities;
-    m.replyToImage = quoted.image;
+    m.replyToImage = quoted.previewImage;
     m.replyToImageWidth = quoted.imageWidth;
     m.replyToImageHeight = quoted.imageHeight;
     if (quoted.isOutgoing) {
@@ -5682,6 +5978,7 @@ class ChatViewModel extends ChangeNotifier {
     final senderId = message.senderId;
     if (senderId != null && _blockedSenderIds.contains(senderId)) return true;
     if (KeywordBlocker.shared.isSenderBlocked(senderId)) return true;
+    if (HiddenSenderStore.shared.hides(senderId, chatId)) return true;
     return KeywordBlocker.shared.matches(message.text);
   }
 
@@ -5848,6 +6145,9 @@ class ChatViewModel extends ChangeNotifier {
       if (_locallyViewedMentionIds.contains(message.id)) {
         message.containsUnreadMention = false;
       }
+      if (_locallyViewedReactionIds.contains(message.id)) {
+        message.hasUnreadReactions = false;
+      }
     }
     if (_appendIfStrictlyNewest(incoming)) {
       _appendToVisibleTranscript(incoming.first);
@@ -5902,6 +6202,9 @@ class ChatViewModel extends ChangeNotifier {
       }
       if (_locallyViewedMentionIds.contains(message.id)) {
         message.containsUnreadMention = false;
+      }
+      if (_locallyViewedReactionIds.contains(message.id)) {
+        message.hasUnreadReactions = false;
       }
     }
     _allMessages = mergeChatHistoryWindow(
@@ -5980,6 +6283,8 @@ class ChatViewModel extends ChangeNotifier {
     if (targets.isEmpty) return;
     for (final target in targets) {
       target.text = text;
+      target.textQuoteSource = text;
+      target.textQuoteSourceEntities = entities ?? target.textEntities;
       if (entities != null) target.textEntities = entities;
       if (customEmoji != null) target.customEmoji = customEmoji;
       if (updateLinkPreview) target.linkPreview = linkPreview;

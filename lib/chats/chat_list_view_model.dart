@@ -17,6 +17,7 @@ import '../app/performance_metrics.dart';
 import '../communities/community_models.dart';
 import '../notifications/notification_settings_payload.dart';
 import '../notifications/scope_notification_settings.dart';
+import '../settings/hidden_sender_store.dart';
 import '../settings/keyword_blocker.dart';
 import '../tdlib/chat_membership.dart';
 import '../tdlib/json_helpers.dart';
@@ -24,12 +25,18 @@ import '../tdlib/td_client.dart';
 import '../tdlib/td_models.dart';
 import '../tdlib/td_user_index.dart';
 import 'chat_delete_policy.dart';
+import 'chat_removal_actions.dart';
 
 class ChatFilterOption {
-  const ChatFilterOption({required this.title, this.folderId});
+  const ChatFilterOption({
+    required this.title,
+    this.folderId,
+    this.iconName = 'Custom',
+  });
 
   final String title;
   final int? folderId;
+  final String iconName;
 
   bool get isAll => folderId == null;
 }
@@ -312,7 +319,13 @@ class ChatListViewModel extends ChangeNotifier {
       final id = folder.integer('id') ?? folder.integer('chat_folder_id');
       if (id == null) continue;
       final title = _folderTitle(folder, id);
-      folders.add(ChatFilterOption(title: title, folderId: id));
+      folders.add(
+        ChatFilterOption(
+          title: title,
+          folderId: id,
+          iconName: folder.obj('icon')?.str('name') ?? 'Custom',
+        ),
+      );
     }
     _filters = folders;
     if (_selectedFilter.folderId != null &&
@@ -322,6 +335,10 @@ class ChatListViewModel extends ChangeNotifier {
       _prefetchMainChats();
       _resort();
     }
+    _selectedFilter = _filters.firstWhere(
+      (filter) => filter.folderId == _selectedFilter.folderId,
+      orElse: () => _filters.first,
+    );
     _notifyIfAlive();
   }
 
@@ -349,15 +366,17 @@ class ChatListViewModel extends ChangeNotifier {
         .then((folder) {
           if (_disposed) return;
           _resolvingFolders.remove(id);
-          final title = _folderTitle(folder, id);
+          final option = ChatFilterOption(
+            title: _folderTitle(folder, id),
+            folderId: id,
+            iconName: folder.obj('icon')?.str('name') ?? 'Custom',
+          );
           _filters = [
             for (final filter in _filters)
-              filter.folderId == id
-                  ? ChatFilterOption(title: title, folderId: id)
-                  : filter,
+              filter.folderId == id ? option : filter,
           ];
           if (_selectedFilter.folderId == id) {
-            _selectedFilter = ChatFilterOption(title: title, folderId: id);
+            _selectedFilter = option;
           }
           _notifyIfAlive();
         })
@@ -615,6 +634,17 @@ class ChatListViewModel extends ChangeNotifier {
     });
   }
 
+  /// Moves an archived chat back to the main list without deleting history.
+  void unarchive(ChatSummary chat) {
+    _client
+        .query({
+          '@type': 'addChatToList',
+          'chat_id': chat.id,
+          'chat_list': {'@type': 'chatListMain'},
+        })
+        .catchError((Object _) => <String, dynamic>{});
+  }
+
   void toggleMute(ChatSummary chat) {
     final newValue = !chat.isMuted;
     final id = chat.id;
@@ -708,9 +738,9 @@ class ChatListViewModel extends ChangeNotifier {
   Future<ChatDeleteCapabilities> deleteCapabilities(ChatSummary chat) async {
     try {
       final raw = await _client.query({'@type': 'getChat', 'chat_id': chat.id});
-      return chatDeleteCapabilities(raw);
+      return chatListDeleteCapabilities(raw);
     } catch (_) {
-      return const ChatDeleteCapabilities.selfOnly();
+      return const ChatDeleteCapabilities.none();
     }
   }
 
@@ -734,14 +764,16 @@ class ChatListViewModel extends ChangeNotifier {
   }) async {
     final leavesChat = shouldLeaveBeforeDeletingChat(chat.kind, scope);
     if (leavesChat) {
-      await _client.query({'@type': 'leaveChat', 'chat_id': chat.id});
+      await leaveChatAndRemoveFromList(
+        chatId: chat.id,
+        query: _client.query,
+        onLeft: () => _client.emitLocalUpdate(chatLeftLocalUpdate(chat.id)),
+      );
+      return;
     }
     await _client.query(
       deleteChatHistoryRequest(chatId: chat.id, scope: scope),
     );
-    if (leavesChat) {
-      _client.emitLocalUpdate(chatLeftLocalUpdate(chat.id));
-    }
   }
 
   Future<void> clearSavedMessages(ChatSummary chat) async {
@@ -793,7 +825,11 @@ class ChatListViewModel extends ChangeNotifier {
             s.lastChatMessage = TDParse.message(last);
             final content = last.obj('content');
             if (content != null) {
-              s.lastMessage = _previewText(TDParse.messageText(content));
+              s.lastMessage = _previewText(
+                TDParse.messageText(content),
+                chatId: id,
+                senderId: s.lastChatMessage?.senderId,
+              );
             }
           } else {
             s.lastMessage = '';
@@ -894,12 +930,24 @@ class ChatListViewModel extends ChangeNotifier {
         _scheduleResort();
 
       case 'updateChatUnreadMentionCount':
+      case 'updateMessageMentionRead':
         final id = update.int64('chat_id');
         if (id == null) return;
         _mutate(
           id,
           (s) => s.unreadMentionCount =
               update.integer('unread_mention_count') ?? s.unreadMentionCount,
+        );
+        _scheduleResort();
+
+      case 'updateChatUnreadReactionCount':
+      case 'updateMessageUnreadReactions':
+        final id = update.int64('chat_id');
+        if (id == null) return;
+        _mutate(
+          id,
+          (s) => s.unreadReactionCount =
+              update.integer('unread_reaction_count') ?? s.unreadReactionCount,
         );
         _scheduleResort();
 
@@ -1095,7 +1143,11 @@ class ChatListViewModel extends ChangeNotifier {
       }
     }
     if (_meId != null) summary.isSavedMessages = summary.peerUserId == _meId;
-    summary.lastMessage = _previewText(summary.lastMessage);
+    summary.lastMessage = _previewText(
+      summary.lastMessage,
+      chatId: summary.id,
+      senderId: summary.lastChatMessage?.senderId,
+    );
     _indexCommunityPeer(summary.id, raw);
     _resolveForumIfNeeded(summary, raw);
     _resolveCommunityIfNeeded(summary, raw);
@@ -1228,8 +1280,9 @@ class ChatListViewModel extends ChangeNotifier {
               await _ingestRawChat(raw);
               if (_disposed) return;
               _applyChatCommunityId(chatId, communityId);
+              // Membership resolves after ingestion. Keep the server's grant
+              // even before the chat moves into the non-member directory.
               if (entry.boolean('can_view_history') == true &&
-                  _communityDirectoryChats.containsKey(chatId) &&
                   _viewableCommunityChatIds.add(chatId)) {
                 _scheduleResort();
               } else if (_communityDirectoryChats.containsKey(chatId)) {
@@ -1413,8 +1466,10 @@ class ChatListViewModel extends ChangeNotifier {
     await prefs.setBool(_communityCollapsedKey(communityId), collapsed);
   }
 
-  String _previewText(String text) {
-    return KeywordBlocker.shared.matches(text)
+  String _previewText(String text, {int? chatId, int? senderId}) {
+    final hidden =
+        chatId != null && HiddenSenderStore.shared.hides(senderId, chatId);
+    return hidden || KeywordBlocker.shared.matches(text)
         ? AppStringKeys.chatListBlockedPlaceholder
         : text;
   }

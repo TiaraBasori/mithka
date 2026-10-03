@@ -16,6 +16,53 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('quote action is opt-in and requires selectable message text', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final translation = TranslationController(
+      await SharedPreferences.getInstance(),
+    );
+    addTearDown(translation.dispose);
+    MessageAction? selected;
+    Future<void> pumpMenu({
+      required bool allowQuote,
+      String text = 'original',
+    }) async {
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: translation,
+          child: MaterialApp(
+            home: Scaffold(
+              body: MessageActionMenu(
+                message: ChatMessage(
+                  id: 7,
+                  isOutgoing: false,
+                  text: text,
+                  date: 1,
+                  contentType: 'messageText',
+                ),
+                isPinned: false,
+                allowQuote: allowQuote,
+                onSelect: (action) => selected = action,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    final quote = find.byKey(const ValueKey('message-action-quote'));
+    await pumpMenu(allowQuote: false);
+    expect(quote, findsNothing);
+    await pumpMenu(allowQuote: true, text: '');
+    expect(quote, findsNothing);
+    await pumpMenu(allowQuote: true);
+    expect(quote, findsOneWidget);
+    await tester.tap(quote);
+    expect(selected, MessageAction.quote);
+  });
+
   test('message action rows stay balanced', () {
     expect(MessageActionMenu.rowCountsForActionCount(6), (first: 3, second: 3));
     expect(MessageActionMenu.rowCountsForActionCount(7), (first: 4, second: 3));
@@ -719,32 +766,34 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(500, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    Widget menuFor(TargetPlatform platform) => ChangeNotifierProvider.value(
-      value: translation,
-      child: MaterialApp(
-        theme: ThemeData(platform: platform),
-        locale: const Locale('en'),
-        localizationsDelegates: const [AppLocalizations.delegate],
-        supportedLocales: AppLocalizations.supportedLocales,
-        home: Scaffold(
-          body: Align(
-            alignment: Alignment.topLeft,
-            child: MessageActionMenu(
-              message: ChatMessage(
-                id: 42,
-                isOutgoing: false,
-                text: '',
-                date: 1,
-                contentType: 'messagePhoto',
-                image: TdFileRef(id: 42),
+    Widget menuFor(TargetPlatform platform, {bool allowForwarding = true}) =>
+        ChangeNotifierProvider.value(
+          value: translation,
+          child: MaterialApp(
+            theme: ThemeData(platform: platform),
+            locale: const Locale('en'),
+            localizationsDelegates: const [AppLocalizations.delegate],
+            supportedLocales: AppLocalizations.supportedLocales,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: MessageActionMenu(
+                  message: ChatMessage(
+                    id: 42,
+                    isOutgoing: false,
+                    text: '',
+                    date: 1,
+                    contentType: 'messagePhoto',
+                    image: TdFileRef(id: 42),
+                  ),
+                  isPinned: false,
+                  allowForwarding: allowForwarding,
+                  onSelect: (_) {},
+                ),
               ),
-              isPinned: false,
-              onSelect: (_) {},
             ),
           ),
-        ),
-      ),
-    );
+        );
 
     await tester.pumpWidget(menuFor(TargetPlatform.macOS));
     await tester.pumpAndSettle();
@@ -755,6 +804,11 @@ void main() {
       findsNothing,
     );
     expect(find.text('Save As…'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('message-action-copyImage')),
+      findsOneWidget,
+    );
+    expect(find.text('Copy image'), findsOneWidget);
 
     // MaterialApp lerps between themes, so the platform swap only lands once
     // the theme animation has settled.
@@ -766,5 +820,18 @@ void main() {
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('message-action-saveAs')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('message-action-copyImage')),
+      findsNothing,
+    );
+
+    await tester.pumpWidget(
+      menuFor(TargetPlatform.macOS, allowForwarding: false),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('message-action-copyImage')),
+      findsNothing,
+    );
   });
 }

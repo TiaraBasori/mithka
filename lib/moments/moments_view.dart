@@ -16,14 +16,18 @@ import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../app/app_navigator.dart';
+import '../app/bottom_bar_layout.dart';
 import '../app/ipad_window_chrome.dart';
+import '../chat/animated_sticker_view.dart';
 import '../chat/chat_picker_view.dart';
 import '../chat/chat_view.dart';
 import '../chat/custom_emoji.dart';
 import '../chat/forward_options.dart';
 import '../chat/image_preview.dart';
 import '../chat/media_album_layout.dart';
+import '../chat/media_spoiler.dart';
 import '../chat/message_reaction_availability.dart';
+import '../chat/music_player_controller.dart';
 import '../chat/outgoing_attachment.dart';
 import '../chat/quick_reaction_choice.dart';
 import '../chat/rich_text_composer_view.dart';
@@ -32,6 +36,7 @@ import '../chat/shared_media_view.dart';
 import '../chat/telegram_rich_text.dart';
 import '../chat/video_playback_queue.dart';
 import '../chat/video_player_view.dart';
+import '../chat/video_sticker_view.dart';
 import '../chats/chat_list_view_model.dart';
 import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
@@ -130,6 +135,20 @@ class _MomentsFeedScrollAnchor {
 }
 
 final Map<String, double> _channelMomentsScrollOffsets = {};
+
+class _MomentsHistorySnapshot {
+  const _MomentsHistorySnapshot(
+    this.posts,
+    this.offset,
+    this.nonMutedOnly,
+    this.postableChannels,
+  );
+
+  final List<ChannelPost> posts;
+  final double offset;
+  final bool nonMutedOnly;
+  final List<ChatSummary> postableChannels;
+}
 
 String _channelMomentsScrollKey({
   required int accountSlot,
@@ -255,6 +274,8 @@ class MomentsView extends StatefulWidget {
 }
 
 class _MomentsViewState extends State<MomentsView> {
+  // Owned by the Moments root, not a process-wide cache of account messages.
+  PageStorageBucket _channelHistory = PageStorageBucket();
   final _channels = ChatListViewModel();
   final _stories = MomentsViewModel();
   late final StoryService _storyService = widget.storyService ?? StoryService();
@@ -270,6 +291,7 @@ class _MomentsViewState extends State<MomentsView> {
     _channels.onAppear();
     _stories.start();
     _accountSub = TdClient.shared.subscribeActiveSlotChanges().listen((_) {
+      _channelHistory = PageStorageBucket();
       if (mounted) setState(() => _canPublishStories = false);
       unawaited(_loadStoryPublishingPermission());
     });
@@ -366,6 +388,7 @@ class _MomentsViewState extends State<MomentsView> {
   void _openChannelMoments() {
     _openDetail(
       ChannelMomentsView(
+        historyStorage: _channelHistory,
         isRootTab: widget.onOpenDetail != null,
         title: widget.onOpenDetail == null
             ? AppStrings.t(AppStringKeys.tabMoments)
@@ -414,7 +437,10 @@ class _MomentsViewState extends State<MomentsView> {
             const NavHeader(title: AppStringKeys.tabMoments),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.only(top: AppSpacing.md),
+              padding: EdgeInsets.only(
+                top: AppSpacing.md,
+                bottom: BottomBarInset.of(context),
+              ),
               children: [
                 StoryShelf(
                   model: _stories,
@@ -723,12 +749,14 @@ class ChannelMomentsView extends StatefulWidget {
     this.title = AppStringKeys.tabMoments,
     this.initialChannels = const [],
     this.onOpenDetail,
+    this.historyStorage,
   });
 
   final bool isRootTab;
   final String title;
   final List<ChatSummary> initialChannels;
   final ValueChanged<Widget>? onOpenDetail;
+  final PageStorageBucket? historyStorage;
 
   @override
   State<ChannelMomentsView> createState() => _ChannelMomentsViewState();
@@ -738,7 +766,8 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   final _model = ChatListViewModel();
   final _replyController = TextEditingController();
   final _replyFocus = FocusNode();
-  final _scroll = ScrollController();
+  late final ScrollController _scroll;
+  double _lastScrollOffset = 0;
   late final String _scrollSessionKey;
   final Map<String, GlobalKey> _postWidgetKeys = {};
   double? _pendingScrollOffset;
@@ -783,6 +812,25 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       initialChannels: widget.initialChannels,
     );
     _pendingScrollOffset = _channelMomentsScrollOffsets[_scrollSessionKey];
+    final saved = widget.historyStorage?.readState(
+      context,
+      identifier: _scrollSessionKey,
+    );
+    if (saved is _MomentsHistorySnapshot) {
+      for (final post in saved.posts) {
+        (_postsByChannel[post.channel.id] ??= []).add(post);
+        _oldestMessageByChannel.update(
+          post.channel.id,
+          (id) => math.min(id, post.message.id),
+          ifAbsent: () => post.message.id,
+        );
+      }
+      _nonMutedOnly = saved.nonMutedOnly;
+      _postableChannels = saved.postableChannels;
+      _lastScrollOffset = saved.offset;
+      _pendingScrollOffset = null;
+    }
+    _scroll = ScrollController(initialScrollOffset: _lastScrollOffset);
     _model.addListener(_onModel);
     _scroll.addListener(_onScroll);
     _tdSub = TdClient.shared.subscribe().listen(_handleTdUpdate);
@@ -790,7 +838,14 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     _loadMe();
     if (widget.initialChannels.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _loadChannelPosts();
+        if (!mounted) return;
+        if (saved is _MomentsHistorySnapshot) {
+          // The first frame already contains the same rows and metadata. New
+          // history then merges using the existing visible-post anchor.
+          unawaited(_refreshLatest());
+        } else {
+          unawaited(_loadChannelPosts());
+        }
       });
     }
     _scheduleScrollRestore();
@@ -800,7 +855,30 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
   void dispose() {
     if (_scroll.hasClients) {
       _channelMomentsScrollOffsets[_scrollSessionKey] = _scroll.offset;
+      _lastScrollOffset = _scroll.offset;
     }
+    // Retain exactly the rendered feed, including every member of its albums.
+    // Capping raw messages at 500 would truncate a 500-post album-heavy feed.
+    final retainedIds = {
+      for (final post in _posts)
+        for (final message in post.messages) (post.channel.id, message.id),
+    };
+    final retained = _postsByChannel.values
+        .expand((posts) => posts)
+        .where(
+          (post) => retainedIds.contains((post.channel.id, post.message.id)),
+        )
+        .toList();
+    widget.historyStorage?.writeState(
+      context,
+      _MomentsHistorySnapshot(
+        retained,
+        _lastScrollOffset,
+        _nonMutedOnly,
+        List.of(_postableChannels),
+      ),
+      identifier: _scrollSessionKey,
+    );
     _model.removeListener(_onModel);
     _model.dispose();
     _scroll.removeListener(_onScroll);
@@ -815,6 +893,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
+    _lastScrollOffset = _scroll.offset;
     _channelMomentsScrollOffsets[_scrollSessionKey] = _scroll.offset;
     if (_scroll.position.extentAfter < 600) _loadChannelPosts(loadOlder: true);
   }
@@ -1368,6 +1447,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       if (!mounted) return;
       final posts = _posts.take(_metadataHydrationLimit).toList();
       _loadAuthors(posts);
+      _loadForwardAttributions(posts);
       _loadReplyQuotes(posts);
       _loadLikeNames(posts);
       _loadThreadTargets(posts);
@@ -1389,6 +1469,41 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
     }
   }
 
+  final Map<String, Future<String?>> _forwardNames = {};
+
+  void _loadForwardAttributions(List<ChannelPost> posts) {
+    for (final post in posts) {
+      for (final message in post.messages) {
+        if (message.forwardOrigin?.trim().isNotEmpty == true) continue;
+        final userId = message.forwardFromUserId;
+        final chatId = message.forwardFromChatId;
+        if (userId == null && chatId == null) continue;
+        final key = '${post.accountSlot}:$userId:$chatId';
+        final pending = _forwardNames.putIfAbsent(key, () async {
+          try {
+            final raw = await TdClient.shared.queryForSlot({
+              '@type': userId != null ? 'getUser' : 'getChat',
+              if (userId != null) 'user_id': userId else 'chat_id': chatId,
+            }, post.accountSlot);
+            return userId != null ? TDParse.userName(raw) : raw.str('title');
+          } catch (_) {
+            return null;
+          }
+        });
+        unawaited(
+          pending.then((name) {
+            if (name == null || name.trim().isEmpty) {
+              _forwardNames.remove(key);
+              return;
+            }
+            message.forwardOrigin = name;
+            _notifyPost(post);
+          }),
+        );
+      }
+    }
+  }
+
   Future<void> _resolveReplyQuote(ChannelPost post, String key) async {
     final message = post.message;
     final replyToMessageId = message.replyToMessageId;
@@ -1405,7 +1520,7 @@ class _ChannelMomentsViewState extends State<ChannelMomentsView> {
       final quoted = TDParse.message(raw);
       if (quoted == null) return;
       message.replyToPreview = _replyPreview(quoted);
-      message.replyToImage = quoted.image;
+      message.replyToImage = quoted.previewImage;
       message.replyToImageWidth = quoted.imageWidth;
       message.replyToImageHeight = quoted.imageHeight;
       message.replyToSender = await _senderName(quoted) ?? post.channel.title;
@@ -4148,6 +4263,16 @@ class ChannelPostRow extends StatelessWidget {
                 ),
               ],
             ),
+            if (message.hasForwardAttribution) ...[
+              const SizedBox(height: 10),
+              Text(
+                key: const ValueKey('momentsForwardAttribution'),
+                AppStrings.t(AppStringKeys.messageBubbleForwardedFrom, {
+                  'value1': message.forwardDisplayName,
+                }),
+                style: TextStyle(fontSize: 13, color: c.linkBlue),
+              ),
+            ],
             if (text.isNotEmpty) ...[
               const SizedBox(height: 12),
               TelegramRichText(
@@ -4182,6 +4307,19 @@ class ChannelPostRow extends StatelessWidget {
                 accountSlot: post.accountSlot,
               ),
             ],
+            for (final item in messages)
+              if (!item.isContentRestricted && item.music != null) ...[
+                const SizedBox(height: 10),
+                _PostMusicCard(message: item, post: post),
+              ] else if (!item.isContentRestricted &&
+                  _hasStickerMedia(item)) ...[
+                const SizedBox(height: 10),
+                _PostSticker(
+                  key: ValueKey('moments-sticker-${item.id}'),
+                  message: item,
+                  accountSlot: post.accountSlot,
+                ),
+              ],
             const SizedBox(height: 12),
             _PostActions(
               post: post,
@@ -4212,6 +4350,7 @@ class ChannelPostRow extends StatelessWidget {
 
   ChatMessage? get _displayTextMessage {
     for (final message in messages) {
+      if (_hasStickerMedia(message)) continue;
       final text = message.text.trim();
       if (text.isNotEmpty && !(text.startsWith('[') && text.endsWith(']'))) {
         return message;
@@ -4220,8 +4359,20 @@ class ChannelPostRow extends StatelessWidget {
     return null;
   }
 
-  List<ChatMessage> get _imageMessages =>
-      messages.where((message) => message.isAlbumVisualMedia).toList();
+  // Album eligibility excludes animations/video notes and requires a photo
+  // thumbnail. A standalone playable post does not have those restrictions.
+  List<ChatMessage> get _imageMessages => messages
+      .where(
+        (message) =>
+            message.isAlbumVisualMedia ||
+            (message.video != null &&
+                const {
+                  'messageVideo',
+                  'messageAnimation',
+                  'messageVideoNote',
+                }.contains(message.contentType)),
+      )
+      .toList();
 
   bool get _hasInlineComments =>
       message.commentCount > 0 || (post.comments?.isNotEmpty ?? false);
@@ -4231,10 +4382,227 @@ class ChannelPostRow extends StatelessWidget {
   bool get _hasSignedAuthor =>
       !_isChannelSelfPost(post) && post.authorName?.trim().isNotEmpty == true;
 
-  bool get _hasReplyQuote =>
-      message.replyToMessageId != null &&
-      ((message.replyToPreview?.trim().isNotEmpty ?? false) ||
-          message.replyToImage != null);
+  bool get _hasReplyQuote => message.replyToMessageId != null;
+}
+
+bool _hasStickerMedia(ChatMessage message) =>
+    !message.isContentRestricted &&
+    (message.contentType == 'messageSticker' ||
+        message.contentType == 'messageAnimatedEmoji') &&
+    (message.image != null ||
+        message.animatedSticker != null ||
+        message.videoSticker != null);
+
+class _PostMusicCard extends StatelessWidget {
+  const _PostMusicCard({required this.message, required this.post});
+
+  final ChatMessage message;
+  final ChannelPost post;
+
+  @override
+  Widget build(BuildContext context) {
+    final music = message.music!;
+    final player = MusicPlayerController.shared;
+    final colors = context.colors;
+    final duration = math.max(0, music.duration);
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 360),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: colors.card,
+          borderRadius: BorderRadius.circular(AppRadius.card),
+          border: Border.all(color: colors.divider, width: 0.5),
+        ),
+        child: Row(
+          children: [
+            AnimatedBuilder(
+              animation: player,
+              builder: (context, _) {
+                final sameAccount =
+                    post.accountSlot == TdClient.shared.activeSlot;
+                final active = sameAccount && player.isActive(music.file);
+                final playing = active && player.isPlaying;
+                final loading = active && player.isLoading;
+                final canPlay = sameAccount && music.file != null;
+                return Semantics(
+                  button: true,
+                  enabled: canPlay,
+                  label:
+                      (playing
+                              ? AppStringKeys.musicPlayerPause
+                              : AppStringKeys.musicPlayerPlay)
+                          .l10n(context),
+                  child: GestureDetector(
+                    key: ValueKey('moments-music-play-${message.id}'),
+                    behavior: HitTestBehavior.opaque,
+                    onTap: !canPlay
+                        ? null
+                        : () => unawaited(
+                            player.playChat(
+                              ChatMessage(
+                                id: message.id,
+                                isOutgoing: message.isOutgoing,
+                                text: '',
+                                date: message.date,
+                                chatId: post.channel.id,
+                                senderName: post.channel.title,
+                                music: music,
+                              ),
+                              post.channel.id,
+                              title: post.channel.title,
+                            ),
+                          ),
+                    child: SizedBox.square(
+                      dimension: 52,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          if (music.cover != null)
+                            TDImage(
+                              photo: music.cover,
+                              accountSlot: post.accountSlot,
+                            ),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: music.cover == null
+                                  ? AppTheme.brand
+                                  : Colors.black.withValues(alpha: 0.45),
+                              borderRadius: BorderRadius.circular(
+                                AppRadius.control,
+                              ),
+                            ),
+                            child: Center(
+                              child: loading
+                                  ? const SizedBox.square(
+                                      dimension: 20,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: Colors.white,
+                                      ),
+                                    )
+                                  : AppIcon(
+                                      playing
+                                          ? HeroAppIcons.pause
+                                          : HeroAppIcons.play,
+                                      size: 24,
+                                      color: Colors.white,
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    music.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: colors.textPrimary,
+                    ),
+                  ),
+                  if ((music.performer ?? '').trim().isNotEmpty)
+                    Text(
+                      music.performer!.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  Text(
+                    '${duration ~/ 60}:${(duration % 60).toString().padLeft(2, '0')}',
+                    style: TextStyle(fontSize: 12, color: colors.textTertiary),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PostSticker extends StatefulWidget {
+  const _PostSticker({
+    super.key,
+    required this.message,
+    required this.accountSlot,
+  });
+
+  final ChatMessage message;
+  final int accountSlot;
+
+  @override
+  State<_PostSticker> createState() => _PostStickerState();
+}
+
+class _PostStickerState extends State<_PostSticker> {
+  bool _ready = false;
+
+  @override
+  void didUpdateWidget(_PostSticker oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.accountSlot != widget.accountSlot ||
+        oldWidget.message.animatedSticker?.id !=
+            widget.message.animatedSticker?.id) {
+      _ready = false;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final message = widget.message;
+    final width = math.max(1, message.imageWidth ?? 180).toDouble();
+    final height = math.max(1, message.imageHeight ?? 180).toDouble();
+    final scale = 180 / math.max(width, height);
+    final activeAccount = widget.accountSlot == TdClient.shared.activeSlot;
+    return SizedBox(
+      width: width * scale,
+      height: height * scale,
+      child: RepaintBoundary(
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (message.image != null &&
+                !_ready &&
+                (!activeAccount || message.videoSticker == null))
+              TDImage(
+                photo: message.image,
+                accountSlot: widget.accountSlot,
+                fit: BoxFit.contain,
+                cornerRadius: 0,
+              ),
+            if (activeAccount && message.animatedSticker != null)
+              AnimatedStickerView(
+                file: message.animatedSticker!,
+                onReady: () {
+                  if (mounted) setState(() => _ready = true);
+                },
+              )
+            else if (activeAccount && message.videoSticker != null)
+              VideoStickerView(
+                file: message.videoSticker!,
+                fallback: message.image,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _PostReplyQuote extends StatelessWidget {
@@ -4246,11 +4614,13 @@ class _PostReplyQuote extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.colors;
     final sender = message.replyToSender?.trim();
-    final preview = message.replyToPreview?.trim() ?? '';
+    final preview = message.replyPreviewText?.trim() ?? '';
     final image = message.replyToImage;
     final pixelRatio = MediaQuery.devicePixelRatioOf(context);
-    final hasText = (sender?.isNotEmpty ?? false) || preview.isNotEmpty;
+    final hasText =
+        (sender?.isNotEmpty ?? false) || preview.isNotEmpty || image == null;
     return Container(
+      key: const ValueKey('momentsReplyQuote'),
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(13, 10, 13, 10),
       decoration: BoxDecoration(
@@ -4295,7 +4665,11 @@ class _PostReplyQuote extends StatelessWidget {
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                    TextSpan(text: preview.replaceAll('\n', ' ')),
+                    TextSpan(
+                      text: preview.isEmpty && image == null
+                          ? AppStringKeys.chatInputBarReply.l10n(context)
+                          : preview.replaceAll('\n', ' '),
+                    ),
                   ],
                 ),
               ),
@@ -4503,16 +4877,21 @@ class _PostImageGroup extends StatelessWidget {
     required Widget child,
   }) {
     return GestureDetector(
+      key: ValueKey('moments-media-${messages[index].id}'),
       behavior: HitTestBehavior.opaque,
       onTap: () => _openMedia(context, messages[index]),
-      child: child,
+      child: MessageMediaSpoiler(
+        message: messages[index],
+        accountSlot: accountSlot,
+        child: child,
+      ),
     );
   }
 
   void _openMedia(BuildContext context, ChatMessage message) {
     final video = message.video;
     if (video != null) {
-      Navigator.of(context).push(
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(
           fullscreenDialog: true,
           builder: (_) => VideoOnDemandPlayerView(queue: _videoQueue(message)),
@@ -4524,7 +4903,13 @@ class _PostImageGroup extends StatelessWidget {
   }
 
   VideoPlaybackQueue _videoQueue(ChatMessage current) {
-    final videos = messages.where((message) => message.video != null).toList();
+    final videos = messages
+        .where(
+          (message) =>
+              message.video != null &&
+              canPreviewMediaAlongside(message, current),
+        )
+        .toList();
     if (!videos.any((message) => message.id == current.id)) videos.add(current);
     final index = videos.indexWhere((message) => message.id == current.id);
     return VideoPlaybackQueue(
@@ -4548,7 +4933,12 @@ class _PostImageGroup extends StatelessWidget {
 
   void _openImage(BuildContext context, ChatMessage startMessage) {
     final photoMessages = messages
-        .where((message) => message.isPhoto && message.image != null)
+        .where(
+          (message) =>
+              message.isPhoto &&
+              message.image != null &&
+              canPreviewMediaAlongside(message, startMessage),
+        )
         .toList();
     final refs = photoMessages.map((message) => message.image!).toList();
     if (refs.isEmpty) return;

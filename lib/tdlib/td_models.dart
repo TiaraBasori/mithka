@@ -172,6 +172,31 @@ class MessageTextEntity {
   }
 }
 
+/// A server quote or a manually selected UTF-16 range from a message.
+class MessageTextQuote {
+  const MessageTextQuote({
+    required this.text,
+    required this.position,
+    this.entities = const [],
+    this.isManual = true,
+  });
+
+  final String text;
+  final int position;
+  final List<MessageTextEntity> entities;
+  final bool isManual;
+
+  Map<String, dynamic> toInputJson() => {
+    '@type': 'inputTextQuote',
+    'text': {
+      '@type': 'formattedText',
+      'text': text,
+      'entities': [for (final entity in entities) entity.toTdJson()],
+    },
+    'position': position,
+  };
+}
+
 class RichMessageTableCell {
   const RichMessageTableCell({
     required this.text,
@@ -513,6 +538,7 @@ class ChatSummary {
     required this.unreadCount,
     this.lastReadInboxMessageId = 0,
     this.unreadMentionCount = 0,
+    this.unreadReactionCount = 0,
     required this.order,
     required this.isMuted,
     this.kind = ChatKind.unknown,
@@ -543,6 +569,7 @@ class ChatSummary {
   int unreadCount;
   int lastReadInboxMessageId;
   int unreadMentionCount;
+  int unreadReactionCount;
   int order;
   bool isMuted;
   ChatKind kind;
@@ -674,6 +701,7 @@ class ChatMessage {
     this.restrictedContentText,
     this.restrictedContentTextEntities = const [],
     this.containsUnreadMention = false,
+    this.hasUnreadReactions = false,
     this.senderId,
     this.senderPhoto,
     this.image,
@@ -692,6 +720,7 @@ class ChatMessage {
     this.video,
     this.videoDuration,
     this.videoFileSize,
+    this.hasSpoiler = false,
     this.videoNoteTranscription = '',
     this.videoNoteTranscriptionPending = false,
     this.videoNoteTranscriptionError,
@@ -711,6 +740,9 @@ class ChatMessage {
     this.summaryLanguageCode = '',
     this.canRecognizeSpeech = false,
     this.replyToMessageId,
+    this.replyToQuote,
+    this.textQuoteSource,
+    this.textQuoteSourceEntities,
     this.replyToDate,
     this.replyToEntities = const [],
     this.replyToImage,
@@ -771,6 +803,7 @@ class ChatMessage {
   String? restrictedContentText;
   List<MessageTextEntity> restrictedContentTextEntities;
   bool containsUnreadMention;
+  bool hasUnreadReactions;
   int? senderId;
   TdFileRef? senderPhoto;
   TdFileRef? image; // photo / sticker / video-thumb / gif
@@ -789,6 +822,11 @@ class ChatMessage {
   TdFileRef? video; // playable video file (messageVideo)
   int? videoDuration; // seconds, for the duration badge
   int? videoFileSize; // bytes, for the inline autoplay budget
+  /// Cover the media preview until explicitly revealed.
+  bool hasSpoiler;
+
+  /// Non-interactive quote/search previews cannot reveal a media spoiler.
+  TdFileRef? get previewImage => hasSpoiler ? null : image;
   String videoNoteTranscription;
   bool videoNoteTranscriptionPending;
   String? videoNoteTranscriptionError;
@@ -815,6 +853,17 @@ class ChatMessage {
 
   // 引用 / reply: the message this one replies to, resolved lazily for the quote.
   int? replyToMessageId;
+  MessageTextQuote? replyToQuote;
+  // Rendering can extract tables from the original formatted text. Quotes
+  // must still address the unmodified source text, not that rendered subset.
+  String? textQuoteSource;
+  List<MessageTextEntity>? textQuoteSourceEntities;
+  String get quoteSourceText => textQuoteSource ?? text;
+  List<MessageTextEntity> get quoteSourceEntities =>
+      textQuoteSourceEntities ?? textEntities;
+  String? get replyPreviewText => replyToQuote?.text ?? replyToPreview;
+  List<MessageTextEntity> get replyPreviewEntities =>
+      replyToQuote?.entities ?? replyToEntities;
   int? replyToDate; // unix timestamp of the quoted message
   String? replyToSender; // resolved sender name of the quoted message
   String? replyToPreview; // one-line preview of the quoted message
@@ -868,6 +917,7 @@ class ChatMessage {
   bool blockedByUser;
   List<MessageReaction> reactions = const [];
   String? forwardOrigin; // name of the original author when forwarded
+  String? forwardAuthorSignature; // signed author within the origin channel
   int? forwardFromUserId; // origin user, resolved lazily to forwardOrigin
   int? forwardFromChatId; // origin chat/channel, resolved lazily
   int? forwardFromMessageId; // original channel message when TDLib exposes it
@@ -884,7 +934,14 @@ class ChatMessage {
   /// flight or when Telegram intentionally hides the original name.
   String get forwardDisplayName {
     final name = forwardOrigin?.trim();
-    if (name != null && name.isNotEmpty) return name;
+    final signature = forwardAuthorSignature?.trim();
+    if (name != null && name.isNotEmpty) {
+      if (signature != null && signature.isNotEmpty && signature != name) {
+        return '$name ($signature)';
+      }
+      return name;
+    }
+    if (signature != null && signature.isNotEmpty) return signature;
     return AppStrings.t(AppStringKeys.groupManagementLogUnknownActor);
   }
 
@@ -1472,6 +1529,7 @@ abstract final class TDParse {
       unreadCount: unread,
       lastReadInboxMessageId: chat.int64('last_read_inbox_message_id') ?? 0,
       unreadMentionCount: chat.integer('unread_mention_count') ?? 0,
+      unreadReactionCount: chat.integer('unread_reaction_count') ?? 0,
       order: order,
       isMuted: muted,
       kind: chatKind(chat),
@@ -1543,18 +1601,18 @@ abstract final class TDParse {
     final forwardInfo = message.obj('forward_info');
     final origin = forwardInfo?.obj('origin');
     final forwardSource = forwardInfo?.obj('source');
-    String? fwdName;
+    String? fwdName, fwdAuthorSignature;
     int? fwdUserId, fwdChatId, fwdMessageId;
     switch (origin?.type) {
       case 'messageOriginUser':
         fwdUserId = origin?.int64('sender_user_id');
       case 'messageOriginChat':
         fwdChatId = origin?.int64('sender_chat_id');
-        fwdName = origin?.str('author_signature');
+        fwdAuthorSignature = origin?.str('author_signature');
       case 'messageOriginChannel':
         fwdChatId = origin?.int64('chat_id');
         fwdMessageId = origin?.int64('message_id');
-        fwdName = origin?.str('author_signature');
+        fwdAuthorSignature = origin?.str('author_signature');
       case 'messageOriginHiddenUser':
         fwdName = origin?.str('sender_name');
     }
@@ -1618,6 +1676,8 @@ abstract final class TDParse {
             : const [],
         containsUnreadMention:
             message.boolean('contains_unread_mention') ?? false,
+        hasUnreadReactions:
+            (message.objects('unread_reactions') ?? const []).isNotEmpty,
         senderId: senderId,
         senderIsChat: sender?.type == 'messageSenderChat',
         senderTitle:
@@ -1634,6 +1694,8 @@ abstract final class TDParse {
         video: media.video,
         videoDuration: media.videoDuration,
         videoFileSize: media.videoFileSize,
+        hasSpoiler:
+            !isContentRestricted && (content?.boolean('has_spoiler') ?? false),
         videoNoteTranscription: videoNoteSpeech(content).$1,
         videoNoteTranscriptionPending: videoNoteSpeech(content).$2,
         videoNoteTranscriptionError: videoNoteSpeech(content).$3,
@@ -1658,6 +1720,13 @@ abstract final class TDParse {
         summaryCard: summaryCard(message, content),
         summaryLanguageCode: message.str('summary_language_code') ?? '',
         replyToMessageId: isContentRestricted ? null : replyToMessageId,
+        replyToQuote: isContentRestricted
+            ? null
+            : textQuote(replyTo?.obj('quote')),
+        textQuoteSource: isContentRestricted
+            ? null
+            : formattedTextForContent(content)?.str('text'),
+        textQuoteSourceEntities: isContentRestricted ? null : parsedEntities,
         serviceUserIds: isContentRestricted
             ? const []
             : serviceUserIds(content, senderId),
@@ -1697,6 +1766,7 @@ abstract final class TDParse {
       )
       ..reactions = reactionsFrom(message)
       ..forwardOrigin = isContentRestricted ? null : fwdName
+      ..forwardAuthorSignature = isContentRestricted ? null : fwdAuthorSignature
       ..forwardFromUserId = isContentRestricted ? null : fwdUserId
       ..forwardFromChatId = isContentRestricted ? null : fwdChatId
       ..forwardFromMessageId = isContentRestricted ? null : fwdMessageId;
@@ -2034,6 +2104,18 @@ abstract final class TDParse {
       return _richMessageText(content.obj('message'))?.entities ?? const [];
     }
     return textEntities(formattedTextForContent(content));
+  }
+
+  static MessageTextQuote? textQuote(Map<String, dynamic>? quote) {
+    final formatted = quote?.obj('text');
+    final text = formatted?.str('text');
+    if (text == null || text.isEmpty) return null;
+    return MessageTextQuote(
+      text: text,
+      position: quote?.integer('position') ?? 0,
+      entities: textEntities(formatted),
+      isManual: quote?.boolean('is_manual') ?? true,
+    );
   }
 
   static List<MessageTextEntity> textEntities(Map<String, dynamic>? ft) {

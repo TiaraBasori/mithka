@@ -41,7 +41,9 @@ import 'app/desktop_video_window.dart';
 import 'app/desktop_window_controls.dart';
 import 'app/global_video_split_host.dart';
 import 'app/handoff_service.dart';
+import 'app/horizontal_safe_viewport.dart';
 import 'app/telemetry_config.dart';
+import 'app/video_window_telemetry.dart';
 import 'auth/account_store.dart';
 import 'auth/auth_manager.dart';
 import 'call/call_manager.dart';
@@ -55,6 +57,7 @@ import 'components/drawer_controller.dart' as dc;
 import 'components/keyboard_dismiss_on_tap.dart';
 import 'l10n/app_locale_controller.dart';
 import 'l10n/app_localizations.dart';
+import 'media/video_playback_reporting.dart';
 import 'media/video_view_compatibility.dart';
 import 'notifications/in_app_notification_banner.dart';
 import 'notifications/notification_controller.dart';
@@ -74,6 +77,7 @@ import 'settings/business_service.dart';
 import 'settings/country_message_filter.dart';
 import 'settings/desktop_hotkey_controller.dart';
 import 'settings/developer_mode_controller.dart';
+import 'settings/hidden_sender_store.dart';
 import 'settings/keyword_blocker.dart';
 import 'settings/safety_notice_controller.dart';
 import 'settings/sensitive_content_controller.dart';
@@ -109,6 +113,7 @@ Future<void> main(List<String> arguments) async {
     if (videoArguments != null) {
       _initializeVideoBackend(installGlobalLogHandler: false);
       await _preloadLocaleCatalogue();
+      await initializeVideoWindowTelemetry();
       runApp(DesktopVideoWindowApp(arguments: videoArguments));
       return;
     }
@@ -241,6 +246,7 @@ Future<void> _bootstrapAndRunApp() async {
   ]);
   DesktopHotkeyController.initializeShared(prefs, replace: true);
   KeywordBlocker.shared.initialize(prefs);
+  HiddenSenderStore.shared.initialize(prefs);
   CountryMessageFilter.shared.initialize(prefs);
   unawaited(SensitiveContentController.shared.initialize());
   MusicPlayerController.shared.initialize(prefs);
@@ -344,8 +350,9 @@ void _configureSentry(SentryFlutterOptions options) {
   options.sendDefaultPii = false;
   options.tracesSampleRate = sentryTracesSampleRate;
   options.maxBreadcrumbs = 200;
-  options.beforeSend = (event, hint) =>
-      _isGoogleFontLoadFailure(event) ? null : event;
+  options.beforeSend = (event, hint) => _isGoogleFontLoadFailure(event)
+      ? null
+      : sanitizeVideoPlaybackEvent(event);
 }
 
 bool _isGoogleFontLoadFailure(SentryEvent event) {
@@ -459,6 +466,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     _performance.start();
     _accounts.addListener(_handleActiveAccountChange);
     _theme.addListener(_handleThemePreferencesChange);
+    HiddenSenderStore.shared.addListener(_handleHiddenSendersChange);
     BusinessQuickReplyService.shared.startPreloading(
       enabled: _theme.quickRepliesEnabled,
     );
@@ -515,6 +523,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
     _performance.dispose();
     _accounts.removeListener(_handleActiveAccountChange);
     _theme.removeListener(_handleThemePreferencesChange);
+    HiddenSenderStore.shared.removeListener(_handleHiddenSendersChange);
     _groupRemarks.dispose();
     _folderTags.dispose();
     DesktopMiniAppWindowService.instance.detachMainProxy();
@@ -543,6 +552,12 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
       if (account.slot == slot) return account.userId;
     }
     return null;
+  }
+
+  /// Hidden members changed here, or a child window asked this one to
+  /// re-read them: every other window re-reads them too.
+  void _handleHiddenSendersChange() {
+    unawaited(DesktopChatWindowService.instance.notifyPresentationChanged());
   }
 
   void _handleThemePreferencesChange() {
@@ -621,6 +636,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
 
         _autoDownload.initialize(widget.prefs);
         KeywordBlocker.shared.initialize(widget.prefs);
+        HiddenSenderStore.shared.initialize(widget.prefs);
         CountryMessageFilter.shared.initialize(widget.prefs);
         MusicPlayerController.shared.initialize(widget.prefs);
         BlockedUserService.shared.enabled = nextTheme.hideBlockedUserMessages;
@@ -843,21 +859,34 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
               final unlockedApp = Stack(
                 children: [
                   Positioned.fill(
-                    child: GlobalVideoSplitHost(child: themedChild),
+                    child: GlobalVideoSplitHost(
+                      child: HorizontalSafeViewport(
+                        sideNavigation: true,
+                        child: themedChild,
+                      ),
+                    ),
                   ),
                   Overlay(
                     initialEntries: [
                       OverlayEntry(
-                        builder: (_) => const GlobalMusicPlayerOverlay(),
+                        builder: (_) => const HorizontalSafeViewport(
+                          child: Stack(children: [GlobalMusicPlayerOverlay()]),
+                        ),
                       ),
                     ],
                   ),
                   Positioned.fill(
-                    child: InAppNotificationBannerHost(
-                      controller: NotificationController.shared,
+                    child: HorizontalSafeViewport(
+                      child: InAppNotificationBannerHost(
+                        controller: NotificationController.shared,
+                      ),
                     ),
                   ),
-                  const Positioned.fill(child: GlobalCallOverlayHost()),
+                  const Positioned.fill(
+                    child: HorizontalSafeViewport(
+                      child: GlobalCallOverlayHost(),
+                    ),
+                  ),
                 ],
               );
               final framedUnlockedApp = DesktopPrimaryWindowFrame(
@@ -883,6 +912,7 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
               final hotkeyController = DesktopHotkeyController.shared;
               final hotkeyChild = DesktopHotkeyHost(
                 controller: hotkeyController,
+                enabled: !appLock.locked,
                 child: DesktopPrimaryHotkeyBindings(
                   controller: hotkeyController,
                   child: appChild,
@@ -900,7 +930,10 @@ class _MithkaAppState extends State<MithkaApp> with WidgetsBindingObserver {
                       AppTextStyle.body(context.colors.textPrimary),
                       boldText: boldText,
                     ),
-                    child: hotkeyChild,
+                    child: ColoredBox(
+                      color: context.colors.background,
+                      child: hotkeyChild,
+                    ),
                   ),
                 ),
               );

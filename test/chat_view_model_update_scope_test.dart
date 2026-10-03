@@ -37,6 +37,82 @@ void main() {
     KeywordBlocker.shared.replaceAll(const []);
   });
 
+  test('live media updates apply and clear spoiler before refresh', () {
+    final message = ChatMessage(
+      id: 1,
+      chatId: _chatId,
+      isOutgoing: true,
+      text: '',
+      date: 1,
+      contentType: 'messageVideo',
+      isSending: true,
+    );
+    final vm = ChatViewModel(
+      chatId: _chatId,
+      title: 'Test',
+      markReadOnOpen: false,
+      sessionMessages: [message],
+    );
+    addTearDown(vm.dispose);
+    for (final spoiler in [true, false]) {
+      vm.applyLiveUpdateForTesting({
+        '@type': 'updateMessageContent',
+        'chat_id': _chatId,
+        'message_id': 1,
+        'new_content': {'@type': 'messageVideo', 'has_spoiler': spoiler},
+      });
+      expect(message.hasSpoiler, spoiler);
+    }
+  });
+
+  test('message-level updates clear loaded mention and reaction state', () {
+    final message = ChatMessage(
+      id: _firstMessageId,
+      chatId: _chatId,
+      isOutgoing: false,
+      text: '@me',
+      date: 1,
+      containsUnreadMention: true,
+      hasUnreadReactions: true,
+    );
+    final vm = ChatViewModel(
+      chatId: _chatId,
+      title: 'Test',
+      markReadOnOpen: false,
+      sessionMessages: [message],
+    );
+    addTearDown(vm.dispose);
+    vm.applyLiveUpdateForTesting({
+      '@type': 'updateChatUnreadMentionCount',
+      'chat_id': _chatId,
+      'unread_mention_count': 2,
+    });
+    vm.applyLiveUpdateForTesting({
+      '@type': 'updateChatUnreadReactionCount',
+      'chat_id': _chatId,
+      'unread_reaction_count': 3,
+    });
+
+    vm.applyLiveUpdateForTesting({
+      '@type': 'updateMessageMentionRead',
+      'chat_id': _chatId,
+      'message_id': _firstMessageId,
+      'unread_mention_count': 1,
+    });
+    vm.applyLiveUpdateForTesting({
+      '@type': 'updateMessageUnreadReactions',
+      'chat_id': _chatId,
+      'message_id': _firstMessageId,
+      'unread_reactions': <Object>[],
+      'unread_reaction_count': 2,
+    });
+
+    expect(vm.unreadMentionCount, 1);
+    expect(vm.unreadReactionCount, 2);
+    expect(message.containsUnreadMention, isFalse);
+    expect(message.hasUnreadReactions, isFalse);
+  });
+
   for (final messageCount in const [500, 5000]) {
     test(
       'targeted updates avoid transcript scans with $messageCount messages',

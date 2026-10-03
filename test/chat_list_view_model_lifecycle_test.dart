@@ -4,8 +4,65 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chats/chat_list_view_model.dart';
 import 'package:mithka/communities/community_models.dart';
 import 'package:mithka/tdlib/json_helpers.dart';
+import 'package:mithka/tdlib/td_models.dart';
 
 void main() {
+  test('folder updates retain configured icons and refresh changes', () {
+    final model = ChatListViewModel();
+    addTearDown(model.dispose);
+    void update(String icon) => model.applyUpdateForTesting({
+      '@type': 'updateChatFolders',
+      'chat_folders': [
+        {
+          'id': 7,
+          'title': 'Business',
+          'icon': {'name': icon},
+        },
+        {'id': 8, 'title': 'Other'},
+      ],
+    });
+    update('Work');
+    expect(model.filters[1].iconName, 'Work');
+    expect(model.filters[2].iconName, 'Custom');
+    update('Money');
+    expect(model.filters[1].iconName, 'Money');
+  });
+
+  test('message-level updates keep mention and reaction counters current', () {
+    final model = ChatListViewModel();
+    addTearDown(model.dispose);
+    final chat = ChatSummary(
+      id: 42,
+      title: 'Group',
+      lastMessage: 'Message',
+      lastMessageId: 10,
+      date: 1,
+      unreadCount: 1,
+      unreadMentionCount: 2,
+      unreadReactionCount: 3,
+      order: 1,
+      isMuted: false,
+    );
+    model.seedChatForTesting(chat);
+
+    model.applyUpdateForTesting({
+      '@type': 'updateMessageMentionRead',
+      'chat_id': 42,
+      'message_id': 10,
+      'unread_mention_count': 1,
+    });
+    model.applyUpdateForTesting({
+      '@type': 'updateMessageUnreadReactions',
+      'chat_id': 42,
+      'message_id': 10,
+      'unread_reactions': <Object>[],
+      'unread_reaction_count': 2,
+    });
+
+    expect(chat.unreadMentionCount, 1);
+    expect(chat.unreadReactionCount, 2);
+  });
+
   testWidgets('chat-list update bursts produce one batched notification', (
     tester,
   ) async {
