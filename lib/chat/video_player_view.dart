@@ -4297,16 +4297,18 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       )?.mediaMetadataEnabled ??
       false;
 
-  /// The current video's media facts, opened from the viewer menu.
+  /// The current video's media facts, opened from the viewer menu. The player
+  /// may be streaming through its own loopback server, so it hands over the
+  /// completed local file only when it really opened one — see
+  /// [MediaMetadata.fromVideoFile].
   void _showMediaMetadata() {
     final metadata = MediaMetadata.fromVideoFile(
       widget.video,
       width: widget.width,
       height: widget.height,
       durationSeconds: widget.durationSeconds,
-      // The player may already hold the file — a partial download with a
-      // faststart header still yields a readable codec.
-      localPath: _localPath ?? widget.video.localPath,
+      playerPath: _localPath,
+      playerOpenedLocalFile: _openedCompletedLocalFile,
     );
     unawaited(showMediaMetadataDialog(context, metadata));
   }

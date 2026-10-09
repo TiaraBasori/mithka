@@ -457,6 +457,15 @@ void main() {
       await tester.pump(const Duration(milliseconds: 400));
       expect(find.byType(MediaMetadataDialog), findsOneWidget);
       expect(find.text('1920 × 1080'), findsOneWidget);
+      // The player opened this file itself, so it is the one path the probe may
+      // read — never the loopback URI it streams through otherwise.
+      expect(
+        tester
+            .widget<MediaMetadataDialog>(find.byType(MediaMetadataDialog))
+            .metadata
+            .localPath,
+        sourcePath,
+      );
       // The probe reads a pubspec, not a video, and fails closed.
       expect(find.text('Media metadata'), findsOneWidget);
       await tester.tap(find.text('OK'));

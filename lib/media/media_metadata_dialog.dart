@@ -11,6 +11,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../components/app_dialog.dart';
+import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -67,7 +68,6 @@ class _MediaMetadataDialogState extends State<MediaMetadataDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.colors;
     final entries = widget.metadata.entries(track: _track);
     return AppDialogSurface(
       title: AppStrings.t(AppStringKeys.mediaMetadataTitle),
@@ -77,8 +77,7 @@ class _MediaMetadataDialogState extends State<MediaMetadataDialog> {
         children: [
           for (var index = 0; index < entries.length; index++) ...[
             _MetadataRow(entry: entries[index]),
-            if (index < entries.length - 1)
-              Divider(height: 1, thickness: 0.5, color: c.divider),
+            if (index < entries.length - 1) const InsetDivider(leadingInset: 0),
           ],
         ],
       ),

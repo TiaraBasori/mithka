@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -16,6 +17,8 @@ import 'package:mithka/theme/app_theme.dart';
 import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'support/mp4_fixtures.dart';
 
 ChatMessage _message({
   required String contentType,
@@ -90,6 +93,22 @@ File _writeImage() {
     base64Decode(
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC'
       'AAAAC0lEQVR42uNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    ),
+  );
+}
+
+/// Opens the metadata sheet on tap, so a test can drive the dialog without a
+/// whole viewer around it.
+class _MetadataSheetButton extends StatelessWidget {
+  const _MetadataSheetButton({required this.metadata});
+
+  final MediaMetadata metadata;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: GestureDetector(
+      onTap: () => unawaited(showMediaMetadataDialog(context, metadata)),
+      child: const Text('open sheet'),
     ),
   );
 }
@@ -189,7 +208,8 @@ void main() {
       width: 720,
       height: 1280,
       durationSeconds: 4,
-      localPath: '/tmp/clip.mp4',
+      playerPath: '/tmp/clip.mp4',
+      playerOpenedLocalFile: true,
     );
 
     final rows = _rows(metadata);
@@ -204,6 +224,23 @@ void main() {
     expect(rows[AppStringKeys.mediaMetadataMime], 'video/mp4');
     // The probe only runs on a file that is wholly on disk.
     expect(metadata.localPath, '/tmp/clip.mp4');
+  });
+
+  test('a streaming player hands the probe nothing', () {
+    // The player keeps its loopback URI in the same field as a local path. A
+    // probe fed that would open a file named after a URL.
+    final streaming = MediaMetadata.fromVideoFile(
+      TdFileRef(id: 9),
+      playerPath: 'http://127.0.0.1:43210/clip.mp4',
+    );
+    expect(streaming.localPath, isNull);
+
+    // TDLib's own path is the fallback, and it is set on completion alone.
+    final downloaded = MediaMetadata.fromVideoFile(
+      TdFileRef(id: 9, localPath: '/tmp/clip.mp4'),
+      playerPath: 'http://127.0.0.1:43210/clip.mp4',
+    );
+    expect(downloaded.localPath, '/tmp/clip.mp4');
   });
 
   test('listFor respects the preference', () {
@@ -301,6 +338,98 @@ void main() {
     },
     variant: TargetPlatformVariant.only(TargetPlatform.android),
   );
+
+  testWidgets('a half-written file gives the sheet no codec row', (
+    tester,
+  ) async {
+    // What a partial download looks like: a moov whose declared size runs past
+    // the bytes that arrived. The probe must fail closed on it rather than read
+    // whatever follows.
+    final whole = isoConcat([
+      isoBox('ftyp', [...'isom'.codeUnits, ...isoU32(0)]),
+      isoBox('moov', List<int>.filled(96, 0)),
+    ]);
+    final path = writeTempMediaFileSync(
+      whole.sublist(0, whole.length - 64),
+      name: 'partial.mp4',
+    );
+
+    await _pump(
+      tester,
+      Builder(
+        builder: (context) => _MetadataSheetButton(
+          metadata: MediaMetadata(
+            kind: MediaMetadataKind.video,
+            localPath: path,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(_MetadataSheetButton));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(MediaMetadataDialog), findsOneWidget);
+    // The probe reads a real file, which only progresses on the real event
+    // loop; it finds nothing to report.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 300)),
+    );
+    await tester.pump();
+    final codecLabel = AppStrings.t(AppStringKeys.mediaMetadataCodec);
+    expect(find.text(codecLabel), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a dismissed sheet ignores the probe that lands after it', (
+    tester,
+  ) async {
+    // A moov that is a wall of filler, so the walk is still running when the
+    // sheet goes away.
+    final hostile = writeTempMediaFileSync(
+      isoConcat([
+        isoBox('ftyp', [...'isom'.codeUnits, ...isoU32(0)]),
+        isoBox(
+          'moov',
+          isoConcat([
+            for (var index = 0; index < 2048; index++) isoBox('free', const []),
+          ]),
+        ),
+      ]),
+      name: 'hostile.mp4',
+    );
+
+    await _pump(
+      tester,
+      Builder(
+        builder: (context) => _MetadataSheetButton(
+          metadata: MediaMetadata(
+            kind: MediaMetadataKind.video,
+            localPath: hostile,
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byType(_MetadataSheetButton));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(MediaMetadataDialog), findsOneWidget);
+
+    // Dismiss while the traversal is in flight.
+    Navigator.of(tester.element(find.byType(MediaMetadataDialog))).pop();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(MediaMetadataDialog), findsNothing);
+
+    // Now let it land: the state is gone, so a setState would throw.
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 500)),
+    );
+    await tester.pump();
+    expect(tester.takeException(), isNull);
+    expect(debugMp4ProbeReadCount, lessThan(600));
+  });
 
   testWidgets('the settings switch flips the stored preference', (
     tester,

@@ -73,7 +73,8 @@ class MediaMetadata {
 
   /// Non-null only when the whole file is on disk (TDLib reports `local.path`
   /// once `is_downloading_completed`), so the codec/frame-rate probe never reads
-  /// a partial download.
+  /// a partial download or a player's stream URI. [MediaMetadata.fromVideoFile]
+  /// is what enforces that for the player.
   final String? localPath;
 
   factory MediaMetadata.fromMessage(ChatMessage message) {
@@ -155,12 +156,20 @@ class MediaMetadata {
   /// The viewer's metadata for a video playback item. The player's queue only
   /// keeps the file and its dimensions, so the kind is always video — an
   /// animation that opens the player reads the same from its message.
+  ///
+  /// A player keeps its loopback stream URI in the same field as a local path,
+  /// so it says which one it holds: [playerOpenedLocalFile] is true only once it
+  /// has a completed file on disk, and only then does [playerPath] become the
+  /// path to probe. Otherwise [TdFileRef.localPath] decides, which TDLib sets on
+  /// completion alone — a streaming or half-downloaded video contributes
+  /// nothing, and the codec row simply stays out.
   factory MediaMetadata.fromVideoFile(
     TdFileRef video, {
     int? width,
     int? height,
     int? durationSeconds,
-    String? localPath,
+    String? playerPath,
+    bool playerOpenedLocalFile = false,
   }) {
     return MediaMetadata(
       kind: MediaMetadataKind.video,
@@ -170,7 +179,7 @@ class MediaMetadata {
       sizeBytes: video.size,
       fileName: video.fileName,
       mimeType: video.mimeType,
-      localPath: localPath ?? video.localPath,
+      localPath: playerOpenedLocalFile ? playerPath : video.localPath,
     );
   }
 

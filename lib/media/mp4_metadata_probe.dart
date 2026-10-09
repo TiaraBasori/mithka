@@ -7,10 +7,21 @@
 //  ISO-BMFF boxes.
 //
 //  The walk never trusts a box size: every read is clamped to the containing
-//  box, so a truncated or partial download ends in a null row, not a crash.
+//  box, so a short or malformed payload fails closed instead of being padded
+//  with a sibling's bytes.
 //
 
 import 'dart:io';
+
+/// Reads the last [probeMp4VideoTrack] performed. Test-only: how much IO a
+/// malformed file may trigger is a real invariant, and asserting it needs a
+/// count rather than a stopwatch. Production callers ignore it.
+int debugMp4ProbeReadCount = 0;
+
+/// Direct children scanned in one parent before the walk gives up. A file may
+/// claim any number of boxes, so the budget counts boxes visited rather than
+/// boxes matched — otherwise a level of non-matching filler would be unbounded.
+const int _maxChildrenScanned = 512;
 
 /// The first video track's codec, and its average frame rate when the sample
 /// table is complete enough to derive one.
@@ -37,6 +48,7 @@ Future<Mp4VideoTrack?> probeMp4VideoTrack(String path) async {
     final length = await file.length();
     if (length < 16) return null;
     handle = await file.open();
+    debugMp4ProbeReadCount = 0;
     final reader = _BoxReader(handle, length);
     final moov = await reader.child(0, length, 'moov');
     if (moov == null) return null;
@@ -59,9 +71,12 @@ Future<Mp4VideoTrack?> _videoTrack(_BoxReader reader, _BoxPayload trak) async {
   if (mdia == null) return null;
   final hdlr = await reader.child(mdia.start, mdia.end, 'hdlr');
   if (hdlr == null) return null;
-  // version/flags(4) + pre_defined(4), then the handler type.
-  final hdlrBytes = await reader.read(hdlr.start, 12);
-  if (hdlrBytes == null || _ascii(hdlrBytes, 8, 4) != 'vide') return null;
+  // version/flags(4) + pre_defined(4), then the handler type. A payload too
+  // short to hold those is a broken box, not a handler to guess at.
+  if (hdlr.end - hdlr.start < 12) return null;
+  final hdlrBytes = await reader.read(hdlr.start, 12, limit: hdlr.end);
+  if (hdlrBytes == null || hdlrBytes[0] != 0) return null;
+  if (_ascii(hdlrBytes, 8, 4) != 'vide') return null;
   final codec = await _codec(reader, mdia);
   if (codec == null) return null;
   return Mp4VideoTrack(codec: codec, frameRate: await _frameRate(reader, mdia));
@@ -74,10 +89,22 @@ Future<String?> _codec(_BoxReader reader, _BoxPayload mdia) async {
   final stsd = await reader.child(stbl.start, stbl.end, 'stsd');
   if (stsd == null) return null;
   // version/flags(4) + entry_count(4), then the first entry's size(4)+format(4).
-  final bytes = await reader.read(stsd.start, 16);
-  if (bytes == null) return null;
-  final fourcc = _ascii(bytes, 12, 4);
-  if (fourcc.trim().isEmpty) return null;
+  if (stsd.end - stsd.start < 8) return null;
+  final head = await reader.read(stsd.start, 8, limit: stsd.end);
+  if (head == null || head[0] != 0) return null;
+  final entryCount = _u32(head, 4);
+  // Zero entries means stsd describes no sample at all; a wild count is a
+  // corrupt box rather than a table worth reading further.
+  if (entryCount == null || entryCount < 1 || entryCount > 64) return null;
+  final entry = await reader.read(stsd.start + 8, 8, limit: stsd.end);
+  if (entry == null) return null;
+  // The entry has to cover its own size and format fields and stay inside
+  // stsd, or the fourcc below would be read out of a neighbouring box.
+  final entrySize = _u32(entry, 0);
+  if (entrySize == null || entrySize < 8) return null;
+  if (stsd.start + 8 + entrySize > stsd.end) return null;
+  final fourcc = _ascii(entry, 4, 4);
+  if (!_isBoxType(fourcc)) return null;
   return mp4CodecName(fourcc);
 }
 
@@ -85,12 +112,21 @@ Future<String?> _codec(_BoxReader reader, _BoxPayload mdia) async {
 Future<double?> _frameRate(_BoxReader reader, _BoxPayload mdia) async {
   final mdhd = await reader.child(mdia.start, mdia.end, 'mdhd');
   if (mdhd == null) return null;
-  // v0: creation(4) modification(4) timescale(4)@12 duration(4)@16
-  // v1: creation(8) modification(8) timescale(4)@20 duration(8)@24
-  final head = await reader.read(mdhd.start, 32);
+  // v0: creation(4) modification(4) timescale(4)@12 duration(4)@16 -> 20 bytes
+  // v1: creation(8) modification(8) timescale(4)@20 duration(8)@24 -> 32 bytes
+  final versionByte = await reader.read(mdhd.start, 1, limit: mdhd.end);
+  if (versionByte == null) return null;
+  final version = versionByte[0];
+  final needed = switch (version) {
+    0 => 20,
+    1 => 32,
+    _ => null,
+  };
+  if (needed == null || mdhd.end - mdhd.start < needed) return null;
+  final head = await reader.read(mdhd.start, needed, limit: mdhd.end);
   if (head == null) return null;
-  final timescale = head[0] == 1 ? _u32(head, 20) : _u32(head, 12);
-  final duration = head[0] == 1 ? _u64(head, 24) : _u32(head, 16);
+  final timescale = version == 1 ? _u32(head, 20) : _u32(head, 12);
+  final duration = version == 1 ? _u64(head, 24) : _u32(head, 16);
   if (timescale == null ||
       timescale == 0 ||
       duration == null ||
@@ -102,14 +138,15 @@ Future<double?> _frameRate(_BoxReader reader, _BoxPayload mdia) async {
   if (stbl == null) return null;
   final stts = await reader.child(stbl.start, stbl.end, 'stts');
   if (stts == null) return null;
-  final sttsHead = await reader.read(stts.start, 8);
-  if (sttsHead == null) return null;
+  if (stts.end - stts.start < 8) return null;
+  final sttsHead = await reader.read(stts.start, 8, limit: stts.end);
+  if (sttsHead == null || sttsHead[0] != 0) return null;
   final entryCount = _u32(sttsHead, 4);
   // A runaway count here is a corrupt box, not a video to parse longer.
   if (entryCount == null || entryCount == 0 || entryCount > 4096) return null;
   final tableLength = entryCount * 8;
   if (stts.start + 8 + tableLength > stts.end) return null;
-  final table = await reader.read(stts.start + 8, tableLength);
+  final table = await reader.read(stts.start + 8, tableLength, limit: stts.end);
   if (table == null) return null;
   var samples = 0;
   for (var entry = 0; entry < entryCount; entry++) {
@@ -148,55 +185,78 @@ class _BoxReader {
   final RandomAccessFile _handle;
   final int length;
 
-  Future<List<int>?> read(int offset, int count) async {
-    if (offset < 0 || count <= 0 || offset + count > length) return null;
+  /// Reads [count] bytes at [offset], or null when the range leaves [limit] —
+  /// the containing box's end — or the file. Every leaf read passes its box, so
+  /// a short payload can never be padded out with a sibling's bytes.
+  Future<List<int>?> read(int offset, int count, {int? limit}) async {
+    final bound = limit == null || limit > length ? length : limit;
+    if (offset < 0 || count <= 0 || offset + count > bound) return null;
+    debugMp4ProbeReadCount++;
     await _handle.setPosition(offset);
     final bytes = await _handle.read(count);
     return bytes.length == count ? bytes : null;
   }
 
-  /// The payload range of the first direct child of [start, end) with the
-  /// given type, or null.
+  /// The payload range of the first direct child of [start, end) with the given
+  /// type, or null. The scan stops at the match instead of listing the level.
   Future<_BoxPayload?> child(int start, int end, String type) async {
-    for (final box in await childrenOf((start: start, end: end))) {
-      if (box.$1 == type) return box.$2;
-    }
-    return null;
+    _BoxPayload? found;
+    await _scan((start: start, end: end), (childType, payload) {
+      if (childType != type) return true;
+      found = payload;
+      return false;
+    });
+    return found;
   }
 
-  /// Every direct child of [parent], in file order. A bogus size ends the
-  /// walk: once one box's length points outside its parent, later siblings
-  /// cannot be trusted.
+  /// Every direct child of [parent], in file order.
   Future<List<(String, _BoxPayload)>> childrenOf(
     _BoxPayload parent, {
     String? only,
   }) async {
     final found = <(String, _BoxPayload)>[];
+    await _scan(parent, (type, payload) {
+      if (only == null || type == only) found.add((type, payload));
+      return true;
+    });
+    return found;
+  }
+
+  /// Walks one level of [parent], handing each child to [visit] until it
+  /// returns false or the box budget runs out. A bogus size ends the walk: once
+  /// one box's length points outside its parent, later siblings cannot be
+  /// trusted.
+  Future<void> _scan(
+    _BoxPayload parent,
+    bool Function(String type, _BoxPayload payload) visit,
+  ) async {
     var offset = parent.start;
-    while (offset <= parent.end - 8 && found.length < 512) {
-      final header = await read(offset, 8);
-      if (header == null) break;
+    var scanned = 0;
+    while (offset <= parent.end - 8 && scanned < _maxChildrenScanned) {
+      scanned++;
+      final header = await read(offset, 8, limit: parent.end);
+      if (header == null) return;
       final type = _ascii(header, 4, 4);
-      if (!_isBoxType(type)) break;
+      if (!_isBoxType(type)) return;
       var size = _u32(header, 0);
-      if (size == null) break;
+      if (size == null) return;
       var headerSize = 8;
       if (size == 1) {
-        final extended = await read(offset + 8, 8);
+        final extended = await read(offset + 8, 8, limit: parent.end);
         final long = extended == null ? null : _u64(extended, 0);
-        if (long == null || long < 16) break;
+        if (long == null || long < 16) return;
         size = long;
         headerSize = 16;
       } else if (size == 0) {
         // A box size of 0 means "to the end of the file/container".
         size = parent.end - offset;
       }
-      if (size < headerSize || size > parent.end - offset) break;
-      final payload = (start: offset + headerSize, end: offset + size);
-      if (only == null || type == only) found.add((type, payload));
+      if (size < headerSize || size > parent.end - offset) return;
+      if (!visit(type, (start: offset + headerSize, end: offset + size))) {
+        return;
+      }
       offset += size;
     }
-    return found;
   }
 }
 
