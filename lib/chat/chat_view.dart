@@ -44,6 +44,7 @@ import '../components/photo_avatar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../media/app_asset_picker.dart';
+import '../media/media_metadata.dart';
 import '../moments/story_viewer_view.dart';
 import '../notifications/notification_controller.dart';
 import '../platform/desktop_clipboard_images.dart';
@@ -4812,6 +4813,10 @@ class _ChatViewState extends State<ChatView> {
         items: items,
         startIndex: start < 0 ? 0 : start,
         messageActions: _imageMessageActions(pairs),
+        metadata: MediaMetadata.listFor(
+          pairs,
+          enabled: context.read<ThemeController>().mediaMetadataEnabled,
+        ),
       ),
     );
   }
