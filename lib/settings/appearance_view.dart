@@ -1192,6 +1192,9 @@ class _ChatViewQuickReactionOverlay extends StatelessWidget {
                   ),
                   onReaction: onReaction,
                   onExpand: onExpand,
+                  // A settings preview, not a live long-press surface: render
+                  // the bar settled instead of blooming in.
+                  staggerIn: false,
                 ),
               ),
             ),

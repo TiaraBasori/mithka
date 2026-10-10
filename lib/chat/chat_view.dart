@@ -101,6 +101,7 @@ import 'chat_wallpaper.dart';
 import 'checklist_composer_view.dart';
 import 'custom_emoji.dart';
 import 'emoji_store.dart';
+import 'expanded_reaction_picker.dart';
 import 'forward_markdown.dart';
 import 'forward_options.dart';
 import 'group_remark_controller.dart';
@@ -128,6 +129,7 @@ import 'openai_compatible_unread_summary_provider.dart';
 import 'outgoing_attachment.dart';
 import 'poll_results_view.dart';
 import 'quick_reaction_choice.dart';
+import 'recent_reactions_store.dart';
 import 'shared_contact_sheet.dart';
 import 'sticker_set_detail_view.dart';
 import 'sticker_viewer.dart';
@@ -9599,6 +9601,7 @@ class _ChatViewState extends State<ChatView> {
     MessageActionSource source = MessageActionSource.normal,
   ]) {
     EmojiStore.shared.loadIfNeeded();
+    unawaited(RecentReactionsStore.shared.load());
     final reactionGeneration = ++_actionReactionAvailabilityGeneration;
     final overlayBox =
         _actionOverlayKey.currentContext?.findRenderObject() as RenderBox?;
@@ -9978,7 +9981,12 @@ class _ChatViewState extends State<ChatView> {
       _reactionExpanded = false;
     });
     if (target != null) {
-      unawaited(_sendReaction(() => _vm.addReaction(target.id, emoji)));
+      unawaited(
+        _sendReaction(
+          () => _vm.addReaction(target.id, emoji),
+          recordChoice: QuickReactionChoice.emoji(emoji),
+        ),
+      );
     }
   }
 
@@ -10001,14 +10009,25 @@ class _ChatViewState extends State<ChatView> {
     });
     if (target != null) {
       unawaited(
-        _sendReaction(() => _vm.addCustomReaction(target.id, customEmojiId)),
+        _sendReaction(
+          () => _vm.addCustomReaction(target.id, customEmojiId),
+          recordChoice: QuickReactionChoice.custom(customEmojiId),
+        ),
       );
     }
   }
 
-  Future<void> _sendReaction(Future<void> Function() send) async {
+  Future<void> _sendReaction(
+    Future<void> Function() send, {
+    QuickReactionChoice? recordChoice,
+  }) async {
     try {
       await send();
+      // Only a reaction the server accepted joins the recents row; a failed
+      // send keeps the history honest.
+      if (recordChoice != null) {
+        unawaited(RecentReactionsStore.shared.record(recordChoice));
+      }
     } catch (_) {
       if (mounted) {
         showToast(context, AppStringKeys.topicPostContentActionFailed);
@@ -10060,7 +10079,15 @@ class _ChatViewState extends State<ChatView> {
   Future<void> _toggleMessageReaction(
     ChatMessage message,
     MessageReaction reaction,
-  ) => _sendReaction(() => _vm.toggleReaction(message, reaction));
+  ) => _sendReaction(
+    () => _vm.toggleReaction(message, reaction),
+    // A removal is not a pick — only additions join the recents row.
+    recordChoice: reaction.chosen
+        ? null
+        : reaction.customEmojiId != 0
+        ? QuickReactionChoice.custom(reaction.customEmojiId)
+        : QuickReactionChoice.emoji(reaction.emoji ?? ''),
+  );
 
   Widget _actionMenuOverlay() {
     final overlayBox =
@@ -10089,6 +10116,9 @@ class _ChatViewState extends State<ChatView> {
       isCall: _actionTarget!.isCall,
       availability: reactionAvailability,
     );
+    final expandedPickerSize = _reactionExpanded
+        ? ExpandedReactionPicker.sizeFor(screen: screenSize, safeArea: safeArea)
+        : Size.zero;
     final actionMenu = MessageActionMenu(
       message: _actionTarget!,
       isPinned: _vm.pinnedMessage?.id == _actionTarget!.id,
@@ -10124,7 +10154,7 @@ class _ChatViewState extends State<ChatView> {
     final reactionH = !showReactions
         ? 0.0
         : _reactionExpanded
-        ? _expandedPickerSize.height
+        ? expandedPickerSize.height
         : 48.0;
     final menuH = showActionMenu
         ? math.min(
@@ -10173,7 +10203,7 @@ class _ChatViewState extends State<ChatView> {
             pointer: rect?.topLeft ?? Offset(10, topSafe),
             viewport: screenSize,
             menuSize: _reactionExpanded
-                ? _expandedPickerSize
+                ? expandedPickerSize
                 : Size(verticalMenuWidth, desktopStripH + menuH),
             topSafe: topSafe,
             bottomSafe: bottomSafe,
@@ -10211,11 +10241,28 @@ class _ChatViewState extends State<ChatView> {
                 left: desktopMenu ? desktopOrigin.dx : 10,
                 right: desktopMenu ? null : 10,
                 child: AnimatedBuilder(
-                  animation: EmojiStore.shared,
+                  animation: Listenable.merge([
+                    EmojiStore.shared,
+                    RecentReactionsStore.shared,
+                  ]),
                   builder: (context, _) {
                     final availability = reactionAvailability!;
                     if (_reactionExpanded) {
-                      final picker = _expandedReactionPicker(availability);
+                      final picker = SizedBox.fromSize(
+                        size: expandedPickerSize,
+                        child: ExpandedReactionPicker(
+                          availability: availability,
+                          tab: _reactionTab,
+                          recents: RecentReactionsStore.shared.recents,
+                          onReaction: _reactQuick,
+                          onTabChanged: (tab) =>
+                              setState(() => _reactionTab = tab),
+                          onOpenSettings: _openQuickReactionSettings,
+                          packs: availability.allowArbitraryCustom
+                              ? EmojiStore.shared.customPacks
+                              : const <CustomEmojiPack>[],
+                        ),
+                      );
                       return desktopMenu
                           ? picker
                           : Align(alignment: align, child: picker);
@@ -10270,7 +10317,6 @@ class _ChatViewState extends State<ChatView> {
   /// The gap between the strip and the menu it rides on — tight enough that
   /// the pair reads as one stack, wide enough to keep both borders visible.
   static const _menuReactionGap = 4.0;
-  static const _expandedPickerSize = Size(300, 268);
 
   List<QuickReactionChoice> _quickReactionChoices(
     MessageReactionAvailability availability,
@@ -10284,173 +10330,16 @@ class _ChatViewState extends State<ChatView> {
     return availability.quickChoices(configured);
   }
 
-  Widget _expandedReactionPicker(MessageReactionAvailability availability) {
-    final store = EmojiStore.shared;
-    final packs = availability.allowArbitraryCustom
-        ? store.customPacks
-        : const <CustomEmojiPack>[];
-    return Container(
-      width: _expandedPickerSize.width,
-      height: _expandedPickerSize.height,
-      decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 12),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: [
-          Expanded(child: _reactionContent(packs, availability)),
-          _reactionTabStrip(packs),
-        ],
-      ),
-    );
-  }
-
-  Widget _reactionContent(
-    List<CustomEmojiPack> packs,
-    MessageReactionAvailability availability,
-  ) {
-    const reactionEmojiSize = 26.0;
-    if (_reactionTab != 'standard') {
-      final id = int.tryParse(_reactionTab);
-      CustomEmojiPack? pack;
-      for (final p in packs) {
-        if (p.id == id) {
-          pack = p;
-          break;
-        }
-      }
-      if (pack != null) {
-        return GridView.count(
-          crossAxisCount: 7,
-          padding: const EdgeInsets.all(10),
-          children: [
-            for (final item in pack.emoji)
-              if (item.customEmojiId != 0)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () => _reactCustom(item.customEmojiId),
-                  child: Center(
-                    child: CustomEmojiView(
-                      id: item.customEmojiId,
-                      size: reactionEmojiSize,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
-          ],
-        );
-      }
-    }
-    return GridView.count(
-      crossAxisCount: 7,
-      padding: const EdgeInsets.all(10),
-      children: [
-        for (final reaction in availability.choices)
-          GestureDetector(
-            key: ValueKey('expanded-reaction-${reaction.storageValue}'),
-            behavior: HitTestBehavior.opaque,
-            onTap: () => _reactQuick(reaction),
-            child: Center(
-              child: reaction.isCustom
-                  ? CustomEmojiView(
-                      id: reaction.customEmojiId,
-                      size: reactionEmojiSize,
-                      color: Colors.white,
-                    )
-                  : Text(
-                      reaction.emoji,
-                      style: const TextStyle(fontSize: reactionEmojiSize),
-                    ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _reactionTabStrip(List packs) {
-    return Container(
-      height: 46,
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: Color(0xFF3A3A3C), width: 0.5)),
-      ),
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-        children: [
-          _reactionTab2(
-            'standard',
-            const AppIcon(
-              HeroAppIcons.solidFaceSmile,
-              size: 22,
-              color: Colors.white70,
-            ),
-          ),
-          for (final pack in packs)
-            _reactionTab2(
-              pack.id.toString(),
-              pack.emoji.isNotEmpty && pack.emoji.first.customEmojiId != 0
-                  ? CustomEmojiView(
-                      id: pack.emoji.first.customEmojiId,
-                      size: 26,
-                      color: Colors.white,
-                    )
-                  : const AppIcon(
-                      HeroAppIcons.objectGroup,
-                      size: 20,
-                      color: Colors.white70,
-                    ),
-            ),
-          GestureDetector(
-            key: const ValueKey('quick-reaction-settings'),
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              setState(() {
-                _actionTarget = null;
-                _actionRect = null;
-                _clearMobileTextSelectionState();
-                _reactionExpanded = false;
-              });
-              Navigator.of(context).push(
-                AppPageRoute<void>(
-                  pageBuilder: (_, _, _) => const QuickReactionSettingsView(),
-                ),
-              );
-            },
-            child: const SizedBox(
-              width: 40,
-              height: 36,
-              child: Center(
-                child: AppIcon(
-                  HeroAppIcons.gear,
-                  size: 21,
-                  color: Colors.white70,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _reactionTab2(String key, Widget child) {
-    final selected = _reactionTab == key;
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => setState(() => _reactionTab = key),
-      child: Container(
-        width: 40,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF4A4A4E) : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.control),
-        ),
-        child: SizedBox(width: 28, height: 28, child: Center(child: child)),
+  void _openQuickReactionSettings() {
+    setState(() {
+      _actionTarget = null;
+      _actionRect = null;
+      _clearMobileTextSelectionState();
+      _reactionExpanded = false;
+    });
+    Navigator.of(context).push(
+      AppPageRoute<void>(
+        pageBuilder: (_, _, _) => const QuickReactionSettingsView(),
       ),
     );
   }

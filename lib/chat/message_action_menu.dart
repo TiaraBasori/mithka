@@ -69,23 +69,59 @@ enum MessageActionSource { normal, video }
 
 enum MessageActionMenuLayout { adaptive, grid, vertical }
 
-class QuickReactionBar extends StatelessWidget {
+class QuickReactionBar extends StatefulWidget {
   const QuickReactionBar({
     super.key,
     required this.reactions,
     required this.onReaction,
     required this.onExpand,
+    this.staggerIn = true,
   });
 
   static const maxFittedButtonCount = 10;
 
+  /// iOS staggers the bar's buttons in when it appears after the long-press
+  /// gesture. The appearance preview shows the bar statically, so callers can
+  /// opt out.
+  static const staggerInterval = Duration(milliseconds: 35);
+  static const staggerDuration = Duration(milliseconds: 190);
+
   final List<QuickReactionChoice> reactions;
   final ValueChanged<QuickReactionChoice> onReaction;
   final VoidCallback onExpand;
+  final bool staggerIn;
+
+  @override
+  State<QuickReactionBar> createState() => _QuickReactionBarState();
+}
+
+class _QuickReactionBarState extends State<QuickReactionBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _stagger = AnimationController(
+    vsync: this,
+    duration: widget.staggerIn
+        ? QuickReactionBar.staggerDuration +
+              QuickReactionBar.staggerInterval * widget.reactions.length
+        : Duration.zero,
+    value: widget.staggerIn ? 0 : 1,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.staggerIn) _stagger.forward();
+  }
+
+  @override
+  void dispose() {
+    _stagger.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final buttonCount = reactions.length + 1;
+    final reduced = AppMotion.isReduced(context) || !widget.staggerIn;
+    final buttonCount = widget.reactions.length + 1;
     return Container(
       key: const ValueKey('quick-reaction-bar'),
       width: MessageActionMenu.widthForAvailable(
@@ -102,10 +138,15 @@ class QuickReactionBar extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final buttons = <Widget>[
-            for (final emoji in reactions) _reactionButton(emoji),
-            _expandButton(),
+            for (var index = 0; index < widget.reactions.length; index++)
+              _staggered(
+                reduced,
+                index,
+                _reactionButton(widget.reactions[index]),
+              ),
+            _staggered(reduced, widget.reactions.length, _expandButton()),
           ];
-          if (buttonCount <= maxFittedButtonCount) {
+          if (buttonCount <= QuickReactionBar.maxFittedButtonCount) {
             return Row(
               children: [for (final button in buttons) Expanded(child: button)],
             );
@@ -120,11 +161,42 @@ class QuickReactionBar extends StatelessWidget {
     );
   }
 
+  /// Scales and fades button [index] in, delayed by its position so the row
+  /// blooms left to right like the iOS bar.
+  Widget _staggered(bool reduced, int index, Widget child) {
+    if (reduced) return child;
+    final delay = QuickReactionBar.staggerInterval * index;
+    final total = _stagger.duration ?? Duration.zero;
+    final start = total.inMicroseconds == 0
+        ? 0.0
+        : delay.inMicroseconds / total.inMicroseconds;
+    final span = total.inMicroseconds == 0
+        ? 1.0
+        : QuickReactionBar.staggerDuration.inMicroseconds /
+              total.inMicroseconds;
+    final progress = CurvedAnimation(
+      parent: _stagger,
+      curve: Interval(
+        start.clamp(0.0, 1.0),
+        (start + span).clamp(0.0, 1.0),
+        curve: AppMotion.standard,
+      ),
+    );
+    return AnimatedBuilder(
+      animation: progress,
+      builder: (context, inner) => Opacity(
+        opacity: progress.value.clamp(0.0, 1.0),
+        child: Transform.scale(scale: 0.6 + 0.4 * progress.value, child: inner),
+      ),
+      child: child,
+    );
+  }
+
   Widget _reactionButton(QuickReactionChoice reaction) {
     return GestureDetector(
       key: ValueKey('quick-reaction-${reaction.storageValue}'),
       behavior: HitTestBehavior.opaque,
-      onTap: () => onReaction(reaction),
+      onTap: () => widget.onReaction(reaction),
       child: SizedBox(
         width: 40,
         height: 34,
@@ -149,7 +221,7 @@ class QuickReactionBar extends StatelessWidget {
     return GestureDetector(
       key: const ValueKey('quick-reaction-expand'),
       behavior: HitTestBehavior.opaque,
-      onTap: onExpand,
+      onTap: widget.onExpand,
       child: SizedBox(
         width: 40,
         height: 34,
