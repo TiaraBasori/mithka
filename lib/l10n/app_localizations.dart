@@ -3184,6 +3184,7 @@ abstract final class AppStringKeys {
   static const contactShareEmpty = 'contactShareEmpty';
   static const composerMediaSearch = 'composerMediaSearch';
   static const composerMediaSearchEmpty = 'composerMediaSearchEmpty';
+  static const composerMediaPicker = 'composerMediaPicker';
   static const storyReplyHint = 'storyReplyHint';
   static const storyReplySent = 'storyReplySent';
   static const storyShare = 'storyShare';
