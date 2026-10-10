@@ -2950,6 +2950,7 @@ abstract final class AppStringKeys {
   static const topicChatChannelMessages = 'topicChatChannelMessages';
   static const topicChatChannelNumber = 'topicChatChannelNumber';
   static const topicChatChannelSettings = 'topicChatChannelSettings';
+  static const topicChatCloseTopic = 'topicChatCloseTopic';
   static const topicChatCommentCount = 'topicChatCommentCount';
   static const topicChatComposerPlaceholder = 'topicChatComposerPlaceholder';
   static const topicChatExpand = 'topicChatExpand';
@@ -2970,6 +2971,7 @@ abstract final class AppStringKeys {
   static const topicChatPinnedPrefix = 'topicChatPinnedPrefix';
   static const topicChatPinToggle = 'topicChatPinToggle';
   static const topicChatPublish = 'topicChatPublish';
+  static const topicChatReopenTopic = 'topicChatReopenTopic';
   static const topicChatReplyCount = 'topicChatReplyCount';
   static const topicChatSearch = 'topicChatSearch';
   static const topicChatSelectSection = 'topicChatSelectSection';
