@@ -21,6 +21,8 @@ import '../components/app_interactive_surface.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
+import '../media/media_metadata.dart';
+import '../media/media_metadata_dialog.dart';
 import '../platform/adaptive_platform.dart';
 import '../platform/desktop_clipboard_images.dart';
 import '../tdlib/td_image_loader.dart';
@@ -58,6 +60,7 @@ class FullImageViewer extends StatefulWidget {
     this.onPrimaryAction,
     this.onMore,
     this.messageActions,
+    this.metadata = const [],
   });
 
   final List<TdFileRef> items;
@@ -68,6 +71,10 @@ class FullImageViewer extends StatefulWidget {
 
   /// Enables View in Chat / Reply for galleries opened from a chat.
   final ImageViewerMessageActions? messageActions;
+
+  /// Media facts per item, aligned with [items]. Empty (or a null entry) hides
+  /// the metadata row.
+  final List<MediaMetadata?> metadata;
 
   @override
   State<FullImageViewer> createState() => _FullImageViewerState();
@@ -104,6 +111,16 @@ class _FullImageViewerState extends State<FullImageViewer> {
     final actions = widget.messageActions;
     if (actions == null || _index >= actions.messageIds.length) return null;
     return actions.messageIds[_index];
+  }
+
+  MediaMetadata? get _currentMetadata =>
+      _index < widget.metadata.length ? widget.metadata[_index] : null;
+
+  Future<void> _showMetadata() async {
+    final metadata = _currentMetadata;
+    if (metadata == null) return;
+    if (mounted) setState(() => _menuVisible = false);
+    await showMediaMetadataDialog(context, metadata);
   }
 
   Future<void> _viewInChat({bool reply = false}) async {
@@ -409,6 +426,9 @@ class _FullImageViewerState extends State<FullImageViewer> {
                 onReply: widget.messageActions?.onReply == null
                     ? null
                     : () => unawaited(_viewInChat(reply: true)),
+                onShowMetadata: _currentMetadata == null
+                    ? null
+                    : () => unawaited(_showMetadata()),
                 onDismiss: () => setState(() => _menuVisible = false),
               ),
             ),
@@ -725,6 +745,7 @@ class _ViewerActionsMenu extends StatelessWidget {
     required this.onDismiss,
     this.messageActions,
     this.onReply,
+    this.onShowMetadata,
   });
 
   final bool canCopy;
@@ -733,6 +754,7 @@ class _ViewerActionsMenu extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onViewInChat;
   final VoidCallback? onReply;
+  final VoidCallback? onShowMetadata;
   final VoidCallback onDismiss;
 
   @override
@@ -784,6 +806,13 @@ class _ViewerActionsMenu extends StatelessWidget {
             label: AppStringKeys.messageActionSaveToPhotos.l10n(context),
             onTap: onSave,
           ),
+          if (onShowMetadata != null)
+            _ViewerActionsMenuItem(
+              key: const ValueKey('image-viewer-action-metadata'),
+              icon: HeroAppIcons.circleInfo,
+              label: AppStringKeys.mediaMetadataViewInfo.l10n(context),
+              onTap: onShowMetadata!,
+            ),
         ],
       ),
     );
