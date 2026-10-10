@@ -106,4 +106,103 @@ void main() {
     );
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('selection indicator fully covers the selected icon and label', (
+    tester,
+  ) async {
+    // A full stadium (radius = slot height) pulls the corner arcs ~10 px
+    // inward at the label row, so the label's lower corners fell outside the
+    // filled pill — most visibly on narrow tablet tabs. The indicator must
+    // keep a small corner radius so the whole icon+label of the selected tab
+    // sits inside the filled shape at any slot size or text scale.
+    //
+    // The child mirrors the real bottom bar: each slot is an Expanded cell
+    // centring an icon block above a label with a 2 px gutter on each side.
+    Widget slot(String label) => Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(key: ValueKey('icon-$label'), width: 36, height: 28),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              key: ValueKey('label-$label'),
+              style: const TextStyle(fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(extensions: [AppColors.light]),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            // A narrow tablet slot: sidebar(~328) minus glass chrome, /4.
+            child: SizedBox(
+              width: 318,
+              child: LiquidGlassBottomBar(
+                selection: 0,
+                itemCount: 4,
+                child: Row(
+                  children: [
+                    Expanded(child: slot('Chats')),
+                    Expanded(child: slot('Channels')),
+                    Expanded(child: slot('Contacts')),
+                    Expanded(child: slot('Moments')),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final pill = find.byKey(const ValueKey('liquid-glass-selection'));
+    final pr = tester.getRect(pill);
+    final radius =
+        (tester.widget<DecoratedBox>(pill).decoration as BoxDecoration)
+                .borderRadius
+            as BorderRadius;
+    // Guard against a regression to a full stadium, which is what clipped.
+    expect(radius.bottomLeft.y, lessThanOrEqualTo(16));
+    expect(radius.bottomLeft.y, isNot(AppRadius.pill));
+
+    bool insideRounded(Offset p) {
+      if (!pr.contains(p)) return false;
+      final r = radius.bottomLeft.y;
+      // Only the corner discs can carve out the bounding box.
+      final dx = p.dx < pr.left + r
+          ? p.dx - (pr.left + r)
+          : p.dx > pr.right - r
+          ? p.dx - (pr.right - r)
+          : 0.0;
+      final dy = p.dy < pr.top + r
+          ? p.dy - (pr.top + r)
+          : p.dy > pr.bottom - r
+          ? p.dy - (pr.bottom - r)
+          : 0.0;
+      return dx == 0 || dy == 0 || dx * dx + dy * dy <= r * r;
+    }
+
+    for (final key in ['icon-Chats', 'label-Chats']) {
+      final r = tester.getRect(find.byKey(ValueKey(key)));
+      for (final corner in [
+        r.topLeft,
+        r.topRight,
+        r.bottomLeft,
+        r.bottomRight,
+      ]) {
+        expect(
+          insideRounded(corner),
+          isTrue,
+          reason: '$key corner $corner outside the indicator $pr',
+        );
+      }
+    }
+    expect(tester.takeException(), isNull);
+  });
 }
