@@ -172,70 +172,7 @@ class _FullImageViewerState extends State<FullImageViewer> {
 
   Future<void> _saveCurrentImage() async {
     if (mounted) setState(() => _menuVisible = false);
-    final ref = widget.items[_index];
-    final isDesktop = isDesktopTargetPlatform(defaultTargetPlatform);
-    try {
-      if (isDesktop) {
-        final outcome = await MediaDownloadService.saveMedia(
-          file: ref,
-          isVideo: false,
-        );
-        if (!mounted) return;
-        final feedback = MediaDownloadService.feedbackFor(outcome);
-        if (feedback != null) {
-          showToast(context, feedback, visibleFor: const Duration(seconds: 2));
-        }
-        return;
-      }
-      DateTime? progressShownAt;
-      final progressTimer = Timer(const Duration(milliseconds: 500), () {
-        if (!mounted) return;
-        progressShownAt = DateTime.now();
-        showToast(
-          context,
-          AppStringKeys.chatSavingToPhotos,
-          visibleFor: const Duration(milliseconds: 900),
-        );
-      });
-      MediaLibrarySaveResult result;
-      try {
-        final path = await TdFileCenter.shared.pathFor(ref);
-        if (path == null || !await File(path).exists()) {
-          result = MediaLibrarySaveResult.failed;
-        } else {
-          result = await MediaLibrarySaver.savePreparedFile(
-            File(path),
-            isVideo: false,
-          );
-        }
-      } finally {
-        progressTimer.cancel();
-      }
-      if (!mounted) return;
-      if (progressShownAt case final shownAt?) {
-        final remaining =
-            const Duration(milliseconds: 1400) -
-            DateTime.now().difference(shownAt);
-        if (remaining > Duration.zero) {
-          await Future<void>.delayed(remaining);
-        }
-        if (!mounted) return;
-      }
-      showToast(context, switch (result) {
-        MediaLibrarySaveResult.saved => AppStringKeys.chatSavedToPhotos,
-        MediaLibrarySaveResult.permissionDenied =>
-          AppStringKeys.chatSaveToPhotosPermissionDenied,
-        MediaLibrarySaveResult.failed || MediaLibrarySaveResult.unsupported =>
-          AppStringKeys.chatSaveToPhotosFailed,
-      }, visibleFor: const Duration(seconds: 2));
-    } catch (_) {
-      if (!mounted) return;
-      showToast(
-        context,
-        AppStringKeys.chatSaveToPhotosFailed,
-        visibleFor: const Duration(seconds: 2),
-      );
-    }
+    await saveViewerImage(context, widget.items[_index]);
   }
 
   Future<void> _runAction(Future<void> Function(int index) action) async {
@@ -503,6 +440,76 @@ class _FullImageViewerState extends State<FullImageViewer> {
           child: AppIcon(name, size: 18, color: const Color(0xFFFFFFFF)),
         ),
       );
+}
+
+/// Saves a gallery image the way the viewer's own `…` menu does: into the
+/// photo library on phones, into a folder the user picks on desktop. Entry
+/// points that replace the built-in `…` menu — the profile featured-photo
+/// sheet — call this so both menus behave identically.
+Future<void> saveViewerImage(BuildContext context, TdFileRef ref) async {
+  final isDesktop = isDesktopTargetPlatform(defaultTargetPlatform);
+  try {
+    if (isDesktop) {
+      final outcome = await MediaDownloadService.saveMedia(
+        file: ref,
+        isVideo: false,
+      );
+      if (!context.mounted) return;
+      final feedback = MediaDownloadService.feedbackFor(outcome);
+      if (feedback != null) {
+        showToast(context, feedback, visibleFor: const Duration(seconds: 2));
+      }
+      return;
+    }
+    DateTime? progressShownAt;
+    final progressTimer = Timer(const Duration(milliseconds: 500), () {
+      if (!context.mounted) return;
+      progressShownAt = DateTime.now();
+      showToast(
+        context,
+        AppStringKeys.chatSavingToPhotos,
+        visibleFor: const Duration(milliseconds: 900),
+      );
+    });
+    MediaLibrarySaveResult result;
+    try {
+      final path = await TdFileCenter.shared.pathFor(ref);
+      if (path == null || !await File(path).exists()) {
+        result = MediaLibrarySaveResult.failed;
+      } else {
+        result = await MediaLibrarySaver.savePreparedFile(
+          File(path),
+          isVideo: false,
+        );
+      }
+    } finally {
+      progressTimer.cancel();
+    }
+    if (!context.mounted) return;
+    if (progressShownAt case final shownAt?) {
+      final remaining =
+          const Duration(milliseconds: 1400) -
+          DateTime.now().difference(shownAt);
+      if (remaining > Duration.zero) {
+        await Future<void>.delayed(remaining);
+      }
+      if (!context.mounted) return;
+    }
+    showToast(context, switch (result) {
+      MediaLibrarySaveResult.saved => AppStringKeys.chatSavedToPhotos,
+      MediaLibrarySaveResult.permissionDenied =>
+        AppStringKeys.chatSaveToPhotosPermissionDenied,
+      MediaLibrarySaveResult.failed || MediaLibrarySaveResult.unsupported =>
+        AppStringKeys.chatSaveToPhotosFailed,
+    }, visibleFor: const Duration(seconds: 2));
+  } catch (_) {
+    if (!context.mounted) return;
+    showToast(
+      context,
+      AppStringKeys.chatSaveToPhotosFailed,
+      visibleFor: const Duration(seconds: 2),
+    );
+  }
 }
 
 class _ViewerPage extends StatefulWidget {
