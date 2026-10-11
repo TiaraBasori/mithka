@@ -86,6 +86,12 @@ class MusicPlaylistService {
     if (normalized.isEmpty) {
       throw ArgumentError.value(title, 'title', 'must not be empty');
     }
+    // Validate the folder catalog BEFORE creating the chat: if the snapshot
+    // lists a `_Playlist` folder that cannot be read, proceeding would create
+    // a supergroup and then a REPLACEMENT folder — splitting the library and
+    // leaving an orphaned group behind. An unreadable known folder is an
+    // error, not a folder-less account.
+    final folder = await _findFolderStrict();
     final chat = await _query({
       '@type': 'createNewSupergroupChat',
       'title': normalized,
@@ -100,7 +106,11 @@ class MusicPlaylistService {
     if (chatId == null) {
       throw const FormatException('TDLib did not return a playlist chat');
     }
-    await _includeChatInFolder(chatId);
+    await _includeChatInFolder(
+      chatId,
+      catalogAlreadyValidated: true,
+      resolvedFolder: folder,
+    );
     return MusicPlaylist(chatId: chatId, title: normalized);
   }
 
@@ -190,18 +200,16 @@ class MusicPlaylistService {
   /// exist, and the first alone is not enough: reading only the first left the
   /// playlists written to the other halves invisible, which is exactly how a
   /// library came to look deleted.
+  ///
+  /// A folder the snapshot knows about but `getChatFolder` cannot read is
+  /// dropped here, not escalated: the display path must keep working when one
+  /// folder is temporarily unreadable. The WRITE paths must not make the same
+  /// trade — they resolve through [_readFoldersStrict] instead, because an
+  /// unreadable KNOWN folder is an error state, not evidence of absence.
   Future<List<Map<String, dynamic>>> _readFolders() async {
-    final ids = <int>{};
-    for (final info in await _folderInfos()) {
-      if (_title(info) != folderTitle) continue;
-      final id = info.integer('id') ?? info.integer('chat_folder_id');
-      if (id != null) ids.add(id);
-    }
-    // The lowest id is canonical, so a create always joins the same folder
-    // rather than starting a third one.
-    final sorted = ids.toList()..sort();
+    final ids = await _playlistFolderIds();
     final folders = <Map<String, dynamic>>[];
-    for (final id in sorted) {
+    for (final id in ids) {
       try {
         final folder = await _query({
           '@type': 'getChatFolder',
@@ -213,6 +221,51 @@ class MusicPlaylistService {
       }
     }
     return folders;
+  }
+
+  /// Resolves the WRITE target: every known `_Playlist` folder must be
+  /// readable, or the catalog is not validated and no write may happen.
+  ///
+  /// When the snapshot lists a `_Playlist` folder but `getChatFolder` fails
+  /// for it, proceeding would treat a read error as "the account has no
+  /// folder" — creating a replacement folder, splitting the library, and
+  /// leaving an orphaned supergroup behind. That is an error state, so this
+  /// throws before any chat or folder is touched.
+  Future<List<Map<String, dynamic>>> _readFoldersStrict() async {
+    final ids = await _playlistFolderIds();
+    final folders = <Map<String, dynamic>>[];
+    for (final id in ids) {
+      try {
+        final folder = await _query({
+          '@type': 'getChatFolder',
+          'chat_folder_id': id,
+        });
+        folders.add({...folder, '_folder_id': id});
+      } catch (error) {
+        // The snapshot says this folder exists, so a read failure is a state
+        // error, not absence. Swallowing it here is what used to mint a
+        // replacement folder (and an orphaned group) on the next create.
+        throw StateError('Playlist folder $id is unreadable: $error');
+      }
+    }
+    return folders;
+  }
+
+  /// The pushed `_Playlist` folder ids, waiting for the push when TDLib has
+  /// not sent one yet this session. The pushed list is authoritative for
+  /// EXISTENCE; the per-folder `getChatFolder` read is authoritative for
+  /// CONTENT and may fail independently.
+  ///
+  /// The lowest id is canonical, so a create always joins the same folder
+  /// rather than starting a third one.
+  Future<List<int>> _playlistFolderIds() async {
+    final ids = <int>{};
+    for (final info in await _folderInfos()) {
+      if (_title(info) != folderTitle) continue;
+      final id = info.integer('id') ?? info.integer('chat_folder_id');
+      if (id != null) ids.add(id);
+    }
+    return ids.toList()..sort();
   }
 
   /// The pushed folder list, waiting for the push when TDLib has not sent one
@@ -257,35 +310,64 @@ class MusicPlaylistService {
   /// The pinned TDLib 1.8.67 exposes no request that lists folders, so the
   /// pushed update is the only source. This mirrors the wait the country
   /// blocker already performs for its own `_Blocked` folder.
-  static MusicPlaylistFolderWait waiterForClient(int? clientId) =>
-      (cached) async {
-        if (clientId == null) return cached;
-        final client = TdClient.shared;
-        final before = _snapshotSignature(cached);
-        final current = client.latestChatFoldersUpdateForClient(clientId);
-        if (_snapshotSignature(current) != before) return current;
-        try {
-          return await client
-              .subscribeAll()
-              .firstWhere(
-                (update) =>
-                    update.type == 'updateChatFolders' &&
-                    update.integer('@client_id') == clientId &&
-                    _snapshotSignature(update) != before,
-              )
-              .timeout(folderWaitTimeout);
-        } on TimeoutException {
-          return client.latestChatFoldersUpdateForClient(clientId);
-        }
-      };
+  ///
+  /// The subscription is owned and always cancelled: `firstWhere` +
+  /// `Future.timeout` leaks it — a timeout completes the future but never
+  /// detaches the listener, so every cold-cache wait left a subscriber on the
+  /// broadcast stream for the life of the session.
+  static MusicPlaylistFolderWait waiterForClient(
+    int? clientId, {
+    Duration timeout = folderWaitTimeout,
+  }) => (cached) async {
+    if (clientId == null) return cached;
+    final client = TdClient.shared;
+    final before = _snapshotSignature(cached);
+    final current = client.latestChatFoldersUpdateForClient(clientId);
+    if (_snapshotSignature(current) != before) return current;
+    final completer = Completer<Map<String, dynamic>?>();
+    late final StreamSubscription<Map<String, dynamic>> subscription;
+    subscription = client.subscribeAll().listen((update) {
+      if (completer.isCompleted) return;
+      if (update.type != 'updateChatFolders') return;
+      if (update.integer('@client_id') != clientId) return;
+      if (_snapshotSignature(update) == before) return;
+      completer.complete(update);
+    });
+    final timer = Timer(timeout, () {
+      if (!completer.isCompleted) {
+        completer.complete(client.latestChatFoldersUpdateForClient(clientId));
+      }
+    });
+    try {
+      return await completer.future;
+    } finally {
+      timer.cancel();
+      // Cancellation lands on a later microtask edge; a push arriving between
+      // resolution and cancellation is dropped by the isCompleted guard.
+      unawaited(subscription.cancel());
+    }
+  };
 
-  Future<Map<String, dynamic>?> _findFolder() async {
-    final folders = await _readFolders();
+  /// The write-path folder resolution: strict, because treating an unreadable
+  /// KNOWN folder as "no folder" would create a replacement folder and split
+  /// the library. [_readFoldersStrict] throws in that case instead.
+  Future<Map<String, dynamic>?> _findFolderStrict() async {
+    final folders = await _readFoldersStrict();
     return folders.isEmpty ? null : folders.first;
   }
 
-  Future<void> _includeChatInFolder(int chatId) async {
-    final folder = await _findFolder();
+  Future<void> _includeChatInFolder(
+    int chatId, {
+    bool catalogAlreadyValidated = false,
+    Map<String, dynamic>? resolvedFolder,
+  }) async {
+    // createPlaylist already resolved the target strictly, before the chat
+    // existed; reuse that resolution so the catalog is not re-read (and cannot
+    // drift) between validation and write. When the catalog was validated and
+    // found genuinely folder-less, `resolvedFolder` is null on purpose.
+    final folder = catalogAlreadyValidated
+        ? resolvedFolder
+        : await _findFolderStrict();
     if (folder == null) {
       await _query({
         '@type': 'createChatFolder',
