@@ -310,6 +310,11 @@ class TdClient {
   final TdAccountLeaseBook _accountLeases = TdAccountLeaseBook();
   final Map<int, Future<bool>> _closingSlots = {};
   final Map<int, int> _unconfirmedSlotForClient = {};
+
+  /// Dedup gate for imports whose session names no user id: serializes the
+  /// register-or-reuse decision so concurrent imports of one account cannot
+  /// each treat the other's fresh client as the account's existing slot.
+  Future<void> _unknownAccountImports = Future<void>.value();
   final Set<int> _proxyAppliedClients = {};
   int _activeClientId = 0;
   int _activeSlot = 0;
@@ -1235,16 +1240,16 @@ class TdClient {
       if (expectedUserId == null) {
         // The account of a session without a user id is only known once the
         // imported client is ready, so check for an existing login afterwards.
-        final existingSlot = await _readySlotForUserId(
+        // Two imports of the same account can reach this point together and
+        // each read the other's freshly registered client as "the existing
+        // account", discarding one returned slot's database; resolve the
+        // duplicate atomically instead.
+        return _resolveUnknownAccountImport(
+          newSlot,
+          cid,
+          dbDir,
           restoredUserId,
-          exceptSlot: newSlot,
         );
-        if (existingSlot != null) {
-          await _discardImportedSlot(newSlot, dbDir);
-          setActive(existingSlot);
-          _persist();
-          return existingSlot;
-        }
       }
       setActive(newSlot);
       _persist();
@@ -1257,6 +1262,39 @@ class TdClient {
         );
       }
       rethrow;
+    }
+  }
+
+  /// Serializes the post-authorization dedup for imports that name no user id
+  /// (GramJS strings): the first import registers its slot, becomes active and
+  /// persists; a concurrent duplicate then deterministically finds that ready
+  /// slot, discards only its own copy, and returns the registered slot.
+  Future<int> _resolveUnknownAccountImport(
+    int slot,
+    int clientId,
+    Directory dbDir,
+    int restoredUserId,
+  ) async {
+    final previous = _unknownAccountImports;
+    final done = Completer<void>();
+    _unknownAccountImports = done.future;
+    try {
+      await previous;
+      final existingSlot = await _readySlotForUserId(
+        restoredUserId,
+        exceptSlot: slot,
+      );
+      if (existingSlot != null) {
+        await _discardImportedSlot(slot, dbDir);
+        setActive(existingSlot);
+        _persist();
+        return existingSlot;
+      }
+      setActive(slot);
+      _persist();
+      return slot;
+    } finally {
+      done.complete();
     }
   }
 
