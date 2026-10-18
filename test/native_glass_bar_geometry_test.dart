@@ -280,6 +280,37 @@ void main() {
       await _dispose(tester);
     });
   });
+
+  // The mount matrix's fourth cell: with the setting off, the platform never
+  // sees a glass surface — neither mount cell falls through to the native host
+  // or the Flutter glass bar, and both keep the classic app-owned bar.
+  testWidgets('glass off keeps the classic bar in both mounts', (tester) async {
+    await onIOS(() async {
+      installMockGlassSurface(tester);
+      await _pumpShell(tester, _phoneSize, liquidGlass: false);
+      expect(find.byKey(const ValueKey('classic-bottom-bar')), findsOneWidget);
+      expect(find.byKey(_surfaceKey), findsNothing);
+      expect(find.byType(UiKitView), findsNothing);
+      expect(find.byType(LiquidGlassBottomBar), findsNothing);
+      expect(find.byKey(_firstSlotKey), findsOneWidget);
+      await _dispose(tester);
+    });
+  });
+
+  testWidgets('glass off keeps the classic bar in the split shell too', (
+    tester,
+  ) async {
+    await onIOS(() async {
+      installMockGlassSurface(tester);
+      await _pumpShell(tester, const Size(900, 800), liquidGlass: false);
+      expect(find.byKey(const ValueKey('classic-bottom-bar')), findsOneWidget);
+      expect(find.byKey(_surfaceKey), findsNothing);
+      expect(find.byType(UiKitView), findsNothing);
+      expect(find.byType(LiquidGlassBottomBar), findsNothing);
+      expect(tester.takeException(), isNull);
+      await _dispose(tester);
+    });
+  });
 }
 
 /// Mocks platform-view creation and the per-view channel for the whole test.
@@ -347,6 +378,7 @@ Future<void> _pumpShell(
   Size size, {
   FakeViewPadding insets = FakeViewPadding.zero,
   TextDirection textDirection = TextDirection.ltr,
+  bool liquidGlass = true,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -360,7 +392,7 @@ Future<void> _pumpShell(
     'showChannelsTab': true,
     'showMomentsTab': true,
     'communitiesEnabled': false,
-    'liquidGlassBottomBar': true,
+    'liquidGlassBottomBar': liquidGlass,
   });
   final prefs = await SharedPreferences.getInstance();
   final theme = ThemeController(prefs);

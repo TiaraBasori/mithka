@@ -5,6 +5,32 @@ import 'package:flutter/widgets.dart';
 
 import '../theme/app_theme.dart';
 
+/// Veil strength for the native glass in each palette.
+///
+/// The veil is the tint component of the material, so its alpha has to carry
+/// real coverage: the light palette's bar surface is the same white as the
+/// rows the glass floats over, which makes a mid-range alpha a veil that
+/// changes no pixel, and the dark palette's near-black surface needs a
+/// stronger veil to separate the bar from the near-black content underneath.
+/// The light value is the weakest veil that still reads over the bar's own
+/// surface and content alike; the dark value is heavier because the material
+/// is darker and the surrounding content is darker too.
+const double _tintVeilLight = 0.56;
+const double _tintVeilDark = 0.72;
+
+/// The veil colour handed to the native glass host, as 32-bit ARGB.
+///
+/// The value only tints: [AppColors.navBar] is the bar's own surface colour,
+/// so the alpha (not the RGB) is what makes the material perceivable. It must
+/// stay strictly inside (0, 1) — 0 leaves the material untinted, 1 replaces it
+/// with a flat fill — and grow with the palette ([dark] tells which), since
+/// darker content needs more veil to keep the bar legible.
+int nativeGlassTintVeil(AppColors colors, {required bool dark}) {
+  return colors.navBar
+      .withValues(alpha: dark ? _tintVeilDark : _tintVeilLight)
+      .toARGB32();
+}
+
 /// A native Liquid Glass surface behind app-owned tab content: the UIKit view
 /// draws only the glass (public `UIGlassEffect` on iOS 26+, a system material
 /// `UIBlurEffect` before), while Flutter draws the tabs, the selection pill,
@@ -32,7 +58,7 @@ class _NativeGlassSurfaceState extends State<NativeGlassSurface> {
     final colors = context.colors;
     final dark = colors.background.computeLuminance() < 0.5;
     return {
-      'tint': colors.navBar.withValues(alpha: dark ? 0.12 : 0.36).toARGB32(),
+      'tint': nativeGlassTintVeil(colors, dark: dark),
       'dark': dark,
       'radius': AppRadius.pill,
       'rtl': Directionality.of(context) == TextDirection.rtl,
