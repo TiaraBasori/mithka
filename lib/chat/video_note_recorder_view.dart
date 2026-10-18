@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
 import '../components/app_icons.dart';
@@ -26,6 +27,115 @@ VideoNoteRecordGesture videoNoteRecordGestureForDelta({
   if (dx < -90) return VideoNoteRecordGesture.cancel;
   if (dy < -70) return VideoNoteRecordGesture.lock;
   return VideoNoteRecordGesture.continueRecording;
+}
+
+/// The box a live video-message preview is laid out in before it is scaled to
+/// cover the recorder's available area.
+@immutable
+class VideoNotePreviewFootprint {
+  const VideoNotePreviewFootprint({
+    required this.size,
+    required this.coverCropped,
+  });
+
+  /// Sensor size with its axes turned to the current screen axis. The long
+  /// side follows the viewport's long side, so the box always shares the
+  /// viewport's orientation.
+  final Size size;
+
+  /// Whether [size] and the viewport have different aspect ratios, so a
+  /// cover fit crops instead of filling exactly.
+  final bool coverCropped;
+
+  @override
+  String toString() =>
+      'VideoNotePreviewFootprint(size: $size, coverCropped: $coverCropped)';
+}
+
+/// Ratios closer than this count as equal; sensor sizes are integers, so a
+/// sub-thousandth difference is float noise rather than a real mismatch.
+const double _previewRatioTolerance = 0.001;
+
+bool _hasPreviewArea(Size size) =>
+    size.isFinite && size.width > 0 && size.height > 0;
+
+/// Decides how the live video-message preview fills [viewport].
+///
+/// The camera package sizes its preview from the sensor ratio turned to the
+/// camera's applicable orientation, which can disagree with the window's axis
+/// on iPad Stage Manager, in split view, or whenever the sensor reports an
+/// orientation the screen does not share. The footprint therefore follows
+/// [aspectRatio] - the ratio the preview box itself uses, from
+/// [videoNotePreviewAspectRatio] - and only the cover fit below looks at
+/// [viewport]: contributing a window-derived orientation here is what forced a
+/// portrait texture into a landscape-sized box whenever the two disagreed.
+///
+/// The footprint is then cover-fitted, never letterboxed, because a recorder
+/// must fill its window with live pixels. The footprint's `coverCropped` flag
+/// reports whether that fit crops the sensor frame.
+///
+/// A zero or non-finite [previewSize] (camera still warming up) falls back to
+/// [viewport] itself, and an unmeasurable [viewport] falls back to the sensor
+/// box, so the returned size is always finite and non-negative.
+VideoNotePreviewFootprint videoNotePreviewFootprint({
+  required Size previewSize,
+  required Size viewport,
+  required double aspectRatio,
+}) {
+  final hasViewport = _hasPreviewArea(viewport);
+  if (!_hasPreviewArea(previewSize)) {
+    return VideoNotePreviewFootprint(
+      size: hasViewport ? viewport : Size.zero,
+      coverCropped: false,
+    );
+  }
+  final longSide = previewSize.longestSide;
+  final shortSide = previewSize.shortestSide;
+  // The frames the package's own box can occupy at [aspectRatio]: landscape
+  // (long side across) when the ratio is at least 1, portrait otherwise.
+  final oriented = aspectRatio >= 1
+      ? Size(longSide, shortSide)
+      : Size(shortSide, longSide);
+  if (!hasViewport) {
+    return VideoNotePreviewFootprint(size: oriented, coverCropped: false);
+  }
+  final ratioDelta = (oriented.aspectRatio - viewport.aspectRatio).abs();
+  return VideoNotePreviewFootprint(
+    size: oriented,
+    coverCropped: ratioDelta > _previewRatioTolerance,
+  );
+}
+
+/// The aspect ratio [CameraPreview] puts on its own [AspectRatio] box.
+///
+/// The camera package derives it from the camera's APPLICABLE orientation -
+/// the recording orientation while recording, otherwise a paused preview, a
+/// locked capture orientation, or the device orientation - never from the
+/// window's dimensions. Android additionally rotates its texture inside that
+/// box, so the box's ratio is the sensor ratio narrowed when the applicable
+/// orientation is a landscape one.
+///
+/// [sensorIsPortrait] stands in for the preview size while the camera has not
+/// reported one yet. Never throws: the package's own ratio getter force-unwraps
+/// the preview size.
+double videoNotePreviewAspectRatio(
+  CameraValue value, {
+  required bool sensorIsPortrait,
+}) {
+  final orientation = value.isRecordingVideo
+      ? value.recordingOrientation
+      : (value.previewPauseOrientation ??
+            value.lockedCaptureOrientation ??
+            value.deviceOrientation);
+  final landscape =
+      orientation == DeviceOrientation.landscapeLeft ||
+      orientation == DeviceOrientation.landscapeRight;
+  final preview = value.previewSize;
+  final portrait = preview == null
+      ? sensorIsPortrait
+      : preview.height >= preview.width;
+  final sensorRatio = preview == null ? 1.0 : preview.width / preview.height;
+  return landscape == portrait ? 1 / sensorRatio : sensorRatio;
 }
 
 /// An owned video-message camera with Telegram-style hold, cancel, lock and
@@ -274,12 +384,7 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
           fit: StackFit.expand,
           children: [
             if (controller != null && controller.value.isInitialized)
-              Center(
-                child: AspectRatio(
-                  aspectRatio: controller.value.aspectRatio,
-                  child: CameraPreview(controller),
-                ),
-              )
+              _preview(controller)
             else if (_initializing)
               const Center(child: AppActivityIndicator(color: Colors.white))
             else
@@ -334,6 +439,47 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
           ],
         ),
       ),
+    );
+  }
+
+  /// Fills the recorder with the live preview without distorting it.
+  ///
+  /// [CameraPreview] already wraps its texture in an [AspectRatio] sized from
+  /// the camera's applicable orientation (see [videoNotePreviewAspectRatio]),
+  /// so a second ratio here applied the ratio twice and letterboxed whenever
+  /// the device orientation disagreed with the window. The box is instead
+  /// constrained to that same ratio - which therefore never stretches the
+  /// texture, whatever the window shape - and scaled to cover the window.
+  Widget _preview(CameraController controller) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final measured = constraints.biggest;
+        final viewport = measured.isFinite && !measured.isEmpty
+            ? measured
+            : MediaQuery.sizeOf(context);
+        final sensor = controller.description.sensorOrientation;
+        final ratio = videoNotePreviewAspectRatio(
+          controller.value,
+          sensorIsPortrait: sensor == 0 || sensor == 180,
+        );
+        final footprint = videoNotePreviewFootprint(
+          previewSize: controller.value.previewSize ?? Size.zero,
+          viewport: viewport,
+          aspectRatio: ratio,
+        );
+        if (footprint.size.isEmpty) return const SizedBox.expand();
+        return SizedBox.expand(
+          child: FittedBox(
+            fit: BoxFit.cover,
+            clipBehavior: footprint.coverCropped ? Clip.hardEdge : Clip.none,
+            child: SizedBox(
+              width: footprint.size.width,
+              height: footprint.size.height,
+              child: CameraPreview(controller),
+            ),
+          ),
+        );
+      },
     );
   }
 
