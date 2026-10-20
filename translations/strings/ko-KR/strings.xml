@@ -3669,6 +3669,7 @@
     <string name="videoPlayerFinished">동영상 재생 완료</string>
     <string name="videoPlayerForwardUnsupported">이 동영상은 전달할 수 없습니다</string>
     <string name="videoPlayerFullscreen">전체 화면 재생</string>
+    <string name="videoPlayerHoldPlaybackSpeed">길게 눌러 빠르게 재생</string>
     <string name="videoPlayerLoadFailed">동영상 불러오기에 실패했습니다</string>
     <string name="videoPlayerLoading">동영상을 불러오는 중</string>
     <string name="videoPlayerNextVideo">다음 동영상</string>

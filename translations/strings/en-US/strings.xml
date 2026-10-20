@@ -3680,6 +3680,7 @@
     <string name="videoPlayerFinished">Video finished</string>
     <string name="videoPlayerForwardUnsupported">This video cannot be forwarded</string>
     <string name="videoPlayerFullscreen">Fullscreen</string>
+    <string name="videoPlayerHoldPlaybackSpeed">Hold for faster playback</string>
     <string name="videoPlayerLoadFailed">Failed to load video</string>
     <string name="videoPlayerLoading">Loading video</string>
     <string name="videoPlayerNextVideo">Next video</string>

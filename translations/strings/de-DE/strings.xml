@@ -3680,6 +3680,7 @@
     <string name="videoPlayerFinished">Video beendet</string>
     <string name="videoPlayerForwardUnsupported">Dieses Video kann nicht weitergeleitet werden</string>
     <string name="videoPlayerFullscreen">Vollbild</string>
+    <string name="videoPlayerHoldPlaybackSpeed">Gedrückt halten für schnelleres Abspielen</string>
     <string name="videoPlayerLoadFailed">Video konnte nicht geladen werden</string>
     <string name="videoPlayerLoading">Video wird geladen</string>
     <string name="videoPlayerNextVideo">Nächstes Video</string>

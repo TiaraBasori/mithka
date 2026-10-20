@@ -3669,6 +3669,7 @@
     <string name="videoPlayerFinished">動画の再生が終了しました</string>
     <string name="videoPlayerForwardUnsupported">この動画は転送できません</string>
     <string name="videoPlayerFullscreen">全画面再生</string>
+    <string name="videoPlayerHoldPlaybackSpeed">長押しで高速再生</string>
     <string name="videoPlayerLoadFailed">動画の読み込みに失敗しました</string>
     <string name="videoPlayerLoading">動画を読み込み中</string>
     <string name="videoPlayerNextVideo">次の動画</string>

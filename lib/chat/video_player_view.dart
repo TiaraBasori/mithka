@@ -146,6 +146,17 @@ enum _PlayerGestureSide { left, right }
 // too abruptly, especially while holding the device in one hand.
 const _verticalGestureSensitivity = 0.5;
 
+/// The base playback rate the most recently built player keeps in its state.
+///
+/// A regression can then assert what the player DISPLAYS after a rate request
+/// completes, not only what the platform received.
+@visibleForTesting
+double debugVideoPlayerBaseSpeed = double.nan;
+
+/// The base playback rate this player currently keeps, with no test hook.
+@visibleForTesting
+double get videoPlayerBaseSpeedForTesting => VideoPlayerView.debugLastBaseSpeed;
+
 class VideoPlayerView extends StatefulWidget {
   const VideoPlayerView({
     super.key,
@@ -219,6 +230,9 @@ class VideoPlayerView extends StatefulWidget {
 
   @override
   State<VideoPlayerView> createState() => _VideoPlayerViewState();
+
+  /// The base rate the last built player kept; the test hook writes it.
+  static double debugLastBaseSpeed = double.nan;
 }
 
 typedef VideoOnDemandModeCallback =
@@ -496,9 +510,38 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   Duration _gestureStartPosition = Duration.zero;
   Duration _gestureSeekPosition = Duration.zero;
   int _gestureNavigationDelta = 0;
-  Timer? _heldSeekTimer;
-  int _heldSeekDirection = 0;
-  bool _heldSeekInFlight = false;
+  bool _heldSpeedActive = false;
+  double _heldSpeedRate = 1;
+  double _heldSpeedRestoreRate = 1;
+  Future<void> Function(double rate)? _voiceHeldSpeed;
+
+  /// Stamp of the newest held-rate request; older completions are stale.
+  int _heldSpeedGeneration = 0;
+
+  /// Whether the restore issued on release is already in flight.
+  bool _heldSpeedRestoreIssued = false;
+  // Below this the copy reads as a pause, so the hold leaves playback alone.
+  static const _minimumHeldSpeedRate = 0.25;
+
+  /// Width of the left edge band whose rightward swipe leaves the player.
+  static const videoDismissEdgeWidth = 24.0;
+
+  /// Horizontal travel, in logical pixels, that commits that swipe.
+  static const videoDismissDragDistance = 96.0;
+
+  // The swipe only takes over once it is clearly horizontal, so a vertical
+  // drag inside the same band still reaches the brightness/volume gesture.
+  static const _dismissIntentDistance = 18.0;
+  int? _dismissPointer;
+  double _dismissTrackedDx = 0;
+  double _dismissTrackedDy = 0;
+  double _dismissDx = 0;
+  bool _edgeDismissCandidate = false;
+  bool _edgeDismissActive = false;
+  bool _dismissGestureSettling = false;
+
+  /// Stamp of the settling window; a newer press or a cancel retires it.
+  int _dismissSettlerGeneration = 0;
   Timer? _touchControlsHideTimer;
   double _videoZoomScale = 1;
   Offset _videoZoomOffset = Offset.zero;
@@ -587,6 +630,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     _volume = widget.initialMuted ? 0 : initialVolume;
     if (widget.initialSpeed.isFinite && widget.initialSpeed > 0) {
       _speed = widget.initialSpeed;
+      VideoPlayerView.debugLastBaseSpeed = _speed;
+      debugVideoPlayerBaseSpeed = _speed;
     }
     WidgetsBinding.instance.addObserver(this);
     unawaited(_loadPlaybackPreferences());
@@ -1420,7 +1465,13 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     }
     _syncStreamStallRecovery(value);
     if (value != null) {
-      _speed = value.playbackSpeed;
+      // While a hold is active the controller still reports the base rate
+      // until the host applies the held one; keep the base for the restore.
+      if (!_heldSpeedActive) {
+        _speed = value.playbackSpeed;
+        VideoPlayerView.debugLastBaseSpeed = _speed;
+        debugVideoPlayerBaseSpeed = _speed;
+      }
     }
     _storePlaybackPositionIfNeeded();
     _syncFVideoPictureInPictureIfNeeded();
@@ -2115,7 +2166,8 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _heldSeekTimer?.cancel();
+    _cancelHeldSpeed();
+    _heldSpeedGeneration++;
     _touchControlsHideTimer?.cancel();
     _releaseVideoOrientation();
     unawaited(_restorePlayerBrightness());
@@ -2210,13 +2262,29 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   Widget build(BuildContext context) {
     final c = _controller;
     final ready = c != null && c.value.isInitialized;
-    return FullscreenSystemUi(
+    final player = FullscreenSystemUi(
       enabled:
           widget.presentation == VideoPlayerPresentation.fullscreen &&
           !_systemPiPActive,
       child: ColoredBox(
         color: Colors.black,
         child: _playbackSurface(ready ? c : null),
+      ),
+    );
+    // A rightward swipe from the left edge slides the page away with the
+    // finger so the player can be left from the surface itself.
+    final drag = _dismissDx;
+    if (drag == 0) return player;
+    final progress = (drag / videoDismissDragDistance).clamp(0.0, 1.0);
+    return ColoredBox(
+      color: Colors.black,
+      child: Transform.translate(
+        key: const ValueKey('video-dismiss-drag'),
+        offset: Offset(drag, 0),
+        child: Transform.scale(
+          scale: 1 - progress * 0.06,
+          child: Opacity(opacity: 1 - progress * 0.3, child: player),
+        ),
       ),
     );
   }
@@ -2314,15 +2382,47 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       onPointerDown: _handleVideoZoomPointerDown,
       onPointerMove: _handleVideoZoomPointerMove,
       onPointerUp: (event) {
-        _stopHeldSeek();
+        _stopHeldSpeed();
         _handleVideoZoomPointerEnd(event);
       },
       onPointerCancel: (event) {
-        _stopHeldSeek();
+        _stopHeldSpeed();
         _handleVideoZoomPointerEnd(event);
       },
       child: player,
     );
+  }
+
+  /// The player's own viewport inside this widget.
+  ///
+  /// A wide window letterboxes the video surface, and the uncovered bands are
+  /// not the player: the edge-swipe and hold gestures only belong to the
+  /// darkened box the video actually fills.
+  Rect get _darkenedPlayerViewport {
+    final render = context.findRenderObject();
+    if (render is! RenderBox || !render.hasSize) return Rect.zero;
+    final size = render.size;
+    final aspect = _lastKnownVideoAspectRatio;
+    var width = size.width;
+    var height = width / aspect;
+    if (height > size.height) {
+      height = size.height;
+      width = height * aspect;
+    }
+    return Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: width,
+      height: height,
+    );
+  }
+
+  /// The last known video aspect ratio, falling back to the initial value.
+  double get _lastKnownVideoAspectRatio {
+    final controller = _controller;
+    if (controller != null && controller.value.isInitialized) {
+      return _resolvedVideoAspectRatio(controller.value);
+    }
+    return _metadataAspectRatio() ?? 16 / 9;
   }
 
   bool _showsOnDemandLayout(BuildContext context) {
@@ -3199,12 +3299,30 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
             _updateSurfacePanGesture(details, controller, scope.actions),
         onPanEnd: (_) => _finishSurfacePanGesture(controller),
         onPanCancel: _cancelSurfacePanGesture,
-        onLongPressStart: (details) => _startHeldSeek(
-          details.localPosition,
-          MediaQuery.sizeOf(context).width,
-          scope.actions,
-        ),
-        onLongPressEnd: (_) => _stopHeldSeek(),
+        // The viewport-wide listener fires long press first; only the
+        // darkened player viewport holds to speed up, so a swipe that began
+        // on a letterbox band keeps its previous behaviour.
+        onLongPressStart: (details) {
+          if (_darkenedPlayerViewport.contains(details.localPosition)) {
+            _startHeldSpeed(controller);
+          }
+        },
+        onLongPressEnd: (_) => _stopHeldSpeed(),
+        child: surface,
+      );
+      surface = Listener(
+        key: const ValueKey('video-dismiss-listener'),
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _trackDismissPointerStart,
+        onPointerMove: _trackDismissPointerMove,
+        // Only the tracked pointer owns the swipe: a second finger lifting
+        // must not finish or cancel the first one's drag.
+        onPointerUp: (event) {
+          if (event.pointer == _dismissPointer) _finishDismissDrag();
+        },
+        onPointerCancel: (event) {
+          if (event.pointer == _dismissPointer) _cancelDismissDrag();
+        },
         child: surface,
       );
     }
@@ -3260,7 +3378,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                   _activeGesture == _PlayerGesture.volume
               ? _sideLevelIndicator()
               : _gestureIndicator(controller),
-        if (_heldSeekDirection != 0) _heldSeekIndicator(),
+        if (_heldSpeedActive) _heldSpeedIndicator(),
         if (_showCompletionPrompt) _completionPrompt(),
         if (_moreMenuVisible)
           _moreMenuOverlay(
@@ -3500,6 +3618,12 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     FVideoActions actions,
   ) {
     if (_videoZoomSuppressPlaybackGestures) return;
+    // An edge swipe that is leaving the player never also starts a pan; the
+    // package's tap fallback likewise stays out of the release.
+    if (_edgeDismissActive || _dismissGestureSettling) {
+      _cancelPlaybackGesture();
+      return;
+    }
     if (_videoZoomScale > _minimumVideoZoomScale) {
       _cancelPlaybackGesture();
       _beginVideoZoomGesture(details.localPosition, scaleBaseline: 1);
@@ -3516,6 +3640,10 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     FVideoActions actions,
   ) {
     if (_videoZoomSuppressPlaybackGestures) return;
+    if (_edgeDismissActive) {
+      _cancelPlaybackGesture();
+      return;
+    }
     if (_videoZoomGestureActive && _videoZoomScale > _minimumVideoZoomScale) {
       _updateVideoZoomGesture(focalPoint: details.localPosition, scaleValue: 1);
       actions.hideControls();
@@ -3526,6 +3654,10 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
 
   void _finishSurfacePanGesture(VideoPlayerController controller) {
     if (_videoZoomSuppressPlaybackGestures) {
+      _cancelPlaybackGesture();
+      return;
+    }
+    if (_edgeDismissActive || _dismissGestureSettling) {
       _cancelPlaybackGesture();
       return;
     }
@@ -3544,57 +3676,134 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     _cancelPlaybackGesture();
   }
 
-  void _startHeldSeek(Offset position, double width, FVideoActions actions) {
-    if (width <= 0 || _videoZoomSuppressPlaybackGestures) return;
-    final direction = position.dx < width * 0.42
-        ? -1
-        : position.dx > width * 0.58
-        ? 1
-        : 0;
-    if (direction == 0) return;
-    _stopHeldSeek();
+  /// Holding the surface plays up to [videoHeldSpeedRate] until release, then
+  /// resumes at the rate playback had before the press.
+  ///
+  /// Every rate request is stamped with [_heldSpeedGeneration]. A completion
+  /// that arrives after the press was released, cancelled, disposed or
+  /// superseded still reaches the native side (its future cannot be recalled)
+  /// but no longer writes the badge or [_speed], and a restore issued by
+  /// [_stopHeldSpeed] re-asserts the base rate after any earlier held-rate
+  /// request settles, so the final native rate is the intended one whatever
+  /// order the completions arrive in.
+  void _startHeldSpeed(VideoPlayerController controller) {
+    if (_videoZoomSuppressPlaybackGestures ||
+        _videoZoomGestureActive ||
+        _videoZoomScale > _minimumVideoZoomScale) {
+      return;
+    }
+    final current =
+        controller.value.playbackSpeed.isFinite &&
+            controller.value.playbackSpeed > 0
+        ? controller.value.playbackSpeed
+        : _speed;
+    final generation = _reserveHeldSpeedGeneration();
+    _voiceHeldSpeed = null;
+    _heldSpeedRestoreRate = current;
+    _heldSpeedRestoreIssued = false;
+    final rate = videoHeldSpeedRate(current);
+    if (rate < _minimumHeldSpeedRate) return;
     if (!mounted) return;
-    setState(() => _heldSeekDirection = direction);
-    unawaited(_runHeldSeek(actions));
-    _heldSeekTimer = Timer.periodic(
-      const Duration(milliseconds: 450),
-      (_) => unawaited(_runHeldSeek(actions)),
-    );
-    actions.hideControls();
+    setState(() {
+      _heldSpeedRate = rate;
+      _heldSpeedActive = true;
+    });
+    _reusablePlayerActions?.showControls();
+    // f_videoplayer calls this slot after each commit so a host can re-assert
+    // its own playback rate; the held rate must not be overwritten by it.
+    _voiceHeldSpeed = (requested) =>
+        _applyHeldSpeedRate(_heldSpeedActive ? rate : requested, generation);
+    unawaited(_applyHeldSpeedRate(rate, generation));
   }
 
-  Future<void> _runHeldSeek(FVideoActions actions) async {
-    if (!mounted || _heldSeekDirection == 0 || _heldSeekInFlight) return;
-    _heldSeekInFlight = true;
+  /// Issues one speed request under [generation] and applies its result only
+  /// while that generation is still the current one.
+  Future<void> _applyHeldSpeedRate(double rate, int generation) async {
+    final controller = _controller;
+    if (controller == null) return;
     try {
-      await actions.seekBy(Duration(seconds: _heldSeekDirection * 10));
+      await controller.setPlaybackSpeed(rate);
     } catch (_) {
-      _stopHeldSeek();
-    } finally {
-      _heldSeekInFlight = false;
+      // A route that closes mid-hold owns a released controller; the hold is
+      // over either way.
+      if (generation == _heldSpeedGeneration) _stopHeldSpeed();
+      return;
+    }
+    if (!mounted || generation != _heldSpeedGeneration) return;
+    VideoPlayerView.debugLastBaseSpeed = rate;
+    debugVideoPlayerBaseSpeed = rate;
+    setState(() => _speed = rate);
+  }
+
+  /// Returns playback to the pre-press rate and clears the badge.
+  void _stopHeldSpeed() {
+    if (!_heldSpeedActive) return;
+    final voice = _voiceHeldSpeed;
+    final restore = _heldSpeedRestoreRate;
+    _voiceHeldSpeed = null;
+    _heldSpeedActive = false;
+    // A restore that is already in flight already owns the base rate.
+    if (_heldSpeedRestoreIssued) {
+      if (mounted) setState(() {});
+      return;
+    }
+    _heldSpeedRestoreIssued = true;
+    final generation = ++_heldSpeedGeneration;
+    if (mounted) setState(() {});
+    if (voice != null) {
+      unawaited(_restoreHeldSpeedRate(voice, restore, generation));
+    } else {
+      unawaited(_restoreHeldSpeedRate(null, restore, generation));
     }
   }
 
-  void _stopHeldSeek() {
-    _heldSeekTimer?.cancel();
-    _heldSeekTimer = null;
-    if (_heldSeekDirection == 0) return;
-    if (mounted) setState(() => _heldSeekDirection = 0);
+  Future<void> _restoreHeldSpeedRate(
+    Future<void> Function(double rate)? voice,
+    double rate,
+    int generation,
+  ) async {
+    final controller = _controller;
+    try {
+      if (voice != null) {
+        await voice(rate);
+      } else if (controller != null) {
+        await controller.setPlaybackSpeed(rate);
+      } else {
+        return;
+      }
+    } catch (_) {
+      return;
+    }
+    if (!mounted || generation != _heldSpeedGeneration) return;
+    VideoPlayerView.debugLastBaseSpeed = rate;
+    debugVideoPlayerBaseSpeed = rate;
+    setState(() => _speed = rate);
   }
 
-  Widget _heldSeekIndicator() {
-    final backwards = _heldSeekDirection < 0;
+  /// Retires every held-rate request still in flight and returns a fresh
+  /// generation for the request about to be issued.
+  int _reserveHeldSpeedGeneration() {
+    _heldSpeedGeneration++;
+    return _heldSpeedGeneration;
+  }
+
+  void _cancelHeldSpeed() {
+    _voiceHeldSpeed = null;
+    _heldSpeedActive = false;
+    _heldSpeedRestoreIssued = false;
+    // A newer hold, a release or dispose retires any request still in flight.
+    _heldSpeedGeneration++;
+  }
+
+  Widget _heldSpeedIndicator() {
     return Center(
       child: IgnorePointer(
         child: Semantics(
           liveRegion: true,
-          label: AppStrings.t(
-            backwards
-                ? AppStringKeys.videoPlayerSeekBackwardTenSeconds
-                : AppStringKeys.videoPlayerSeekForwardTenSeconds,
-          ),
+          label: AppStrings.t(AppStringKeys.videoPlayerHoldPlaybackSpeed),
+          value: formatVideoPlayerSpeed(_heldSpeedRate),
           child: Container(
-            key: const ValueKey('video-held-seek-indicator'),
+            key: const ValueKey('video-held-speed-indicator'),
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.76),
@@ -3603,15 +3812,32 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                AppIcon(
-                  backwards ? HeroAppIcons.arrowLeft : HeroAppIcons.arrowRight,
+                const AppIcon(
+                  HeroAppIcons.flash,
                   color: Colors.white,
                   size: 22,
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  backwards ? '−10s' : '+10s',
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                  formatVideoPlayerSpeed(_heldSpeedRate),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    AppStringKeys.videoPlayerHoldPlaybackSpeed.l10n(context),
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -3619,6 +3845,82 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
         ),
       ),
     );
+  }
+
+  void _trackDismissPointerStart(PointerDownEvent event) {
+    if (_videoZoomSuppressPlaybackGestures ||
+        _videoZoomGestureActive ||
+        _dismissPointer != null) {
+      return;
+    }
+    _dismissSettlerGeneration++;
+    _dismissGestureSettling = false;
+    _dismissPointer = event.pointer;
+    _dismissTrackedDx = 0;
+    _dismissTrackedDy = 0;
+    _dismissDx = 0;
+    _edgeDismissActive = false;
+    final width = MediaQuery.sizeOf(context).width;
+    _edgeDismissCandidate =
+        width > 0 && event.localPosition.dx <= videoDismissEdgeWidth;
+  }
+
+  void _trackDismissPointerMove(PointerMoveEvent event) {
+    if (event.pointer != _dismissPointer) return;
+    _dismissTrackedDx += event.delta.dx;
+    _dismissTrackedDy += event.delta.dy;
+    if (!_edgeDismissCandidate) return;
+    if (!_edgeDismissActive) {
+      final dx = _dismissTrackedDx;
+      // A downward drag from the same band belongs to the vertical gesture,
+      // so this only claims movement that reads as a sideways swipe.
+      if (dx < _dismissIntentDistance ||
+          dx.abs() <= _dismissTrackedDy.abs() * 1.2) {
+        return;
+      }
+      _edgeDismissActive = true;
+      _cancelPlaybackGesture();
+      _stopHeldSpeed();
+    }
+    if (!mounted) return;
+    setState(() => _dismissDx = math.max(0.0, _dismissTrackedDx));
+  }
+
+  void _finishDismissDrag() {
+    if (_dismissPointer == null) return;
+    final dx = _dismissDx;
+    final active = _edgeDismissActive;
+    _dismissPointer = null;
+    _edgeDismissCandidate = false;
+    _edgeDismissActive = false;
+    _dismissTrackedDx = 0;
+    _dismissTrackedDy = 0;
+    if (dx != 0 && mounted) setState(() => _dismissDx = 0);
+    if (!active) return;
+    if (dx >= videoDismissDragDistance) {
+      _close();
+      return;
+    }
+    // An abandoned swipe must not finish as a tap on the surface beneath it.
+    // The settling window belongs to this gesture: a newer press or a
+    // cancellation ends it early instead of leaving the surface inert.
+    _dismissGestureSettling = true;
+    final generation = ++_dismissSettlerGeneration;
+    Future<void>.delayed(const Duration(milliseconds: 120), () {
+      if (!mounted || generation != _dismissSettlerGeneration) return;
+      setState(() => _dismissGestureSettling = false);
+    });
+  }
+
+  void _cancelDismissDrag() {
+    _dismissSettlerGeneration++;
+    _dismissGestureSettling = false;
+    _dismissPointer = null;
+    _edgeDismissCandidate = false;
+    _edgeDismissActive = false;
+    _dismissTrackedDx = 0;
+    _dismissTrackedDy = 0;
+    if (_dismissDx != 0 && mounted) setState(() => _dismissDx = 0);
   }
 
   void _beginVideoZoomGesture(
@@ -3877,10 +4179,10 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   void _finishPlaybackGesture(VideoPlayerController controller) {
     final gesture = _activeGesture;
     if (gesture == _PlayerGesture.seek) {
-      unawaited(controller.seekTo(_gestureSeekPosition));
+      unawaited(_seekTo(controller, _gestureSeekPosition));
     } else if (gesture == _PlayerGesture.skipTenSeconds &&
         _gestureNavigationDelta != 0) {
-      unawaited(controller.seekTo(_gestureSeekPosition));
+      unawaited(_seekTo(controller, _gestureSeekPosition));
     } else if (gesture == _PlayerGesture.changeVideo &&
         _gestureNavigationDelta != 0 &&
         _canNavigate(_gestureNavigationDelta)) {
@@ -3898,6 +4200,17 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     }
     _cancelPlaybackGesture();
     _reusablePlayerActions?.showControls();
+  }
+
+  Future<void> _seekTo(
+    VideoPlayerController controller,
+    Duration position,
+  ) async {
+    try {
+      await controller.seekTo(position);
+    } catch (_) {
+      // The route can close between the release and this commit.
+    }
   }
 
   void _cancelPlaybackGesture() {
@@ -6908,6 +7221,25 @@ class _MithkaVideoTimelineState extends State<_MithkaVideoTimeline> {
 String _formatPlaybackSpeed(double speed) {
   if (!speed.isFinite || speed <= 0) return '1x';
   return '${speed.toStringAsFixed(speed % 1 == 0 ? 0 : 2)}x';
+}
+
+/// The rate a hold applies while playback runs at [current].
+///
+/// Doubling keeps a hold on an already quickened video quicker than the
+/// normal rate instead of dropping back to a fixed number, and the bound caps
+/// a fourth press at the supported ceiling.
+@visibleForTesting
+double videoHeldSpeedRate(double current) {
+  final baseline = current.isFinite && current > 0 ? current : 1.0;
+  return math.min(baseline * 2, 4.0);
+}
+
+@visibleForTesting
+String formatVideoPlayerSpeed(double speed) {
+  if (!speed.isFinite || speed <= 0) return '1x';
+  final rounded = (speed * 100).round() / 100;
+  final text = rounded.toStringAsFixed(2);
+  return '${text.replaceFirst(RegExp(r'\.?0+$'), '')}x';
 }
 
 double _nextPlaybackSpeed(double speed) {

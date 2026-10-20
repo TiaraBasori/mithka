@@ -3680,6 +3680,7 @@
     <string name="videoPlayerFinished">Vídeo terminado</string>
     <string name="videoPlayerForwardUnsupported">No se puede reenviar este vídeo</string>
     <string name="videoPlayerFullscreen">Pantalla completa</string>
+    <string name="videoPlayerHoldPlaybackSpeed">Mantén pulsado para acelerar la reproducción</string>
     <string name="videoPlayerLoadFailed">No se pudo cargar el vídeo</string>
     <string name="videoPlayerLoading">Cargando vídeo</string>
     <string name="videoPlayerNextVideo">Vídeo siguiente</string>

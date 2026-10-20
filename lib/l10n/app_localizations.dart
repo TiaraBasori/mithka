@@ -3272,6 +3272,7 @@ abstract final class AppStringKeys {
   static const videoPlayerFinished = 'videoPlayerFinished';
   static const videoPlayerForwardUnsupported = 'videoPlayerForwardUnsupported';
   static const videoPlayerFullscreen = 'videoPlayerFullscreen';
+  static const videoPlayerHoldPlaybackSpeed = 'videoPlayerHoldPlaybackSpeed';
   static const videoPlayerLoadFailed = 'videoPlayerLoadFailed';
   static const videoPlayerLoading = 'videoPlayerLoading';
   static const videoPlayerNextVideo = 'videoPlayerNextVideo';

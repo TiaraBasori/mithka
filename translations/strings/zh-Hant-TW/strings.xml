@@ -3669,6 +3669,7 @@
     <string name="videoPlayerFinished">影片播放完畢</string>
     <string name="videoPlayerForwardUnsupported">無法轉傳此影片</string>
     <string name="videoPlayerFullscreen">全螢幕播放</string>
+    <string name="videoPlayerHoldPlaybackSpeed">長按加速播放</string>
     <string name="videoPlayerLoadFailed">影片載入失敗</string>
     <string name="videoPlayerLoading">正在載入影片</string>
     <string name="videoPlayerNextVideo">下一個影片</string>

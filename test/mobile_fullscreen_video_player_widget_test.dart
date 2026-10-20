@@ -81,7 +81,7 @@ void main() {
   });
 
   testWidgets(
-    'holding the right or left video edge repeatedly seeks and stops on release',
+    'holding the playback surface plays faster and restores the rate',
     (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(390, 844);
@@ -101,43 +101,56 @@ void main() {
             supportedLocales: AppLocalizations.supportedLocales,
             home: VideoPlayerView(
               video: TdFileRef(id: 782, localPath: sourcePath),
-              initialPlaying: false,
               onClose: () {},
               streamQuery: _completedVideoQuery(sourcePath, fileId: 782),
             ),
           ),
         );
         await _pumpUntilPlayerReady(tester);
-        await tester.tapAt(const Offset(360, 400));
-        await tester.pump(const Duration(milliseconds: 400));
+        final seeksBeforeHold = platform.seekPositions.length;
+        final pausesBeforeHold = platform.pauseCalls;
 
+        // The side bands that used to step 10 seconds now hold like anywhere
+        // else on the surface.
         final forward = await tester.startGesture(const Offset(360, 400));
         await tester.pump(const Duration(milliseconds: 600));
         expect(
-          find.byKey(const ValueKey('video-held-seek-indicator')),
+          find.byKey(const ValueKey('video-held-speed-indicator')),
           findsOneWidget,
         );
-        await tester.pump(const Duration(milliseconds: 1000));
-        expect(
-          platform.seekPositions.last,
-          greaterThanOrEqualTo(const Duration(seconds: 20)),
-        );
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump();
+        expect(platform.playbackSpeeds.last, 2);
+        expect(platform.seekPositions, hasLength(seeksBeforeHold));
+        expect(platform.pauseCalls, pausesBeforeHold);
+
         await forward.up();
         await tester.pump();
         expect(
-          find.byKey(const ValueKey('video-held-seek-indicator')),
+          find.byKey(const ValueKey('video-held-speed-indicator')),
           findsNothing,
         );
-        final countAfterRelease = platform.seekPositions.length;
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump();
+        expect(platform.playbackSpeeds.last, 1);
+        expect(platform.seekPositions, hasLength(seeksBeforeHold));
+        final speedsAfterRelease = platform.playbackSpeeds.length;
         await tester.pump(const Duration(seconds: 1));
-        expect(platform.seekPositions.length, countAfterRelease);
+        expect(platform.playbackSpeeds, hasLength(speedsAfterRelease));
 
-        final beforeBackward = platform.seekPositions.last;
         final backward = await tester.startGesture(const Offset(30, 400));
         await tester.pump(const Duration(milliseconds: 600));
-        await tester.pump(const Duration(milliseconds: 500));
-        expect(platform.seekPositions.last, lessThan(beforeBackward));
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump();
+        expect(platform.playbackSpeeds.last, 2);
+        expect(platform.seekPositions, hasLength(seeksBeforeHold));
         await backward.up();
+        await tester.pump();
+        await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+        await tester.pump();
+        expect(platform.playbackSpeeds.last, 1);
+        // Releasing a surface press arms the package's double-tap window.
+        await tester.pump(const Duration(milliseconds: 400));
         await tester.pumpWidget(const SizedBox.shrink());
         await _pumpUntilDisposed(tester, platform);
       } finally {
