@@ -24,6 +24,8 @@
 #   MDK_APPLE_SDK_SHA256     required digest for MDK_APPLE_SDK_URL
 #   MDK_APPLE_SDK_SOURCE     upstream | sourceforge | url (default upstream)
 #   MDK_FRESHNESS_MARGIN_DAYS  days of window to leave in reserve (default 7)
+#   MDK_FVP_ROOT             use this fvp checkout instead of the resolved one
+#                            (for a patched dependency before its release)
 
 set -eu
 
@@ -36,7 +38,7 @@ if [ ! -f "$PACKAGE_CONFIG" ]; then
   exit 1
 fi
 
-FVP_ROOT="$(
+FVP_ROOT="${MDK_FVP_ROOT:-$(
   python3 - "$PACKAGE_CONFIG" <<'PY'
 import json
 import sys
@@ -60,37 +62,58 @@ elif parsed.scheme == "":
 else:
     raise SystemExit(f"fvp resolves to an unsupported URI: {root}")
 PY
-)"
+)}"
 
 TOOL="$FVP_ROOT/darwin/fvp/tool/mdk_apple_freshness.py"
 MANIFEST="$FVP_ROOT/darwin/fvp/Package.swift"
-if [ ! -f "$TOOL" ]; then
-  echo "error: the resolved fvp package has no $TOOL." >&2
-  echo "error: it predates build-time MDK resolution, so its Apple binary" >&2
-  echo "error: target would link an SDK that expires 44 days after its build." >&2
-  echo "error: update the fvp dependency in pubspec.yaml to a release that" >&2
-  echo "error: contains darwin/fvp/tool/mdk_apple_freshness.py." >&2
-  exit 1
-fi
-if ! grep -q 'path: "mdk.xcframework"' "$MANIFEST"; then
-  echo "error: $MANIFEST does not declare mdk.xcframework as a local" >&2
-  echo "error: binary target, so a refreshed SDK would not be the one linked." >&2
-  echo "error: update the fvp dependency in pubspec.yaml." >&2
-  exit 1
+
+# An fvp that predates build-time resolution still pins one archive. There is
+# nothing this script can install into it, and failing here would block every
+# Apple build on a dependency bump the caller has to make in pubspec.yaml, so
+# say exactly what is stale and keep the build's previous behavior.
+if [ ! -f "$TOOL" ] || ! grep -q 'path: "mdk.xcframework"' "$MANIFEST"; then
+  echo "warning: the resolved fvp predates build-time MDK resolution:" >&2
+  echo "warning:   $FVP_ROOT" >&2
+  echo "warning: it pins one Apple MDK archive, which libmdk treats as outdated" >&2
+  echo "warning: 44 days after that binary's build stamp (the QR frame in" >&2
+  echo "warning: issue #192). Bump the fvp dependency in pubspec.yaml to a" >&2
+  echo "warning: release containing darwin/fvp/tool/mdk_apple_freshness.py to" >&2
+  echo "warning: activate per-build resolution; this build links the pin as before." >&2
+  exit 0
 fi
 
 MODE="${1:-refresh}"
 case "$MODE" in
   refresh)
     echo "Refreshing the MDK Apple SDK for this build"
+    set +e
     python3 "$TOOL" --destination "$FVP_ROOT/darwin/fvp/mdk.xcframework" refresh
+    status=$?
+    set -e
     ;;
   check)
     echo "Verifying the installed MDK Apple SDK"
+    set +e
     python3 "$TOOL" --destination "$FVP_ROOT/darwin/fvp/mdk.xcframework" check
+    status=$?
+    set -e
     ;;
   *)
     echo "error: unknown mode $MODE (expected refresh or check)" >&2
     exit 2
     ;;
 esac
+
+if [ "$status" -ne 0 ]; then
+  if [ "${MDK_ALLOW_STALE:-0}" = "1" ]; then
+    # Deliberate escape hatch for a hotfix that must ship while the upstream
+    # mirror is between fresh SDKs. The QR frame returns; say so once.
+    echo "warning: MDK_ALLOW_STALE=1, continuing with an SDK outside the" >&2
+    echo "warning: 44-day key-free window; playback will show the outdated frame." >&2
+    exit 0
+  fi
+  echo "error: the MDK Apple SDK is not usable for this build (see above)." >&2
+  echo "error: point MDK_APPLE_SDK_URL at a newer mdk.xcframework (with" >&2
+  echo "error: MDK_APPLE_SDK_SHA256), or set MDK_ALLOW_STALE=1 to ship anyway." >&2
+  exit "$status"
+fi
