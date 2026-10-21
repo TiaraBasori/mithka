@@ -36,7 +36,9 @@ jobs:
     # that Runner/ApplePCCBridge.swift's `#available(iOS 27)` branches need);
     # the macos-15 pool tops out at Xcode 26.3, where that file does not compile.
     runs-on: macos-26
-    timeout-minutes: 90
+    # A fork is capped at 5 concurrent jobs account-wide, and macOS jobs are
+    # scarcer still; the queue can sit for many minutes before a runner appears.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v4
         with:
