@@ -124,7 +124,9 @@ jobs:
           # git-ignored (/ios/RunnerUITests/ in .gitignore), so a scheme-level
           # test action cannot build in a clean checkout. Drive the bundle
           # directly through a generated scheme that contains only RunnerTests.
-          suite=build/RunnerTestsOnly.xcscheme
+          # xcodebuild resolves -scheme by name inside the project, so the
+          # generated file has to live in the shared schemes directory.
+          suite=ios/Runner.xcodeproj/xcshareddata/xcschemes/RunnerTestsOnly.xcscheme
           python3 - "$suite" <<'PY'
           import sys
           import xml.etree.ElementTree as ET
@@ -141,7 +143,7 @@ jobs:
           test -f "$suite"
           xcodebuild test \
             -workspace ios/Runner.xcworkspace \
-            -scheme "$suite" \
+            -scheme RunnerTestsOnly \
             -configuration Debug \
             -destination "platform=iOS Simulator,id=$udid" \
             -derivedDataPath build/derived \
