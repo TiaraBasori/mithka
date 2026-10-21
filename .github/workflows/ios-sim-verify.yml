@@ -46,6 +46,19 @@ jobs:
           git rev-parse HEAD
           git log --oneline -3
 
+      - name: Toolchain
+        run: |
+          # The app icons are Icon Composer documents (Runner/*.icon), which only
+          # Xcode 26+ understands; the macos-15 image ships an older default.
+          ls /Applications | grep -i '^Xcode' || true
+          xcodebuild -version || true
+          latest=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$latest" ]; then
+            echo "selecting $latest"
+            sudo xcode-select -s "$latest"
+          fi
+          xcodebuild -version
+
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.44.2
