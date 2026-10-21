@@ -1,0 +1,112 @@
+name: iOS simulator verification
+
+# Credential-free iOS build + native unit tests for a branch of this fork.
+# Nothing here signs, deploys, or talks to Telegram: secrets.dart is the
+# checked-in example (api id 0), no Firebase plist is provided (the Runner
+# target's "Copy Firebase config if available" phase skips it), and the pinned
+# public TDLib xcframework is downloaded by the repository's own script.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or SHA to build
+        required: true
+        default: master
+      run_tests:
+        description: Run the RunnerTests unit-test bundle
+        type: boolean
+        default: true
+      only_testing:
+        description: Optional -only-testing filter (for example RunnerTests/RunnerTests/VideoNoteCropTests)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-sim-${{ inputs.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test (${{ inputs.ref }})
+    runs-on: macos-15
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # The RunnerTests bundle compiles sources from the branch, nothing else is needed.
+          fetch-depth: 1
+
+      - name: Show what is being verified
+        run: |
+          echo "ref=${{ inputs.ref }}"
+          git rev-parse HEAD
+          git log --oneline -3
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.2
+          channel: stable
+          cache: true
+
+      - name: Flutter build inputs
+        run: |
+          flutter --version
+          flutter config --enable-swift-package-manager
+          cp lib/config/secrets_example.dart lib/config/secrets.dart
+          flutter pub get
+          flutter precache --ios
+          flutter build ios --config-only --debug --no-codesign
+
+      - name: Pinned TDLib xcframework
+        run: ./scripts/build-tdjson-ios.sh
+
+      - name: CocoaPods
+        run: |
+          sudo gem install cocoapods -v 1.17.0 --no-document
+          cd ios && pod install --repo-update
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      - name: xcodebuild (build for testing)
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/derived \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            | xcbeautify
+
+      - name: xcodebuild test (RunnerTests)
+        if: ${{ inputs.run_tests }}
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -derivedDataPath build/derived \
+            -only-testing:RunnerTests \
+            ${{ inputs.only_testing != '' && format('-only-testing:{0}', inputs.only_testing) || '' }} \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            | xcbeautify
+
+      - name: Upload xcresult
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ github.run_id }}
+          path: |
+            build/derived/Logs/Test/*.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
