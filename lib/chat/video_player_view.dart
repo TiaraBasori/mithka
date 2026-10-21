@@ -512,14 +512,19 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   int _gestureNavigationDelta = 0;
   bool _heldSpeedActive = false;
   double _heldSpeedRate = 1;
-  double _heldSpeedRestoreRate = 1;
-  Future<void> Function(double rate)? _voiceHeldSpeed;
 
-  /// Stamp of the newest held-rate request; older completions are stale.
-  int _heldSpeedGeneration = 0;
+  /// The rate playback runs at when no hold is applied. It survives a hold and
+  /// a restore still travelling to the platform, so a second hold restores to
+  /// it instead of to a rate the wire has not delivered yet.
+  double _heldSpeedBaseRate = 1;
 
-  /// Whether the restore issued on release is already in flight.
-  bool _heldSpeedRestoreIssued = false;
+  /// The rate the native player should settle at. Every speed write goes
+  /// through [_pumpHeldSpeedWrites], which is the only caller of
+  /// `setPlaybackSpeed`, so the last rate the native side sees is always this
+  /// one whatever order the earlier futures complete in.
+  double? _heldSpeedDesiredRate;
+  bool _heldSpeedWriteInFlight = false;
+  bool _heldSpeedDisposed = false;
   // Below this the copy reads as a pause, so the hold leaves playback alone.
   static const _minimumHeldSpeedRate = 0.25;
 
@@ -630,6 +635,7 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
     _volume = widget.initialMuted ? 0 : initialVolume;
     if (widget.initialSpeed.isFinite && widget.initialSpeed > 0) {
       _speed = widget.initialSpeed;
+      _heldSpeedBaseRate = _speed;
       VideoPlayerView.debugLastBaseSpeed = _speed;
       debugVideoPlayerBaseSpeed = _speed;
     }
@@ -1469,6 +1475,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       // until the host applies the held one; keep the base for the restore.
       if (!_heldSpeedActive) {
         _speed = value.playbackSpeed;
+        if (value.playbackSpeed.isFinite && value.playbackSpeed > 0) {
+          _heldSpeedBaseRate = value.playbackSpeed;
+        }
         VideoPlayerView.debugLastBaseSpeed = _speed;
         debugVideoPlayerBaseSpeed = _speed;
       }
@@ -2167,7 +2176,9 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _cancelHeldSpeed();
-    _heldSpeedGeneration++;
+    // A write already on the wire is not recalled; the pump re-checks this
+    // flag after every completion and must not touch the player again.
+    _heldSpeedDisposed = true;
     _touchControlsHideTimer?.cancel();
     _releaseVideoOrientation();
     unawaited(_restorePlayerBrightness());
@@ -2511,11 +2522,21 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
 
   Widget _playerChrome(BuildContext context, FVideoChromeScope scope) {
     _reusablePlayerActions = scope.actions;
+    // The chrome's speed controls ask the package to apply the next step.
+    // Routing that through the hold's serializer keeps one newest desired
+    // rate, so a speed step and a hold cannot land out of order.
+    final chromeScope = FVideoChromeScope(
+      snapshot: _chromeSnapshotForKeptRate(scope.snapshot),
+      actions: _SerializedVideoActions(scope.actions, _applyPlaybackSpeedRate),
+      labels: scope.labels,
+      previous: scope.previous,
+      next: scope.next,
+    );
     return GestureDetector(
       // Text and decorative chrome can hit-test without handling taps. Let
       // their taps dismiss controls while buttons/sliders keep their gestures.
-      onTap: () => _dismissMenusAndControls(scope: scope),
-      child: _playerFullscreenChrome(context, scope),
+      onTap: () => _dismissMenusAndControls(scope: chromeScope),
+      child: _playerFullscreenChrome(context, chromeScope),
     );
   }
 
@@ -3679,28 +3700,32 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
   /// Holding the surface plays up to [videoHeldSpeedRate] until release, then
   /// resumes at the rate playback had before the press.
   ///
-  /// Every rate request is stamped with [_heldSpeedGeneration]. A completion
-  /// that arrives after the press was released, cancelled, disposed or
-  /// superseded still reaches the native side (its future cannot be recalled)
-  /// but no longer writes the badge or [_speed], and a restore issued by
-  /// [_stopHeldSpeed] re-asserts the base rate after any earlier held-rate
-  /// request settles, so the final native rate is the intended one whatever
-  /// order the completions arrive in.
+  /// Native rate writes are serialized: a hold, its release, a newer hold, an
+  /// ordinary speed change and disposal all only move [_heldSpeedDesiredRate],
+  /// and [_pumpHeldSpeedWrites] carries that rate to the controller one request
+  /// at a time. A held request that is already on the wire cannot be recalled,
+  /// but the pump issues the newest rate after it settles, so the final native
+  /// rate is the intended one whichever order the futures complete in.
   void _startHeldSpeed(VideoPlayerController controller) {
     if (_videoZoomSuppressPlaybackGestures ||
         _videoZoomGestureActive ||
         _videoZoomScale > _minimumVideoZoomScale) {
       return;
     }
-    final current =
-        controller.value.playbackSpeed.isFinite &&
-            controller.value.playbackSpeed > 0
-        ? controller.value.playbackSpeed
+    // The controller still reports the held rate while a restore is on the
+    // wire, so a press that lands in that window measures the base the player
+    // already knows instead of doubling the held rate.
+    final pendingWrite =
+        _heldSpeedActive ||
+        _heldSpeedWriteInFlight ||
+        _heldSpeedDesiredRate != null;
+    final reported = controller.value.playbackSpeed;
+    final current = pendingWrite
+        ? _heldSpeedBaseRate
+        : reported.isFinite && reported > 0
+        ? reported
         : _speed;
-    final generation = _reserveHeldSpeedGeneration();
-    _voiceHeldSpeed = null;
-    _heldSpeedRestoreRate = current;
-    _heldSpeedRestoreIssued = false;
+    _heldSpeedBaseRate = current;
     final rate = videoHeldSpeedRate(current);
     if (rate < _minimumHeldSpeedRate) return;
     if (!mounted) return;
@@ -3709,90 +3734,127 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
       _heldSpeedActive = true;
     });
     _reusablePlayerActions?.showControls();
-    // f_videoplayer calls this slot after each commit so a host can re-assert
-    // its own playback rate; the held rate must not be overwritten by it.
-    _voiceHeldSpeed = (requested) =>
-        _applyHeldSpeedRate(_heldSpeedActive ? rate : requested, generation);
-    unawaited(_applyHeldSpeedRate(rate, generation));
-  }
-
-  /// Issues one speed request under [generation] and applies its result only
-  /// while that generation is still the current one.
-  Future<void> _applyHeldSpeedRate(double rate, int generation) async {
-    final controller = _controller;
-    if (controller == null) return;
-    try {
-      await controller.setPlaybackSpeed(rate);
-    } catch (_) {
-      // A route that closes mid-hold owns a released controller; the hold is
-      // over either way.
-      if (generation == _heldSpeedGeneration) _stopHeldSpeed();
-      return;
-    }
-    if (!mounted || generation != _heldSpeedGeneration) return;
-    VideoPlayerView.debugLastBaseSpeed = rate;
-    debugVideoPlayerBaseSpeed = rate;
-    setState(() => _speed = rate);
+    _heldSpeedDesiredRate = rate;
+    unawaited(_pumpHeldSpeedWrites());
   }
 
   /// Returns playback to the pre-press rate and clears the badge.
   void _stopHeldSpeed() {
     if (!_heldSpeedActive) return;
-    final voice = _voiceHeldSpeed;
-    final restore = _heldSpeedRestoreRate;
-    _voiceHeldSpeed = null;
     _heldSpeedActive = false;
-    // A restore that is already in flight already owns the base rate.
-    if (_heldSpeedRestoreIssued) {
-      if (mounted) setState(() {});
-      return;
-    }
-    _heldSpeedRestoreIssued = true;
-    final generation = ++_heldSpeedGeneration;
     if (mounted) setState(() {});
-    if (voice != null) {
-      unawaited(_restoreHeldSpeedRate(voice, restore, generation));
-    } else {
-      unawaited(_restoreHeldSpeedRate(null, restore, generation));
-    }
+    // The pump owns the wire: it lands the base rate behind any held request
+    // still in flight instead of racing it.
+    _heldSpeedDesiredRate = _heldSpeedBaseRate;
+    unawaited(_pumpHeldSpeedWrites());
   }
 
-  Future<void> _restoreHeldSpeedRate(
-    Future<void> Function(double rate)? voice,
-    double rate,
-    int generation,
-  ) async {
+  /// [snapshot] with the speed the player keeps instead of the lagging one the
+  /// controller reports while a hold's write is still travelling.
+  ///
+  /// The chrome's speed control steps from this value, so a step taken during
+  /// that window moves from the base rate rather than from a held rate the
+  /// player is about to replace.
+  FVideoChromeSnapshot _chromeSnapshotForKeptRate(
+    FVideoChromeSnapshot snapshot,
+  ) {
+    final reported = snapshot.value.playbackSpeed;
+    final kept = _keptPlaybackRate(reported);
+    if (kept == reported) return snapshot;
+    return FVideoChromeSnapshot(
+      value: snapshot.value.copyWith(playbackSpeed: kept),
+      playbackState: snapshot.playbackState,
+      displayPosition: snapshot.displayPosition,
+      controlsVisible: snapshot.controlsVisible,
+      isScrubbing: snapshot.isScrubbing,
+      bufferingIndicatorVisible: snapshot.bufferingIndicatorVisible,
+      isFullscreen: snapshot.isFullscreen,
+      volume: snapshot.volume,
+      isPictureInPicture: snapshot.isPictureInPicture,
+      pictureInPictureRequestPending: snapshot.pictureInPictureRequestPending,
+    );
+  }
+
+  /// The rate the player keeps, not the one still travelling to the platform.
+  double _keptPlaybackRate(double reported) {
+    if (_heldSpeedActive ||
+        _heldSpeedWriteInFlight ||
+        _heldSpeedDesiredRate != null) {
+      return _heldSpeedBaseRate;
+    }
+    return reported.isFinite && reported > 0 ? reported : _heldSpeedBaseRate;
+  }
+
+  /// Applies an ordinary speed change (the chrome's speed menu).
+  ///
+  /// The request supersedes a pending held rate, exactly as the newest desired
+  /// rate rule requires, and is dropped while a hold runs because the press
+  /// owns playback for its duration.
+  Future<void> _applyPlaybackSpeedRate(double rate) async {
+    if (!rate.isFinite || rate <= 0) return;
+    _heldSpeedBaseRate = rate;
+    if (!_heldSpeedActive) _heldSpeedDesiredRate = rate;
+    await _pumpHeldSpeedWrites();
+  }
+
+  /// Carries [_heldSpeedDesiredRate] to the controller.
+  ///
+  /// Only one request is in flight at a time. The loop re-reads the desired
+  /// rate after every completion, so a release (or a newer hold) that lands
+  /// while an earlier rate is still travelling issues its own write after
+  /// that future settles. The write that settles with nothing newer waiting
+  /// is the rate the player keeps, and refreshing the base from the
+  /// controller's reported value makes that the last write _speed shows.
+  Future<void> _pumpHeldSpeedWrites() async {
+    if (_heldSpeedWriteInFlight) return;
     final controller = _controller;
+    if (controller == null) return;
+    _heldSpeedWriteInFlight = true;
     try {
-      if (voice != null) {
-        await voice(rate);
-      } else if (controller != null) {
-        await controller.setPlaybackSpeed(rate);
-      } else {
-        return;
+      while (!_heldSpeedDisposed && mounted) {
+        final rate = _heldSpeedDesiredRate;
+        if (rate == null) break;
+        try {
+          await controller.setPlaybackSpeed(rate);
+        } catch (_) {
+          // A route that closes mid-hold owns a released controller; the
+          // hold is over either way.
+          if (mounted) _stopHeldSpeed();
+          return;
+        }
+        if (_heldSpeedDisposed || !mounted) return;
+        // Nothing newer is waiting: the write that just settled is the rate
+        // the player keeps. A hold keeps the base its press measured, so only
+        // a write issued outside a hold moves the base and the test hooks.
+        if (_heldSpeedDesiredRate == rate) {
+          _heldSpeedDesiredRate = null;
+          if (!_heldSpeedActive) {
+            final applied = controller.value.playbackSpeed;
+            final base = applied.isFinite && applied > 0 ? applied : rate;
+            _heldSpeedBaseRate = base;
+            VideoPlayerView.debugLastBaseSpeed = base;
+            debugVideoPlayerBaseSpeed = base;
+          }
+        }
       }
-    } catch (_) {
-      return;
+    } finally {
+      _heldSpeedWriteInFlight = false;
     }
-    if (!mounted || generation != _heldSpeedGeneration) return;
-    VideoPlayerView.debugLastBaseSpeed = rate;
-    debugVideoPlayerBaseSpeed = rate;
-    setState(() => _speed = rate);
-  }
-
-  /// Retires every held-rate request still in flight and returns a fresh
-  /// generation for the request about to be issued.
-  int _reserveHeldSpeedGeneration() {
-    _heldSpeedGeneration++;
-    return _heldSpeedGeneration;
+    // A rate that arrived while the loop was unwinding still has to land; the
+    // caller that found the flag set returned without starting a pump.
+    if (!_heldSpeedDisposed && mounted && _heldSpeedDesiredRate != null) {
+      unawaited(_pumpHeldSpeedWrites());
+    }
+    // A rate requested while this pump was unwinding still has to land.
+    if (!_heldSpeedDisposed && mounted && _heldSpeedDesiredRate != null) {
+      unawaited(_pumpHeldSpeedWrites());
+    }
   }
 
   void _cancelHeldSpeed() {
-    _voiceHeldSpeed = null;
     _heldSpeedActive = false;
-    _heldSpeedRestoreIssued = false;
-    // A newer hold, a release or dispose retires any request still in flight.
-    _heldSpeedGeneration++;
+    _heldSpeedDesiredRate = null;
+    _heldSpeedBaseRate = _speed;
   }
 
   Widget _heldSpeedIndicator() {
@@ -4803,20 +4865,20 @@ class _VideoPlayerViewState extends State<VideoPlayerView>
                                     icon: HeroAppIcons.clock,
                                     label:
                                         '${AppStringKeys.videoPlayerPlaybackSpeed.l10n(context)} '
-                                        '${_formatPlaybackSpeed(_controller?.value.playbackSpeed ?? _speed)}',
+                                        '${_formatPlaybackSpeed(_keptPlaybackRate(_controller?.value.playbackSpeed ?? _speed))}',
                                     focusNode: _moreMenuFocusNodes[3],
                                     onPressed: () {
-                                      final current =
-                                          _controller?.value.playbackSpeed ??
-                                          _speed;
+                                      final current = _keptPlaybackRate(
+                                        _controller?.value.playbackSpeed ??
+                                            _speed,
+                                      );
                                       final actions = _reusablePlayerActions;
-                                      if (actions != null) {
-                                        unawaited(
-                                          actions.setPlaybackSpeed(
-                                            _nextPlaybackSpeed(current),
-                                          ),
-                                        );
-                                      }
+                                      actions?.showControls();
+                                      unawaited(
+                                        _applyPlaybackSpeedRate(
+                                          _nextPlaybackSpeed(current),
+                                        ),
+                                      );
                                     },
                                   ),
                                 ),
@@ -5716,6 +5778,64 @@ class MithkaDesktopVideoChrome extends StatelessWidget {
 /// Commands that need a decoded frame are inert until the package player takes
 /// over, while control visibility keeps working so the chrome behaves the same
 /// before and after the first frame.
+/// [FVideoActions] whose speed step goes through the player's serializer.
+///
+/// Everything else is the package's own action object, passed straight
+/// through; only [setPlaybackSpeed] needs the newest-desired-rate rule.
+class _SerializedVideoActions implements FVideoActions {
+  const _SerializedVideoActions(this._inner, this._applySpeed);
+
+  final FVideoActions _inner;
+  final Future<void> Function(double rate) _applySpeed;
+
+  @override
+  Future<void> setPlaybackSpeed(double speed) async {
+    _inner.showControls();
+    await _applySpeed(speed);
+  }
+
+  @override
+  Future<void> togglePlayback() => _inner.togglePlayback();
+
+  @override
+  Future<void> seekTo(Duration position) => _inner.seekTo(position);
+
+  @override
+  Future<void> seekBy(Duration delta) => _inner.seekBy(delta);
+
+  @override
+  Future<void> setVolume(double volume) => _inner.setVolume(volume);
+
+  @override
+  Future<void> toggleMute() => _inner.toggleMute();
+
+  @override
+  void showControls() => _inner.showControls();
+
+  @override
+  void hideControls() => _inner.hideControls();
+
+  @override
+  void toggleControls() => _inner.toggleControls();
+
+  @override
+  void requestFullscreen(bool fullscreen) =>
+      _inner.requestFullscreen(fullscreen);
+
+  @override
+  Future<void> requestPictureInPicture(bool pictureInPicture) =>
+      _inner.requestPictureInPicture(pictureInPicture);
+
+  @override
+  void beginScrub(double fraction) => _inner.beginScrub(fraction);
+
+  @override
+  void updateScrub(double fraction) => _inner.updateScrub(fraction);
+
+  @override
+  Future<void> endScrub(double fraction) => _inner.endScrub(fraction);
+}
+
 class _LoadingVideoActions implements FVideoActions {
   _LoadingVideoActions({
     required this.readControlsVisible,

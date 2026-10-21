@@ -164,9 +164,10 @@ void main() {
     });
   });
 
-  /// Deferred native completions: the reviewer's boundary. A held-rate request
-  /// that completes after its press is over must not write anything, and the
-  /// final native rate must be the base rate the player displays.
+  /// Deferred native completions: the reviewer's boundary. The player must
+  /// land the rate it intends whatever order the native futures settle in: a
+  /// held request still on the wire when the press ends is followed by the
+  /// restore, and a restore issued behind it is followed by nothing stale.
   group('pending speed completions', () {
     Future<_FakeVideoPlatform> pumpPlayer(
       WidgetTester tester, {
@@ -201,7 +202,21 @@ void main() {
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 200)),
       );
+      platform.holdPlaybackSpeed = true;
+      // The initialization write (the player's starting rate) already landed;
+      // the cases below observe only the requests the gesture issues.
+      platform.nativeRates.clear();
+      platform.playbackSpeeds.clear();
       return platform;
+    }
+
+    /// Lets the player's deferred continuations run against a released fake
+    /// barrier; the fake needs a real turn to resume its future.
+    Future<void> flushNative(WidgetTester tester) async {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 20)),
+      );
+      await tester.pump();
     }
 
     Future<void> settle(WidgetTester tester) async {
@@ -211,46 +226,292 @@ void main() {
       await tester.pump();
     }
 
-    testWidgets('a held rate that completes after release writes nothing', (
-      tester,
-    ) async {
+    testWidgets('release while the held rate is pending ends at the base rate, '
+        'held first then restore', (tester) async {
       final previousPlatform = VideoPlayerPlatform.instance;
       final platform = await pumpPlayer(tester);
-      final heldBarrier = Completer<void>();
-      final restoreBarrier = Completer<void>();
-      platform.playbackSpeedBarriers[2.0] = heldBarrier;
-      platform.playbackSpeedBarriers[1.0] = restoreBarrier;
       try {
+        // Both completions are queued before the press, so the test holds the
+        // requests and decides which one settles first.
+        platform.blockPlaybackSpeed(2.0);
+        platform.blockPlaybackSpeed(1.0);
         final hold = await tester.startGesture(const Offset(195, 420));
         await tester.pump(kLongPressTimeout + const Duration(milliseconds: 60));
         await tester.pump();
 
-        // The rate was issued, the badge is up, and nothing has completed yet.
+        // The held rate is out, the badge is up, and nothing has settled.
         expect(platform.playbackSpeeds.last, 2.0);
+        expect(platform.nativeRates, isEmpty);
         expect(find.text('2x'), findsOneWidget);
 
-        // The press ends while its held rate is still on the wire.
+        // The press ends while its held rate is still on the wire. The restore
+        // is queued behind it, not raced against it.
         await hold.up();
         await tester.pump();
         expect(find.text('2x'), findsNothing);
-        expect(platform.playbackSpeeds.last, 1.0);
-
-        // Release before the held completion lands: nothing may be written.
-        heldBarrier.complete();
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
+        expect(
+          platform.playbackSpeeds.where((rate) => rate == 1.0),
+          isEmpty,
+          reason: 'the restore waits for the held request to settle',
         );
-        await tester.pump();
+
+        // Completion order A: the held rate settles first, then the restore.
+        platform.releasePlaybackSpeed(2.0);
+        await flushNative(tester);
+        expect(platform.nativeRates, [2.0]);
+        expect(platform.pendingPlaybackSpeeds(1.0), 1);
+
+        platform.releasePlaybackSpeed(1.0);
+        await flushNative(tester);
+        expect(
+          platform.nativeRates.last,
+          1.0,
+          reason:
+              'a held completion that lands after release is followed by '
+              'the restore, so the native player ends at the base rate',
+        );
         expect(debugVideoPlayerBaseSpeed, 1.0);
-
-        // The restore is a second request; it lands on the platform and sets
-        // the base rate the player displays.
-        restoreBarrier.complete();
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
+        expect(videoPlayerBaseSpeedForTesting, 1.0);
+        // Reveal the chrome and read the speed it shows for the base rate.
+        await tester.tapAt(const Offset(195, 420));
         await tester.pump();
-        expect(platform.playbackSpeeds.last, 1.0);
+        await tester.tap(_semanticsWidget('More'));
+        await tester.pump();
+        expect(find.text('Playback Speed 1x'), findsOneWidget);
+        expect(find.text('Playback Speed 2x'), findsNothing);
+        await settle(tester);
+      } finally {
+        VideoPlayerPlatform.instance = previousPlatform;
+        debugDefaultTargetPlatformOverride = null;
+        platform.playbackSpeedBarriers.clear();
+      }
+    });
+
+    testWidgets('release while the held rate is pending ends at the base rate, '
+        'restore settles first then the held one', (tester) async {
+      final previousPlatform = VideoPlayerPlatform.instance;
+      final platform = await pumpPlayer(tester, fileId: 922);
+      try {
+        platform.blockPlaybackSpeed(2.0);
+        // Two completions for the base rate: the first is released while no
+        // request is waiting on it, the second holds the restore the player
+        // issues after the held request settles.
+        platform.blockPlaybackSpeed(1.0);
+        platform.blockPlaybackSpeed(1.0);
+        final hold = await tester.startGesture(const Offset(195, 420));
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 60));
+        await tester.pump();
+        expect(find.text('2x'), findsOneWidget);
+        await hold.up();
+        await tester.pump();
+        expect(find.text('2x'), findsNothing);
+
+        // Both completions are queued, and the held one is still the only
+        // request on the wire: the restore was not raced against it.
+        expect(platform.nativeRates, isEmpty);
+        expect(platform.pendingPlaybackSpeeds(2.0), 1);
+        expect(platform.pendingPlaybackSpeeds(1.0), 2);
+        expect(platform.playbackSpeeds.where((rate) => rate == 1.0), isEmpty);
+
+        // Completion order B: the restore settles before the held request
+        // that is still travelling. Releasing 1.0 first is exactly the order
+        // that used to leave the native player at 2x.
+        platform.releasePlaybackSpeed(1.0);
+        await flushNative(tester);
+        expect(
+          platform.nativeRates,
+          isEmpty,
+          reason:
+              'nothing applies before the held request it is queued '
+              'behind has settled',
+        );
+
+        platform.releasePlaybackSpeed(2.0);
+        await flushNative(tester);
+        expect(
+          platform.nativeRates,
+          [2.0],
+          reason: 'the held completion is followed by the restore',
+        );
+        platform.releasePlaybackSpeed(1.0);
+        await flushNative(tester);
+        expect(
+          platform.nativeRates,
+          [2.0, 1.0],
+          reason:
+              'the held completion cannot overtake the restore: the '
+              'serializer only issues the base rate after it settles',
+        );
+        expect(platform.nativeRates.last, 1.0);
+        expect(debugVideoPlayerBaseSpeed, 1.0);
+        expect(videoPlayerBaseSpeedForTesting, 1.0);
+        await tester.tapAt(const Offset(195, 420));
+        await tester.pump();
+        await tester.tap(_semanticsWidget('More'));
+        await tester.pump();
+        expect(find.text('Playback Speed 1x'), findsOneWidget);
+        expect(find.text('Playback Speed 2x'), findsNothing);
+        await settle(tester);
+      } finally {
+        VideoPlayerPlatform.instance = previousPlatform;
+        debugDefaultTargetPlatformOverride = null;
+        platform.playbackSpeedBarriers.clear();
+      }
+    });
+
+    testWidgets('a cancelled press restores the base rate behind a pending '
+        'held request', (tester) async {
+      final previousPlatform = VideoPlayerPlatform.instance;
+      final platform = await pumpPlayer(tester, fileId: 923);
+      try {
+        platform.blockPlaybackSpeed(2.0);
+        platform.blockPlaybackSpeed(1.0);
+        final hold = await tester.startGesture(const Offset(195, 420));
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 60));
+        await tester.pump();
+        expect(find.text('2x'), findsOneWidget);
+
+        // A platform-level cancellation (the route losing the arena) ends the
+        // press without a long-press end callback.
+        await hold.cancel();
+        await tester.pump();
+        expect(find.text('2x'), findsNothing);
+
+        platform.releasePlaybackSpeed(2.0);
+        await flushNative(tester);
+        platform.releasePlaybackSpeed(1.0);
+        await flushNative(tester);
+        expect(
+          platform.nativeRates.last,
+          1.0,
+          reason: 'a cancelled hold still restores the rate it replaced',
+        );
+        expect(debugVideoPlayerBaseSpeed, 1.0);
+        expect(find.textContaining('2x'), findsNothing);
+        await settle(tester);
+      } finally {
+        VideoPlayerPlatform.instance = previousPlatform;
+        debugDefaultTargetPlatformOverride = null;
+        platform.playbackSpeedBarriers.clear();
+      }
+    });
+
+    testWidgets('a newer speed request supersedes a pending held request', (
+      tester,
+    ) async {
+      final previousPlatform = VideoPlayerPlatform.instance;
+      final platform = await pumpPlayer(tester, fileId: 924);
+      try {
+        // held 2x, then the chrome's step to 1.25 (the restore is superseded).
+        platform.blockPlaybackSpeed(2.0);
+        platform.blockPlaybackSpeed(1.25);
+        final hold = await tester.startGesture(const Offset(195, 420));
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 60));
+        await tester.pump();
+        expect(platform.playbackSpeeds.last, 2.0);
+
+        // Release, then a speed change from the chrome before either native
+        // write settled: the newest desired rate is 1.25, not the restore.
+        await hold.up();
+        await tester.pump();
+        // Bring the chrome back and step the speed while the restore is still
+        // on the wire.
+        await tester.tapAt(const Offset(195, 420));
+        await tester.pump();
+        // The fullscreen chrome keeps its speed control in the overflow menu.
+        await tester.tap(_semanticsWidget('More'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+        await tester.tap(find.byKey(const ValueKey('video-more-speed')));
+        await tester.pump();
+        // The held request still owns the wire, so the newest rate is only
+        // desired: the restore and the step both wait behind it.
+        expect(
+          platform.playbackSpeeds,
+          [2.0],
+          reason: 'the chrome speed step goes through the same serializer',
+        );
+
+        // The held request settles. The restore it would have been followed by
+        // is already superseded, so the next write is the chrome's 1.25 and
+        // the native player never sees the 1x it was released to.
+        platform.releasePlaybackSpeed(2.0);
+        await flushNative(tester);
+        expect(platform.playbackSpeeds, [2.0, 1.25]);
+        platform.releasePlaybackSpeed(1.25);
+        await flushNative(tester);
+        expect(platform.nativeRates, [
+          2.0,
+          1.25,
+        ], reason: 'the superseded restore is never written');
+        expect(
+          platform.nativeRates.last,
+          1.25,
+          reason:
+              'the newest speed request wins over the restore that was '
+              'queued behind the held rate',
+        );
+        expect(debugVideoPlayerBaseSpeed, 1.25);
+        await settle(tester);
+      } finally {
+        VideoPlayerPlatform.instance = previousPlatform;
+        debugDefaultTargetPlatformOverride = null;
+        platform.playbackSpeedBarriers.clear();
+      }
+    });
+
+    testWidgets('a second hold during a pending restore ends at its own base', (
+      tester,
+    ) async {
+      final previousPlatform = VideoPlayerPlatform.instance;
+      final platform = await pumpPlayer(tester, fileId: 925);
+      try {
+        // held 2x, its restore, the second hold, its restore.
+        platform.blockPlaybackSpeed(2.0);
+        platform.blockPlaybackSpeed(1.0);
+        platform.blockPlaybackSpeed(2.0);
+        platform.blockPlaybackSpeed(1.0);
+        final first = await tester.startGesture(const Offset(195, 420));
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 60));
+        await tester.pump();
+        await first.up();
+        await tester.pump();
+        expect(find.text('2x'), findsNothing);
+
+        // The first held request settles; the restore it is followed by is
+        // still on the wire when the second press lands.
+        platform.releasePlaybackSpeed(2.0);
+        await flushNative(tester);
+        expect(platform.nativeRates, [2.0]);
+        expect(platform.pendingPlaybackSpeeds(1.0), 2);
+
+        // The second press measures the base rate, not the held rate the
+        // controller still reports; its request queues behind the restore.
+        final second = await tester.startGesture(const Offset(195, 420));
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 60));
+        await tester.pump();
+        expect(
+          platform.playbackSpeeds.where((rate) => rate == 2.0),
+          hasLength(1),
+          reason: 'the second hold waits for the restore on the wire',
+        );
+
+        platform.releasePlaybackSpeed(1.0);
+        await flushNative(tester);
+        platform.releasePlaybackSpeed(2.0);
+        await flushNative(tester);
+        expect(platform.nativeRates.last, 2.0);
+
+        await second.up();
+        await tester.pump();
+        platform.releasePlaybackSpeed(1.0);
+        await flushNative(tester);
+        expect(
+          platform.nativeRates.last,
+          1.0,
+          reason: 'the second hold still knows the rate it replaced',
+        );
+        expect(platform.nativeRates, [2.0, 1.0, 2.0, 1.0]);
         expect(debugVideoPlayerBaseSpeed, 1.0);
         await settle(tester);
       } finally {
@@ -260,14 +521,12 @@ void main() {
       }
     });
 
-    testWidgets('a held rate still pending at disposal writes nothing', (
-      tester,
-    ) async {
+    testWidgets('a held rate still pending at disposal writes nothing after '
+        'unmount', (tester) async {
       final previousPlatform = VideoPlayerPlatform.instance;
       final platform = await pumpPlayer(tester, fileId: 921);
-      final heldBarrier = Completer<void>();
-      platform.playbackSpeedBarriers[2.0] = heldBarrier;
       try {
+        platform.blockPlaybackSpeed(2.0);
         await tester.startGesture(const Offset(195, 420));
         await tester.pump(kLongPressTimeout + const Duration(milliseconds: 60));
         await tester.pump();
@@ -276,18 +535,22 @@ void main() {
         // Tear the player down with the request pending, then complete it.
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump(const Duration(seconds: 6));
-        heldBarrier.complete();
-        await tester.runAsync(
-          () => Future<void>.delayed(const Duration(milliseconds: 20)),
-        );
-        await tester.pump();
+        platform.releasePlaybackSpeed(2.0);
+        await flushNative(tester);
         expect(tester.takeException(), isNull);
+        expect(
+          platform.nativeRates,
+          [2.0],
+          reason:
+              'the pending request settles, but nothing is issued after '
+              'unmount',
+        );
+        expect(platform.pendingPlaybackSpeeds(1.0), 0);
         await settle(tester);
       } finally {
         platform.playbackSpeedBarriers.clear();
         VideoPlayerPlatform.instance = previousPlatform;
         debugDefaultTargetPlatformOverride = null;
-        if (!heldBarrier.isCompleted) heldBarrier.complete();
       }
     });
   });
@@ -471,6 +734,10 @@ void main() {
   });
 }
 
+Finder _semanticsWidget(String label) => find.byWidgetPredicate(
+  (widget) => widget is Semantics && widget.properties.label == label,
+);
+
 Future<void> _pumpUntilPlayerReady(WidgetTester tester) async {
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 100)),
@@ -531,12 +798,53 @@ class _FakeVideoPlatform extends VideoPlayerPlatform {
   var pauseCalls = 0;
   var disposeCalls = 0;
   final seekPositions = <Duration>[];
+
+  /// Every request as it was issued, before its completion.
   final playbackSpeeds = <double>[];
 
-  /// When set, every setPlaybackSpeed records its rate and then parks until
-  /// the entry is completed, reproducing a native completion that lands after
-  /// the press that issued it is already over.
-  final playbackSpeedBarriers = <double, Completer<void>>{};
+  /// The rate the native side has actually applied, appended when a request's
+  /// barrier is released. This is what the player would really play at, so a
+  /// regression can prove the completion order instead of trusting the order
+  /// the requests went out in.
+  final nativeRates = <double>[];
+
+  /// The completions a test still has to release, in the order the test
+  /// queued them. A request for a rate takes the oldest entry still waiting at
+  /// that rate, so two requests for 1.0 settle one after the other instead of
+  /// riding one completer, and a completion is never taken twice.
+  final playbackSpeedBarriers = <double, List<Completer<void>>>{};
+  final _takenBarriers = <Completer<void>>{};
+
+  /// Defaults to allowing every request; a test queues a completion per
+  /// request with [blockPlaybackSpeed].
+  bool holdPlaybackSpeed = false;
+
+  /// Queues one completion for the next request for [rate] and returns the
+  /// completer the test releases. The player does not see the request finish
+  /// until then, and the native rate only moves when it does.
+  Completer<void> blockPlaybackSpeed(double rate) {
+    final completer = Completer<void>();
+    playbackSpeedBarriers.putIfAbsent(rate, () => []).add(completer);
+    return completer;
+  }
+
+  /// Releases the oldest completion still waiting for [rate]: the test says
+  /// which request settles next, in which order.
+  void releasePlaybackSpeed(double rate) {
+    final queue = playbackSpeedBarriers[rate];
+    if (queue == null) {
+      throw StateError('no playback-speed request is pending for $rate');
+    }
+    final barrier = queue.firstWhere(
+      (completer) => !completer.isCompleted,
+      orElse: () => throw StateError('no pending request for $rate'),
+    );
+    barrier.complete();
+  }
+
+  /// Rates the test still holds a completion for, oldest first.
+  int pendingPlaybackSpeeds(double rate) =>
+      playbackSpeedBarriers[rate]?.where((c) => !c.isCompleted).length ?? 0;
 
   @override
   Future<void> init() async {}
@@ -602,8 +910,18 @@ class _FakeVideoPlatform extends VideoPlayerPlatform {
   @override
   Future<void> setPlaybackSpeed(int playerId, double speed) async {
     playbackSpeeds.add(speed);
-    final barrier = playbackSpeedBarriers[speed];
+    Completer<void>? barrier;
+    final queue = playbackSpeedBarriers[speed];
+    if (holdPlaybackSpeed && queue != null) {
+      for (final candidate in queue) {
+        if (!candidate.isCompleted && _takenBarriers.add(candidate)) {
+          barrier = candidate;
+          break;
+        }
+      }
+    }
     if (barrier != null) await barrier.future;
+    nativeRates.add(speed);
   }
 
   @override
