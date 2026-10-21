@@ -85,10 +85,14 @@ jobs:
       - name: Install xcbeautify
         run: brew install xcbeautify
 
-      - name: xcodebuild (build for testing)
+      - name: xcodebuild build (the app compiles without signing)
         run: |
+          # Archive-style app-only build: this is what proves the native targets
+          # and the Icon Composer app icons compile. The scheme's RunnerUITests
+          # bundle is git-ignored and absent from every checkout, so test-target
+          # builds are scoped to RunnerTests below.
           set -o pipefail
-          xcodebuild build-for-testing \
+          xcodebuild build \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Debug \
@@ -102,13 +106,28 @@ jobs:
         if: ${{ inputs.run_tests }}
         run: |
           set -o pipefail
-          xcodebuild test-without-building \
+          # A concrete simulator is required to run tests; take the first
+          # available iPhone on this image instead of hard-coding a model.
+          udid="$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          phones = [
+              d for runtime in sorted(devices)
+              for d in devices[runtime]
+              if d.get("isAvailable") and d["name"].startswith("iPhone")
+          ]
+          print(phones[0]["udid"] if phones else "")
+          ')"
+          test -n "$udid" || { echo "no iPhone simulator available" >&2; exit 1; }
+          echo "simulator $udid"
+          xcodebuild test \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
             -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro' \
+            -destination "platform=iOS Simulator,id=$udid" \
             -derivedDataPath build/derived \
             -only-testing:RunnerTests \
+            -skip-testing:RunnerUITests \
             ${{ inputs.only_testing != '' && format('-only-testing:{0}', inputs.only_testing) || '' }} \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
