@@ -61,29 +61,28 @@ bool _hasPreviewArea(Size size) =>
 
 /// Decides how the live video-message preview fills [viewport].
 ///
-/// The camera package sizes its preview from the sensor ratio turned to the
-/// camera's applicable orientation, which can disagree with the window's axis
-/// on iPad Stage Manager, in split view, or whenever the sensor reports an
-/// orientation the screen does not share. The footprint therefore follows
-/// [aspectRatio] - the ratio the preview box itself uses, from
-/// [videoNotePreviewAspectRatio] - and only the cover fit below looks at
-/// [viewport]: contributing a window-derived orientation here is what forced a
-/// portrait texture into a landscape-sized box whenever the two disagreed.
+/// [aspectRatio] is the ratio [CameraPreview] itself puts on its box (see
+/// [videoNotePreviewAspectRatio]); the footprint reuses that box shape rather
+/// than deriving one from the window, so the preview is scaled, never
+/// re-shaped, by Stage Manager, split view, or a sensor orientation the screen
+/// does not share.
 ///
 /// The footprint is then cover-fitted, never letterboxed, because a recorder
 /// must fill its window with live pixels. The footprint's `coverCropped` flag
-/// reports whether that fit crops the sensor frame.
+/// reports whether that fit crops the camera frame.
 ///
-/// A zero or non-finite [previewSize] (camera still warming up) falls back to
-/// [viewport] itself, and an unmeasurable [viewport] falls back to the sensor
-/// box, so the returned size is always finite and non-negative.
+/// A null, empty, or non-finite [previewSize] means the camera has not reported
+/// a frame yet: no preview box exists, so the footprint is [viewport] itself
+/// (an honest "fill the window") rather than an invented shape. An
+/// unmeasurable [viewport] falls back to the camera box, so the returned size is
+/// always finite and non-negative.
 VideoNotePreviewFootprint videoNotePreviewFootprint({
-  required Size previewSize,
+  required Size? previewSize,
   required Size viewport,
   required double aspectRatio,
 }) {
   final hasViewport = _hasPreviewArea(viewport);
-  if (!_hasPreviewArea(previewSize)) {
+  if (previewSize == null || !_hasPreviewArea(previewSize)) {
     return VideoNotePreviewFootprint(
       size: hasViewport ? viewport : Size.zero,
       coverCropped: false,
@@ -106,36 +105,104 @@ VideoNotePreviewFootprint videoNotePreviewFootprint({
   );
 }
 
-/// The aspect ratio [CameraPreview] puts on its own [AspectRatio] box.
+/// The orientation whose frame shape `CameraPreview` lays out.
 ///
-/// The camera package derives it from the camera's APPLICABLE orientation -
-/// the recording orientation while recording, otherwise a paused preview, a
-/// locked capture orientation, or the device orientation - never from the
-/// window's dimensions. Android additionally rotates its texture inside that
-/// box, so the box's ratio is the sensor ratio narrowed when the applicable
-/// orientation is a landscape one.
+/// Mirrors the pinned package's own chain exactly: the recording orientation
+/// while recording, otherwise a paused preview's frozen orientation, otherwise
+/// a locked capture orientation, otherwise the device's. The window plays no
+/// part in it.
 ///
-/// [sensorIsPortrait] stands in for the preview size while the camera has not
-/// reported one yet. Never throws: the package's own ratio getter force-unwraps
-/// the preview size.
-double videoNotePreviewAspectRatio(
-  CameraValue value, {
-  required bool sensorIsPortrait,
-}) {
+/// The package force-unwraps the recording orientation; a camera value built
+/// with `isRecordingVideo` set but no orientation would make its preview throw,
+/// so this falls back through the rest of the chain instead.
+DeviceOrientation _applicablePreviewOrientation(CameraValue value) {
+  return value.previewPauseOrientation ??
+      value.lockedCaptureOrientation ??
+      value.deviceOrientation;
+}
+
+/// The aspect ratio `CameraPreview` puts on its own `AspectRatio` box, or null
+/// when it draws no such box.
+///
+/// Derived exactly as `camera` 0.12.0+2 derives it: the preview size's
+/// width/height when the applicable orientation is a landscape one, and the
+/// reciprocal otherwise. The landscape branch depends on the camera's
+/// orientation, never on what shape [CameraValue.previewSize] happens to have:
+/// a portrait 720x1280 frame in `portraitUp` gets 16:9, not 9:16.
+///
+/// Null means the package has no box to match - [CameraPreview] draws a bare
+/// [Container] until the controller is initialized, and its own ratio getter
+/// would throw on a null preview size - so the caller cannot invent one.
+/// Never throws.
+double? videoNotePreviewAspectRatio(CameraValue value) {
+  final preview = value.previewSize;
+  if (preview == null || preview.isEmpty) return null;
+  final sensorRatio = preview.width / preview.height;
   final orientation = value.isRecordingVideo
-      ? value.recordingOrientation
-      : (value.previewPauseOrientation ??
-            value.lockedCaptureOrientation ??
-            value.deviceOrientation);
+      ? (value.recordingOrientation ?? _applicablePreviewOrientation(value))
+      : _applicablePreviewOrientation(value);
   final landscape =
       orientation == DeviceOrientation.landscapeLeft ||
       orientation == DeviceOrientation.landscapeRight;
-  final preview = value.previewSize;
-  final portrait = preview == null
-      ? sensorIsPortrait
-      : preview.height >= preview.width;
-  final sensorRatio = preview == null ? 1.0 : preview.width / preview.height;
-  return landscape == portrait ? 1 / sensorRatio : sensorRatio;
+  return landscape ? sensorRatio : 1 / sensorRatio;
+}
+
+/// The live preview under the recorder's chrome.
+///
+/// Listens to [controller] because every input the package's ratio depends on -
+/// recording start/stop, a paused preview, a capture-orientation lock, a device
+/// rotation - changes [CameraValue] without changing the window. Reading the
+/// value once inside a [LayoutBuilder] rebuilt only the inner [CameraPreview]
+/// on those changes and left this outer box, which is what the cover fit
+/// scales, at the old ratio - the stretch this box exists to prevent.
+///
+/// [viewport] is the area to cover; the box inside it keeps the package's ratio
+/// and is scaled, never re-shaped.
+class VideoNotePreviewBox extends StatelessWidget {
+  const VideoNotePreviewBox({
+    super.key,
+    required this.controller,
+    required this.viewport,
+  });
+
+  final CameraController controller;
+
+  /// The area the preview must cover, normally the recorder's constraints.
+  final Size viewport;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<CameraValue>(
+      valueListenable: controller,
+      builder: (context, value, _) {
+        final previewSize = value.previewSize;
+        final ratio = videoNotePreviewAspectRatio(value);
+        // No frame yet: the package draws a bare Container, so there is no
+        // ratio to honour; fill the window until it reports one.
+        if (previewSize == null || ratio == null) {
+          return const SizedBox.expand();
+        }
+        final footprint = videoNotePreviewFootprint(
+          previewSize: previewSize,
+          viewport: viewport,
+          aspectRatio: ratio,
+        );
+        if (footprint.size.isEmpty) return const SizedBox.expand();
+        return SizedBox.expand(
+          child: FittedBox(
+            fit: BoxFit.cover,
+            clipBehavior: footprint.coverCropped ? Clip.hardEdge : Clip.none,
+            child: SizedBox(
+              key: const ValueKey('videoNotePreviewFootprint'),
+              width: footprint.size.width,
+              height: footprint.size.height,
+              child: CameraPreview(controller),
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
 
 /// An owned video-message camera with Telegram-style hold, cancel, lock and
@@ -444,12 +511,12 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
 
   /// Fills the recorder with the live preview without distorting it.
   ///
-  /// [CameraPreview] already wraps its texture in an [AspectRatio] sized from
-  /// the camera's applicable orientation (see [videoNotePreviewAspectRatio]),
-  /// so a second ratio here applied the ratio twice and letterboxed whenever
-  /// the device orientation disagreed with the window. The box is instead
-  /// constrained to that same ratio - which therefore never stretches the
-  /// texture, whatever the window shape - and scaled to cover the window.
+  /// Only the available area is measured here; [VideoNotePreviewBox] then
+  /// keeps its box at the same ratio [CameraPreview] uses (see
+  /// [videoNotePreviewAspectRatio]) and scales that box to cover the window.
+  /// The box listens to the controller itself, so an orientation or recording
+  /// change repaints the tight outer footprint even when the window, and
+  /// therefore these constraints, stay exactly the same size.
   Widget _preview(CameraController controller) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -457,28 +524,7 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
         final viewport = measured.isFinite && !measured.isEmpty
             ? measured
             : MediaQuery.sizeOf(context);
-        final sensor = controller.description.sensorOrientation;
-        final ratio = videoNotePreviewAspectRatio(
-          controller.value,
-          sensorIsPortrait: sensor == 0 || sensor == 180,
-        );
-        final footprint = videoNotePreviewFootprint(
-          previewSize: controller.value.previewSize ?? Size.zero,
-          viewport: viewport,
-          aspectRatio: ratio,
-        );
-        if (footprint.size.isEmpty) return const SizedBox.expand();
-        return SizedBox.expand(
-          child: FittedBox(
-            fit: BoxFit.cover,
-            clipBehavior: footprint.coverCropped ? Clip.hardEdge : Clip.none,
-            child: SizedBox(
-              width: footprint.size.width,
-              height: footprint.size.height,
-              child: CameraPreview(controller),
-            ),
-          ),
-        );
+        return VideoNotePreviewBox(controller: controller, viewport: viewport);
       },
     );
   }
