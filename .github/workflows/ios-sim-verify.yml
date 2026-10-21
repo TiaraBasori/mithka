@@ -149,10 +149,13 @@ jobs:
           # BuildAction entries are what a test build actually compiles, so the
           # UI-test bundle has to go from there too, not just from Testables.
           build_action = root.find("BuildAction")
-          for entry in list(build_action.iter("BuildActionEntry")):
-              buildable = entry.find("BuildableReference")
-              if buildable is not None and buildable.get("BlueprintName") == "RunnerUITests":
-                  build_action.remove(entry)
+          for parent in list(build_action.iter()):
+              for entry in list(parent):
+                  if entry.tag != "BuildActionEntry":
+                      continue
+                  buildable = entry.find("BuildableReference")
+                  if buildable is not None and buildable.get("BlueprintName") == "RunnerUITests":
+                      parent.remove(entry)
           ET.ElementTree(tree.getroot()).write(sys.argv[1], xml_declaration=True, encoding="UTF-8")
           PY
           test -f "$suite"
