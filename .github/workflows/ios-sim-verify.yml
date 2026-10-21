@@ -32,7 +32,9 @@ jobs:
   build:
     name: Build and test (${{ inputs.ref }})
     # Same image the release pipelines in .github/workflows use.
-    runs-on: macos-26
+    # The public macos-26 pool has been oversubscribed; macos-15 resolves to the
+    # same Xcode 26 toolchain on this account (see the Select Xcode step).
+    runs-on: macos-15
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
