@@ -32,9 +32,10 @@ jobs:
   build:
     name: Build and test (${{ inputs.ref }})
     # Same image the release pipelines in .github/workflows use.
-    # macos-26 is the image that carries Xcode 26.6 (and with it the iOS 27 SDK
-    # that Runner/ApplePCCBridge.swift's `#available(iOS 27)` branches need);
-    # the macos-15 pool tops out at Xcode 26.3, where that file does not compile.
+    # Runner/ApplePCCBridge.swift is compiled against the iOS 27 SDK
+    # (`#available(iOS 27)` branches under `compiler(>=6.4)`), so it needs the
+    # Xcode 26.6 that only the macos-26 image carries; the macos-15 pool tops out
+    # at Xcode 26.3 and fails on `SystemLanguageModel.contextSize`.
     runs-on: macos-26
     # The hosted macOS arm64 pool fails a job in the queue ("not acquired by
     # Runner of type hosted even after multiple attempts"), so this stays at the
