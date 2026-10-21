@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/chat/video_playback_queue.dart';
 import 'package:mithka/chat/video_player_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/td_models.dart';
@@ -102,17 +103,23 @@ void main() {
     });
 
     test('a pan that never engaged finishes as a tap', () {
-      final finish = bodyOf('void _finishPlaybackGesture(');
+      // The surface pan shares its pointer with the package's tap, so it is
+      // the one that has to decide the release: a rolled press toggles the
+      // chrome, and only a deliberate horizontal drag reaches the gesture
+      // finish at all.
+      final finish = bodyOf('void _finishSurfacePanGesture(');
+      final tapAt = finish.indexOf('videoSurfacePanReplacesTap(');
       final toggleAt = finish.indexOf('toggleControls()');
-      final seekAt = finish.indexOf('seekTo(');
+      final gestureAt = finish.indexOf('_finishPlaybackGesture(');
+      expect(tapAt, isNot(-1));
       expect(toggleAt, isNot(-1));
-      expect(seekAt, isNot(-1));
+      expect(gestureAt, isNot(-1));
       expect(
-        toggleAt < seekAt,
+        tapAt < toggleAt && toggleAt < gestureAt,
         isTrue,
-        reason: 'the unengaged pan must be handled before any seek commits',
+        reason: 'the displaced tap is finished before any gesture commits',
       );
-      expect(finish, contains('if (gesture == null)'));
+      expect(finish, contains('_cancelPlaybackGesture()'));
     });
 
     test('winning the arena no longer shows the chrome by itself', () {
@@ -187,6 +194,147 @@ void main() {
           // path engaged at 12px, showed the chrome and committed a seek.
           expect(_chromeOpacity(tester), 0);
           expect(find.byType(FVideoPlayer), findsOneWidget);
+          await tester.pumpWidget(const SizedBox.shrink());
+          await tester.pump(const Duration(seconds: 6));
+        } finally {
+          VideoPlayerPlatform.instance = previousPlatform;
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    for (final roll in const [20.0, 30.0, 45.0]) {
+      testWidgets(
+        'a tap that rolls ${roll.toInt()}px keeps the chrome and never seeks',
+        (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = const Size(390, 844);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          addTearDown(tester.view.resetPhysicalSize);
+          final previousPlatform = VideoPlayerPlatform.instance;
+          final platform = _FakeVideoPlatform();
+          VideoPlayerPlatform.instance = platform;
+          debugDefaultTargetPlatformOverride = TargetPlatform.android;
+          try {
+            SharedPreferences.setMockInitialValues(const {});
+            final sourcePath = File('pubspec.yaml').absolute.path;
+            await tester.pumpWidget(
+              MaterialApp(
+                locale: const Locale('en'),
+                localizationsDelegates: const [AppLocalizations.delegate],
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: VideoPlayerView(
+                  video: TdFileRef(id: 917, localPath: sourcePath),
+                  onClose: () {},
+                  streamQuery: _completedVideoQuery(sourcePath, fileId: 917),
+                ),
+              ),
+            );
+            await _pumpUntilPlayerReady(tester);
+            final surface = tester.getRect(find.byType(FVideoPlayer));
+
+            // A tap that rolls is reported as a pan by the platform. Every
+            // roll past the drag slop used to let the pan win the arena, so
+            // the package's tap never fired and the press read as an inert
+            // gesture instead of a tap that takes the chrome down.
+            final tap = await tester.startGesture(surface.center);
+            await tester.pump();
+            await tap.moveBy(Offset(roll, 0));
+            await tester.pump(const Duration(milliseconds: 16));
+            await tap.up();
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 400));
+
+            expect(
+              platform.seekPositions,
+              isEmpty,
+              reason: 'a rolled tap must not move playback',
+            );
+            expect(
+              _chromeOpacity(tester),
+              0,
+              reason: 'a rolled tap must still toggle the chrome',
+            );
+
+            // A clean tap brings the chrome back, so the swallowed tap did not
+            // leave the counters doubled or the surface inert.
+            await tester.tapAt(const Offset(12, 12));
+            await tester.pump();
+            await tester.pump(const Duration(milliseconds: 400));
+            expect(_chromeOpacity(tester), 1);
+
+            await tester.pumpWidget(const SizedBox.shrink());
+            await tester.pump(const Duration(seconds: 6));
+          } finally {
+            VideoPlayerPlatform.instance = previousPlatform;
+            debugDefaultTargetPlatformOverride = null;
+          }
+        },
+      );
+    }
+
+    testWidgets(
+      'a horizontal drag past the engage distance stays a queue swipe',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(390, 844);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetPhysicalSize);
+        final previousPlatform = VideoPlayerPlatform.instance;
+        final platform = _FakeVideoPlatform();
+        VideoPlayerPlatform.instance = platform;
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        final navigation = <int>[];
+        try {
+          SharedPreferences.setMockInitialValues(const {});
+          final sourcePath = File('pubspec.yaml').absolute.path;
+          await tester.pumpWidget(
+            MaterialApp(
+              locale: const Locale('en'),
+              localizationsDelegates: const [AppLocalizations.delegate],
+              supportedLocales: AppLocalizations.supportedLocales,
+              home: VideoPlayerView(
+                video: TdFileRef(id: 918, localPath: sourcePath),
+                previousVideo: VideoPlaybackItem(video: TdFileRef(id: 917)),
+                nextVideo: VideoPlaybackItem(video: TdFileRef(id: 919)),
+                onNavigate: navigation.add,
+                onClose: () {},
+                streamQuery: _completedVideoQuery(sourcePath, fileId: 918),
+              ),
+            ),
+          );
+          await _pumpUntilPlayerReady(tester);
+          final surface = tester.getRect(find.byType(FVideoPlayer));
+
+          // 160px is a deliberate drag, not a tap that rolled. The pan owns it
+          // and must not also finish it as a tap, which would leave the chrome
+          // hidden while the queue moved.
+          final swipe = await tester.startGesture(surface.center);
+          await tester.pump();
+          // A real finger reports a drag over several frames; one jump of
+          // 160px only crosses the slop and never delivers an update.
+          for (var step = 0; step < 8; step++) {
+            await swipe.moveBy(const Offset(-20, 0));
+            await tester.pump(const Duration(milliseconds: 16));
+          }
+          await swipe.up();
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
+
+          // A leftward swipe moves to the next video, and the pan must have
+          // committed exactly that one navigation.
+          expect(navigation, [1]);
+          expect(
+            platform.seekPositions,
+            isEmpty,
+            reason: 'a queue swipe must not seek under changeVideo',
+          );
+          expect(
+            _chromeOpacity(tester),
+            1,
+            reason: 'a deliberate drag keeps the chrome a gesture shows',
+          );
+
           await tester.pumpWidget(const SizedBox.shrink());
           await tester.pump(const Duration(seconds: 6));
         } finally {
@@ -334,8 +482,11 @@ Future<void> _pumpUntilPlayerReady(WidgetTester tester) async {
   );
 }
 
-double _chromeOpacity(WidgetTester tester) =>
-    tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity).first).opacity;
+double _chromeOpacity(WidgetTester tester) => tester
+    .widget<AnimatedOpacity>(
+      find.byKey(const ValueKey('mithka-video-player-chrome')),
+    )
+    .opacity;
 
 TdVideoStreamQuery _completedVideoQuery(String path, {required int fileId}) =>
     (request) async {
