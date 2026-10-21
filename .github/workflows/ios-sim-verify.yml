@@ -120,9 +120,28 @@ jobs:
           ')"
           test -n "$udid" || { echo "no iPhone simulator available" >&2; exit 1; }
           echo "simulator $udid"
+          # The shared scheme also lists RunnerUITests, whose sources are
+          # git-ignored (/ios/RunnerUITests/ in .gitignore), so a scheme-level
+          # test action cannot build in a clean checkout. Drive the bundle
+          # directly through a generated scheme that contains only RunnerTests.
+          suite=build/RunnerTestsOnly.xcscheme
+          python3 - "$suite" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          source = "ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme"
+          tree = ET.parse(source)
+          action = tree.getroot().find("TestAction")
+          for reference in action.iter("TestableReference"):
+              buildable = reference.find("BuildableReference")
+              if buildable is None or buildable.get("BlueprintName") != "RunnerTests":
+                  action.find("Testables").remove(reference)
+          ET.ElementTree(tree.getroot()).write(sys.argv[1], xml_declaration=True, encoding="UTF-8")
+          PY
+          test -f "$suite"
           xcodebuild test \
             -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
+            -scheme "$suite" \
             -configuration Debug \
             -destination "platform=iOS Simulator,id=$udid" \
             -derivedDataPath build/derived \
