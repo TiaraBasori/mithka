@@ -2186,8 +2186,9 @@ class _MainBottomBar extends StatelessWidget {
   /// sits over the detail pane, not over this column.
   final bool reserveBottomInset;
 
-  /// Label size the bar is laid out around. The icon block above it keeps its
-  /// size at every text scale, so only this line's growth is added to the bar.
+  /// Label size the classic bar is laid out around. The icon block above it
+  /// keeps its size at every text scale, so only this line's growth is added
+  /// to the bar. The glass bar draws no label at all and always grows by zero.
   static const double _labelSize = 11;
 
   /// Line box of the label relative to its font size.
@@ -2281,11 +2282,16 @@ class _MainBottomBar extends StatelessWidget {
         ),
       );
     }
-    final labelGrowth = math.max(
-      0.0,
-      (MediaQuery.textScalerOf(context).scale(_labelSize) - _labelSize) *
-          _labelLineHeight,
-    );
+    // The glass row is icon-only — Telegram-iOS shape, matching the corner
+    // rail — so it never reserves label height; the classic bar keeps growing
+    // with the scaled label line.
+    final labelGrowth = glass
+        ? 0.0
+        : math.max(
+            0.0,
+            (MediaQuery.textScalerOf(context).scale(_labelSize) - _labelSize) *
+                _labelLineHeight,
+          );
     // Only the compact shell reserves the home indicator's own height; the
     // split shell leaves the window edge to its column, so the row keeps the
     // bar's whole box.
@@ -2381,31 +2387,37 @@ class _MainBottomBar extends StatelessWidget {
                               ],
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          AnimatedDefaultTextStyle(
-                            duration: AppMotion.duration(
-                              context,
-                              AppMotion.responsive,
+                          // The glass row is icon-only: the label line and its
+                          // gutter are dropped, and the icon stays centred in
+                          // the slot. Every other target keeps the classic
+                          // icon + label column untouched.
+                          if (!glass) ...[
+                            const SizedBox(height: 2),
+                            AnimatedDefaultTextStyle(
+                              duration: AppMotion.duration(
+                                context,
+                                AppMotion.responsive,
+                              ),
+                              curve: AppMotion.standard,
+                              style: TextStyle(
+                                fontSize: _labelSize,
+                                fontWeight: selection == i
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                                color: selection == i
+                                    ? AppTheme.brand
+                                    : c.textTertiary,
+                              ),
+                              // A wrapped label would outgrow the bar; the tab
+                              // is identified by its icon either way.
+                              child: Text(
+                                items[i].label.l10n(context),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            curve: AppMotion.standard,
-                            style: TextStyle(
-                              fontSize: _labelSize,
-                              fontWeight: selection == i
-                                  ? FontWeight.w600
-                                  : FontWeight.w400,
-                              color: selection == i
-                                  ? AppTheme.brand
-                                  : c.textTertiary,
-                            ),
-                            // A wrapped label would outgrow the bar; the tab
-                            // is identified by its icon either way.
-                            child: Text(
-                              items[i].label.l10n(context),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          ],
                         ],
                       ),
                     ),

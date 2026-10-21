@@ -25,6 +25,8 @@ import 'package:mithka/app/liquid_glass_bottom_bar.dart';
 import 'package:mithka/app/main_tab_view.dart';
 import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
+import 'package:mithka/components/app_icons.dart';
+import 'package:mithka/components/app_interactive_surface.dart';
 import 'package:mithka/components/drawer_controller.dart' as dc;
 import 'package:mithka/l10n/app_locale_controller.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -288,7 +290,109 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  // The glass bar follows the Telegram-iOS tab shape: every slot is an
+  // icon-only target. With the setting on no label is drawn anywhere in the
+  // bar, while the accessible name stays on the slot's AppInteractiveSurface.
+  testWidgets('glass bar draws no tab label and keeps its semantic names', (
+    tester,
+  ) async {
+    await onIOS(() async {
+      await _pumpShell(tester, _phoneSize);
+      final bar = find.byKey(_barKey);
+      expect(bar, findsOneWidget);
+      for (final tab in _tabs) {
+        // No label text inside the bar — 'Messages' only lives in the chat
+        // list's empty state, which sits outside the bar.
+        expect(
+          find.descendant(of: bar, matching: find.text(tab.label)),
+          findsNothing,
+        );
+        expect(
+          semanticLabelOf(tester, ValueKey('bottom-tab-${tab.index}')),
+          tab.label,
+        );
+      }
+      // The icon is what the slot shows, centred in the label's place.
+      expect(
+        find.descendant(of: bar, matching: find.byType(AppIcon)),
+        findsNWidgets(_tabs.length),
+      );
+      // With no label line there is nothing to grow for text scale.
+      final unscaledHeight = tester.getRect(bar).height;
+      tester.binding.platformDispatcher.textScaleFactorTestValue = 2;
+      try {
+        await _pumpShell(tester, _phoneSize);
+        expect(
+          tester.getRect(find.byKey(_barKey)).height,
+          unscaledHeight,
+          reason: 'the icon-only glass row never reserves label height',
+        );
+        expect(tester.takeException(), isNull);
+      } finally {
+        tester.binding.platformDispatcher.clearTextScaleFactorTestValue();
+      }
+      await _dispose(tester);
+    });
+  });
+
+  // Icon-only is deliberate for the glass bar only: the classic bar (the
+  // setting off) keeps its icon + label column at the same row height.
+  testWidgets('classic bar keeps its tab labels when the setting is off', (
+    tester,
+  ) async {
+    await onIOS(() async {
+      await _pumpShell(tester, _phoneSize, liquidGlass: false);
+      final bar = find.byKey(const ValueKey('classic-bottom-bar'));
+      expect(bar, findsOneWidget);
+      expect(find.byKey(_barKey), findsNothing);
+      for (final tab in _tabs) {
+        expect(
+          find.descendant(of: bar, matching: find.text(tab.label)),
+          findsOneWidget,
+        );
+        expect(
+          semanticLabelOf(tester, ValueKey('bottom-tab-${tab.index}')),
+          tab.label,
+        );
+      }
+      // Classic keeps the scaled label line's height: growing the text scale
+      // grows the bar.
+      final unscaledHeight = tester.getRect(bar).height;
+      tester.binding.platformDispatcher.textScaleFactorTestValue = 2;
+      try {
+        await _pumpShell(tester, _phoneSize, liquidGlass: false);
+        final scaled = find.byKey(const ValueKey('classic-bottom-bar'));
+        expect(
+          tester.getRect(scaled).height,
+          greaterThan(unscaledHeight),
+          reason: 'the classic bar still grows for the scaled label line',
+        );
+        expect(tester.takeException(), isNull);
+      } finally {
+        tester.binding.platformDispatcher.clearTextScaleFactorTestValue();
+      }
+      await _dispose(tester);
+    });
+  });
 }
+
+/// The four tabs the shell shows with channels and moments enabled.
+const _tabs = [
+  (index: 0, label: 'Messages'),
+  (index: 1, label: 'Channels'),
+  (index: 2, label: 'Contacts'),
+  (index: 3, label: 'Moments'),
+];
+
+/// The accessible name [AppInteractiveSurface] exposes for the slot [key].
+String? semanticLabelOf(WidgetTester tester, Key key) => tester
+    .widget<AppInteractiveSurface>(
+      find.byWidgetPredicate(
+        (widget) => widget is AppInteractiveSurface && widget.key == key,
+      ),
+    )
+    .semanticLabel;
 
 /// The stadium the glass and the row are clipped into: the bar's pill-radius
 /// ClipRRect, which is the visible capsule rect in every host.
@@ -321,6 +425,7 @@ Future<void> _pumpShell(
   Size size, {
   FakeViewPadding insets = FakeViewPadding.zero,
   TextDirection textDirection = TextDirection.ltr,
+  bool liquidGlass = true,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -334,7 +439,7 @@ Future<void> _pumpShell(
     'showChannelsTab': true,
     'showMomentsTab': true,
     'communitiesEnabled': false,
-    'liquidGlassBottomBar': true,
+    'liquidGlassBottomBar': liquidGlass,
   });
   final prefs = await SharedPreferences.getInstance();
   final theme = ThemeController(prefs);
