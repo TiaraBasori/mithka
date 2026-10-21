@@ -140,11 +140,19 @@ jobs:
 
           source = "ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme"
           tree = ET.parse(source)
-          action = tree.getroot().find("TestAction")
+          root = tree.getroot()
+          action = root.find("TestAction")
           for reference in action.iter("TestableReference"):
               buildable = reference.find("BuildableReference")
               if buildable is None or buildable.get("BlueprintName") != "RunnerTests":
                   action.find("Testables").remove(reference)
+          # BuildAction entries are what a test build actually compiles, so the
+          # UI-test bundle has to go from there too, not just from Testables.
+          build_action = root.find("BuildAction")
+          for entry in list(build_action.iter("BuildActionEntry")):
+              buildable = entry.find("BuildableReference")
+              if buildable is not None and buildable.get("BlueprintName") == "RunnerUITests":
+                  build_action.remove(entry)
           ET.ElementTree(tree.getroot()).write(sys.argv[1], xml_declaration=True, encoding="UTF-8")
           PY
           test -f "$suite"
