@@ -458,6 +458,85 @@ void main() {
         debugDefaultTargetPlatformOverride = null;
       }
     });
+
+    for (final finish in ['cancel', 'dispose']) {
+      for (final hasSeeked in [false, true]) {
+        final stage = hasSeeked ? 'periodic hold' : 'pending dwell';
+        testWidgets('$finish stops a held seek during $stage', (tester) async {
+          tester.view.devicePixelRatio = 1;
+          tester.view.physicalSize = const Size(390, 844);
+          addTearDown(tester.view.resetDevicePixelRatio);
+          addTearDown(tester.view.resetPhysicalSize);
+          final previousPlatform = VideoPlayerPlatform.instance;
+          final platform = _FakeVideoPlatform();
+          VideoPlayerPlatform.instance = platform;
+          debugDefaultTargetPlatformOverride = TargetPlatform.android;
+          try {
+            SharedPreferences.setMockInitialValues(const {});
+            final sourcePath = File('pubspec.yaml').absolute.path;
+            final fileId =
+                940 + (finish == 'dispose' ? 2 : 0) + (hasSeeked ? 1 : 0);
+            await tester.pumpWidget(
+              MaterialApp(
+                locale: const Locale('en'),
+                localizationsDelegates: const [AppLocalizations.delegate],
+                supportedLocales: AppLocalizations.supportedLocales,
+                home: VideoPlayerView(
+                  video: TdFileRef(id: fileId, localPath: sourcePath),
+                  onClose: () {},
+                  streamQuery: _completedVideoQuery(sourcePath, fileId: fileId),
+                ),
+              ),
+            );
+            await _pumpUntilPlayerReady(tester);
+            expect(find.byType(FVideoPlayer), findsOneWidget);
+
+            final hold = await tester.startGesture(const Offset(360, 420));
+            await tester.pump(
+              kLongPressTimeout + const Duration(milliseconds: 60),
+            );
+            await tester.pump();
+            expect(
+              find.byKey(const ValueKey('video-held-seek-indicator')),
+              findsOneWidget,
+            );
+            if (hasSeeked) {
+              await tester.pump(const Duration(milliseconds: 300));
+              await tester.runAsync(
+                () => Future<void>.delayed(const Duration(milliseconds: 20)),
+              );
+              await tester.pump();
+              expect(platform.seekPositions, isNotEmpty);
+            } else {
+              expect(platform.seekPositions, isEmpty);
+            }
+            final countAtEnd = platform.seekPositions.length;
+
+            if (finish == 'dispose') {
+              await tester.pumpWidget(const SizedBox.shrink());
+            }
+            await hold.cancel();
+            await tester.pump(const Duration(seconds: 2));
+            await tester.runAsync(
+              () => Future<void>.delayed(const Duration(milliseconds: 20)),
+            );
+            await tester.pump();
+            expect(platform.seekPositions.length, countAtEnd);
+            expect(
+              find.byKey(const ValueKey('video-held-seek-indicator')),
+              findsNothing,
+            );
+            expect(tester.takeException(), isNull);
+
+            await tester.pumpWidget(const SizedBox.shrink());
+            await tester.pump(const Duration(seconds: 6));
+          } finally {
+            VideoPlayerPlatform.instance = previousPlatform;
+            debugDefaultTargetPlatformOverride = null;
+          }
+        });
+      }
+    }
   });
 }
 
