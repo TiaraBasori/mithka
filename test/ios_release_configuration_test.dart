@@ -102,11 +102,29 @@ void main() {
       lessThan(workflow.indexOf('- name: Archive iOS app')),
     );
 
-    // An fvp that still pins a remote Apple binary target is refused instead
-    // of silently linking the expiring SDK.
+    // An fvp that still pins a remote Apple binary target cannot be filled, so
+    // the helper names the dependency bump and keeps the build's previous
+    // behavior instead of blocking every Apple build on it.
     expect(helper, contains('path: "mdk.xcframework"'));
     expect(helper, contains('predates build-time MDK resolution'));
     expect(helper, contains('mdk_apple_freshness.py'));
+    final pinned = helper.indexOf('predates build-time MDK resolution');
+    final pinBlock = helper.substring(pinned, helper.indexOf('fi', pinned));
+    expect(
+      pinBlock,
+      contains('exit 0'),
+      reason: 'A stale fvp pin must not fail the build it was already in.',
+    );
+    expect(pinBlock, isNot(contains('exit 1')));
+
+    // A genuinely stale SDK is a hard failure, with the QR frame behind an
+    // explicit opt-in.
+    expect(helper, contains('MDK_ALLOW_STALE'));
+    final staleExit = helper.indexOf('MDK_ALLOW_STALE:-0');
+    expect(
+      helper.indexOf(r'exit "$status"', staleExit),
+      greaterThan(staleExit),
+    );
   });
 
   test('macOS builds install a fresh MDK before linking it', () {
