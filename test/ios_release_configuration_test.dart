@@ -78,4 +78,61 @@ void main() {
     expect(prefetch, greaterThan(pubGet));
     expect(configure, greaterThan(prefetch));
   });
+
+  test('iOS builds install a fresh MDK before linking it', () {
+    final script = File('ios/ci_scripts/ci_post_clone.sh').readAsStringSync();
+    final workflow = File(
+      '.github/workflows/ios-testflight.yml',
+    ).readAsStringSync();
+    final helper = File('scripts/refresh-apple-mdk.sh').readAsStringSync();
+
+    // libmdk stops playing 44 days after its own build stamp, so the Apple SDK
+    // is resolved per build. The refresh must follow pub get (which materialises
+    // third_party/fvp) and precede anything that links or packages it.
+    final pubGet = script.indexOf('flutter pub get');
+    final refresh = script.indexOf('scripts/refresh-apple-mdk.sh');
+    expect(refresh, greaterThan(pubGet));
+    expect(refresh, greaterThanOrEqualTo(0));
+
+    // The archive step re-reads the installed copy, so a checkout prepared
+    // earlier in the day cannot be archived after the window closed.
+    expect(workflow, contains('scripts/refresh-apple-mdk.sh check'));
+    expect(
+      workflow.indexOf('refresh-apple-mdk.sh check'),
+      lessThan(workflow.indexOf('- name: Archive iOS app')),
+    );
+
+    // An fvp that still pins a remote Apple binary target is refused instead
+    // of silently linking the expiring SDK.
+    expect(helper, contains('path: "mdk.xcframework"'));
+    expect(helper, contains('predates build-time MDK resolution'));
+    expect(helper, contains('mdk_apple_freshness.py'));
+  });
+
+  test('macOS builds install a fresh MDK before linking it', () {
+    final script = File('ci_scripts/macos_post_clone.sh').readAsStringSync();
+    final workflow = File('.github/workflows/release.yml').readAsStringSync();
+    final appStore = File('scripts/build-ios-appstore.sh').readAsStringSync();
+
+    final pubGet = script.indexOf('flutter pub get');
+    final refresh = script.indexOf('scripts/refresh-apple-mdk.sh');
+    final configOnly = script.indexOf(
+      'flutter build macos --release --config-only',
+    );
+    expect(refresh, greaterThan(pubGet));
+    expect(configOnly, greaterThan(refresh));
+
+    // The GitHub release build runs its own macOS matrix leg.
+    final releaseLeg = workflow.indexOf("- name: Refresh the MDK Apple SDK");
+    expect(releaseLeg, greaterThanOrEqualTo(0));
+    expect(
+      workflow.indexOf("if: matrix.platform == 'macos'", releaseLeg),
+      greaterThan(releaseLeg),
+    );
+
+    expect(
+      appStore.indexOf('scripts/refresh-apple-mdk.sh'),
+      lessThan(appStore.indexOf('flutter build ipa --release')),
+    );
+  });
 }
