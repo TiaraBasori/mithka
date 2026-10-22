@@ -102,29 +102,44 @@ void main() {
       lessThan(workflow.indexOf('- name: Archive iOS app')),
     );
 
-    // An fvp that still pins a remote Apple binary target cannot be filled, so
-    // the helper names the dependency bump and keeps the build's previous
-    // behavior instead of blocking every Apple build on it.
-    expect(helper, contains('path: "mdk.xcframework"'));
-    expect(helper, contains('predates build-time MDK resolution'));
+    // The helper refuses the manifest shape outside build-time resolution and
+    // names the dependency bump, but it must fail rather than return success:
+    // a silent exit 0 leaves the expired pinned SDK in the build (#192).
+    expect(helper, contains('mdk.xcframework'));
+    expect(helper, contains('binary target as a local path'));
+    expect(helper, contains('predates build-time resolution'));
     expect(helper, contains('mdk_apple_freshness.py'));
-    final pinned = helper.indexOf('predates build-time MDK resolution');
-    final pinBlock = helper.substring(pinned, helper.indexOf('fi', pinned));
     expect(
-      pinBlock,
-      contains('exit 0'),
-      reason: 'A stale fvp pin must not fail the build it was already in.',
+      helper,
+      isNot(contains('MDK_ALLOW_STALE')),
+      reason: 'An unusable SDK must not be shippable behind an opt-in.',
     );
-    expect(pinBlock, isNot(contains('exit 1')));
+    expect(
+      helper,
+      isNot(contains('this build links the pin as before')),
+      reason: 'The helper must never fall back to the expired pin.',
+    );
 
-    // A genuinely stale SDK is a hard failure, with the QR frame behind an
-    // explicit opt-in.
-    expect(helper, contains('MDK_ALLOW_STALE'));
-    final staleExit = helper.indexOf('MDK_ALLOW_STALE:-0');
+    // Behaviour lives in scripts/tests/refresh_apple_mdk_test.sh, which runs
+    // the real helper against a stub tool; these are only wiring assertions.
+    final shellTest = File('scripts/tests/refresh_apple_mdk_test.sh');
     expect(
-      helper.indexOf(r'exit "$status"', staleExit),
-      greaterThan(staleExit),
+      shellTest.existsSync(),
+      isTrue,
+      reason: 'The MDK failure paths are covered by the shell test.',
     );
+    final shellTestSource = shellTest.readAsStringSync();
+    expect(shellTestSource, contains('missing freshness tool fails'));
+    expect(shellTestSource, contains('digest mismatch fails'));
+    expect(shellTestSource, contains('below the API floor fails'));
+    expect(
+      shellTestSource,
+      contains('explicit URL with an empty digest fails'),
+    );
+
+    // The honest limit: this fixes builds, not already installed apps.
+    expect(helper, contains('WHAT THIS DOES NOT FIX'));
+    expect(helper, contains('already installed app keeps the stamp'));
   });
 
   test('macOS builds install a fresh MDK before linking it', () {
