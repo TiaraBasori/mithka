@@ -9,9 +9,8 @@
 # define, so a wrapper that invents --sha256 or drops --source fails here.
 #
 # Hermetic: temp dirs only, no network, no flutter/git (the script does not call
-# them; MDK_FVP_ROOT skips .dart_tool/package_config.json). The real tool does
-# not exist in the pinned fvp at the time of writing, so the stub is the only
-# way to exercise these paths without an upstream release.
+# them; MDK_FVP_ROOT skips .dart_tool/package_config.json). Quality CI also runs
+# the helper against the real resolved tool and its verified upstream archive.
 #
 # Usage: bash scripts/tests/refresh_apple_mdk_test.sh
 
@@ -25,6 +24,7 @@ trap 'rm -rf "$WORK"' EXIT INT TERM
 BIN="$WORK/bin"
 REPO="$WORK/repo"
 FVP="$WORK/fvp"
+REAL_PYTHON="$(command -v python3)"
 mkdir -p "$BIN" "$REPO/scripts" "$FVP/darwin/fvp/tool"
 cp "$SCRIPT" "$REPO/scripts/refresh-apple-mdk.sh"
 cmp -s "$SCRIPT" "$REPO/scripts/refresh-apple-mdk.sh" || {
@@ -46,6 +46,11 @@ done
 # --- stub python3: the freshness tool's CLI contract -------------------------
 cat >"$BIN/python3" <<'STUB'
 #!/bin/sh
+# Execute the helper's package-config resolver with real Python. SDK invocations
+# continue through the stub so the failure-path tests remain offline.
+if [ "${1:-}" = "-" ]; then
+  exec "$STUB_REAL_PYTHON" "$@"
+fi
 # Emulates darwin/fvp/tool/mdk_apple_freshness.py. Only the flags the real tool
 # defines are accepted, with argparse's layout: --destination is top-level and
 # must precede the subcommand; --source/--url/--margin-days follow it. Anything
@@ -216,6 +221,7 @@ run() {
     STUB_FACTS="$WORK/facts" \
     STUB_DEFAULT_DIGEST="$DIGEST_OK" \
     STUB_OTHER_DIGEST="$DIGEST_OTHER" \
+    STUB_REAL_PYTHON="$REAL_PYTHON" \
     "$@" sh "$REPO/scripts/refresh-apple-mdk.sh" "$mode" \
     >"$WORK/output" 2>&1
   status=$?
@@ -359,10 +365,20 @@ expect_status "MDK_APPLE_SDK_URL alone selects url mode" 1 \
 fresh_env
 reset_tree
 run refresh STUB_TOOL_MODE=ok \
-  MDK_APPLE_SDK_SOURCE=sourceforge \
+  MDK_APPLE_SDK_SOURCE=upstream \
   MDK_APPLE_SDK_URL=https://example.invalid/mdk.xcframework.zip \
   MDK_APPLE_SDK_SHA256="$DIGEST_OK"
 expect_status "URL plus a non-url source is refused" 2 "ignores it"
+
+fresh_env
+reset_tree
+run refresh STUB_TOOL_MODE=ok MDK_APPLE_SDK_SOURCE=sourceforge
+expect_status "unverified SourceForge resolution is refused" 1 "no verified digest"
+if [ -z "$(calls)" ]; then
+  ok "unverified SourceForge never invokes the tool"
+else
+  bad "unverified SourceForge never invokes the tool"
+fi
 
 # --- 10. API floor violation is caught from the provenance -------------------
 fresh_env
@@ -417,6 +433,33 @@ fresh_env
 reset_tree
 run check STUB_TOOL_MODE=check-stale
 expect_status "check fails on a stale installed SDK" 1 "not usable for this build"
+
+fresh_env
+reset_tree
+run check STUB_TOOL_MODE=ok MDK_FRESHNESS_MARGIN_DAYS=8
+expect_status "check accepts a configured safety margin after the subcommand" 0 \
+  "still inside the 44-day window"
+if [ "$(fact command)" = "check" ] && [ "$(fact margin)" = "8" ]; then
+  ok "check forwards the configured margin"
+else
+  bad "check forwards the configured margin"
+fi
+
+# A relative rootUri is relative to package_config.json, not the repo root.
+fresh_env
+reset_tree
+mkdir -p "$REPO/.dart_tool"
+printf '%s\n' '{"packages":[{"name":"fvp","rootUri":"../../fvp"}]}' \
+  >"$REPO/.dart_tool/package_config.json"
+run refresh STUB_TOOL_MODE=ok MDK_FVP_ROOT=
+expect_status "relative package root resolves from the package-config directory" 0 \
+  "digest and API floor verified"
+if [ "$(fact destination)" = "$FVP/darwin/fvp/mdk.xcframework" ]; then
+  ok "relative package root installs into the resolved dependency"
+else
+  bad "relative package root installs into the resolved dependency"
+fi
+rm -rf "$REPO/.dart_tool"
 
 # --- 14. no resolved fvp and no MDK_FVP_ROOT --------------------------------
 fresh_env

@@ -29,10 +29,11 @@
 #   check   re-verify the installed SDK without downloading anything
 #
 # Environment (refresh unless noted):
-#   MDK_APPLE_SDK_SOURCE     upstream | sourceforge | url. Defaults to url when
+#   MDK_APPLE_SDK_SOURCE     upstream | url. Defaults to url when
 #                            MDK_APPLE_SDK_URL is set, upstream otherwise.
-#                            Passed to the tool as --source: the tool defaults
-#                            to upstream and does not read this variable.
+#                            Passed to the tool as --source. Automatic
+#                            SourceForge downloads are refused without a
+#                            verified digest; use url mode for a vetted nightly.
 #   MDK_APPLE_SDK_URL        explicit https:// archive; only valid in url mode,
 #                            and setting it on its own selects url mode.
 #                            Passed as --url.
@@ -89,6 +90,7 @@ if [ -z "$FVP_ROOT" ]; then
   FVP_ROOT="$(
     python3 - "$PACKAGE_CONFIG" <<'PY'
 import json
+import os
 import sys
 import urllib.parse
 
@@ -106,7 +108,9 @@ parsed = urllib.parse.urlparse(root)
 if parsed.scheme == "file":
     print(urllib.parse.unquote(parsed.path))
 elif parsed.scheme == "":
-    print(urllib.parse.unquote(root))
+    print(os.path.abspath(os.path.join(
+        os.path.dirname(sys.argv[1]), urllib.parse.unquote(root)
+    )))
 else:
     raise SystemExit(f"fvp resolves to an unsupported URI: {root}")
 PY
@@ -161,19 +165,20 @@ if [ "$MODE" = "refresh" ]; then
     if [ -n "$URL" ]; then SOURCE=url; else SOURCE=upstream; fi
   fi
   case "$SOURCE" in
-    upstream|sourceforge|url) ;;
-    *) usage_error "MDK_APPLE_SDK_SOURCE=$SOURCE is not upstream, sourceforge or url" ;;
+    upstream|url) ;;
+    sourceforge) die "automatic SourceForge resolution has no verified digest; use url mode with MDK_APPLE_SDK_SHA256" ;;
+    *) usage_error "MDK_APPLE_SDK_SOURCE=$SOURCE is not upstream or url" ;;
   esac
 
   if [ "$SOURCE" = "url" ]; then
     [ -n "$URL" ] || die "MDK_APPLE_SDK_SOURCE=url requires MDK_APPLE_SDK_URL"
     case "$URL" in
       https://?*) ;;
-      *) die "MDK_APPLE_SDK_URL must be an https:// archive, got: $URL" ;;
+      *) die "MDK_APPLE_SDK_URL must be an https:// archive" ;;
     esac
     [ -n "$SHA" ] || die "MDK_APPLE_SDK_SOURCE=url requires MDK_APPLE_SDK_SHA256 (64 hex characters); refusing to install an archive with no expected digest"
     case "$SHA" in
-      *[!0-9a-fA-F]*) die "MDK_APPLE_SDK_SHA256 must be 64 hex characters, got: $SHA" ;;
+      *[!0-9a-fA-F]*) die "MDK_APPLE_SDK_SHA256 must be 64 hex characters" ;;
     esac
     [ "${#SHA}" -eq 64 ] || die "MDK_APPLE_SDK_SHA256 must be 64 hex characters, got ${#SHA}"
     SHA="$(printf '%s' "$SHA" | tr 'A-F' 'a-f')"
@@ -238,12 +243,10 @@ if [ "$MODE" = "refresh" ]; then
   echo "Installed MDK $sdk_version ($(basename "$FVP_ROOT")), digest and API floor verified"
 else
   echo "Verifying the installed MDK Apple SDK"
-  set -- --destination "$FRAMEWORK"
+  set -- --destination "$FRAMEWORK" check
   if [ -n "${MDK_FRESHNESS_MARGIN_DAYS:-}" ]; then
     set -- "$@" --margin-days "$MDK_FRESHNESS_MARGIN_DAYS"
   fi
-  set -- "$@" check
-
   set +e
   python3 "$TOOL" "$@"
   status=$?
