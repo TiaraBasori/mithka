@@ -26,6 +26,7 @@ import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/country_flag.dart';
 import '../components/ui_components.dart';
+import '../platform/ohos_support.dart';
 import '../profile/profile_proxy_button.dart';
 import '../settings/account_backup_view.dart';
 import '../settings/api_credentials_view.dart';
@@ -110,7 +111,7 @@ class _LoginViewState extends State<LoginView> {
   void initState() {
     super.initState();
     unawaited(_loadBotEndpoint());
-    if (Platform.isIOS || Platform.isAndroid) {
+    if (isMobilePlatform) {
       unawaited(_initializeBackupConsent());
       unawaited(_loadRestorableBackupCount());
     }
@@ -1149,7 +1150,7 @@ class _LoginViewState extends State<LoginView> {
             enabled: !auth.isWorking,
             onTap: () => _requestQrLogin(auth),
           ),
-        if (showingPhone && (Platform.isIOS || Platform.isAndroid))
+        if (showingPhone && isMobilePlatform)
           _loginIconButton(
             icon: HeroAppIcons.key,
             tooltip: AppStrings.t(AppStringKeys.accountBackupRestoreAccount),
