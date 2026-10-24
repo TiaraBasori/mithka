@@ -38,6 +38,7 @@ jobs:
           EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
+          git show --no-patch --format='%H %P' HEAD
           test "$(git rev-parse HEAD)" = "$EXPECTED_MERGE"
           if [ -n "$EXPECTED_HEAD" ]; then
             test "$(git rev-parse HEAD^1)" = "$EXPECTED_BASE"
