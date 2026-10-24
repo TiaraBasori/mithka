@@ -6912,24 +6912,45 @@ class _ChatViewState extends State<ChatView> {
     }
   }
 
+  List<ChatMessage> _messagesForForward(ChatMessage message) {
+    if (message.mediaAlbumId == 0 ||
+        !context.read<ThemeController>().groupImageMessages) {
+      return [message];
+    }
+    for (final entry in _transcriptEntries(true)) {
+      if (entry.isImageGroup &&
+          entry.messages.any((candidate) => candidate.id == message.id)) {
+        return entry.messages;
+      }
+    }
+    return [message];
+  }
+
   Future<void> _forwardMessage(ChatMessage message) async {
     if (!_vm.canForwardContent) {
       _showForwardFailure(const ForwardBlockedException());
       return;
     }
+    final messageIds = _messagesForForward(
+      message,
+    ).map((candidate) => candidate.id).toList();
     final result = await Navigator.of(context).push<ChatPickerResult>(
       MaterialPageRoute(
         builder: (_) => ChatPickerView(
           title: AppStringKeys.chatForwardToTitle,
           showForwardOptions: true,
-          markdownOffer: _forwardMarkdownOffer([message.id]),
+          markdownOffer: _forwardMarkdownOffer(messageIds),
         ),
       ),
     );
     if (result == null || !mounted) return;
     final target = result.chat;
     try {
-      await _vm.forward(message.id, target.id, options: result.forwardOptions);
+      await _vm.forwardMany(
+        messageIds,
+        target.id,
+        options: result.forwardOptions,
+      );
       if (!mounted) return;
       showToast(
         context,
