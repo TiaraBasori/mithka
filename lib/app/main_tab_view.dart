@@ -13,6 +13,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart' show CustomSemanticsAction;
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -71,6 +72,14 @@ import 'unread_badge_model.dart';
 @visibleForTesting
 bool desktopChatKindUsesContextPane(ChatKind? kind) =>
     kind == ChatKind.group || kind == ChatKind.channel;
+
+/// Global navigator keys for the per-tab navigators, exposed for tests that
+/// need to push or inspect a tab's nested route stack.
+@visibleForTesting
+final List<GlobalKey<NavigatorState>> debugTabNavigatorKeys = List.generate(
+  4,
+  (_) => GlobalKey<NavigatorState>(),
+);
 
 class MainTabView extends StatefulWidget {
   const MainTabView({super.key});
@@ -360,10 +369,7 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
   void _toggleContextPane() =>
       setState(() => _contextPaneShown = !_contextPaneShown);
 
-  late final List<GlobalKey<NavigatorState>> _navKeys = List.generate(
-    4,
-    (_) => GlobalKey<NavigatorState>(),
-  );
+  late final List<GlobalKey<NavigatorState>> _navKeys = debugTabNavigatorKeys;
 
   static const _allTabs = [
     _MainTabItem(0, AppStringKeys.tabMessages, HeroAppIcons.solidMessage),
@@ -650,7 +656,9 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
         child: PopScope(
           canPop: false,
           onPopInvokedWithResult: (didPop, _) async {
-            if (!didPop) await _onWillPop();
+            if (!didPop && await _onWillPop()) {
+              await SystemNavigator.pop();
+            }
           },
           child: _rootStack(),
         ),
