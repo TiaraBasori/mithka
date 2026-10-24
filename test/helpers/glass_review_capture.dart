@@ -8,9 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 const captureGlassReview = bool.fromEnvironment('CAPTURE_GLASS_REVIEW');
 const _imageKey = ValueKey('glass-review-image');
 
-Widget glassReviewBoundary(Widget child) => captureGlassReview
-    ? RepaintBoundary(key: _imageKey, child: child)
-    : child;
+Widget glassReviewBoundary(Widget child) =>
+    captureGlassReview ? RepaintBoundary(key: _imageKey, child: child) : child;
 
 Future<void> captureGlassReviewImage(WidgetTester tester, String name) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(

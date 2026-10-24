@@ -422,58 +422,60 @@ void main() {
     expect(blur().filter.toString(), contains('ImageFilter.blur(24.0, 24.0'));
     expect(tester.takeException(), isNull);
   });
-  testWidgets('capture patterned glass surfaces for visual review', (
-    tester,
-  ) async {
-    for (final scene in [
-      (name: 'capsule-light', dark: false, highContrast: false),
-      (name: 'capsule-dark', dark: true, highContrast: false),
-      (name: 'capsule-high-contrast', dark: false, highContrast: true),
-    ]) {
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData(
-            brightness: scene.dark ? Brightness.dark : Brightness.light,
-            extensions: [scene.dark ? AppColors.dark : AppColors.light],
-          ),
-          home: Scaffold(
-            body: Center(
-              child: glassReviewBoundary(
-                SizedBox(
-                  width: 390,
-                  height: 180,
-                  child: MediaQuery(
-                    data: MediaQueryData(highContrast: scene.highContrast),
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: CustomPaint(painter: _ReviewBackdrop()),
-                        ),
-                        const Align(
-                          alignment: Alignment.bottomCenter,
-                          child: LiquidGlassBottomBar(
-                            selection: 1,
-                            itemCount: 4,
-                            child: SizedBox(
-                              height: 62,
-                              width: double.infinity,
+  testWidgets(
+    'capture patterned glass surfaces for visual review',
+    (tester) async {
+      for (final scene in [
+        (name: 'capsule-light', dark: false, highContrast: false),
+        (name: 'capsule-dark', dark: true, highContrast: false),
+        (name: 'capsule-high-contrast', dark: false, highContrast: true),
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: ThemeData(
+              brightness: scene.dark ? Brightness.dark : Brightness.light,
+              extensions: [scene.dark ? AppColors.dark : AppColors.light],
+            ),
+            home: Scaffold(
+              body: Center(
+                child: glassReviewBoundary(
+                  SizedBox(
+                    width: 390,
+                    height: 180,
+                    child: MediaQuery(
+                      data: MediaQueryData(highContrast: scene.highContrast),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: CustomPaint(painter: _ReviewBackdrop()),
+                          ),
+                          const Align(
+                            alignment: Alignment.bottomCenter,
+                            child: LiquidGlassBottomBar(
+                              selection: 1,
+                              itemCount: 4,
+                              child: SizedBox(
+                                height: 62,
+                                width: double.infinity,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(seconds: 1));
-      await captureGlassReviewImage(tester, scene.name);
-    }
-  }, skip: !captureGlassReview);
+        );
+        await tester.pump();
+        await tester.pump(const Duration(seconds: 1));
+        await captureGlassReviewImage(tester, scene.name);
+      }
+    },
+    skip: !captureGlassReview,
+  );
 }
 
 class _ReviewBackdrop extends CustomPainter {

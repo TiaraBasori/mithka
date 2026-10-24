@@ -382,16 +382,8 @@ void main() {
         tester.binding.platformDispatcher.clearPlatformBrightnessTestValue,
       );
       for (final scene in [
-        (
-          name: 'phone-light',
-          size: _phoneSize,
-          brightness: Brightness.light,
-        ),
-        (
-          name: 'phone-dark',
-          size: _phoneSize,
-          brightness: Brightness.dark,
-        ),
+        (name: 'phone-light', size: _phoneSize, brightness: Brightness.light),
+        (name: 'phone-dark', size: _phoneSize, brightness: Brightness.dark),
         (
           name: 'tablet-light',
           size: const Size(900, 800),
