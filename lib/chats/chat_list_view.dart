@@ -2934,7 +2934,10 @@ class _ChatListViewState extends State<ChatListView>
                       : listIndex;
                   final entry = entries[entryIndex];
                   return switch (entry) {
-                    CommunityChatEntry(:final chat) => _peekRow(chat),
+                    CommunityChatEntry(:final chat) => _peekRow(
+                      chat,
+                      filter.folderId,
+                    ),
                     CommunityGroupEntry() => _communityRow(entry),
                   };
                 },
@@ -2946,7 +2949,7 @@ class _ChatListViewState extends State<ChatListView>
     );
   }
 
-  Widget _peekRow(ChatSummary chat) {
+  Widget _peekRow(ChatSummary chat, int? folderId) {
     final selected = widget.selectedChatId == chat.id;
     return ChatListSelectionHighlight(
       key: ValueKey(chat.id),
@@ -2954,6 +2957,9 @@ class _ChatListViewState extends State<ChatListView>
       child: ChatRowView(
         chat: chat,
         selected: selected,
+        pinned: folderId == null
+            ? null
+            : _model.isPinnedInFolder(chat, folderId),
         avatarBadge: _communityBadge(
           chat,
           communitiesEnabled: context
@@ -3244,7 +3250,9 @@ class _ChatListViewState extends State<ChatListView>
       mode: swipeMode,
       multiTouchActive: _chatListSwipeSession.suppressRowSwipes,
     );
-    final actions = chat.isPinned
+    // The pin state of the list the user is looking at, not the Main list's.
+    final pinnedInList = _model.isPinnedInSelectedList(chat);
+    final actions = pinnedInList
         ? [
             SwipeActionItem(
               title: AppStringKeys.chatListMarkUnread,
@@ -3302,6 +3310,7 @@ class _ChatListViewState extends State<ChatListView>
         child: ChatRowView(
           chat: chat,
           selected: selected,
+          pinned: _model.isPinnedInSelectedList(chat),
           onClearUnread: () => _model.markRead(chat),
           avatarBadge: _communityBadge(
             chat,
@@ -3340,10 +3349,11 @@ class _ChatListViewState extends State<ChatListView>
     }
 
     final owner = ChatPreviewAccounts.defaultPreviewAccounts.pinActiveOwner();
+    final pinnedInList = _model.isPinnedInSelectedList(chat);
     entry = OverlayEntry(
       builder: (_) => DesktopChatContextMenu(
         anchor: anchor,
-        isPinned: chat.isPinned,
+        isPinned: pinnedInList,
         hasUnread: chat.unreadCount > 0 || chat.isMarkedUnread,
         isMuted: chat.isMuted,
         deleteOrLeaveLabel: _deleteOrLeaveTitle(chat),
@@ -3393,6 +3403,8 @@ class _ChatListViewState extends State<ChatListView>
   void _showChatPreview(ChatSummary chat) {
     if (_openSwipeChat != null) setState(() => _openSwipeChat = null);
     final hasUnread = chat.unreadCount > 0 || chat.isMarkedUnread;
+    // The preview's pin label/icon follow the list the row was opened from.
+    final pinnedInList = _model.isPinnedInSelectedList(chat);
     final accounts = context.read<AccountStore>();
     final activeAccount = accounts.activeSummary;
     final avatarPath = activeAccount?.avatarPath?.trim();
@@ -3405,6 +3417,7 @@ class _ChatListViewState extends State<ChatListView>
         mePhoto: avatarPath == null || avatarPath.isEmpty
             ? null
             : TdFileRef(id: 0, localPath: avatarPath),
+        pinned: pinnedInList,
         actions: [
           if (chatListPreviewSupportsQuickReply(chat))
             ChatListPreviewAction(
@@ -3426,7 +3439,7 @@ class _ChatListViewState extends State<ChatListView>
                 hasUnread ? _model.markRead(chat) : _model.markUnread(chat),
           ),
           ChatListPreviewAction(
-            label: chat.isPinned
+            label: pinnedInList
                 ? AppStringKeys.chatListUnpin
                 : AppStringKeys.chatInfoPin,
             icon: HeroAppIcons.thumbtack,
