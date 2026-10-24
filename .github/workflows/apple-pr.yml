@@ -88,7 +88,6 @@ jobs:
           sh scripts/refresh-apple-mdk.sh refresh
           sh scripts/refresh-apple-mdk.sh check
           flutter precache --ios
-          flutter build ios --config-only --debug --no-codesign
 
       - name: Capture the production glass widgets for review
         run: |
@@ -107,6 +106,10 @@ jobs:
 
       - name: Install CocoaPods dependencies
         run: |
+          # Widget tests regenerate FlutterGeneratedPluginSwiftPackage with
+          # Flutter's default iOS floor. Reapply the project's iOS 15 floor
+          # after those tests, before invoking Xcode directly.
+          flutter build ios --config-only --debug --no-codesign
           cd ios
           pod install --repo-update
 

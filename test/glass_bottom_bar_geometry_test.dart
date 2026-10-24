@@ -63,7 +63,8 @@ void main() {
     await TdClient.shared.closeProxy();
     await updates.close();
   });
-  setUpAll(() {
+  setUpAll(() async {
+    await loadGlassReviewIconFonts();
     TdClient.shared.configureProxy(
       TdClientProxyTransport(
         accountSlot: 0,
