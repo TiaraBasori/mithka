@@ -44,6 +44,7 @@ class ChatRowView extends StatelessWidget {
     this.avatarBadge,
     this.titleTrailing,
     this.trailingIndicator,
+    this.pinned,
   });
   final ChatSummary chat;
   final bool archived;
@@ -56,6 +57,12 @@ class ChatRowView extends StatelessWidget {
   final Widget? avatarBadge;
   final Widget? titleTrailing;
   final Widget? trailingIndicator;
+
+  /// Pin state for the list this row is rendered in. Null keeps the Main
+  /// list's [ChatSummary.isPinned]; a folder projection passes its own value
+  /// so the two lists never share one flag.
+  final bool? pinned;
+  bool get _pinned => pinned ?? chat.isPinned;
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +103,7 @@ class ChatRowView extends StatelessWidget {
       height: rowHeight,
       color: selected
           ? c.listHeaderTint
-          : (chat.isPinned ? c.pinnedRow : c.background),
+          : (_pinned ? c.pinnedRow : c.background),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Row(
         children: [
@@ -338,15 +345,15 @@ class ChatRowView extends StatelessWidget {
                     ),
                   if ((chat.unreadMentionCount > 0 ||
                           chat.unreadReactionCount > 0) &&
-                      (chat.isPinned || chat.isMuted))
+                      (_pinned || chat.isMuted))
                     const SizedBox(width: AppSpacing.xs),
-                  if (chat.isPinned)
+                  if (_pinned)
                     AppPinIcon(
                       key: const ValueKey('chat-row-pinned'),
                       size: AppIconSize.sm,
                       color: c.textTertiary,
                     ),
-                  if (chat.isPinned && chat.isMuted)
+                  if (_pinned && chat.isMuted)
                     const SizedBox(width: AppSpacing.xs),
                   if (chat.isMuted)
                     AppIcon(
@@ -355,7 +362,7 @@ class ChatRowView extends StatelessWidget {
                       size: AppIconSize.sm,
                       color: c.textTertiary,
                     ),
-                  if ((chat.isPinned || chat.isMuted) &&
+                  if ((_pinned || chat.isMuted) &&
                       showTrailingIndicator &&
                       trailingIndicator != null)
                     const SizedBox(width: AppSpacing.xs),
