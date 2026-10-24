@@ -272,14 +272,15 @@ void main() {
 
     expect(toolbar, findsOneWidget);
     expect(input, findsOneWidget);
-    expect(tester.getSize(toolbar).height, 41);
+    // Compact, but every toolbar action keeps a 44-point hit target.
+    expect(tester.getSize(toolbar).height, 51);
     expect(
       tester.getTopLeft(toolbar).dy,
       lessThan(tester.getTopLeft(input).dy),
     );
     expect(
       tester.getSize(find.byKey(const ValueKey('desktopComposerMediaAction'))),
-      const Size.square(32),
+      const Size.square(44),
     );
     final richTextAction = find.byKey(
       const ValueKey('desktopComposerRichTextAction'),
