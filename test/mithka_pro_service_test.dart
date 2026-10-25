@@ -24,6 +24,7 @@ void main() {
       gateway: _FakeGateway(distribution: 'apk', failProducts: true),
     );
 
+    addTearDown(service.dispose);
     await expectLater(service.initialize(), completes);
     expect(service.initialized, isTrue);
     expect(service.state.distribution, MithkaDistribution.apk);
@@ -35,6 +36,7 @@ void main() {
       gateway: _FakeGateway(distribution: 'app_store', failState: true),
     );
 
+    addTearDown(service.dispose);
     await expectLater(service.initialize(), completes);
     expect(service.initialized, isFalse);
   });
@@ -42,6 +44,7 @@ void main() {
   test('products and purchase use the fixed Mithka Pro identifiers', () async {
     final gateway = _FakeGateway(distribution: 'app_store');
     final service = MithkaProService(gateway: gateway);
+    addTearDown(service.dispose);
     await service.initialize();
 
     expect(service.products.map((product) => product.id), [
@@ -96,7 +99,7 @@ class _FakeGateway implements MithkaProGateway {
         'id': mithkaProYearlyProductId,
         'title': 'Yearly',
         'description': 'Yearly plan',
-        'displayPrice': r'$4.99',
+        'displayPrice': r'$3.99',
         'period': 'yearly',
       },
       {

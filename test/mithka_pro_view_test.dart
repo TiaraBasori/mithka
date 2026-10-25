@@ -30,15 +30,15 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text(r'$0.69 per month'), findsOneWidget);
-    expect(find.text(r'$4.99 per year'), findsOneWidget);
+    expect(find.text(r'$0.69 / month'), findsOneWidget);
+    expect(find.text(r'$3.99 / year'), findsOneWidget);
     expect(find.byType(AppCheckbox), findsNWidgets(2));
     expect(find.byType(Checkbox), findsNothing);
     expect(find.byType(Switch), findsNothing);
     expect(find.byType(Radio<String>), findsNothing);
-    expect(find.text('Support Mithka development'), findsOneWidget);
+    expect(find.text('Support Mithka'), findsOneWidget);
     expect(
-      find.text('The warm feeling that you supported the development.'),
+      find.text('Help support Mithka and unlock 12 extra penguin icons.'),
       findsOneWidget,
     );
     expect(find.text('Unlimited cloud session syncs'), findsNothing);
@@ -198,7 +198,7 @@ class _ViewGateway implements MithkaProGateway {
       'id': mithkaProYearlyProductId,
       'title': 'Yearly',
       'description': '',
-      'displayPrice': r'$4.99',
+      'displayPrice': r'$3.99',
       'period': 'yearly',
     },
   ];
