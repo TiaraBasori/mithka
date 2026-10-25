@@ -3354,6 +3354,7 @@
     <string name="suggestedPostTonAmount">TON amount</string>
     <string name="supporterBillingNoticeGoogle">確認時に Google Play アカウントに請求されます。解約しない限り自動更新されます。Google Play のアカウント設定で登録の管理・解約ができます。</string>
     <string name="supporterCancellation">解約しても、お支払い済みの期間が終了するまでサポーターは有効です。</string>
+    <string name="supporterFunctionalAccess">Supporter adds cosmetic extras. All other features are the same.</string>
     <string name="supporterIconAccess">登録が終了しても、現在のアイコンはそのままです。サポーターアイコンを再選択したり、別のものに変更するには有効な登録が必要です。無料アイコンはいつでも使えます。</string>
     <string name="supporterIconAccessibility">{value1}、アプリアイコン、{value2}</string>
     <string name="supporterIconAvailable">利用可能</string>

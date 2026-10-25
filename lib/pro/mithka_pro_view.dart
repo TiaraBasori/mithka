@@ -130,16 +130,22 @@ class _MithkaProViewState extends State<MithkaProView> {
     super.dispose();
   }
 
-  Future<void> _purchase(MithkaProService service) async {
+  Future<void> _purchase(
+    MithkaProService service, {
+    bool manageOnly = false,
+  }) async {
+    final managing = manageOnly || service.isPro;
     if (_operationInFlight ||
         _completed ||
         service.working ||
-        !service.storeAvailable) {
+        !(managing
+            ? service.canManageSubscriptions
+            : service.canMakePayments)) {
       return;
     }
     final token = _beginOperation(restoring: false);
     try {
-      if (service.isPro) {
+      if (managing) {
         await service.manage(productId: _selectedProductId);
         if (_acceptOperation(token)) _operationInFlight = false;
       } else {
@@ -174,7 +180,7 @@ class _MithkaProViewState extends State<MithkaProView> {
     if (_operationInFlight ||
         _completed ||
         service.working ||
-        !service.storeAvailable) {
+        !service.canRestore) {
       return;
     }
     final token = _beginOperation(restoring: true);
@@ -224,6 +230,7 @@ class _MithkaProViewState extends State<MithkaProView> {
       child: SettingsListView(
         children: [
           _hero(service),
+          _notice(AppStringKeys.supporterFunctionalAccess),
           const SizedBox(height: 14),
           SettingsPanel(
             clipBehavior: Clip.antiAlias,
@@ -267,7 +274,9 @@ class _MithkaProViewState extends State<MithkaProView> {
           const SizedBox(height: 14),
           _purchaseButton(service),
           const SizedBox(height: 6),
-          _restoreButton(service),
+          _accountButton(service),
+          if (!service.isPro && service.canManageSubscriptions)
+            _accountButton(service, manage: true),
           if (_statusKey != null) _notice(_statusKey!),
           if (service.working)
             _notice(
@@ -596,9 +605,11 @@ class _MithkaProViewState extends State<MithkaProView> {
 
   Widget _purchaseButton(MithkaProService service) {
     final enabled =
-        service.storeAvailable &&
         !service.working &&
-        (service.isPro || service.product(_selectedProductId) != null);
+        (service.isPro
+            ? service.canManageSubscriptions
+            : service.canMakePayments &&
+                  service.product(_selectedProductId) != null);
     return Semantics(
       button: true,
       enabled: enabled,
@@ -621,7 +632,7 @@ class _MithkaProViewState extends State<MithkaProView> {
                     AppStrings.t(
                       service.isPro
                           ? AppStringKeys.mithkaProManagePlan
-                          : service.storeAvailable
+                          : service.canMakePayments
                           ? AppStringKeys.mithkaProContinue
                           : AppStringKeys.mithkaProStoreUnavailable,
                     ),
@@ -637,19 +648,31 @@ class _MithkaProViewState extends State<MithkaProView> {
     );
   }
 
-  Widget _restoreButton(MithkaProService service) {
+  Widget _accountButton(MithkaProService service, {bool manage = false}) {
     final c = context.colors;
-    final enabled = service.storeAvailable && !service.working;
+    final enabled =
+        !service.working &&
+        (manage ? service.canManageSubscriptions : service.canRestore);
     return Semantics(
       button: true,
       enabled: enabled,
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: enabled ? () => unawaited(_restore(service)) : null,
+        onTap: enabled
+            ? () => unawaited(
+                manage
+                    ? _purchase(service, manageOnly: true)
+                    : _restore(service),
+              )
+            : null,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Text(
-            AppStrings.t(AppStringKeys.mithkaProRestore),
+            AppStrings.t(
+              manage
+                  ? AppStringKeys.mithkaProManagePlan
+                  : AppStringKeys.mithkaProRestore,
+            ),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,

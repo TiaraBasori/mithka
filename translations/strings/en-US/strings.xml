@@ -3365,6 +3365,7 @@
     <string name="suggestedPostTonAmount">TON amount</string>
     <string name="supporterBillingNoticeGoogle">Payment is charged to your Google Play account when you confirm. Your subscription renews automatically unless canceled. Manage or cancel your subscription in your Google Play account settings.</string>
     <string name="supporterCancellation">If you cancel, Supporter stays active until the end of your paid period.</string>
+    <string name="supporterFunctionalAccess">Supporter adds cosmetic extras. All other features are the same.</string>
     <string name="supporterIconAccess">If your subscription ends, your current icon stays. An active subscription is needed to choose a Supporter icon again or switch to another one. Free icons are always available.</string>
     <string name="supporterIconAccessibility">{value1}, app icon, {value2}</string>
     <string name="supporterIconAvailable">Available</string>

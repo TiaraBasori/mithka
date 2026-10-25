@@ -266,6 +266,7 @@ abstract final class AppStringKeys {
   static const appIconWinter = 'appIconWinter';
   static const supporterBillingNoticeGoogle = 'supporterBillingNoticeGoogle';
   static const supporterCancellation = 'supporterCancellation';
+  static const supporterFunctionalAccess = 'supporterFunctionalAccess';
   static const supporterIconAccess = 'supporterIconAccess';
   static const supporterIconAccessibility = 'supporterIconAccessibility';
   static const supporterIconAvailable = 'supporterIconAvailable';

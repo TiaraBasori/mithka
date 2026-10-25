@@ -537,6 +537,10 @@ class MithkaProPlugin(
         available: Boolean = storeAvailable,
     ): Map<String, Any?> = buildMap {
         put("storeAvailable", available && distribution == DISTRIBUTION_PLAY_STORE)
+        // Keep Play's connection/distribution requirement for new payments.
+        put("canMakePayments", available && distribution == DISTRIBUTION_PLAY_STORE)
+        // Opening account management does not require a BillingClient connection.
+        put("canManageSubscriptions", distribution == DISTRIBUTION_PLAY_STORE)
         put("isPro", active)
         put("distribution", distribution)
         if (status != null) put("status", status)

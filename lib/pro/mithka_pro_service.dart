@@ -39,17 +39,24 @@ class MithkaProState {
     required this.storeAvailable,
     required this.isPro,
     required this.distribution,
+    bool? canMakePayments,
+    bool? canManageSubscriptions,
     this.expirationDate,
-  });
+  }) : canMakePayments = canMakePayments ?? storeAvailable,
+       canManageSubscriptions = canManageSubscriptions ?? storeAvailable;
 
   const MithkaProState.development()
     : storeAvailable = false,
+      canMakePayments = false,
+      canManageSubscriptions = false,
       isPro = false,
       distribution = MithkaDistribution.development,
       expirationDate = null;
 
   const MithkaProState.uninitialized()
     : storeAvailable = false,
+      canMakePayments = false,
+      canManageSubscriptions = false,
       isPro = false,
       distribution = MithkaDistribution.unknown,
       expirationDate = null;
@@ -59,6 +66,12 @@ class MithkaProState {
     final distribution = MithkaDistribution.parse(map['distribution']);
     return MithkaProState(
       storeAvailable: map['storeAvailable'] == true,
+      canMakePayments: map.containsKey('canMakePayments')
+          ? map['canMakePayments'] == true
+          : null,
+      canManageSubscriptions: map.containsKey('canManageSubscriptions')
+          ? map['canManageSubscriptions'] == true
+          : null,
       isPro: map['isPro'] == true,
       distribution: distribution,
       expirationDate: expirationMillis == null || expirationMillis <= 0
@@ -68,6 +81,8 @@ class MithkaProState {
   }
 
   final bool storeAvailable;
+  final bool canMakePayments;
+  final bool canManageSubscriptions;
   final bool isPro;
   final MithkaDistribution distribution;
   final DateTime? expirationDate;
@@ -212,7 +227,17 @@ class MithkaProService extends ChangeNotifier {
   bool get mobileSupporterAvailable =>
       supporterIconsAvailableForPlatform(_platform);
   bool get isAppleStore => _platform == TargetPlatform.iOS;
-  bool get storeAvailable => mobileSupporterAvailable && _state.storeAvailable;
+  bool get storeAvailable =>
+      mobileSupporterAvailable &&
+      !_disposed &&
+      _verified &&
+      _state.storeAvailable;
+  bool get canMakePayments => storeAvailable && _state.canMakePayments;
+  bool get canRestore => storeAvailable;
+  // Management can open the provider's account UI even when billing is offline.
+  // It grants no entitlement; native code still checks for a scene/URL handler.
+  bool get canManageSubscriptions =>
+      mobileSupporterAvailable && !_disposed && _state.canManageSubscriptions;
   bool get isPro =>
       mobileSupporterAvailable &&
       _verified &&
@@ -324,12 +349,14 @@ class MithkaProService extends ChangeNotifier {
         productId != mithkaProYearlyProductId) {
       throw ArgumentError.value(productId, 'productId');
     }
-    if (_working || !storeAvailable || product(productId) == null) return false;
+    if (_working || !canMakePayments || product(productId) == null) {
+      return false;
+    }
     return _transaction(() => _gateway.purchase(productId));
   }
 
   Future<bool> restore() async {
-    if (_working || !storeAvailable) return false;
+    if (_working || !canRestore) return false;
     return _transaction(_gateway.restore);
   }
 
@@ -350,7 +377,7 @@ class MithkaProService extends ChangeNotifier {
   }
 
   Future<void> manage({String? productId}) async {
-    if (_working || !storeAvailable) return;
+    if (_working || !canManageSubscriptions) return;
     await _transaction(() => _gateway.manage(productId: productId));
   }
 

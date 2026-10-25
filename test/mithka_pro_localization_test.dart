@@ -34,6 +34,7 @@ void main() {
       'mithkaProTerms',
       'mithkaProTitle',
       'mithkaProYearly',
+      'supporterFunctionalAccess',
       'supporterIcons',
       'supporterIconsBenefit',
       'supporterIconsMobileBenefit',
@@ -106,6 +107,17 @@ void main() {
           reason: '${entry.key} needs native support copy',
         );
       }
+    }
+
+    expect(
+      fixtures.messages('en')['supporterFunctionalAccess'],
+      'Supporter adds cosmetic extras. All other features are the same.',
+    );
+    for (final locale in ['zhHans', 'zhHant']) {
+      expect(
+        fixtures.messages(locale)['supporterFunctionalAccess'],
+        isNot(fixtures.messages('en')['supporterFunctionalAccess']),
+      );
     }
 
     expect(

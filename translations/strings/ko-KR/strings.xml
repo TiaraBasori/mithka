@@ -3354,6 +3354,7 @@
     <string name="suggestedPostTonAmount">TON amount</string>
     <string name="supporterBillingNoticeGoogle">확인 시 Google Play 계정으로 요금이 청구됩니다. 취소하지 않으면 자동 갱신됩니다. Google Play 계정 설정에서 구독을 관리하거나 취소할 수 있습니다.</string>
     <string name="supporterCancellation">구독을 취소해도 결제한 기간이 끝날 때까지 서포터가 유지됩니다.</string>
+    <string name="supporterFunctionalAccess">Supporter adds cosmetic extras. All other features are the same.</string>
     <string name="supporterIconAccess">구독이 끝나도 현재 아이콘은 유지됩니다. 서포터 아이콘을 다시 선택하거나 다른 서포터 아이콘으로 바꾸려면 활성 구독이 필요합니다. 무료 아이콘은 항상 이용할 수 있습니다.</string>
     <string name="supporterIconAccessibility">{value1}, 앱 아이콘, {value2}</string>
     <string name="supporterIconAvailable">사용 가능</string>

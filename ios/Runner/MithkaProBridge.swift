@@ -94,6 +94,9 @@ final class MithkaProBridge {
 
   private func purchase(productID: String, result: @escaping FlutterResult) async {
     do {
+      guard AppStore.canMakePayments else {
+        throw ProPurchaseError.paymentsNotAllowed
+      }
       guard let product = try await Product.products(for: [productID]).first else {
         throw ProPurchaseError.productUnavailable
       }
@@ -153,7 +156,14 @@ final class MithkaProBridge {
     let entitlement = await Self.currentEntitlement()
     scheduleExpirationInvalidation(at: entitlement?.expirationDate)
     var response: [String: Any] = [
-      "storeAvailable": AppStore.canMakePayments,
+      // StoreKit is supported here. It has no synchronous connectivity probe;
+      // sync/products/manage report their own availability errors. Screen Time
+      // restrictions apply only to new purchases, never existing customers.
+      "storeAvailable": true,
+      "canMakePayments": AppStore.canMakePayments,
+      "canManageSubscriptions": UIApplication.shared.connectedScenes.contains {
+        $0 is UIWindowScene && $0.activationState == .foregroundActive
+      },
       "isPro": entitlement != nil,
       "distribution": distribution.rawValue,
     ]
@@ -317,6 +327,7 @@ final class MithkaProBridge {
 
   private enum ProPurchaseError: LocalizedError {
     case invalidProduct
+    case paymentsNotAllowed
     case productUnavailable
     case productsUnavailable
     case cancelled
@@ -330,6 +341,7 @@ final class MithkaProBridge {
     var code: String {
       switch self {
       case .invalidProduct: return "pro_invalid_product"
+      case .paymentsNotAllowed: return "pro_payments_not_allowed"
       case .productUnavailable: return "pro_product_unavailable"
       case .productsUnavailable: return "pro_products_unavailable"
       case .cancelled: return "pro_purchase_cancelled"
@@ -345,6 +357,7 @@ final class MithkaProBridge {
     var errorDescription: String? {
       switch self {
       case .invalidProduct: return "The Mithka Pro product identifier is invalid"
+      case .paymentsNotAllowed: return "New purchases are not allowed on this device"
       case .productUnavailable: return "The Mithka Pro product is unavailable"
       case .productsUnavailable: return "Mithka Pro products could not be loaded"
       case .cancelled: return "The Mithka Pro purchase was cancelled"

@@ -3354,6 +3354,7 @@
     <string name="suggestedPostTonAmount">TON amount</string>
     <string name="supporterBillingNoticeGoogle">确认后将向你的 Google Play 账户收取费用。除非取消，否则订阅会自动续订。你可以在 Google Play 账户设置中管理或取消订阅。</string>
     <string name="supporterCancellation">取消订阅后，Supporter 在已付费的订阅期结束前仍然有效。</string>
+    <string name="supporterFunctionalAccess">Supporter 提供额外的外观选项，其他所有功能均相同。</string>
     <string name="supporterIconAccess">订阅结束后，当前图标会保留。重新选择 Supporter 图标或切换到另一款需要有效订阅。免费图标始终可用。</string>
     <string name="supporterIconAccessibility">{value1}，应用图标，{value2}</string>
     <string name="supporterIconAvailable">可用</string>

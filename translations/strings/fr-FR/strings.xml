@@ -3365,6 +3365,7 @@
     <string name="suggestedPostTonAmount">TON amount</string>
     <string name="supporterBillingNoticeGoogle">Le paiement est débité de votre compte Google Play à la confirmation. L’abonnement se renouvelle automatiquement, sauf annulation. Gérez ou annulez votre abonnement dans les paramètres de votre compte Google Play.</string>
     <string name="supporterCancellation">En cas d’annulation, le soutien reste actif jusqu’à la fin de la période payée.</string>
+    <string name="supporterFunctionalAccess">Supporter adds cosmetic extras. All other features are the same.</string>
     <string name="supporterIconAccess">Si votre abonnement prend fin, votre icône actuelle reste. Un abonnement actif est nécessaire pour choisir à nouveau une icône de soutien ou en changer. Les icônes gratuites restent toujours disponibles.</string>
     <string name="supporterIconAccessibility">{value1}, icône de l’app, {value2}</string>
     <string name="supporterIconAvailable">Disponible</string>
