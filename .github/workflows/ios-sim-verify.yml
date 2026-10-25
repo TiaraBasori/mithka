@@ -1,0 +1,183 @@
+name: iOS simulator verification
+
+# Credential-free iOS build + native unit tests for a branch of this fork.
+# Nothing here signs, deploys, or talks to Telegram: secrets.dart is the
+# checked-in example (api id 0), no Firebase plist is provided (the Runner
+# target's "Copy Firebase config if available" phase skips it), and the pinned
+# public TDLib xcframework is downloaded by the repository's own script.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or SHA to build
+        required: true
+        default: master
+      run_tests:
+        description: Run the RunnerTests unit-test bundle
+        type: boolean
+        default: true
+      only_testing:
+        description: Optional -only-testing filter (for example RunnerTests/RunnerTests/VideoNoteCropTests)
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-sim-${{ inputs.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and test (${{ inputs.ref }})
+    # Same image the release pipelines in .github/workflows use.
+    # Runner/ApplePCCBridge.swift is compiled against the iOS 27 SDK
+    # (`#available(iOS 27)` branches under `compiler(>=6.4)`), so it needs the
+    # Xcode 26.6 that only the macos-26 image carries; the macos-15 pool tops out
+    # at Xcode 26.3 and fails on `SystemLanguageModel.contextSize`.
+    runs-on: macos-26
+    # The hosted macOS arm64 pool fails a job in the queue ("not acquired by
+    # Runner of type hosted even after multiple attempts"), so this stays at the
+    # image's default queue allowance instead of waiting longer.
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # The RunnerTests bundle compiles sources from the branch, nothing else is needed.
+          fetch-depth: 1
+
+      - name: Show what is being verified
+        run: |
+          echo "ref=${{ inputs.ref }}"
+          git rev-parse HEAD
+          git log --oneline -3
+
+      - name: Select Xcode 26
+        run: |
+          # The app icons are Icon Composer documents (ios/Runner/*.icon), which
+          # need Xcode 26; this mirrors ios-testflight.yml's own selection.
+          xcode_path="$(find /Applications -maxdepth 1 -type d -name 'Xcode_26*.app' | sort -V | tail -1)"
+          if [ -z "$xcode_path" ]; then
+            echo "no Xcode 26 on this image" >&2
+            exit 1
+          fi
+          sudo xcode-select -s "$xcode_path"
+          xcodebuild -version
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.2
+          channel: stable
+          cache: true
+
+      - name: Flutter build inputs
+        run: |
+          flutter --version
+          flutter config --enable-swift-package-manager
+          cp lib/config/secrets_example.dart lib/config/secrets.dart
+          flutter pub get
+          flutter precache --ios
+          flutter build ios --config-only --debug --no-codesign
+
+      - name: Pinned TDLib xcframework
+        run: ./scripts/build-tdjson-ios.sh
+
+      - name: CocoaPods
+        run: |
+          sudo gem install cocoapods -v 1.17.0 --no-document
+          cd ios && pod install --repo-update
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      - name: xcodebuild build (the app compiles without signing)
+        run: |
+          # Archive-style app-only build: this is what proves the native targets
+          # and the Icon Composer app icons compile. The scheme's RunnerUITests
+          # bundle is git-ignored and absent from every checkout, so test-target
+          # builds are scoped to RunnerTests below.
+          set -o pipefail
+          xcodebuild build \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/derived \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            | xcbeautify
+
+      - name: xcodebuild test (RunnerTests)
+        if: ${{ inputs.run_tests }}
+        run: |
+          set -o pipefail
+          # A concrete simulator is required to run tests; take the first
+          # available iPhone on this image instead of hard-coding a model.
+          udid="$(xcrun simctl list devices available -j | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          phones = [
+              d for runtime in sorted(devices)
+              for d in devices[runtime]
+              if d.get("isAvailable") and d["name"].startswith("iPhone")
+          ]
+          print(phones[0]["udid"] if phones else "")
+          ')"
+          test -n "$udid" || { echo "no iPhone simulator available" >&2; exit 1; }
+          echo "simulator $udid"
+          # The shared scheme also lists RunnerUITests, whose sources are
+          # git-ignored (/ios/RunnerUITests/ in .gitignore), so a scheme-level
+          # test action cannot build in a clean checkout. Drive the bundle
+          # directly through a generated scheme that contains only RunnerTests.
+          # xcodebuild resolves -scheme by name inside the project, so the
+          # generated file has to live in the shared schemes directory.
+          suite=ios/Runner.xcodeproj/xcshareddata/xcschemes/RunnerTestsOnly.xcscheme
+          python3 - "$suite" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+
+          source = "ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme"
+          tree = ET.parse(source)
+          root = tree.getroot()
+          action = root.find("TestAction")
+          for reference in action.iter("TestableReference"):
+              buildable = reference.find("BuildableReference")
+              if buildable is None or buildable.get("BlueprintName") != "RunnerTests":
+                  action.find("Testables").remove(reference)
+          # BuildAction entries are what a test build actually compiles, so the
+          # UI-test bundle has to go from there too, not just from Testables.
+          build_action = root.find("BuildAction")
+          for parent in list(build_action.iter()):
+              for entry in list(parent):
+                  if entry.tag != "BuildActionEntry":
+                      continue
+                  buildable = entry.find("BuildableReference")
+                  if buildable is not None and buildable.get("BlueprintName") == "RunnerUITests":
+                      parent.remove(entry)
+          ET.ElementTree(tree.getroot()).write(sys.argv[1], xml_declaration=True, encoding="UTF-8")
+          PY
+          test -f "$suite"
+          xcodebuild test \
+            -workspace ios/Runner.xcworkspace \
+            -scheme RunnerTestsOnly \
+            -configuration Debug \
+            -destination "platform=iOS Simulator,id=$udid" \
+            -derivedDataPath build/derived \
+            -only-testing:RunnerTests \
+            -skip-testing:RunnerUITests \
+            ${{ inputs.only_testing != '' && format('-only-testing:{0}', inputs.only_testing) || '' }} \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            | xcbeautify
+
+      - name: Upload xcresult
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcresult-${{ github.run_id }}
+          path: |
+            build/derived/Logs/Test/*.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
