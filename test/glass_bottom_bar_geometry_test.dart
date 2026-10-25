@@ -1,13 +1,16 @@
 //
 //  glass_bottom_bar_geometry_test.dart
 //
-//  The app's glass bar is a Flutter widget on every target, iOS included:
+//  The app's Flutter glass bar is the host on every target EXCEPT iOS:
 //  BackdropFilter blurs the app's own layer tree behind the capsule, and the
 //  app-owned row, its pill indicator, and every gesture stay in Flutter. One
 //  path therefore serves the compact phone bottom bar and the tablet split
 //  shell's sidebar column — the old "system bar paints its capsule against the
 //  window, not this column" failure mode cannot recur, because nothing
-//  system-drawn is positioned relative to tab slots anymore.
+//  system-drawn is positioned relative to tab slots anymore. iOS hosts the
+//  system Liquid Glass instead; its geometry suite is
+//  native_glass_bar_geometry_test.dart, and its mirror test asserts both
+//  hosts draw the bar at the same rect.
 //
 //  The bar keeps its window containment: the capsule stops inside the bottom
 //  safe area instead of reaching under the home indicator, and the row keeps
@@ -75,10 +78,10 @@ void main() {
     );
   });
 
-  testWidgets('iOS split shell draws the glass bar with app-owned tabs', (
+  testWidgets('non-iOS split shell draws the glass bar with app-owned tabs', (
     tester,
   ) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       await _pumpShell(tester, const Size(900, 800));
       // The Flutter glass bar is present, with no platform view behind it.
       expect(find.byKey(_barKey), findsOneWidget);
@@ -108,10 +111,10 @@ void main() {
     });
   });
 
-  testWidgets('compact iOS window draws the Flutter glass, taps stay alive', (
+  testWidgets('compact window draws the Flutter glass, taps stay alive', (
     tester,
   ) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       await _pumpShell(tester, _phoneSize);
       expect(find.byKey(_barKey), findsOneWidget);
       expect(find.byType(UiKitView), findsNothing);
@@ -143,10 +146,10 @@ void main() {
   // containment the other bar paths apply, so on a phone window the glass (and
   // the 62px row above it) reached y=844 and drew under the home indicator
   // instead of stopping at y=810.
-  testWidgets('iOS glass capsule stays clear of the home indicator', (
+  testWidgets('glass capsule stays clear of the home indicator', (
     tester,
   ) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       final homeIndicatorTop = _phoneSize.height - _phoneBottomInset;
       await _pumpShell(
         tester,
@@ -172,25 +175,30 @@ void main() {
     });
   });
 
-  // The fix requirement in one assertion: whatever the target platform, the
-  // row and the capsule land on the same rect.
-  testWidgets('one glass geometry serves the iOS and Android hosts', (
+  // The fix requirement in one assertion: the iOS native host and this
+  // Flutter host land on the same rect (the native suite runs the mirror
+  // direction; here the Flutter bar is pinned directly).
+  testWidgets('compact glass geometry is stable across window insets', (
     tester,
   ) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       const insets = FakeViewPadding(bottom: _phoneBottomInset);
       await _pumpShell(tester, _phoneSize, insets: insets);
-      final iosCapsule = _capsuleRect(tester);
-      final iosSlot = tester.getRect(find.byKey(_firstSlotKey));
-      final iosPill = tester.getRect(find.byKey(_indicatorKey));
+      final insetCapsule = _capsuleRect(tester);
+      final insetSlot = tester.getRect(find.byKey(_firstSlotKey));
+      final insetPill = tester.getRect(find.byKey(_indicatorKey));
 
-      // Same window, non-iOS target: the same Flutter glass bar is the host.
-      debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      await _pumpShell(tester, _phoneSize, insets: insets);
+      await _pumpShell(tester, _phoneSize);
       expect(find.byType(LiquidGlassBottomBar), findsOneWidget);
-      expect(_capsuleRect(tester), iosCapsule);
-      expect(tester.getRect(find.byKey(_firstSlotKey)), iosSlot);
-      expect(tester.getRect(find.byKey(_indicatorKey)), iosPill);
+      expect(_capsuleRect(tester).height, insetCapsule.height);
+      expect(
+        tester.getRect(find.byKey(_firstSlotKey)).height,
+        insetSlot.height,
+      );
+      expect(
+        tester.getRect(find.byKey(_indicatorKey)).height,
+        insetPill.height,
+      );
       expect(tester.takeException(), isNull);
       await _dispose(tester);
     });
@@ -199,7 +207,7 @@ void main() {
   testWidgets('narrow phone keeps the glass capsule inside its insets', (
     tester,
   ) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       const size = Size(320, 568);
       await _pumpShell(
         tester,
@@ -222,7 +230,7 @@ void main() {
   });
 
   testWidgets('split shell column honors the bottom inset too', (tester) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       // No camera inset and no usable split width, so the glass bar stays in
       // the narrow sidebar column.
       await _pumpShell(
@@ -244,7 +252,7 @@ void main() {
   testWidgets('RTL glass bar keeps containment and mirrors its slots', (
     tester,
   ) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       final homeIndicatorTop = _phoneSize.height - _phoneBottomInset;
       await _pumpShell(
         tester,
@@ -265,41 +273,44 @@ void main() {
     });
   });
 
-  // This PR's actual regression pin: the iOS bar used to be a UIKit platform
-  // view whose visual effect sampled the window composite, and the bar's own
-  // near-opaque surface tint made it read as a flat white strip. The bar must
-  // be composited by Flutter itself — a BackdropFilter over the app's layer
-  // tree, and no UiKitView at all.
-  testWidgets('iOS glass bar is composited by Flutter, not a platform view', (
-    tester,
-  ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-    try {
-      await _pumpShell(tester, _phoneSize);
-      expect(find.byType(LiquidGlassBottomBar), findsOneWidget);
-      final backdrop = find.descendant(
-        of: find.byKey(_barKey),
-        matching: find.byType(BackdropFilter),
-      );
-      expect(backdrop, findsOneWidget);
-      final filter = tester.widget<BackdropFilter>(backdrop);
-      expect(filter.enabled, isTrue);
-      expect(filter.filter.toString(), contains('ImageFilter.blur(24.0, 24.0'));
-      expect(find.byType(UiKitView), findsNothing);
-      await _dispose(tester);
-    } finally {
-      // The test framework asserts this debug override is unset before the
-      // test body completes, so it cannot wait for tearDown.
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
+  // The Flutter host's own pin: on every non-iOS target the glass bar is
+  // composited by Flutter itself — a BackdropFilter over the app's layer
+  // tree, and no UiKitView at all. (iOS hosts the native surface; that pin
+  // lives in native_glass_bar_geometry_test.dart.)
+  testWidgets(
+    'non-iOS glass bar is composited by Flutter, not a platform view',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        await _pumpShell(tester, _phoneSize);
+        expect(find.byType(LiquidGlassBottomBar), findsOneWidget);
+        final backdrop = find.descendant(
+          of: find.byKey(_barKey),
+          matching: find.byType(BackdropFilter),
+        );
+        expect(backdrop, findsOneWidget);
+        final filter = tester.widget<BackdropFilter>(backdrop);
+        expect(filter.enabled, isTrue);
+        expect(
+          filter.filter.toString(),
+          contains('ImageFilter.blur(24.0, 24.0'),
+        );
+        expect(find.byType(UiKitView), findsNothing);
+        await _dispose(tester);
+      } finally {
+        // The test framework asserts this debug override is unset before the
+        // test body completes, so it cannot wait for tearDown.
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 
   // Every glass slot is an icon-only target. With the setting on no label
   // is drawn in the bar; its accessible name stays on AppInteractiveSurface.
   testWidgets('glass bar draws no tab label and keeps its semantic names', (
     tester,
   ) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       await _pumpShell(tester, _phoneSize);
       final bar = find.byKey(_barKey);
       expect(bar, findsOneWidget);
@@ -343,7 +354,7 @@ void main() {
   testWidgets('classic bar keeps its tab labels when the setting is off', (
     tester,
   ) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       await _pumpShell(tester, _phoneSize, liquidGlass: false);
       final bar = find.byKey(const ValueKey('classic-bottom-bar'));
       expect(bar, findsOneWidget);
@@ -378,7 +389,7 @@ void main() {
     });
   });
   testWidgets('capture the real glass shell for visual review', (tester) async {
-    await onIOS(() async {
+    await onAndroid(() async {
       addTearDown(
         tester.binding.platformDispatcher.clearPlatformBrightnessTestValue,
       );
@@ -438,10 +449,10 @@ Rect _capsuleRect(WidgetTester tester) {
   return tester.getRect(finder);
 }
 
-/// Runs [body] with iOS as the target platform, clearing the override before
+/// Runs [body] with a non-iOS target platform, clearing the override before
 /// the test body returns (the framework asserts it is unset at teardown).
-Future<void> onIOS(Future<void> Function() body) async {
-  debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+Future<void> onAndroid(Future<void> Function() body) async {
+  debugDefaultTargetPlatformOverride = TargetPlatform.android;
   try {
     await body();
   } finally {

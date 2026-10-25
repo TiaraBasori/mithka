@@ -62,6 +62,7 @@ import 'desktop_utility_window.dart';
 import 'detail_content_reveal.dart';
 import 'horizontal_safe_viewport.dart';
 import 'liquid_glass_bottom_bar.dart';
+import 'native_glass_surface.dart';
 import 'primary_chat_launcher.dart';
 import 'unread_badge_model.dart';
 
@@ -2159,6 +2160,53 @@ double homeIndicatorBarClearance(BuildContext context) {
   return math.min(reported, kHomeIndicatorClearance);
 }
 
+/// The silhouette the native glass capsule cannot give itself.
+///
+/// iOS 26's material derives its visible edge from a backdrop-luminance clamp
+/// that only private UIKit reaches (Telegram swizzles `_UISDFBackdropView`;
+/// App Store Guideline 2.5.1 scans binaries for those class-name strings, so
+/// it is off-limits here). The public alternative: draw the edge ourselves.
+/// This frame wraps the native surface and paints the same hairline contour
+/// and drop shadow the Flutter glass bar uses — a dark 0.6pt outline (5.5%
+/// black in light, 34% in dark) around the stadium, foreground so the glass
+/// clipped inside cannot cover it — while the surface keeps the refraction.
+class _GlassCapsuleFrame extends StatelessWidget {
+  const _GlassCapsuleFrame({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final dark = colors.navBar.computeLuminance() < 0.5;
+    const black = Color(0xFF000000);
+    const radius = BorderRadius.all(Radius.circular(AppRadius.pill));
+    final contour = black.withValues(alpha: dark ? 0.34 : 0.055);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: radius,
+        boxShadow: [
+          BoxShadow(
+            color: black.withValues(alpha: dark ? 0.24 : 0.09),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: DecoratedBox(
+        // Foreground so the contour sits on the capsule's outer edge instead
+        // of being covered by the glass clipped inside it.
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          borderRadius: radius,
+          border: Border.all(color: contour, width: 0.6),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
 /// Shared tab controls with an optional glass surface.
 class _MainBottomBar extends StatelessWidget {
   const _MainBottomBar({
@@ -2429,11 +2477,50 @@ class _MainBottomBar extends StatelessWidget {
     );
     final controls = controlsWithBottomInset(0.0);
     if (glass) {
-      // One Flutter glass bar serves every target, including iOS: the shell
-      // blurs its own layer tree, so the bar refracts the content that
-      // actually scrolls behind it. The row, its selection pill, and every
-      // gesture stay app-owned too, which keeps the compact phone bar and the
-      // tablet split shell's sidebar column on one geometry source.
+      // iOS hosts the real system Liquid Glass: a native surface draws only
+      // the glass (public UIGlassEffect on iOS 26+, system material blur
+      // before), while the app-owned row, its selection pill, and every
+      // gesture stay in Flutter above the surface — one geometry source in
+      // any host, window bottom bar or sidebar column. The tint follows
+      // Telegram iOS (white 0.10 light / 0.025 dark) so the material itself
+      // stays visible; the Flutter-drawn contour and shadow below give the
+      // capsule its edge on white.
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+        // A platform view has no insets of its own, so the host repeats the
+        // exact containment chain the Flutter glass bar applies: the surface
+        // stops at the bottom safe area instead of reaching under the home
+        // indicator, and the shared lateral/top/capsule margins keep the row
+        // inside the stadium at the same rect either host draws it at.
+        return SafeArea(
+          key: const ValueKey('liquid-glass-bottom-bar'),
+          top: false,
+          minimum: const EdgeInsets.only(bottom: 10),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
+            child: _GlassCapsuleFrame(
+              child: NativeGlassSurface(
+                child: Padding(
+                  padding: const EdgeInsets.all(5),
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: GlassSelectionIndicator(
+                          selection: selection,
+                          itemCount: items.length,
+                        ),
+                      ),
+                      controls,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+      // Every other target keeps the Flutter glass bar: the shell blurs its
+      // own layer tree, so the bar refracts the content that actually scrolls
+      // behind it.
       return LiquidGlassBottomBar(
         selection: selection,
         itemCount: items.length,
