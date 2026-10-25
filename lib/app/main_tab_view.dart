@@ -2362,11 +2362,12 @@ class _MainBottomBar extends StatelessWidget {
               child: AppInteractiveSurface(
                 key: ValueKey('bottom-tab-${items[i].index}'),
                 // Match the selection indicator's corner radius so the tap
-                // ripple, hover tint, and highlight share one slot shape. A
-                // full stadium would clip the label's corners (see
-                // LiquidGlassBottomBar).
+                // ripple, hover tint, and highlight share one slot shape:
+                // a stadium concentric with the capsule. The glass row is
+                // icon-only (no label line to clip at the arc), and the icon
+                // block clears the arc even in the narrowest tablet slot.
                 borderRadius: glass
-                    ? BorderRadius.circular(AppRadius.control)
+                    ? BorderRadius.circular(AppRadius.pill)
                     : BorderRadius.zero,
                 semanticLabel: items[i].label.l10n(context),
                 selected: selection == i,

@@ -188,16 +188,29 @@ void main() {
       final bar = find.byType(LiquidGlassBottomBar);
       expect(bar, findsOneWidget);
       expect(find.byKey(_surfaceKey), findsNothing);
-      final stadium = find.descendant(
-        of: bar,
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is ClipRRect &&
-              widget.borderRadius == BorderRadius.circular(AppRadius.pill),
-        ),
+      final stadium = find
+          .descendant(
+            of: bar,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is ClipRRect &&
+                  widget.borderRadius == BorderRadius.circular(AppRadius.pill),
+            ),
+          )
+          .evaluate();
+      // The capsule's stadium plus the slots' ripple clips share the pill
+      // radius; the capsule is the outermost of them.
+      expect(stadium, isNotEmpty);
+      final stadiumRects = stadium
+          .map(
+            (element) =>
+                tester.getRect(find.byElementPredicate((it) => it == element)),
+          )
+          .toList();
+      final capsuleRect = stadiumRects.reduce(
+        (a, b) => a.contains(b.topLeft) && a.contains(b.bottomRight) ? a : b,
       );
-      expect(stadium, findsOneWidget);
-      expect(tester.getRect(stadium), nativeSurface);
+      expect(capsuleRect, nativeSurface);
       expect(tester.getRect(find.byKey(_firstSlotKey)), nativeSlot);
       expect(tester.getRect(find.byKey(_indicatorKey)), nativeSlot);
       expect(tester.takeException(), isNull);

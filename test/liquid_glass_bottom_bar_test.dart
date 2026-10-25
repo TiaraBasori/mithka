@@ -32,39 +32,19 @@ void main() {
                     child: LiquidGlassBottomBar(
                       selection: selected,
                       itemCount: labels.length,
+                      // The glass row is icon-only and never grows for text
+                      // scale; the fixture keeps the row's real 62px height.
                       child: SizedBox(
-                        height: 62 + (11 * scale - 11) * 1.1,
+                        height: 62,
                         child: Row(
                           children: [
                             for (final label in labels)
                               Expanded(
                                 child: Center(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 2,
-                                    ),
-                                    child: Column(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        SizedBox(
-                                          key: ValueKey('scaled-icon-$label'),
-                                          width: 36,
-                                          height: 28,
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          label,
-                                          key: ValueKey('scaled-label-$label'),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            height: 1.1,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  child: SizedBox(
+                                    key: ValueKey('scaled-icon-$label'),
+                                    width: 36,
+                                    height: 28,
                                   ),
                                 ),
                               ),
@@ -84,7 +64,7 @@ void main() {
             tester.widget<DecoratedBox>(indicator).decoration as BoxDecoration;
         final radius = decoration.borderRadius! as BorderRadius;
         final shape = radius.toRRect(tester.getRect(indicator));
-        for (final prefix in ['scaled-icon', 'scaled-label']) {
+        for (final prefix in ['scaled-icon']) {
           final bounds = tester.getRect(
             find.byKey(ValueKey('$prefix-${labels[selected]}')),
           );
@@ -202,33 +182,16 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('selection indicator fully covers the selected icon and label', (
+  testWidgets('selection indicator fully covers the selected icon', (
     tester,
   ) async {
-    // A full stadium (radius = slot height) pulls the corner arcs ~10 px
-    // inward at the label row, so the label's lower corners fell outside the
-    // filled pill — most visibly on narrow tablet tabs. The indicator must
-    // keep a small corner radius so the whole icon+label of the selected tab
-    // sits inside the filled shape at any slot size or text scale.
-    //
-    // The child mirrors the real bottom bar: each slot is an Expanded cell
-    // centring an icon block above a label with a 2 px gutter on each side.
+    // The glass row is icon-only: each slot is an Expanded cell centring an
+    // icon block. The indicator is a stadium concentric with the capsule
+    // (see GlassSelectionIndicator), so the whole icon of the selected tab
+    // sits inside the filled shape even in the narrowest tablet slot — the
+    // case #193 originally covered for the icon+label column.
     Widget slot(String label) => Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 2),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(key: ValueKey('icon-$label'), width: 36, height: 28),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              key: ValueKey('label-$label'),
-              style: const TextStyle(fontSize: 11),
-            ),
-          ],
-        ),
-      ),
+      child: SizedBox(key: ValueKey('icon-$label'), width: 36, height: 28),
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -242,13 +205,18 @@ void main() {
               child: LiquidGlassBottomBar(
                 selection: 0,
                 itemCount: 4,
-                child: Row(
-                  children: [
-                    Expanded(child: slot('Chats')),
-                    Expanded(child: slot('Channels')),
-                    Expanded(child: slot('Contacts')),
-                    Expanded(child: slot('Moments')),
-                  ],
+                // The real bar's row: icon-only, fixed 62px height, so the
+                // stadium's clamp is the row's half height like on device.
+                child: SizedBox(
+                  height: 62,
+                  child: Row(
+                    children: [
+                      Expanded(child: slot('Chats')),
+                      Expanded(child: slot('Channels')),
+                      Expanded(child: slot('Contacts')),
+                      Expanded(child: slot('Moments')),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -262,28 +230,16 @@ void main() {
         (tester.widget<DecoratedBox>(pill).decoration as BoxDecoration)
                 .borderRadius
             as BorderRadius;
-    // Guard against a regression to a full stadium, which is what clipped.
-    expect(radius.bottomLeft.y, lessThanOrEqualTo(16));
-    expect(radius.bottomLeft.y, isNot(AppRadius.pill));
+    // The indicator is a stadium: the radius clamps to the slot's half
+    // height, matching the capsule's concentric end arcs.
+    expect(radius.bottomLeft.y, AppRadius.pill);
+    // toRRect applies the stadium clamp (999 → half of width/height), which
+    // the manual point test below must mirror.
+    final shape = radius.toRRect(pr);
 
-    bool insideRounded(Offset p) {
-      if (!pr.contains(p)) return false;
-      final r = radius.bottomLeft.y;
-      // Only the corner discs can carve out the bounding box.
-      final dx = p.dx < pr.left + r
-          ? p.dx - (pr.left + r)
-          : p.dx > pr.right - r
-          ? p.dx - (pr.right - r)
-          : 0.0;
-      final dy = p.dy < pr.top + r
-          ? p.dy - (pr.top + r)
-          : p.dy > pr.bottom - r
-          ? p.dy - (pr.bottom - r)
-          : 0.0;
-      return dx == 0 || dy == 0 || dx * dx + dy * dy <= r * r;
-    }
+    bool insideRounded(Offset p) => shape.contains(p);
 
-    for (final key in ['icon-Chats', 'label-Chats']) {
+    for (final key in ['icon-Chats']) {
       final r = tester.getRect(find.byKey(ValueKey(key)));
       for (final corner in [
         r.topLeft,

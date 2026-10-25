@@ -39,7 +39,12 @@ class GlassSelectionIndicator extends StatelessWidget {
               child: DecoratedBox(
                 key: const ValueKey('liquid-glass-selection'),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  // A stadium concentric with the capsule: the row sits a
+                  // 5px inset inside the capsule's stadium, so this stadium's
+                  // end arcs share the capsule's centres and the two edges
+                  // stay parallel everywhere. A small rectangle radius would
+                  // read as a different shape from the capsule around it.
+                  borderRadius: BorderRadius.circular(AppRadius.pill),
                   color: colors.linkBlue.withValues(
                     alpha: highContrast ? 0.22 : (dark ? 0.19 : 0.10),
                   ),

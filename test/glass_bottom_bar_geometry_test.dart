@@ -437,16 +437,30 @@ String? semanticLabelOf(WidgetTester tester, Key key) => tester
 /// The stadium the glass and the row are clipped into: the bar's pill-radius
 /// ClipRRect, which is the visible capsule rect in every host.
 Rect _capsuleRect(WidgetTester tester) {
-  final finder = find.descendant(
-    of: find.byKey(_barKey),
-    matching: find.byWidgetPredicate(
-      (widget) =>
-          widget is ClipRRect &&
-          widget.borderRadius == BorderRadius.circular(AppRadius.pill),
-    ),
+  // The capsule's stadium ClipRRect plus the slots' ripple clips share the
+  // pill radius; the capsule is the outermost of them — the only one that
+  // contains every other.
+  final stadiums = find
+      .descendant(
+        of: find.byKey(_barKey),
+        matching: find.byWidgetPredicate(
+          (widget) =>
+              widget is ClipRRect &&
+              widget.borderRadius == BorderRadius.circular(AppRadius.pill),
+        ),
+      )
+      .evaluate();
+  expect(stadiums, isNotEmpty);
+  final rects = stadiums
+      .map(
+        (element) => tester.getRect(
+          find.byElementPredicate((it) => it == element),
+        ),
+      )
+      .toList();
+  return rects.reduce(
+    (a, b) => a.contains(b.topLeft) && a.contains(b.bottomRight) ? a : b,
   );
-  expect(finder, findsOneWidget);
-  return tester.getRect(finder);
 }
 
 /// Runs [body] with a non-iOS target platform, clearing the override before
