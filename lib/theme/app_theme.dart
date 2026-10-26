@@ -10,7 +10,6 @@
 
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../platform/adaptive_platform.dart';
@@ -21,11 +20,7 @@ Color _hex(int rgb, [double opacity = 1]) =>
 // This calibration is intentionally limited to iOS and Android. Other target
 // platforms keep their existing typography and geometry.
 bool _isMobileChatPlatform(TargetPlatform? platform) =>
-    !kIsWeb &&
-    switch (platform ?? defaultTargetPlatform) {
-      TargetPlatform.iOS || TargetPlatform.android => true,
-      _ => false,
-    };
+    isTouchTargetPlatform(platform);
 
 abstract final class AppTextSize {
   static const double tiny = 10;
@@ -52,6 +47,15 @@ abstract final class AppTextSize {
       : _isMobileChatPlatform(platform)
       ? footnote
       : callout;
+
+  /// Only touch previews retain their standard size at the Small preset.
+  /// Names, timestamps, message bodies, avatars and row geometry still use
+  /// the saved app scale unchanged.
+  static double chatListPreviewContentScale(
+    double appScale, [
+    TargetPlatform? platform,
+  ]) => _isMobileChatPlatform(platform) ? math.max(appScale, 1.0) : appScale;
+
   static double chatListTimestamp([TargetPlatform? platform]) =>
       isDesktopTargetPlatform(platform) ? caption : footnote;
 

@@ -52,17 +52,21 @@ class ChatRowMetrics {
       double size, {
       double? height,
       FontWeight? weight,
+      TextScaler? textScaler,
     }) {
       final painter = TextPainter(
         text: TextSpan(
           text: text,
           style: base.copyWith(
-            fontSize: data.systemTextScaler.scale(size * scale),
+            fontSize: textScaler == null
+                ? data.systemTextScaler.scale(size * scale)
+                : size,
             height: height,
             fontWeight: weight,
           ),
         ),
         textDirection: Directionality.of(context),
+        textScaler: textScaler ?? TextScaler.noScaling,
         maxLines: 1,
       )..layout();
       final result = painter.size;
@@ -129,7 +133,11 @@ class ChatRowMetrics {
       if (accessories.isNotEmpty) accessoryHeight += lineHeight + 4;
     }
     final title = measure('\u56FDAg', AppTextSize.chatListTitle()).height;
-    final preview = measure('\u56FDAg', AppTextSize.chatListPreview()).height;
+    final preview = measure(
+      '\u56FDAg',
+      AppTextSize.chatListPreview(),
+      textScaler: ContentSizeScope.chatListPreviewScalerOf(context),
+    ).height;
     final tags = folderTags
         ? data.systemTextScaler.scale(AppTextSize.chatListFolderTag() * scale) *
                   1.35 +
