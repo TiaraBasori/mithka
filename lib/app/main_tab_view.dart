@@ -2437,7 +2437,9 @@ class _MainBottomBar extends StatelessWidget {
       // Flutter above the surface — one geometry source in any host, window
       // bottom bar or sidebar column. The Flutter glass bar remains the
       // fallback for every other target.
-      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      if (!kIsWeb &&
+          defaultTargetPlatform == TargetPlatform.iOS &&
+          !MediaQuery.highContrastOf(context)) {
         // A platform view has no insets of its own, so the host repeats the
         // exact containment chain the Flutter glass bar applies: the surface
         // stops at the bottom safe area instead of reaching under the home

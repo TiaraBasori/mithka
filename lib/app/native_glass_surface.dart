@@ -30,7 +30,7 @@ class _NativeGlassSurfaceState extends State<NativeGlassSurface> {
 
   Map<String, Object> _configuration() {
     final colors = context.colors;
-    final dark = colors.background.computeLuminance() < 0.5;
+    final dark = colors.navBar.computeLuminance() < 0.5;
     return {
       'tint': colors.navBar.withValues(alpha: dark ? 0.12 : 0.36).toARGB32(),
       'dark': dark,

@@ -179,4 +179,99 @@ void main() {
       debugDefaultTargetPlatformOverride = null;
     }
   });
+
+  testWidgets(
+    'native appearance and live tint follow navBar, not opposite background',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        final messenger = tester.binding.defaultBinaryMessenger;
+        final created = <Map<Object?, Object?>>[];
+        final updates = <Map<Object?, Object?>>[];
+        final channels = <MethodChannel>[];
+        messenger.setMockMethodCallHandler(SystemChannels.platform_views, (
+          call,
+        ) async {
+          if (call.method == 'create') {
+            final args = call.arguments as Map;
+            created.add(
+              const StandardMessageCodec().decodeMessage(
+                    ByteData.sublistView(args['params'] as Uint8List),
+                  )
+                  as Map<Object?, Object?>,
+            );
+            final channel = MethodChannel('mithka/native_glass/${args['id']}');
+            channels.add(channel);
+            messenger.setMockMethodCallHandler(channel, (call) async {
+              if (call.method == 'update') {
+                updates.add(call.arguments as Map<Object?, Object?>);
+              }
+              return null;
+            });
+          }
+          return null;
+        });
+        addTearDown(() {
+          messenger.setMockMethodCallHandler(
+            SystemChannels.platform_views,
+            null,
+          );
+          for (final channel in channels) {
+            messenger.setMockMethodCallHandler(channel, null);
+          }
+        });
+        final darkBar = AppColors.light.copyWith(
+          background: const Color(0xFFFFFFFF),
+          navBar: const Color(0xFF101010),
+        );
+        final lightBar = AppColors.light.copyWith(
+          background: const Color(0xFF000000),
+          navBar: const Color(0xFFF0F0F0),
+        );
+        final palette = ValueNotifier(darkBar);
+        addTearDown(palette.dispose);
+        await tester.pumpWidget(
+          ValueListenableBuilder<AppColors>(
+            valueListenable: palette,
+            builder: (context, colors, _) => MaterialApp(
+              theme: ThemeData(extensions: [colors]),
+              home: const Align(
+                alignment: Alignment.bottomCenter,
+                child: NativeGlassSurface(
+                  child: SizedBox(height: 62, width: 300),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        expect(created, hasLength(1));
+        expect(created.single['dark'], isTrue);
+        expect(
+          created.single['tint'],
+          darkBar.navBar.withValues(alpha: 0.12).toARGB32(),
+        );
+        for (final colors in [lightBar, darkBar]) {
+          updates.clear();
+          palette.value = colors;
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 300));
+          final dark = identical(colors, darkBar);
+          expect(created, hasLength(1));
+          expect(updates, isNotEmpty);
+          expect(updates.last['dark'], dark);
+          expect(
+            updates.last['tint'],
+            colors.navBar.withValues(alpha: dark ? 0.12 : 0.36).toARGB32(),
+          );
+          expect(find.byType(UiKitView), findsOneWidget);
+        }
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+        expect(tester.takeException(), isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    },
+  );
 }

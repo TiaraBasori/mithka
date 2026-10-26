@@ -211,6 +211,98 @@ void main() {
     });
   });
 
+  for (final brightness in Brightness.values) {
+    testWidgets(
+      'iOS ${brightness.name} glass switches live through opaque high contrast',
+      (tester) async {
+        await onIOS(() async {
+          final mock = installMockGlassSurface(tester);
+          addTearDown(
+            tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+          );
+          await _pumpShell(
+            tester,
+            _phoneSize,
+            brightness: brightness,
+            insets: const FakeViewPadding(bottom: _phoneBottomInset),
+          );
+          expect(find.byType(UiKitView), findsOneWidget);
+          expect(find.byType(LiquidGlassBottomBar), findsNothing);
+          final nativeRect = tester.getRect(find.byKey(_surfaceKey));
+
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              const FakeAccessibilityFeatures(highContrast: true);
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 1));
+          expect(find.byType(UiKitView), findsNothing);
+          expect(find.byKey(_surfaceKey), findsNothing);
+          final fallback = find.byType(LiquidGlassBottomBar);
+          expect(fallback, findsOneWidget);
+          final colors = tester.element(fallback).colors;
+          final opaqueSurface = find.descendant(
+            of: fallback,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is DecoratedBox &&
+                  widget.decoration is BoxDecoration &&
+                  (widget.decoration as BoxDecoration).color == colors.navBar,
+            ),
+          );
+          expect(opaqueSurface, findsOneWidget);
+          final decoration =
+              tester.widget<DecoratedBox>(opaqueSurface).decoration
+                  as BoxDecoration;
+          expect(decoration.color!.a, 1);
+          expect(decoration.gradient, isNull);
+          expect(decoration.border, Border.all(color: colors.textSecondary));
+          expect(tester.getRect(opaqueSurface), nativeRect);
+          final blur = tester.widget<BackdropFilter>(
+            find.descendant(
+              of: fallback,
+              matching: find.byType(BackdropFilter),
+            ),
+          );
+          expect(blur.enabled, isFalse);
+          final indicatorDecoration =
+              tester.widget<DecoratedBox>(find.byKey(_indicatorKey)).decoration
+                  as BoxDecoration;
+          expect(
+            indicatorDecoration.color,
+            colors.linkBlue.withValues(alpha: 0.22),
+          );
+          expect(
+            indicatorDecoration.border,
+            Border.all(color: colors.linkBlue, width: 0.8),
+          );
+          for (final tab in _tabs) {
+            expect(
+              semanticLabelOf(tester, ValueKey('bottom-tab-${tab.index}')),
+              tab.label,
+            );
+          }
+          await tester.tap(find.byKey(const ValueKey('bottom-tab-2')));
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 1));
+
+          tester.platformDispatcher.accessibilityFeaturesTestValue =
+              const FakeAccessibilityFeatures();
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 1));
+          expect(find.byType(UiKitView), findsOneWidget);
+          expect(find.byType(LiquidGlassBottomBar), findsNothing);
+          expect(mock.createdParams, hasLength(2));
+          expect(tester.getRect(find.byKey(_surfaceKey)), nativeRect);
+          expect(
+            tester.getRect(find.byKey(_indicatorKey)),
+            tester.getRect(find.byKey(const ValueKey('bottom-tab-2'))),
+          );
+          expect(tester.takeException(), isNull);
+          await _dispose(tester);
+        });
+      },
+    );
+  }
+
   testWidgets('narrow phone keeps the native surface inside its insets', (
     tester,
   ) async {
