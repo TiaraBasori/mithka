@@ -27,6 +27,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:heroicons_flutter/heroicons_flutter.dart';
 import 'package:mithka/app/chat_deep_link_controller.dart';
 import 'package:mithka/app/liquid_glass_bottom_bar.dart';
 import 'package:mithka/app/main_tab_view.dart';
@@ -34,6 +35,7 @@ import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
 import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/app_interactive_surface.dart';
+import 'package:mithka/components/app_press_ripple.dart';
 import 'package:mithka/components/drawer_controller.dart' as dc;
 import 'package:mithka/l10n/app_locale_controller.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -303,6 +305,184 @@ void main() {
     );
   }
 
+  for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
+    for (final brightness in Brightness.values) {
+      for (final size in [_phoneSize, const Size(900, 800)]) {
+        testWidgets(
+          '${platform.name} ${brightness.name} ${size.width} glass capsules and icon contrast',
+          (tester) async {
+            debugDefaultTargetPlatformOverride = platform;
+            try {
+              installMockGlassSurface(tester);
+              await _pumpShell(
+                tester,
+                size,
+                brightness: brightness,
+                insets: const FakeViewPadding(bottom: _phoneBottomInset),
+              );
+              final colors = tester.element(find.byKey(_firstSlotKey)).colors;
+              final surface = platform == TargetPlatform.iOS
+                  ? find.byKey(_surfaceKey)
+                  : find.descendant(
+                      of: find.byType(LiquidGlassBottomBar),
+                      matching: find.byWidgetPredicate(
+                        (widget) =>
+                            widget is ClipRRect &&
+                            widget.borderRadius ==
+                                BorderRadius.circular(AppRadius.pill),
+                      ),
+                    );
+              final outer = tester.getRect(surface);
+              final first = tester.getRect(find.byKey(_firstSlotKey));
+              final last = tester.getRect(
+                find.byKey(const ValueKey('bottom-tab-3')),
+              );
+              expect(first.expandToInclude(last), outer.deflate(_capsuleInset));
+              final selection =
+                  tester
+                          .widget<DecoratedBox>(find.byKey(_indicatorKey))
+                          .decoration
+                      as BoxDecoration;
+              expect(
+                selection.borderRadius,
+                BorderRadius.circular(first.height / 2),
+              );
+              expect(tester.getRect(find.byKey(_indicatorKey)), first);
+              expect(outer.height / 2 - first.height / 2, _capsuleInset);
+              for (final tab in _tabs) {
+                final slot = find.byKey(ValueKey('bottom-tab-${tab.index}'));
+                final control = tester.widget<AppInteractiveSurface>(slot);
+                final radius = BorderRadius.circular(
+                  tester.getSize(slot).height / 2,
+                );
+                expect(control.borderRadius, radius);
+                expect(control.semanticLabel, tab.label);
+                final icon = tester.widget<AppIcon>(
+                  find.descendant(of: slot, matching: find.byType(AppIcon)),
+                );
+                expect(
+                  icon.color,
+                  tab.index == 0 ? AppTheme.brand : colors.textPrimary,
+                );
+                if (tab.index != 0) {
+                  final foreground = icon.color!.computeLuminance();
+                  final background = colors.navBar.computeLuminance();
+                  final ratio = foreground > background
+                      ? (foreground + 0.05) / (background + 0.05)
+                      : (background + 0.05) / (foreground + 0.05);
+                  expect(
+                    ratio,
+                    greaterThanOrEqualTo(4.5),
+                    reason: 'nominal glass palette icon contrast',
+                  );
+                }
+              }
+              for (final index in [0, 3]) {
+                final slot = find.byKey(ValueKey('bottom-tab-$index'));
+                final gesture = await tester.startGesture(
+                  tester.getCenter(slot),
+                );
+                await tester.pump(const Duration(milliseconds: 50));
+                expect(
+                  find.descendant(
+                    of: slot,
+                    matching: find.byKey(AppPressRipple.rippleLayerKey),
+                  ),
+                  findsOneWidget,
+                );
+                final clipFinder = find.descendant(
+                  of: slot,
+                  matching: find.byType(ClipRRect),
+                );
+                expect(clipFinder, findsOneWidget);
+                final clip = tester.widget<ClipRRect>(clipFinder);
+                expect(
+                  clip.borderRadius,
+                  BorderRadius.circular(tester.getSize(slot).height / 2),
+                );
+                expect(clip.clipBehavior, isNot(Clip.none));
+                expect(tester.getRect(clipFinder), tester.getRect(slot));
+                await gesture.up();
+                await tester.pump();
+                await tester.pump(const Duration(seconds: 1));
+                expect(
+                  tester.getRect(find.byKey(_indicatorKey)),
+                  tester.getRect(slot),
+                );
+                final icon = tester.widget<AppIcon>(
+                  find.descendant(of: slot, matching: find.byType(AppIcon)),
+                );
+                expect(icon.color, AppTheme.brand);
+              }
+              expect(tester.takeException(), isNull);
+              await _dispose(tester);
+            } finally {
+              debugDefaultTargetPlatformOverride = null;
+            }
+          },
+        );
+      }
+    }
+  }
+
+  for (final glass in [false, true]) {
+    testWidgets(
+      '${glass ? 'glass selected' : 'classic unchanged'} tab glyph identities',
+      (tester) async {
+        await onIOS(() async {
+          installMockGlassSurface(tester);
+          await _pumpShell(tester, _phoneSize, liquidGlass: glass);
+          const baseGlyphs = [
+            HeroiconsSolid.chatBubbleLeft,
+            HeroiconsOutline.hashtag,
+            HeroiconsOutline.userGroup,
+            HeroiconsOutline.arrowPath,
+          ];
+          const selectedGlyphs = [
+            HeroiconsSolid.chatBubbleLeft,
+            HeroiconsSolid.hashtag,
+            HeroiconsSolid.userGroup,
+            HeroiconsSolid.arrowPath,
+          ];
+          // Return to Messages so every other tab is checked after deselection.
+          for (final selected in [0, 1, 2, 3, 0]) {
+            await tester.tap(find.byKey(ValueKey('bottom-tab-$selected')));
+            await tester.pump();
+            await tester.pump(const Duration(seconds: 1));
+            for (final tab in _tabs) {
+              final slot = find.byKey(ValueKey('bottom-tab-${tab.index}'));
+              final icon = tester.widget<AppIcon>(
+                find.descendant(of: slot, matching: find.byType(AppIcon)),
+              );
+              expect(
+                icon.icon.data,
+                glass && tab.index == selected
+                    ? selectedGlyphs[tab.index]
+                    : baseGlyphs[tab.index],
+                reason: '${tab.label}, selected=$selected, glass=$glass',
+              );
+              final colors = tester.element(slot).colors;
+              expect(
+                icon.color,
+                tab.index == selected
+                    ? AppTheme.brand
+                    : glass
+                    ? colors.textPrimary
+                    : colors.textTertiary,
+              );
+              expect(
+                semanticLabelOf(tester, ValueKey('bottom-tab-${tab.index}')),
+                tab.label,
+              );
+            }
+          }
+          expect(tester.takeException(), isNull);
+          await _dispose(tester);
+        });
+      },
+    );
+  }
+
   testWidgets('narrow phone keeps the native surface inside its insets', (
     tester,
   ) async {
@@ -444,6 +624,19 @@ void main() {
           tab.label,
         );
       }
+      final unselected = find.byKey(const ValueKey('bottom-tab-1'));
+      expect(
+        tester.widget<AppInteractiveSurface>(unselected).borderRadius,
+        BorderRadius.zero,
+      );
+      expect(
+        tester
+            .widget<AppIcon>(
+              find.descendant(of: unselected, matching: find.byType(AppIcon)),
+            )
+            .color,
+        tester.element(unselected).colors.textTertiary,
+      );
       // Classic keeps the scaled label line's height: growing the text scale
       // grows the bar.
       final unscaledHeight = tester.getRect(bar).height;

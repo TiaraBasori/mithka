@@ -41,7 +41,9 @@ class GlassSelectionIndicator extends StatelessWidget {
               child: DecoratedBox(
                 key: const ValueKey('liquid-glass-selection'),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.control),
+                  borderRadius: BorderRadius.circular(
+                    constraints.maxHeight / 2,
+                  ),
                   color: colors.linkBlue.withValues(
                     alpha: highContrast ? 0.22 : (dark ? 0.19 : 0.10),
                   ),

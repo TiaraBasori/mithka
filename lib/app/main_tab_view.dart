@@ -366,9 +366,24 @@ abstract class _MainRootViewState<T extends StatefulWidget> extends State<T> {
 
   static const _allTabs = [
     _MainTabItem(0, AppStringKeys.tabMessages, HeroAppIcons.solidMessage),
-    _MainTabItem(1, AppStringKeys.tabChannels, HeroAppIcons.hashtag),
-    _MainTabItem(2, AppStringKeys.tabContacts, HeroAppIcons.users),
-    _MainTabItem(3, AppStringKeys.tabMoments, HeroAppIcons.circleNotch),
+    _MainTabItem(
+      1,
+      AppStringKeys.tabChannels,
+      HeroAppIcons.hashtag,
+      selectedIcon: HeroAppIcons.solidHashtag,
+    ),
+    _MainTabItem(
+      2,
+      AppStringKeys.tabContacts,
+      HeroAppIcons.users,
+      selectedIcon: HeroAppIcons.solidUsers,
+    ),
+    _MainTabItem(
+      3,
+      AppStringKeys.tabMoments,
+      HeroAppIcons.circleNotch,
+      selectedIcon: HeroAppIcons.solidCircleNotch,
+    ),
   ];
 
   List<_MainTabItem> _visibleTabs(
@@ -1927,11 +1942,17 @@ class _SplitEmptyPane extends StatelessWidget {
 }
 
 class _MainTabItem {
-  const _MainTabItem(this.index, this.label, this.icon);
+  const _MainTabItem(
+    this.index,
+    this.label,
+    this.icon, {
+    AppIconData? selectedIcon,
+  }) : selectedIcon = selectedIcon ?? icon;
 
   final int index;
   final String label;
   final AppIconData icon;
+  final AppIconData selectedIcon;
 }
 
 class _LazyTabStack extends StatefulWidget {
@@ -2307,20 +2328,20 @@ class _MainBottomBar extends StatelessWidget {
     // which leaves the label a deliberate margin above the window edge instead
     // of a band that belongs to nobody. The glass hosts pass 0 — their capsules
     // carry the inset themselves.
+    final controlsHeight = 62 + labelGrowth;
     Widget controlsWithBottomInset(double inset) => SizedBox(
-      height: 62 + labelGrowth + inset,
+      height: controlsHeight + inset,
       child: Row(
         children: [
           for (var i = 0; i < items.length; i++)
             Expanded(
               child: AppInteractiveSurface(
                 key: ValueKey('bottom-tab-${items[i].index}'),
-                // Match the selection indicator's corner radius so the tap
-                // ripple, hover tint, and highlight share one slot shape. A
-                // full stadium would clip the label's corners (see
-                // LiquidGlassBottomBar).
+                // The icon-only glass slot and selection share a full capsule,
+                // concentric with the outer surface across its 5pt inset.
+                // Classic icon + label tabs retain their square press surface.
                 borderRadius: glass
-                    ? BorderRadius.circular(AppRadius.control)
+                    ? BorderRadius.circular((controlsHeight + inset) / 2)
                     : BorderRadius.zero,
                 semanticLabel: items[i].label.l10n(context),
                 selected: selection == i,
@@ -2365,10 +2386,14 @@ class _MainBottomBar extends StatelessWidget {
                                         child: Transform.scale(
                                           scale: 1 + value * 0.08,
                                           child: AppIcon(
-                                            items[i].icon,
+                                            glass && selection == i
+                                                ? items[i].selectedIcon
+                                                : items[i].icon,
                                             size: 24,
                                             color: Color.lerp(
-                                              c.textTertiary,
+                                              glass
+                                                  ? c.textPrimary
+                                                  : c.textTertiary,
                                               AppTheme.brand,
                                               value,
                                             ),
