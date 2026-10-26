@@ -63,6 +63,7 @@ private final class NativeGlassSurface: NSObject, FlutterPlatformView {
 @MainActor
 private final class GlassSurfaceHost: UIView {
   private let effectView = UIVisualEffectView(effect: nil)
+  private var requestedCornerRadius: CGFloat = 0
 
   override init(frame: CGRect) {
     super.init(frame: frame)
@@ -80,8 +81,8 @@ private final class GlassSurfaceHost: UIView {
     let dark = configuration["dark"] as? Bool == true
     overrideUserInterfaceStyle = dark ? .dark : .light
     effectView.overrideUserInterfaceStyle = dark ? .dark : .light
-    let cornerRadius = (configuration["radius"] as? NSNumber)?.doubleValue ?? 0
-    effectView.layer.cornerRadius = cornerRadius
+    requestedCornerRadius = CGFloat((configuration["radius"] as? NSNumber)?.doubleValue ?? 0)
+    setNeedsLayout()
 
     if #available(iOS 26.0, *) {
       var tint: UIColor?
@@ -94,14 +95,12 @@ private final class GlassSurfaceHost: UIView {
           alpha: CGFloat((value >> 24) & 255) / 255
         )
       }
-      if let current = effectView.effect as? UIGlassEffect {
-        if current.tintColor != tint { current.tintColor = tint }
-      } else {
-        let glass = UIGlassEffect(style: .regular)
-        glass.tintColor = tint
-        glass.isInteractive = false
-        effectView.effect = glass
-      }
+      // UIVisualEffectView copies its effect; mutating a retrieved effect does
+      // not update the installed material. Configure before assigning it.
+      let glass = UIGlassEffect(style: .regular)
+      glass.tintColor = tint
+      glass.isInteractive = false
+      effectView.effect = glass
     } else {
       let desiredStyle: UIBlurEffect.Style = dark ? .systemMaterialDark : .systemMaterialLight
       effectView.effect = UIBlurEffect(style: desiredStyle)
@@ -111,5 +110,10 @@ private final class GlassSurfaceHost: UIView {
   override func layoutSubviews() {
     super.layoutSubviews()
     effectView.frame = bounds
+    // Oversized CALayer radii can suppress the glass entirely. Resolve the
+    // requested pill radius only after the platform view has its live bounds.
+    effectView.layer.cornerRadius = min(
+      max(0, requestedCornerRadius), min(bounds.width, bounds.height) / 2
+    )
   }
 }
