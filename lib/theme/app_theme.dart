@@ -10,12 +10,22 @@
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../platform/adaptive_platform.dart';
 
 Color _hex(int rgb, [double opacity = 1]) =>
     Color((rgb & 0xFFFFFF) | 0xFF000000).withValues(alpha: opacity);
+
+// This calibration is intentionally limited to iOS and Android. Other target
+// platforms keep their existing typography and geometry.
+bool _isMobileChatPlatform(TargetPlatform? platform) =>
+    !kIsWeb &&
+    switch (platform ?? defaultTargetPlatform) {
+      TargetPlatform.iOS || TargetPlatform.android => true,
+      _ => false,
+    };
 
 abstract final class AppTextSize {
   static const double tiny = 10;
@@ -31,9 +41,17 @@ abstract final class AppTextSize {
   /// Role-specific chat typography: readable touch sizes and compact native
   /// desktop sizes, independent of settings/navigation tokens and font family.
   static double chatListTitle([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? callout : bodyLarge;
+      isDesktopTargetPlatform(platform)
+      ? callout
+      : _isMobileChatPlatform(platform)
+      ? title
+      : bodyLarge;
   static double chatListPreview([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? caption : callout;
+      isDesktopTargetPlatform(platform)
+      ? caption
+      : _isMobileChatPlatform(platform)
+      ? footnote
+      : callout;
   static double chatListTimestamp([TargetPlatform? platform]) =>
       isDesktopTargetPlatform(platform) ? caption : footnote;
 
@@ -97,6 +115,19 @@ extension AppTextWeightContext on BuildContext {
 }
 
 abstract final class AppTextStyle {
+  /// Message-body-sized text runs only, never an entire bubble subtree.
+  /// Overrides inherited leading (which otherwise produces about 24pt pitch
+  /// at 17pt) without changing font selection, weight, tracking or OS scaling.
+  static TextStyle messageBody(Color color, {TargetPlatform? platform}) =>
+      TextStyle(
+        fontSize: AppTextSize.messageBody(platform),
+        color: color,
+        height: _isMobileChatPlatform(platform) ? 22 / 17 : null,
+        leadingDistribution: _isMobileChatPlatform(platform)
+            ? TextLeadingDistribution.even
+            : null,
+      );
+
   static TextStyle tiny(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.tiny,
     fontWeight: weight ?? AppTextWeight.regular,
@@ -241,7 +272,11 @@ abstract final class AppMetric {
   static const double avatarSize = 48;
 
   static double chatListRowHeight([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? 58 : listRowHeight;
+      isDesktopTargetPlatform(platform)
+      ? 58
+      : _isMobileChatPlatform(platform)
+      ? 72
+      : listRowHeight;
 
   /// Rough line box of a text run relative to its font size. Only used to
   /// grow fixed-extent rows, so it errs generous rather than exact.

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 import '../theme/app_theme.dart';
@@ -69,6 +70,10 @@ class ChatRowMetrics {
       return result;
     }
 
+    final calibratedTouch =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.iOS ||
+            defaultTargetPlatform == TargetPlatform.android);
     final avatar = AppMetric.chatListAvatarSize() * scale;
     final time = measure(timestamp, AppTextSize.chatListTimestamp());
     final available =
@@ -142,10 +147,15 @@ class ChatRowMetrics {
       avatar: avatar,
       extent: [
         AppMetric.chatListRowHeight() * scale,
+        // Touch rows keep 8pt above and below a scaled avatar. Do not
+        // derive this inset from the new 72pt base (that would add 24pt).
         avatar +
-            (AppMetric.chatListRowHeight() - AppMetric.chatListAvatarSize()),
+            (calibratedTouch
+                ? 16.0
+                : AppMetric.chatListRowHeight() -
+                      AppMetric.chatListAvatarSize()),
         stack + 16,
-        44.0,
+        if (!calibratedTouch) 44.0,
       ].reduce(math.max),
       timestampWidth: time.width,
       timeBelow: timeBelow,
