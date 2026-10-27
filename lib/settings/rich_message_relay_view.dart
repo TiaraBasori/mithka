@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../chat/link_handler.dart';
 import '../chat/rich_message_bot_relay.dart';
 import '../components/app_icons.dart';
+import '../components/app_text_selection_toolbar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
@@ -128,8 +129,11 @@ class _RichMessageRelayViewState extends State<RichMessageRelayView> {
                             isCollapsed: true,
                           ),
                           contextMenuBuilder: (context, editableTextState) =>
-                              AdaptiveTextSelectionToolbar.editableText(
-                                editableTextState: editableTextState,
+                              AppTextSelectionToolbar.buttonItems(
+                                context: context,
+                                anchors: editableTextState.contextMenuAnchors,
+                                buttonItems:
+                                    editableTextState.contextMenuButtonItems,
                               ),
                           onSubmitted: (_) => _save(),
                         ),

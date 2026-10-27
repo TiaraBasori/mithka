@@ -20,6 +20,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:logger/logger.dart' show Level;
+import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -5909,7 +5910,8 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                           ).systemTextScaler,
                                                     ),
                                                 child:
-                                                    AdaptiveTextSelectionToolbar.buttonItems(
+                                                    AppTextSelectionToolbar.buttonItems(
+                                                      context: context,
                                                       anchors: editableTextState
                                                           .contextMenuAnchors,
                                                       buttonItems: items,

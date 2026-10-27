@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../bot_api/bot_api_client.dart';
 import '../components/app_icons.dart';
+import '../components/app_text_selection_toolbar.dart';
 import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
@@ -124,8 +125,11 @@ class _BotApiEndpointViewState extends State<BotApiEndpointView> {
                             isCollapsed: true,
                           ),
                           contextMenuBuilder: (context, editableTextState) =>
-                              AdaptiveTextSelectionToolbar.editableText(
-                                editableTextState: editableTextState,
+                              AppTextSelectionToolbar.buttonItems(
+                                context: context,
+                                anchors: editableTextState.contextMenuAnchors,
+                                buttonItems:
+                                    editableTextState.contextMenuButtonItems,
                               ),
                           onSubmitted: (_) => _save(),
                         ),

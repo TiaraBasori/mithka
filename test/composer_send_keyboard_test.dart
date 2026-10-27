@@ -1,11 +1,12 @@
 import 'dart:async';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:heroicons_flutter/heroicons_flutter.dart';
 import 'package:mithka/chat/chat_input_bar.dart';
 import 'package:mithka/chat/chat_view_model.dart';
+import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/components/keyboard_dismiss_on_tap.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -317,7 +318,7 @@ void main() {
     );
   }
 
-  testWidgets('Android composer selection overflow uses Material icons', (
+  testWidgets('Android composer selection overflow uses owned icons', (
     tester,
   ) async {
     tester.view.devicePixelRatio = 1.0;
@@ -345,15 +346,30 @@ void main() {
     editable.showToolbar();
     await tester.pumpAndSettle();
 
-    expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+    // The owned toolbar replaces the framework's Material overflow affordance
+    // (whose Icons.more_vert renders as tofu without the bundled MaterialIcons
+    // font this app does not ship).
+    expect(find.byType(AppTextSelectionToolbar), findsOneWidget);
+    expect(find.byType(AdaptiveTextSelectionToolbar), findsNothing);
     final moreButton = find.byKey(StandardComponentType.moreButton.key);
     expect(moreButton, findsOneWidget);
     final moreIcon = tester.widget<Icon>(
       find.descendant(of: moreButton, matching: find.byType(Icon)),
     );
-    expect(moreIcon.icon, Icons.more_vert);
-    expect(moreIcon.icon?.fontFamily, 'MaterialIcons');
+    expect(moreIcon.icon, HeroiconsOutline.ellipsisVertical);
+    expect(moreIcon.icon?.fontFamily, isNot('MaterialIcons'));
 
+    // Opening the overflow menu flips the affordance to the owned back glyph.
+    await tester.tap(moreButton);
+    await tester.pumpAndSettle();
+    final backButton = find.byKey(StandardComponentType.backButton.key);
+    expect(backButton, findsOneWidget);
+    final backIcon = tester.widget<Icon>(
+      find.descendant(of: backButton, matching: find.byType(Icon)),
+    );
+    expect(backIcon.icon, HeroiconsOutline.chevronLeft);
+
+    // The app still ships no MaterialIcons font.
     final pubspecLines = File('pubspec.yaml').readAsLinesSync();
     final flutterStart = pubspecLines.indexOf('flutter:');
     expect(flutterStart, greaterThanOrEqualTo(0));
@@ -370,8 +386,8 @@ void main() {
     );
     expect(
       flutterLines.any(materialDesignSetting.hasMatch),
-      isTrue,
-      reason: 'Flutter must bundle MaterialIcons for selection toolbar icons',
+      isFalse,
+      reason: 'the app must not bundle MaterialIcons for selection toolbars',
     );
   });
 
