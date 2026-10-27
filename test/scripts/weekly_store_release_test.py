@@ -15,6 +15,55 @@ SPEC.loader.exec_module(RELEASE)
 
 
 class WeeklyReleaseTest(unittest.TestCase):
+    def test_package_recovery_reuses_its_recorded_dispatch_and_never_rebuilds(self):
+        plan = {"version": "1.8.8", "source_sha": "a" * 40}
+        original = {"id": 9}
+        intent = {
+            "workflow_sha": "c" * 40,
+            "started_after": "2026-10-27T00:00:00+00:00",
+        }
+        recovery = {"id": 11, "created_at": "2026-10-27T00:00:01Z"}
+        with (
+            patch.object(RELEASE, "command") as command,
+            patch.object(RELEASE, "package_intent", return_value=(intent, False)),
+            patch.object(RELEASE, "runs", return_value=[recovery]),
+            patch.object(RELEASE, "dispatch") as dispatch,
+            patch.object(RELEASE, "wait_run") as wait,
+        ):
+            self.assertEqual(
+                RELEASE.recover_github_publication(plan, original, "b" * 40), recovery
+            )
+            self.assertIn("--verify", command.call_args.args)
+            dispatch.assert_not_called()
+            wait.assert_called_once_with(recovery, "c" * 40, "github-store-publish.yml")
+
+    def test_unknown_recovery_is_not_redispatched_and_failed_builds_cannot_reserve_it(
+        self,
+    ):
+        plan = {"version": "1.8.8", "source_sha": "a" * 40}
+        intent = {
+            "workflow_sha": "c" * 40,
+            "started_after": "2026-10-27T00:00:00+00:00",
+        }
+        with (
+            patch.object(RELEASE, "command"),
+            patch.object(RELEASE, "package_intent", return_value=(intent, False)),
+            patch.object(RELEASE, "runs", return_value=[]),
+            patch.object(RELEASE, "dispatch") as dispatch,
+            self.assertRaises(RELEASE.Error),
+        ):
+            RELEASE.recover_github_publication(plan, {"id": 9}, "b" * 40)
+        dispatch.assert_not_called()
+        with (
+            patch.object(
+                RELEASE, "command", side_effect=RELEASE.Error("build evidence failed")
+            ),
+            patch.object(RELEASE, "package_intent") as marker,
+            self.assertRaises(RELEASE.Error),
+        ):
+            RELEASE.recover_github_publication(plan, {"id": 9}, "b" * 40)
+        marker.assert_not_called()
+
     def test_completion_waits_for_stores_development_bump_and_same_version_github_packages(
         self,
     ):

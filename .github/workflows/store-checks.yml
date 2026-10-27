@@ -75,6 +75,7 @@ jobs:
           python -m unittest discover -s test/scripts -p 'weekly_store_release_test.py' -v
           python -m unittest discover -s test/scripts -p 'quality_release_source_test.py' -v
           python -m unittest discover -s test/scripts -p 'release_snapshot_workflow_test.py' -v
+          python -m unittest discover -s test/scripts -p 'publish_store_github_release_test.py' -v
       - name: Validate the store workflows
         run: |
           # actionlint 1.7.12 predates GitHub's documented concurrency.queue.
@@ -88,6 +89,7 @@ jobs:
             .github/workflows/weekly-store-release.yml \
             .github/workflows/quality.yml \
             .github/workflows/release.yml \
+            .github/workflows/github-store-publish.yml \
             .github/workflows/store-checks.yml
 
   asc-credentials:

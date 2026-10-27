@@ -10,9 +10,8 @@ name: 🚀 Multi-platform Releases
 # Each Android ABI publishes one standard APK using the tracked Android release
 # code, matching the Google Play artifact built from the same release commit.
 #
-# master never builds release packages. The daily sync workflow merges new master
-# commits into nightly, increments the patch version once, and dispatches this
-# workflow.
+# Ordinary packages follow nightly/release. A master store dispatch builds its
+# exact immutable submitted source, even after master advances its version.
 #
 # Required repository secrets:
 #   TELEGRAM_API_ID, TELEGRAM_API_HASH   — baked into lib/config/secrets.dart
@@ -927,7 +926,10 @@ jobs:
         with:
           tag_name: ${{ needs.prepare.outputs.release_tag }}
           name: ${{ needs.prepare.outputs.release_name }}
-          target_commitish: ${{ inputs.source_commit || github.sha }}
+          # The store tag was already verified above. This API field cannot
+          # move that tag; using master avoids requesting workflow-write
+          # permission merely to release an older submitted source.
+          target_commitish: ${{ inputs.source_commit != '' && 'master' || github.sha }}
           draft: ${{ inputs.source_commit != '' }}
           overwrite_files: ${{ inputs.source_commit == '' }}
           prerelease: ${{ needs.prepare.outputs.prerelease }}

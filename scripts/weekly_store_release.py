@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import time
 
@@ -762,30 +763,81 @@ def github_release(tag):
     return json.loads(result.stdout)
 
 
-def package_intent(plan):
-    tag = f"github-package-build-v{plan['version']}"
+def package_intent(plan, publication_run=None):
+    kind = (
+        "github_packages" if publication_run is None else "github_package_publication"
+    )
+    tag = f"github-package-{'build' if publication_run is None else 'publication'}-v{plan['version']}"
     command("git", "fetch", "origin", "master", "--tags")
     if command("git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}"):
         data = json.loads(
             command("git", "for-each-ref", "--format=%(contents)", f"refs/tags/{tag}")
         )
         if (
-            data.get("kind") != "github_packages"
+            data.get("kind") != kind
             or data.get("source_sha") != plan["source_sha"]
             or not SHA.fullmatch(data.get("workflow_sha", ""))
+            or publication_run is not None
+            and data.get("package_run_id") != str(publication_run)
         ):
             raise Error("GitHub package intent belongs to another source")
         return data, False
     sha = api("git/ref/heads/master")["object"]["sha"]
     data = {
-        "kind": "github_packages",
+        "kind": kind,
         "workflow_sha": sha,
         "started_after": (
             dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=5)
         ).isoformat(),
     }
+    if publication_run is not None:
+        data["package_run_id"] = str(publication_run)
     record_marker(tag, plan["source_sha"], data)
     return dict(data, source_sha=plan["source_sha"]), True
+
+
+def recover_github_publication(plan, original, controller):
+    # This refuses every failure outside the release API step; no Quality or
+    # native build can be waived. Only the original immutable artifacts move.
+    command(
+        sys.executable,
+        str(Path(__file__).with_name("publish_store_github_release.py")),
+        "--verify",
+        "--package-run-id",
+        str(original["id"]),
+        "--source",
+        plan["source_sha"],
+        "--controller",
+        controller,
+    )
+    intent, new_intent = package_intent(plan, publication_run=original["id"])
+    candidates = [
+        run
+        for run in runs("github-store-publish.yml", intent["workflow_sha"])
+        if dt.datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+        >= dt.datetime.fromisoformat(intent["started_after"])
+    ]
+    if len(candidates) > 1:
+        raise Error("multiple package publication recoveries need reconciliation")
+    if candidates:
+        recovery = candidates[0]
+    elif new_intent:
+        if api("git/ref/heads/master")["object"]["sha"] != intent["workflow_sha"]:
+            raise Error("master advanced before publication recovery dispatch")
+        recovery = dispatch(
+            "github-store-publish.yml",
+            "master",
+            intent["workflow_sha"],
+            {
+                "package_run_id": str(original["id"]),
+                "source_commit": plan["source_sha"],
+                "controller_commit": controller,
+            },
+        )
+    else:
+        raise Error("publication recovery dispatch is unknown; reconcile it")
+    wait_run(recovery, intent["workflow_sha"], "github-store-publish.yml")
+    return recovery
 
 
 def verify_github_packages(release, manifest, plan):
@@ -866,7 +918,14 @@ def publish_github_release(plan):
         raise Error(
             "GitHub package dispatch is unknown; reconcile it instead of repeating it"
         )
-    wait_run(run, intent["workflow_sha"], "release.yml")
+    recovery = None
+    try:
+        wait_run(run, intent["workflow_sha"], "release.yml")
+    except Error:
+        failed = api(f"actions/runs/{run['id']}")
+        if failed["status"] != "completed" or failed["conclusion"] != "failure":
+            raise
+        recovery = recover_github_publication(plan, run, intent["workflow_sha"])
     release = github_release(tag)
     if release is None:
         raise Error("completed package workflow did not publish its GitHub release")
@@ -886,6 +945,8 @@ def publish_github_release(plan):
         manifest = json.loads((Path(directory) / "release-manifest.json").read_text())
     if manifest.get("workflow_run_id") != str(run["id"]):
         raise Error("GitHub package manifest belongs to another workflow run")
+    if recovery and manifest.get("publication_workflow_run_id") != str(recovery["id"]):
+        raise Error("GitHub publication manifest belongs to another recovery")
     verify_github_packages(release, manifest, plan)
     print(
         f"Verified GitHub release {tag}: 11 packages match the store source.",

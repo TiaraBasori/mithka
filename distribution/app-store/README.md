@@ -94,3 +94,14 @@ that store mode skips Telegram notifications and never moves an existing tag.
 It does not install a schedule on the maintainer's computer. New release
 snapshots require current master Quality before reserving their version tags;
 resuming an already-tested snapshot continues to validate that exact source.
+
+If only the GitHub release API step fails after Quality and all seven package
+builders pass, the coordinator can dispatch
+[Recover Store GitHub Publication](https://github.com/iebb/mithka/actions/workflows/github-store-publish.yml).
+It verifies the exact original workflow/source, all jobs and eleven immutable
+artifacts, then uploads those artifacts without rebuilding or resubmitting to
+stores. Any test/build failure blocks this path. Recovery has its own immutable
+intent, and partial drafts resume only when existing asset digests agree.
+The API uses `master` as `target_commitish` to avoid requesting workflow-write
+permission for an older source. The existing verified `vX.Y.Z` tag stays on
+the submitted source; the tag and release manifest determine the actual source.
