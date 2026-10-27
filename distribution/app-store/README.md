@@ -10,7 +10,12 @@ workflows build, sign and upload binaries. App Review is a separate manual step:
 4. Provide the path to a committed release-notes JSON under `distribution/app-store/`, containing exactly `en-US` and `zh-Hans` text. For example: `distribution/app-store/release-notes-1.7.11.json`. Use release notes appropriate to the selected version.
 5. Run `validate` first. It plans the review submission without changing ASC. Select `submit` to create/update the listing, attach that exact build, copy the existing review details and metadata, and submit to App Review. The workflow verifies the resulting version and review-submission state. New versions use the existing release script's `AFTER_APPROVAL` behavior.
 
-The workflow runs the required Quality gate before accessing ASC credentials.
+The workflow runs the full Quality gate on the exact uploaded `source_commit`
+before accessing ASC credentials, plus tests for the current submission code.
+Only a canonical master App Review dispatch may select a source override, and
+that source must be an ancestor of master. PR and push checks keep their event
+SHA and merge-identity checks. Release-source checks have a distinct job name
+so they cannot substitute for current-head PR evidence.
 It never selects a build merely because it is the latest upload.
 Completed historical submissions whose items for the selected version were
 removed are ignored. Multiple remaining submissions still block publication.

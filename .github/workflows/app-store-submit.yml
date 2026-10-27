@@ -70,6 +70,8 @@ jobs:
     name: Required quality gate
     needs: context
     uses: ./.github/workflows/quality.yml
+    with:
+      source_commit: ${{ inputs.source_commit }}
 
   submit:
     name: Validate or submit the exact App Store build

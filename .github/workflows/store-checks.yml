@@ -14,6 +14,7 @@ on:
       - '.github/workflows/macos-testflight.yml'
       - '.github/workflows/store-checks.yml'
       - '.github/workflows/weekly-store-release.yml'
+      - '.github/workflows/quality.yml'
       - 'scripts/*store*'
       - 'scripts/check_google_play_credentials.py'
       - 'scripts/verify-store-source.sh'
@@ -21,6 +22,7 @@ on:
       - 'test/scripts/*store*'
       - 'test/scripts/check_google_play_credentials_test.py'
       - 'test/scripts/store_source_test.py'
+      - 'test/scripts/quality_release_source_test.py'
   push:
     branches: [master]
     paths:
@@ -30,6 +32,7 @@ on:
       - '.github/workflows/macos-testflight.yml'
       - '.github/workflows/store-checks.yml'
       - '.github/workflows/weekly-store-release.yml'
+      - '.github/workflows/quality.yml'
       - 'scripts/*store*'
       - 'scripts/check_google_play_credentials.py'
       - 'scripts/verify-store-source.sh'
@@ -37,6 +40,7 @@ on:
       - 'test/scripts/*store*'
       - 'test/scripts/check_google_play_credentials_test.py'
       - 'test/scripts/store_source_test.py'
+      - 'test/scripts/quality_release_source_test.py'
 
 permissions:
   contents: read
@@ -65,6 +69,7 @@ jobs:
           python -m unittest discover -s test/scripts -p 'check_google_play_credentials_test.py' -v
           python -m unittest discover -s test/scripts -p 'store_source_test.py' -v
           python -m unittest discover -s test/scripts -p 'weekly_store_release_test.py' -v
+          python -m unittest discover -s test/scripts -p 'quality_release_source_test.py' -v
       - name: Validate the store workflows
         run: |
           # actionlint 1.7.12 predates GitHub's documented concurrency.queue.
@@ -76,6 +81,7 @@ jobs:
             .github/workflows/ios-testflight.yml \
             .github/workflows/macos-testflight.yml \
             .github/workflows/weekly-store-release.yml \
+            .github/workflows/quality.yml \
             .github/workflows/store-checks.yml
 
   asc-credentials:
