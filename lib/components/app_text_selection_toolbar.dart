@@ -21,7 +21,7 @@ const double _kToolbarContentDistance = 8.0;
 /// [HeroAppIcons.ellipsisVertical] and [HeroAppIcons.chevronLeft] instead, so
 /// the app ships one icon vocabulary and no MaterialIcons font.
 ///
-/// Use through [AppTextSelectionToolbar.buttonItems], which mirrors
+/// Use through [AppTextSelectionToolbar.fromButtonItems], which mirrors
 /// [AdaptiveTextSelectionToolbar.buttonItems] for the mobile Material
 /// platforms; desktop platforms keep the framework's desktop toolbars, which
 /// have no overflow affordance.
@@ -39,7 +39,7 @@ class AppTextSelectionToolbar extends StatelessWidget {
   final List<Widget> children;
 
   /// The [ContextMenuButtonItem]s these [children] were built from, when the
-  /// toolbar came from [AppTextSelectionToolbar.buttonItems]; tests and
+  /// toolbar came from [AppTextSelectionToolbar.fromButtonItems]; tests and
   /// callers that need the semantic items read them from here.
   final List<ContextMenuButtonItem>? buttonItems;
 
@@ -161,6 +161,9 @@ class _AppToolbarOverflowableState extends State<_AppToolbarOverflowable>
       context,
     );
     final TextDirection textDirection = Directionality.of(context);
+    final backIcon = textDirection == TextDirection.rtl
+        ? HeroAppIcons.chevronRight
+        : HeroAppIcons.chevronLeft;
 
     return _AppToolbarTrailingEdgeAlign(
       key: _containerKey,
@@ -187,7 +190,7 @@ class _AppToolbarOverflowableState extends State<_AppToolbarOverflowable>
                     : StandardComponentType.moreButton.key,
                 icon: Icon(
                   _overflowOpen
-                      ? HeroAppIcons.chevronLeft.data
+                      ? backIcon.data
                       : HeroAppIcons.ellipsisVertical.data,
                   size: 24,
                 ),

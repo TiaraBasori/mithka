@@ -7,7 +7,6 @@ import 'package:mithka/chat/chat_view_model.dart';
 import 'package:mithka/chat/rich_message_source.dart';
 import 'package:mithka/chat/rich_text_composer_view.dart';
 import 'package:mithka/components/app_icons.dart';
-import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/advanced_settings_view.dart';
@@ -231,14 +230,20 @@ void main() {
       of: textFieldFinder,
       matching: find.byType(EditableText),
     );
+    await Clipboard.setData(const ClipboardData(text: 'clipboard value'));
+    addTearDown(() => Clipboard.setData(const ClipboardData(text: '')));
+    await tester.enterText(textFieldFinder, 'replace me');
     final field = tester.widget<EditableText>(fieldFinder);
-    final editableTextState = tester.state<EditableTextState>(fieldFinder);
-    final toolbar = field.contextMenuBuilder?.call(
-      tester.element(fieldFinder),
-      editableTextState,
+    field.controller.selection = const TextSelection(
+      baseOffset: 0,
+      extentOffset: 10,
     );
-
-    expect(toolbar, isA<AppTextSelectionToolbar>());
+    final editableTextState = tester.state<EditableTextState>(fieldFinder);
+    editableTextState.showToolbar();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Paste'));
+    await tester.pumpAndSettle();
+    expect(field.controller.text, 'clipboard value');
   });
 
   testWidgets('Premium rich-text send never falls back to the relay bot', (
