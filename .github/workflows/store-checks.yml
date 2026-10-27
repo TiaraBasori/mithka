@@ -48,7 +48,10 @@ jobs:
           python -m unittest discover -s test/scripts -p 'check_google_play_credentials_test.py' -v
       - name: Validate the store workflows
         run: |
+          # actionlint 1.7.12 predates GitHub's documented concurrency.queue.
+          # Keep all other lint checks; GitHub validates queue: max itself.
           go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 \
+            -ignore 'unexpected key "queue" for "concurrency" section' \
             .github/workflows/app-store-submit.yml \
             .github/workflows/google-play.yml \
             .github/workflows/store-checks.yml
@@ -93,6 +96,7 @@ jobs:
     concurrency:
       group: google-play-publication
       cancel-in-progress: false
+      queue: max
     steps:
       - uses: actions/checkout@v7
         with:

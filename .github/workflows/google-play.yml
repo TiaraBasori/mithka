@@ -14,6 +14,7 @@ concurrency:
   # beta and production.
   group: google-play-publication
   cancel-in-progress: false
+  queue: max
 
 permissions:
   actions: read
