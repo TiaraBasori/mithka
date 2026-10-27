@@ -4,7 +4,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui' as ui;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -31,6 +30,7 @@ import 'package:mithka/chat/sticker_store.dart';
 import 'package:mithka/chat/telegram_ai_service.dart';
 import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/app_interactive_surface.dart';
+import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/components/keyboard_dismiss_on_tap.dart';
 import 'package:mithka/components/photo_avatar.dart';
 import 'package:mithka/components/ui_components.dart';
@@ -50,7 +50,6 @@ import 'package:mithka/theme/emoji_font_catalog.dart';
 import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'support/l10n_fixtures.dart';
 
 Future<MusicPlayerController> _pumpMusicPlayerBar(WidgetTester tester) async {
@@ -473,7 +472,7 @@ void main() {
       );
       final toolbar =
           field.contextMenuBuilder!(tester.element(fieldFinder), editableState)
-              as AdaptiveTextSelectionToolbar;
+              as AppTextSelectionToolbar;
       final labels = toolbar.buttonItems!.map((item) => item.label);
 
       expect(labels, contains('Format'));
@@ -689,7 +688,7 @@ void main() {
       await tester.longPress(firstCell);
       await tester.pumpAndSettle();
 
-      expect(find.byType(AdaptiveTextSelectionToolbar), findsOneWidget);
+      expect(find.byType(AppTextSelectionToolbar), findsOneWidget);
       expect(find.text('Change Table'), findsOneWidget);
       expect(find.text('Format'), findsOneWidget);
       firstCellController.selection = TextSelection(
@@ -732,7 +731,7 @@ void main() {
                 tester.element(firstCell),
                 formattedEditableState,
               )
-              as AdaptiveTextSelectionToolbar;
+              as AppTextSelectionToolbar;
       formattedToolbar.buttonItems!
           .singleWhere((item) => item.label == 'Format')
           .onPressed!();
@@ -2968,7 +2967,7 @@ void main() {
         ContentSizeScope.of(tester.element(textFieldFinder)).systemTextScaler,
       );
       final buttonItems =
-          (toolbarScope.child as AdaptiveTextSelectionToolbar).buttonItems;
+          (toolbarScope.child as AppTextSelectionToolbar).buttonItems;
 
       final pasteItems = buttonItems!.where(
         (item) => item.type == ContextMenuButtonType.paste,
@@ -3105,7 +3104,7 @@ void main() {
           ContentSizeScope.of(tester.element(textFieldFinder)).systemTextScaler,
         );
         final items =
-            (toolbarScope.child as AdaptiveTextSelectionToolbar).buttonItems!;
+            (toolbarScope.child as AppTextSelectionToolbar).buttonItems!;
         items.singleWhere((item) => item.label == 'Format').onPressed!();
       }
 

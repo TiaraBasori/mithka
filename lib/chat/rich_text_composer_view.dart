@@ -1842,10 +1842,10 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
             unawaited(_showRichBlockInsertMenu(editableTextState, blockIndex)),
       ),
     );
-    return AppTextSelectionToolbar.buttonItems(
+    return AppTextSelectionToolbar.fromButtonItems(
       context: context,
       anchors: editableTextState.contextMenuAnchors,
-      buttonItems: items,
+      items: items,
     );
   }
 
@@ -2924,10 +2924,10 @@ class _RichTextComposerViewState extends State<RichTextComposerView> {
                 ),
               ),
             );
-            return AppTextSelectionToolbar.buttonItems(
+            return AppTextSelectionToolbar.fromButtonItems(
               context: context,
               anchors: editableTextState.contextMenuAnchors,
-              buttonItems: items,
+              items: items,
             );
           },
           style: AppTextStyle.callout(

@@ -5910,11 +5910,11 @@ class _ChatInputBarState extends State<ChatInputBar>
                                                           ).systemTextScaler,
                                                     ),
                                                 child:
-                                                    AppTextSelectionToolbar.buttonItems(
+                                                    AppTextSelectionToolbar.fromButtonItems(
                                                       context: context,
                                                       anchors: editableTextState
                                                           .contextMenuAnchors,
-                                                      buttonItems: items,
+                                                      items: items,
                                                     ),
                                               );
                                             },

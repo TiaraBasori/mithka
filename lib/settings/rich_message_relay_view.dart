@@ -129,11 +129,10 @@ class _RichMessageRelayViewState extends State<RichMessageRelayView> {
                             isCollapsed: true,
                           ),
                           contextMenuBuilder: (context, editableTextState) =>
-                              AppTextSelectionToolbar.buttonItems(
+                              AppTextSelectionToolbar.fromButtonItems(
                                 context: context,
                                 anchors: editableTextState.contextMenuAnchors,
-                                buttonItems:
-                                    editableTextState.contextMenuButtonItems,
+                                items: editableTextState.contextMenuButtonItems,
                               ),
                           onSubmitted: (_) => _save(),
                         ),

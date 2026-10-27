@@ -3950,10 +3950,10 @@ class _ChannelPostComposerViewState extends State<ChannelPostComposerView> {
             maxLines: 16,
             textInputAction: TextInputAction.newline,
             contextMenuBuilder: (context, editableTextState) {
-              return AppTextSelectionToolbar.buttonItems(
+              return AppTextSelectionToolbar.fromButtonItems(
                 context: context,
                 anchors: editableTextState.contextMenuAnchors,
-                buttonItems: editableTextState.contextMenuButtonItems,
+                items: editableTextState.contextMenuButtonItems,
               );
             },
             style: AppTextStyle.bodyLarge(c.textPrimary).copyWith(height: 1.4),

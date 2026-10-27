@@ -125,11 +125,10 @@ class _BotApiEndpointViewState extends State<BotApiEndpointView> {
                             isCollapsed: true,
                           ),
                           contextMenuBuilder: (context, editableTextState) =>
-                              AppTextSelectionToolbar.buttonItems(
+                              AppTextSelectionToolbar.fromButtonItems(
                                 context: context,
                                 anchors: editableTextState.contextMenuAnchors,
-                                buttonItems:
-                                    editableTextState.contextMenuButtonItems,
+                                items: editableTextState.contextMenuButtonItems,
                               ),
                           onSubmitted: (_) => _save(),
                         ),

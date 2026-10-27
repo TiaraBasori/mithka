@@ -31,14 +31,23 @@ class AppTextSelectionToolbar extends StatelessWidget {
     required this.anchorAbove,
     required this.anchorBelow,
     required this.children,
-  }) : assert(children.length > 0);
+    this.buttonItems,
+  });
 
   final Offset anchorAbove;
   final Offset anchorBelow;
   final List<Widget> children;
 
+  /// The [ContextMenuButtonItem]s these [children] were built from, when the
+  /// toolbar came from [AppTextSelectionToolbar.buttonItems]; tests and
+  /// callers that need the semantic items read them from here.
+  final List<ContextMenuButtonItem>? buttonItems;
+
   @override
   Widget build(BuildContext context) {
+    if (children.isEmpty) {
+      return const SizedBox.shrink();
+    }
     final anchorAbovePadded =
         anchorAbove - const Offset(0.0, _kToolbarContentDistance);
     const double screenPadding = 8.0;
@@ -71,33 +80,33 @@ class AppTextSelectionToolbar extends StatelessWidget {
   /// this toolbar's owned overflow affordances. iOS/macOS keep the Cupertino
   /// toolbar (it pages with dots, not icons), and desktop keeps the framework
   /// desktop toolbar.
-  static Widget buttonItems({
+  static Widget fromButtonItems({
     required BuildContext context,
     required TextSelectionToolbarAnchors anchors,
-    required List<ContextMenuButtonItem> buttonItems,
+    required List<ContextMenuButtonItem> items,
   }) {
-    if (buttonItems.isEmpty) {
-      return const SizedBox.shrink();
-    }
     switch (Theme.of(context).platform) {
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
         return AppTextSelectionToolbar(
           anchorAbove: anchors.primaryAnchor,
           anchorBelow: anchors.secondaryAnchor ?? anchors.primaryAnchor,
-          children: buttonItems
+          buttonItems: items,
+          children: items
+              .asMap()
+              .entries
               .map(
-                (buttonItem) => TextSelectionToolbarTextButton(
+                (entry) => TextSelectionToolbarTextButton(
                   padding: TextSelectionToolbarTextButton.getPadding(
-                    buttonItems.indexOf(buttonItem),
-                    buttonItems.length,
+                    entry.key,
+                    items.length,
                   ),
-                  onPressed: buttonItem.onPressed,
+                  onPressed: entry.value.onPressed,
                   alignment: AlignmentDirectional.centerStart,
                   child: Text(
                     AdaptiveTextSelectionToolbar.getButtonLabel(
                       context,
-                      buttonItem,
+                      entry.value,
                     ),
                   ),
                 ),
@@ -110,7 +119,7 @@ class AppTextSelectionToolbar extends StatelessWidget {
       case TargetPlatform.windows:
         return AdaptiveTextSelectionToolbar.buttonItems(
           anchors: anchors,
-          buttonItems: buttonItems,
+          buttonItems: items,
         );
     }
   }
