@@ -273,6 +273,57 @@ def play_state(expected=None):
     return state
 
 
+def ensure_master_quality(commit):
+    existing = api(f"actions/workflows/quality.yml/runs?head_sha={commit}&per_page=1")
+    if not existing["workflow_runs"]:
+        api("actions/workflows/quality.yml/dispatches", {"ref": "master", "inputs": {}})
+
+
+def validate_release_base(commit):
+    existing = api(
+        f"actions/workflows/quality.yml/runs?head_sha={commit}&per_page=100"
+    )["workflow_runs"]
+    if not existing:
+        run = dispatch("quality.yml", "master", commit, {})
+    else:
+        run = max(
+            existing,
+            key=lambda candidate: candidate.get(
+                "updated_at", candidate.get("created_at", "")
+            ),
+        )
+        if (
+            run.get("head_sha") != commit
+            or run.get("path") != ".github/workflows/quality.yml"
+        ):
+            raise Error("base Quality identity changed")
+        # Direct push/manual Quality has the same trusted workflow definition.
+        if run["status"] == "completed" and run["conclusion"] == "success":
+            return
+        if run["status"] == "completed":
+            raise Error(
+                "current master Quality failed; do not reserve a new store snapshot"
+            )
+        deadline = time.monotonic() + 3600
+        while True:
+            current = api(f"actions/runs/{run['id']}")
+            if (
+                current["head_sha"] != commit
+                or current["path"] != ".github/workflows/quality.yml"
+            ):
+                raise Error("base Quality identity changed")
+            if current["status"] == "completed":
+                if current["conclusion"] != "success":
+                    raise Error(
+                        "current master Quality failed; do not reserve a new store snapshot"
+                    )
+                return
+            if time.monotonic() >= deadline:
+                raise Error("base Quality timed out")
+            time.sleep(30)
+    wait_run(run, commit, "quality.yml", timeout=3600)
+
+
 def validate_plan(plan, key):
     version_tuple(plan["version"])
     if not re.fullmatch(re.escape(plan["version"]) + r"\+\d+", plan["raw_version"]):
@@ -304,7 +355,7 @@ def validate_plan(plan, key):
     return plan
 
 
-def prepare(key, state, play, apply=False):
+def prepare(key, state, play, apply=False, base_validator=None):
     if key is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", key):
         raise Error("release key must be YYYY-MM-DD")
     if command("git", "branch", "--show-current") != "master" or command(
@@ -375,12 +426,15 @@ def prepare(key, state, play, apply=False):
         "android_version_code": code,
         "notes_path": f"distribution/app-store/release-notes-{version}.json",
         "tag": f"store-v{version}",
+        "release_tag": f"v{version}",
         "day_tag": day_tag,
     }
-    if plan["tag"] in tags:
+    if plan["tag"] in tags or plan["release_tag"] in tags:
         raise Error("selected version already has a release snapshot")
     if not apply:
         return plan
+    if base_validator:
+        base_validator(plan["base_sha"])
     Path("pubspec.yaml").write_text(
         pubspec[: match.start()]
         + f"version: {plan['raw_version']}\n"
@@ -416,7 +470,7 @@ def prepare(key, state, play, apply=False):
     command("git", "commit", "-m", f"chore: prepare store release {version}")
     plan["source_sha"] = command("git", "rev-parse", "HEAD")
     plan["apple_build_number"] = command("git", "rev-list", "--count", "HEAD")
-    for tag in (plan["tag"], day_tag):
+    for tag in (plan["tag"], day_tag, plan["release_tag"]):
         command("git", "tag", "-a", tag, "-m", json.dumps(plan, sort_keys=True))
     # Recheck immediately before one atomic, non-force publication.
     command("git", "fetch", "origin", "master")
@@ -424,7 +478,16 @@ def prepare(key, state, play, apply=False):
         raise Error(
             "master advanced during snapshot preparation; nothing was published"
         )
-    command("git", "push", "--atomic", "origin", "master", plan["tag"], day_tag)
+    command(
+        "git",
+        "push",
+        "--atomic",
+        "origin",
+        "master",
+        plan["tag"],
+        day_tag,
+        plan["release_tag"],
+    )
     return validate_plan(plan, key)
 
 
@@ -619,7 +682,9 @@ def record_completion(plan):
     )
 
 
-def advance_development_version(plan, state_reader=play_state):
+def advance_development_version(
+    plan, state_reader=play_state, quality_requester=ensure_master_quality
+):
     # After verified store submission, under the shared nightly allocator lock.
     # Preserve app work and the immutable submitted snapshot.
     if command("git", "branch", "--show-current") != "master" or command(
@@ -641,6 +706,7 @@ def advance_development_version(plan, state_reader=play_state):
             "Master is already on the next development version; no extra bump.",
             flush=True,
         )
+        quality_requester(base)
         return
     state = state_reader()
     code = next_android_code(
@@ -676,8 +742,153 @@ def advance_development_version(plan, state_reader=play_state):
             "master advanced before the development bump; no bump was published"
         )
     command("git", "push", "origin", "master")
+    quality_requester(command("git", "rev-parse", "HEAD"))
     print(
         f"Advanced master to {raw}; submitted stores remain {plan['version']}.",
+        flush=True,
+    )
+
+
+def github_release(tag):
+    result = subprocess.run(
+        ["gh", "api", f"repos/{REPO}/releases/tags/{tag}"],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode:
+        if "HTTP 404" in result.stderr:
+            return None
+        raise Error("could not inspect the GitHub release")
+    return json.loads(result.stdout)
+
+
+def package_intent(plan):
+    tag = f"github-package-build-v{plan['version']}"
+    command("git", "fetch", "origin", "master", "--tags")
+    if command("git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}"):
+        data = json.loads(
+            command("git", "for-each-ref", "--format=%(contents)", f"refs/tags/{tag}")
+        )
+        if (
+            data.get("kind") != "github_packages"
+            or data.get("source_sha") != plan["source_sha"]
+            or not SHA.fullmatch(data.get("workflow_sha", ""))
+        ):
+            raise Error("GitHub package intent belongs to another source")
+        return data, False
+    sha = api("git/ref/heads/master")["object"]["sha"]
+    data = {
+        "kind": "github_packages",
+        "workflow_sha": sha,
+        "started_after": (
+            dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=5)
+        ).isoformat(),
+    }
+    record_marker(tag, plan["source_sha"], data)
+    return dict(data, source_sha=plan["source_sha"]), True
+
+
+def verify_github_packages(release, manifest, plan):
+    if (
+        release["tag_name"] != f"v{plan['version']}"
+        or release["draft"]
+        or release["prerelease"]
+        or manifest.get("source_sha") != plan["source_sha"]
+        or manifest.get("version") != plan["version"]
+        or manifest.get("android_version_code") != plan["android_version_code"]
+    ):
+        raise Error(
+            "GitHub release identity does not match the submitted store snapshot"
+        )
+    files = manifest.get("files", {})
+    suffixes = [
+        "android-arm64-v8a.apk",
+        "android-armeabi-v7a.apk",
+        "windows-x64.zip",
+        "windows-arm64.zip",
+        "windows-x64-setup.exe",
+        "windows-arm64-setup.exe",
+        "macos-universal.zip",
+        "linux-x64.tar.gz",
+        "linux-arm64.tar.gz",
+        "linux-x64.AppImage",
+        "linux-arm64.AppImage",
+    ]
+    if len(files) != len(suffixes):
+        raise Error("GitHub release does not contain the complete package set")
+    for suffix in suffixes:
+        if (
+            sum(
+                name.startswith(f"mithka-{plan['version']}-") and name.endswith(suffix)
+                for name in files
+            )
+            != 1
+        ):
+            raise Error(f"GitHub release is missing or duplicates {suffix}")
+    remote = {asset["name"]: asset for asset in release["assets"]}
+    for name, expected in files.items():
+        actual = remote.get(name)
+        if (
+            not actual
+            or actual["size"] != expected["size"]
+            or actual.get("digest") != "sha256:" + expected["sha256"]
+        ):
+            raise Error(f"GitHub package checksum mismatch: {name}")
+
+
+def publish_github_release(plan):
+    tag = f"v{plan['version']}"
+    command("git", "fetch", "origin", "--tags")
+    if command("git", "rev-parse", f"{tag}^{{commit}}") != plan["source_sha"]:
+        raise Error("canonical GitHub release tag points to another source")
+    release = github_release(tag)
+    intent, new_intent = package_intent(plan)
+    candidates = [
+        run
+        for run in runs("release.yml", intent["workflow_sha"])
+        if dt.datetime.fromisoformat(run["created_at"].replace("Z", "+00:00"))
+        >= dt.datetime.fromisoformat(intent["started_after"])
+    ]
+    if len(candidates) > 1:
+        raise Error("multiple GitHub package builds need reconciliation")
+    if candidates:
+        run = candidates[0]
+    elif new_intent and release is None:
+        if api("git/ref/heads/master")["object"]["sha"] != intent["workflow_sha"]:
+            raise Error("master advanced before GitHub package dispatch")
+        run = dispatch(
+            "release.yml",
+            "master",
+            intent["workflow_sha"],
+            {"source_commit": plan["source_sha"], "desktop_test_only": "false"},
+        )
+    else:
+        raise Error(
+            "GitHub package dispatch is unknown; reconcile it instead of repeating it"
+        )
+    wait_run(run, intent["workflow_sha"], "release.yml")
+    release = github_release(tag)
+    if release is None:
+        raise Error("completed package workflow did not publish its GitHub release")
+    with tempfile.TemporaryDirectory() as directory:
+        command(
+            "gh",
+            "release",
+            "download",
+            tag,
+            "--repo",
+            REPO,
+            "--pattern",
+            "release-manifest.json",
+            "--dir",
+            directory,
+        )
+        manifest = json.loads((Path(directory) / "release-manifest.json").read_text())
+    if manifest.get("workflow_run_id") != str(run["id"]):
+        raise Error("GitHub package manifest belongs to another workflow run")
+    verify_github_packages(release, manifest, plan)
+    print(
+        f"Verified GitHub release {tag}: 11 packages match the store source.",
         flush=True,
     )
 
@@ -693,12 +904,17 @@ def main():
     assert_context(os.environ)
     play = play_state()
     plan = prepare(
-        args.release_key, asc_state(), play, apply=args.operation == "release"
+        args.release_key,
+        asc_state(),
+        play,
+        apply=args.operation == "release",
+        base_validator=validate_release_base,
     )
     print(json.dumps(plan, indent=2), flush=True)
     if args.operation == "release":
         submit(plan)
         advance_development_version(plan)
+        publish_github_release(plan)
         record_completion(plan)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

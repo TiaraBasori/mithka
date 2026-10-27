@@ -48,8 +48,8 @@ within master's current major/minor train. A new release snapshot updates only
 notes. Curated notes at that version's path are retained; otherwise the fallback
 notes describe app maintenance without inventing feature claims.
 
-An atomic fast-forward publication creates immutable `store-vX.Y.Z` and
-`store-YYYY-MM-DD` tags. The annotated date tag records the source SHA, exact
+An atomic fast-forward publication creates immutable `store-vX.Y.Z`,
+`store-YYYY-MM-DD` and canonical `vX.Y.Z` tags. The annotated date tag records the source SHA, exact
 version, Android code and Apple build number. The date uses Tokyo time. Use the
 same `release_key` to resume an interrupted release: the coordinator reuses the
 recorded snapshot and existing child workflow runs. It stops on a failed or
@@ -60,7 +60,13 @@ tag records completion after master advances to the next minor's development
 version (`1.N.Z` submitted → `1.(N+1).0` on master). The bump increments build
 metadata and allocates a fresh shared Android code, preserving app changes
 and the submitted snapshot. It is idempotent and refuses to replace another
-newly selected patch version. A later Friday resumes a unique unfinished snapshot
+newly selected patch version. The coordinator also publishes the matching stable
+GitHub `vX.Y.Z` release: two Android APKs, Windows x64/arm64 archives and installers,
+macOS universal, and Linux x64/arm64 archives and AppImages. Every package is built
+from the immutable store snapshot, with a source/version/checksum manifest.
+The release stays a draft until all package digests are verified. The new minor
+on master is never substituted for the submitted patch or the GitHub version.
+A later Friday resumes a unique unfinished snapshot
 before allocating another patch. Multiple unfinished snapshots require
 reconciliation.
 Publication/completion markers created by Actions point to the current
@@ -83,5 +89,8 @@ maintainer. Store review can still delay public availability after submission.
 The scheduler shares the nightly version allocator's lock; Play state lookups
 share the existing Play publication lock. Upload-only Apple builds skip beta
 distribution and keep every official-build Terms guard disabled. The
-coordinator does not dispatch the desktop/Telegram release workflow or install
-a schedule on the maintainer's computer.
+coordinator dispatches the multi-platform package workflow with an exact source;
+that store mode skips Telegram notifications and never moves an existing tag.
+It does not install a schedule on the maintainer's computer. New release
+snapshots require current master Quality before reserving their version tags;
+resuming an already-tested snapshot continues to validate that exact source.

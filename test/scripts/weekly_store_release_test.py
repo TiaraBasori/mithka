@@ -1,4 +1,5 @@
 import importlib.util
+import argparse
 import json
 import os
 from pathlib import Path
@@ -14,6 +15,120 @@ SPEC.loader.exec_module(RELEASE)
 
 
 class WeeklyReleaseTest(unittest.TestCase):
+    def test_completion_waits_for_stores_development_bump_and_same_version_github_packages(
+        self,
+    ):
+        events = []
+        plan = {"version": "1.8.8", "source_sha": "a" * 40}
+        with (
+            patch.object(
+                RELEASE.argparse.ArgumentParser,
+                "parse_args",
+                return_value=argparse.Namespace(
+                    operation="release", release_key="2026-10-27"
+                ),
+            ),
+            patch.object(RELEASE, "assert_context"),
+            patch.object(RELEASE, "play_state", return_value={}),
+            patch.object(RELEASE, "asc_state", return_value={}),
+            patch.object(RELEASE, "prepare", return_value=plan),
+            patch.object(
+                RELEASE, "submit", side_effect=lambda _plan: events.append("stores")
+            ),
+            patch.object(
+                RELEASE,
+                "advance_development_version",
+                side_effect=lambda _plan: events.append("development"),
+            ),
+            patch.object(
+                RELEASE,
+                "publish_github_release",
+                side_effect=lambda _plan: events.append("github"),
+            ),
+            patch.object(
+                RELEASE,
+                "record_completion",
+                side_effect=lambda _plan: events.append("complete"),
+            ),
+        ):
+            self.assertEqual(RELEASE.main(), 0)
+        self.assertEqual(events, ["stores", "development", "github", "complete"])
+
+    def test_post_bump_quality_is_requested_only_when_missing(self):
+        with patch.object(
+            RELEASE, "api", side_effect=[{"workflow_runs": []}, None]
+        ) as api:
+            RELEASE.ensure_master_quality("a" * 40)
+            self.assertEqual(api.call_count, 2)
+            self.assertEqual(api.call_args.args[1], {"ref": "master", "inputs": {}})
+        with patch.object(
+            RELEASE, "api", return_value={"workflow_runs": [{"id": 1}]}
+        ) as api:
+            RELEASE.ensure_master_quality("a" * 40)
+            self.assertEqual(api.call_count, 1)
+
+    def test_failed_base_quality_cannot_reserve_another_store_snapshot(self):
+        with patch.object(
+            RELEASE,
+            "api",
+            return_value={
+                "workflow_runs": [
+                    {"id": 1, "status": "completed", "conclusion": "failure"}
+                ]
+            },
+        ):
+            with self.assertRaises(RELEASE.Error):
+                RELEASE.validate_release_base("a" * 40)
+
+    def test_github_packages_require_the_store_source_version_and_server_digests(self):
+        plan = {"source_sha": "a" * 40, "version": "1.8.8", "android_version_code": 500}
+        suffixes = [
+            "android-arm64-v8a.apk",
+            "android-armeabi-v7a.apk",
+            "windows-x64.zip",
+            "windows-arm64.zip",
+            "windows-x64-setup.exe",
+            "windows-arm64-setup.exe",
+            "macos-universal.zip",
+            "linux-x64.tar.gz",
+            "linux-arm64.tar.gz",
+            "linux-x64.AppImage",
+            "linux-arm64.AppImage",
+        ]
+        files = {
+            f"mithka-1.8.8-20261027-{suffix}": {"sha256": "c" * 64, "size": 100}
+            for suffix in suffixes
+        }
+        manifest = dict(plan, files=files)
+        release = {
+            "tag_name": "v1.8.8",
+            "draft": False,
+            "prerelease": False,
+            "assets": [
+                {
+                    "name": name,
+                    "digest": "sha256:" + value["sha256"],
+                    "size": value["size"],
+                }
+                for name, value in files.items()
+            ],
+        }
+        RELEASE.verify_github_packages(release, manifest, plan)
+        release["assets"][0]["digest"] = "sha256:" + "d" * 64
+        with self.assertRaises(RELEASE.Error):
+            RELEASE.verify_github_packages(release, manifest, plan)
+        release["assets"][0]["digest"] = "sha256:" + "c" * 64
+        for changed in [
+            dict(manifest, version="1.8.0"),
+            dict(manifest, source_sha="b" * 40),
+            dict(manifest, files={}),
+        ]:
+            with self.assertRaises(RELEASE.Error):
+                RELEASE.verify_github_packages(release, changed, plan)
+        release["draft"] = True
+        with self.assertRaises(RELEASE.Error):
+            RELEASE.verify_github_packages(release, manifest, plan)
+
     def test_development_advances_one_minor_from_the_submitted_version_only(self):
         self.assertEqual(RELEASE.development_target("1.8.8", "1.8.8"), "1.9.0")
         self.assertEqual(RELEASE.development_target("1.9.11", "1.9.11"), "1.10.0")
@@ -342,8 +457,30 @@ class WeeklyReleaseTest(unittest.TestCase):
                     self.assertEqual(
                         RELEASE.command("git", "status", "--porcelain"), ""
                     )
+
+                    def reject_base(_commit):
+                        raise RELEASE.Error("failed base")
+
+                    with self.assertRaises(RELEASE.Error):
+                        RELEASE.prepare(
+                            "2026-10-30",
+                            state,
+                            play,
+                            apply=True,
+                            base_validator=reject_base,
+                        )
+                    self.assertEqual(
+                        RELEASE.command("git", "status", "--porcelain"), ""
+                    )
+                    self.assertEqual(
+                        RELEASE.command("git", "rev-list", "--count", "HEAD"), "1"
+                    )
                     plan = RELEASE.prepare("2026-10-30", state, play, apply=True)
                 self.assertEqual(plan["apple_build_number"], "2")
+                self.assertEqual(
+                    RELEASE.command("git", "rev-parse", "v1.8.8^{commit}"),
+                    plan["source_sha"],
+                )
                 self.assertEqual(
                     RELEASE.command(
                         "git", "ls-remote", "origin", "refs/heads/master"
@@ -393,7 +530,9 @@ class WeeklyReleaseTest(unittest.TestCase):
                 self.assertEqual(recorded["kind"], "store_complete")
                 with patch.object(RELEASE.time, "time", return_value=200):
                     RELEASE.advance_development_version(
-                        plan, state_reader=lambda: {"highest_version_code": 1000}
+                        plan,
+                        state_reader=lambda: {"highest_version_code": 1000},
+                        quality_requester=lambda _sha: None,
                     )
                 self.assertIn("version: 1.9.0+297", Path("pubspec.yaml").read_text())
                 self.assertIn("dependencies: {}", Path("pubspec.yaml").read_text())
@@ -409,7 +548,9 @@ class WeeklyReleaseTest(unittest.TestCase):
                     RELEASE.command("git", "rev-parse", "HEAD"),
                 )
                 with patch.object(RELEASE, "play_state") as provider:
-                    RELEASE.advance_development_version(plan, state_reader=provider)
+                    RELEASE.advance_development_version(
+                        plan, state_reader=provider, quality_requester=lambda _sha: None
+                    )
                     provider.assert_not_called()
                 # Resume is idempotent and refuses another source identity.
                 RELEASE.record_completion(plan)

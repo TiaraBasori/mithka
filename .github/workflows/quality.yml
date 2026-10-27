@@ -4,7 +4,7 @@ on:
   workflow_call:
     inputs:
       source_commit:
-        description: Exact uploaded release source; only App Store Review Submission may override it
+        description: Exact store snapshot; only App Review or Multi-platform Releases may override it
         type: string
         default: ''
   pull_request:
@@ -53,11 +53,14 @@ jobs:
           fi
           if [ "$GITHUB_REPOSITORY" != 'iebb/mithka' ] ||
              [ "$GITHUB_EVENT_NAME" != 'workflow_dispatch' ] ||
-             [ "$GITHUB_WORKFLOW" != 'App Store Review Submission' ] ||
              [ "$GITHUB_REF" != 'refs/heads/master' ]; then
-            echo 'Only canonical master App Review dispatches may select an uploaded source.' >&2
+            echo 'Only canonical master release dispatches may select an uploaded source.' >&2
             exit 1
           fi
+          case "$GITHUB_WORKFLOW" in
+            'App Store Review Submission'|'🚀 Multi-platform Releases') ;;
+            *) echo 'This workflow cannot override its Quality source.' >&2; exit 1 ;;
+          esac
           [[ "$source_commit" =~ ^[0-9a-f]{40}$ ]] || exit 1
           merge_base="$(gh api "repos/iebb/mithka/compare/$source_commit...master" --jq '.merge_base_commit.sha')"
           if [ "$merge_base" != "$source_commit" ]; then

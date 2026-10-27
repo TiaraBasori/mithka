@@ -62,6 +62,8 @@ class QualityReleaseSourceTest(unittest.TestCase):
         status, called = self.invoke()
         self.assertEqual(status, 0)
         self.assertIn(f"repos/iebb/mithka/compare/{SOURCE}...master", called)
+        status, _called = self.invoke({"GITHUB_WORKFLOW": "🚀 Multi-platform Releases"})
+        self.assertEqual(status, 0)
 
     def test_pr_fork_other_caller_or_nonmaster_cannot_override_the_tested_source(self):
         for key, value in [
