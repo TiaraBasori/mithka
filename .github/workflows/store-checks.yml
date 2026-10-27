@@ -6,21 +6,29 @@ on:
     paths:
       - '.github/workflows/app-store-submit.yml'
       - '.github/workflows/google-play.yml'
+      - '.github/workflows/ios-testflight.yml'
+      - '.github/workflows/macos-testflight.yml'
       - '.github/workflows/store-checks.yml'
       - 'scripts/*store*'
       - 'scripts/check_google_play_credentials.py'
+      - 'scripts/verify-store-source.sh'
       - 'test/scripts/*store*'
       - 'test/scripts/check_google_play_credentials_test.py'
+      - 'test/scripts/store_source_test.py'
   push:
     branches: [master]
     paths:
       - '.github/workflows/app-store-submit.yml'
       - '.github/workflows/google-play.yml'
+      - '.github/workflows/ios-testflight.yml'
+      - '.github/workflows/macos-testflight.yml'
       - '.github/workflows/store-checks.yml'
       - 'scripts/*store*'
       - 'scripts/check_google_play_credentials.py'
+      - 'scripts/verify-store-source.sh'
       - 'test/scripts/*store*'
       - 'test/scripts/check_google_play_credentials_test.py'
+      - 'test/scripts/store_source_test.py'
 
 permissions:
   contents: read
@@ -46,6 +54,7 @@ jobs:
           ruby -Itest test/scripts/app_store_release_test.rb
           ruby -Itest test/scripts/app_store_workflow_test.rb
           python -m unittest discover -s test/scripts -p 'check_google_play_credentials_test.py' -v
+          python -m unittest discover -s test/scripts -p 'store_source_test.py' -v
       - name: Validate the store workflows
         run: |
           # actionlint 1.7.12 predates GitHub's documented concurrency.queue.
@@ -54,6 +63,8 @@ jobs:
             -ignore 'unexpected key "queue" for "concurrency" section' \
             .github/workflows/app-store-submit.yml \
             .github/workflows/google-play.yml \
+            .github/workflows/ios-testflight.yml \
+            .github/workflows/macos-testflight.yml \
             .github/workflows/store-checks.yml
 
   asc-credentials:

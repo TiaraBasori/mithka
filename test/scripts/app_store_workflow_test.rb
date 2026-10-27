@@ -108,4 +108,28 @@ class AppStoreWorkflowTest < Minitest::Test
     assert_includes arguments, "$(touch #{marker})"
     refute File.exist?(marker)
   end
+
+  def test_listing_preserves_the_normal_source_patch
+    reader = ->(_sha) { "1.8.8" }
+    MithkaAppStoreWorkflow.verify_source_version!("1.8.8", "a" * 40, reader: reader)
+    error = assert_raises(MithkaAppStoreWorkflow::Error) do
+      MithkaAppStoreWorkflow.verify_source_version!("1.8.0", "a" * 40, reader: reader)
+    end
+    assert_includes error.message, "expected 1.8.8"
+  end
+
+  def test_source_version_is_read_from_the_exact_github_commit
+    response = JSON.generate({
+      "encoding" => "base64", "content" => Base64.strict_encode64("name: mithka\nversion: 1.8.8+296\n")
+    })
+    success = Struct.new(:success?).new(true)
+    calls = []
+    stub = lambda do |*args|
+      calls << args
+      [response, "", success]
+    end
+    assert_equal "1.8.8", MithkaAppStoreWorkflow.source_version("b" * 40, command_runner: stub)
+    assert_equal ["gh", "api", "repos/iebb/mithka/contents/pubspec.yaml?ref=#{'b' * 40}"], calls.first
+    assert_raises(MithkaAppStoreWorkflow::Error) { MithkaAppStoreWorkflow.source_version("latest") }
+  end
 end

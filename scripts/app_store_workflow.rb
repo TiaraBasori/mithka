@@ -7,6 +7,31 @@ require_relative "app_store_release"
 module MithkaAppStoreWorkflow
   class Error < StandardError; end
 
+  def self.source_version(source_commit, command_runner: Open3.method(:capture3))
+    raise Error, "source commit must be a full SHA" unless source_commit.match?(/\A[0-9a-f]{40}\z/)
+
+    result, _error, status = command_runner.call(
+      "gh", "api", "repos/iebb/mithka/contents/pubspec.yaml?ref=#{source_commit}"
+    )
+    raise Error, "could not verify the source version through GitHub" unless status.success?
+
+    data = JSON.parse(result)
+    raise Error, "source pubspec must be base64 encoded" unless data["encoding"] == "base64"
+
+    pubspec = Base64.strict_decode64(data.fetch("content").gsub(/\s/, ""))
+    version = pubspec[/^version:\s*([0-9]+\.[0-9]+\.[0-9]+)(?:\+[0-9]+)?\s*$/, 1]
+    raise Error, "source pubspec has no normal X.Y.Z version" unless version
+
+    version
+  end
+
+  def self.verify_source_version!(version, source_commit, reader: method(:source_version))
+    normal_version = reader.call(source_commit)
+    unless version == normal_version
+      raise Error, "store version must preserve the source patch: expected #{normal_version}"
+    end
+  end
+
   def self.arguments(env, root: File.expand_path("..", __dir__))
     unless env["GITHUB_REPOSITORY"] == "iebb/mithka" &&
            env["GITHUB_REF"] == "refs/heads/master" &&
@@ -60,8 +85,10 @@ module MithkaAppStoreWorkflow
   end
 
   def self.run(env = ENV)
-    MithkaAppStoreRelease.cli(arguments(env))
-  rescue Error, KeyError, Errno::ENOENT => error
+    args = arguments(env)
+    verify_source_version!(env.fetch("STORE_VERSION"), env.fetch("STORE_SOURCE_COMMIT"))
+    MithkaAppStoreRelease.cli(args)
+  rescue Error, KeyError, Errno::ENOENT, JSON::ParserError, ArgumentError => error
     warn "error: #{error.message}"
     1
   end
