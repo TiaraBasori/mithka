@@ -259,7 +259,7 @@ void main() {
 
   for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
     _platformTestWidgets(
-      '$platform preview floor preserves other roles and geometry',
+      '$platform split preview preserves other roles and calibrated geometry',
       platform,
       (tester) async {
         final theme = await controller();
@@ -275,7 +275,7 @@ void main() {
           isMuted: false,
         );
         for (final os in [.823, 1.0, 2.0]) {
-          for (final app in contentSizePresets) {
+          for (final app in [...contentSizePresets, .94, 1.47]) {
             late ChatRowMetrics metrics;
             await tester.pumpWidget(
               harness(
@@ -308,6 +308,14 @@ void main() {
             );
             expect(
               _fontPixels(_paragraph(tester, 'Sender: Preview')),
+              closeTo(math.max(12.5, 13 * app) * osScale, 1e-9),
+            );
+            final preview = _paragraph(tester, 'Sender: Preview');
+            final sender =
+                (preview.text as TextSpan).children!.first as TextSpan;
+            expect(sender.text, 'Sender: ');
+            expect(
+              preview.textScaler.scale(sender.style!.fontSize!),
               closeTo(13 * math.max(app, 1) * osScale, 1e-9),
             );
             expect(
@@ -329,14 +337,16 @@ void main() {
             );
             expect(
               tester.widget<PhotoAvatar>(find.byType(PhotoAvatar)).size,
-              48 * app,
+              49 * math.max(app, 1),
             );
             expect(tester.getSize(row).height, metrics.extent);
-            if (os <= 1) expect(metrics.extent, closeTo(72 * app, 1e-9));
+            if (os <= 1) {
+              expect(metrics.extent, closeTo(math.max(68, 72 * app), 1e-9));
+            }
             if (app == .9 && os <= 1) {
               expect(
                 _fontPixels(_paragraph(tester, 'Sender: Preview')) * 3,
-                39,
+                37.5,
               );
               expect(
                 _fontPixels(_paragraph(tester, 'Conversation')) * 3,

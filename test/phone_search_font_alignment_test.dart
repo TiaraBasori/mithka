@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart' show CupertinoTextField;
 import 'package:flutter/foundation.dart';
@@ -113,22 +114,39 @@ void main() {
               paragraph.textScaler.scale(expectedFont),
               closeTo(expectedFont * expectedOs, 1e-6),
             );
-            final field = find.descendant(
-              of: search,
-              matching: find.byWidgetPredicate(
-                (w) =>
-                    w is Container &&
-                    w.constraints?.maxHeight == AppMetric.searchHeight,
-              ),
-            );
-            expect(tester.getSize(field).height, 36);
+            final touch = platform != TargetPlatform.macOS;
+            final field = touch
+                ? find.byKey(const ValueKey('chat-list-search-visual'))
+                : find.descendant(
+                    of: search,
+                    matching: find.byWidgetPredicate(
+                      (w) =>
+                          w is Container &&
+                          w.constraints?.maxHeight == AppMetric.searchHeight,
+                    ),
+                  );
+            final expectedHeight = touch
+                ? math.max(33.0, paragraph.size.height + 8)
+                : 36.0;
+            expect(tester.getSize(field).height, expectedHeight);
+            if (touch) {
+              final hit = find.byKey(const ValueKey('chat-list-search-hit'));
+              expect(
+                tester.getSize(hit).height,
+                math.max(50.0, expectedHeight + 17),
+              );
+              expect(tester.getCenter(hit), tester.getCenter(field));
+            }
             final icon = tester.widget<AppIcon>(
               find.descendant(of: search, matching: find.byType(AppIcon)),
             );
-            expect(icon.size, 16);
-            await dispose(tester);
+            expect(icon.size, touch ? 18 : 16);
           } finally {
-            debugDefaultTargetPlatformOverride = null;
+            try {
+              await dispose(tester);
+            } finally {
+              debugDefaultTargetPlatformOverride = null;
+            }
           }
         },
       );
@@ -171,9 +189,12 @@ void main() {
               editable.textScaler.scale(expectedFont),
               closeTo(expectedFont * expectedOs, 1e-6),
             );
-            await dispose(tester);
           } finally {
-            debugDefaultTargetPlatformOverride = null;
+            try {
+              await dispose(tester);
+            } finally {
+              debugDefaultTargetPlatformOverride = null;
+            }
           }
         },
       );

@@ -174,5 +174,6 @@ flutter:
     - assets/penguin.png
     - assets/app_icon.png
     - assets/app_icons/
+    - assets/app_icons/picker/
     - assets/emoji_preview/
     - assets/message_bubbles/

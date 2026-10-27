@@ -30,7 +30,7 @@ void main() {
   for (final platform in [TargetPlatform.iOS, TargetPlatform.android]) {
     test('$platform uses calibrated touch chat roles and row geometry', () {
       expect(AppMetric.chatListRowHeight(platform), 72);
-      expect(AppMetric.chatListAvatarSize(platform), 48);
+      expect(AppMetric.chatListAvatarSize(platform), 49);
       expect(AppTextSize.chatListTitle(platform), 17);
       expect(AppTextSize.chatListPreview(platform), 13);
       expect(AppTextSize.chatListTimestamp(platform), 13);

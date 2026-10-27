@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -126,7 +128,7 @@ void main() {
               previous = extent;
               expect(
                 tester.widget<PhotoAvatar>(find.byType(PhotoAvatar)).size,
-                48 * scale,
+                49 * math.max(scale, 1),
               );
               final navContext = tester.element(
                 find.byKey(const ValueKey('navigation')),
@@ -171,7 +173,7 @@ void main() {
         debugDefaultTargetPlatformOverride = platform;
         try {
           for (final (scale, expected) in [
-            (.9, 64.8),
+            (.9, 68.0),
             (1.0, 72.0),
             (1.6, 115.2),
           ]) {
@@ -233,7 +235,7 @@ void main() {
               ),
             );
             final row = tester.getRect(find.byKey(const ValueKey('pitch-row')));
-            expect(avatar.height, closeTo(48 * scale, .0001));
+            expect(avatar.height, closeTo(49 * math.max(scale, 1), .0001));
             expect(avatar.center.dy, closeTo(row.center.dy, .0001));
             expect(
               chatRowCumulativeOffset([actual, estimate]),
@@ -1085,7 +1087,7 @@ void main() {
                   row: find.byKey(const ValueKey('aligned-row')),
                   name: name,
                   time: find.text(DateText.listLabel(chat.date)),
-                  padding: AppSpacing.xl,
+                  padding: AppMetric.chatRowHorizontalInset(),
                   direction: direction,
                   reason: reason,
                 );
@@ -1227,7 +1229,7 @@ void main() {
                 of: row,
                 matching: find.text(DateText.listLabel(chat.date)),
               ),
-              padding: AppSpacing.xl,
+              padding: AppMetric.chatRowHorizontalInset(),
               direction: direction,
               reason: '$direction scale=$scale row=$index',
             );

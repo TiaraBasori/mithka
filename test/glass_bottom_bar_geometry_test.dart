@@ -1,7 +1,9 @@
 //
 //  glass_bottom_bar_geometry_test.dart
 //
-//  iOS uses a single native host for outer and selected glass; Flutter owns
+//  iOS 26+ native-control tests use mocked native metrics below. The existing
+//  geometry tests explicitly select the preserved pre-26 fallback.
+//  That fallback uses a single native host for outer/selected material; Flutter owns
 //  controls and semantics. Mocked widget tests verify the configuration and
 //  row containment, NOT the native material's appearance or rendered frame.
 //
@@ -28,6 +30,7 @@ import 'package:mithka/app/chat_deep_link_controller.dart';
 import 'package:mithka/app/liquid_glass_bottom_bar.dart';
 import 'package:mithka/app/main_tab_view.dart';
 import 'package:mithka/app/native_glass_surface.dart';
+import 'package:mithka/app/native_tab_bar.dart';
 import 'package:mithka/auth/account_store.dart';
 import 'package:mithka/auth/auth_manager.dart';
 import 'package:mithka/components/app_icons.dart';
@@ -44,6 +47,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'helpers/glass_review_capture.dart';
+import 'helpers/native_tab_bar_mock.dart';
 
 const _surfaceKey = ValueKey('native-glass-surface');
 const _barKey = _surfaceKey;
@@ -101,6 +105,75 @@ void main() {
       ),
     );
   });
+
+  for (final size in [_phoneSize, const Size(900, 800)]) {
+    testWidgets(
+      'iOS 26+ ${size.width} uses actual-control contract and measured footer',
+      (tester) async {
+        await onIOS(() async {
+          final nativeMock = NativeTabBarMock(
+            tester.binding.defaultBinaryMessenger,
+          )..install();
+          addTearDown(nativeMock.dispose);
+          // Warm exact DPR1/LTR keys in the real async zone BEFORE the shell
+          // can cache engine futures in testWidgets' fake zone.
+          await tester.runAsync(() async {
+            await Future.wait([
+              for (final icon in [
+                HeroAppIcons.solidMessage,
+                HeroAppIcons.hashtag,
+                HeroAppIcons.solidHashtag,
+                HeroAppIcons.users,
+                HeroAppIcons.solidUsers,
+                HeroAppIcons.circleNotch,
+                HeroAppIcons.solidCircleNotch,
+                HeroAppIcons.circleCheck,
+              ])
+                NativeTabIconRasterizer.png(icon.data, 1, TextDirection.ltr),
+            ]);
+          });
+          await _pumpShell(
+            tester,
+            size,
+            insets: const FakeViewPadding(bottom: _phoneBottomInset),
+          );
+          await _pumpNativeConfiguration(tester);
+          expect(defaultTargetPlatform, TargetPlatform.iOS);
+          expect(find.byType(NativeTabBar), findsOneWidget);
+          expect(find.byType(NativeGlassSurface), findsNothing);
+          expect(find.byKey(_firstSlotKey), findsNothing);
+          expect(find.byKey(_indicatorKey), findsNothing);
+          expect(find.byType(UiKitView), findsOneWidget);
+          expect(nativeMock.created, hasLength(1));
+          expect(nativeMock.updates, isNotEmpty);
+          expect(
+            nativeMock.latest['bottomInset'],
+            size == _phoneSize ? _phoneBottomInset : 0,
+          );
+          expect(
+            (nativeMock.latest['items'] as List).map((item) => item['label']),
+            _tabs.map((tab) => tab.label),
+          );
+          await nativeMock.send('metrics', {'height': 95.5});
+          await tester.pump();
+          await tester.pump();
+          expect(
+            tester.getSize(find.byKey(const ValueKey('native-tab-bar'))).height,
+            95.5,
+          );
+          await nativeMock.send('select', {'id': 2});
+          await tester.pump();
+          await tester.pump(const Duration(seconds: 1));
+          expect(
+            tester.widget<NativeTabBar>(find.byType(NativeTabBar)).selectedId,
+            2,
+          );
+          expect(tester.takeException(), isNull);
+          await _dispose(tester);
+        });
+      },
+    );
+  }
 
   testWidgets('iOS split shell hosts the native glass with app-owned tabs', (
     tester,
@@ -704,6 +777,10 @@ class GlassSurfaceMock {
   final Map<int, MethodChannel> _channels = {};
 
   void install() {
+    _messenger.setMockMethodCallHandler(
+      const MethodChannel('mithka/native_tab_bar'),
+      (call) async => false,
+    );
     _messenger.setMockMethodCallHandler(SystemChannels.platform_views, (
       call,
     ) async {
@@ -728,6 +805,10 @@ class GlassSurfaceMock {
   }
 
   void dispose() {
+    _messenger.setMockMethodCallHandler(
+      const MethodChannel('mithka/native_tab_bar'),
+      null,
+    );
     _messenger.setMockMethodCallHandler(SystemChannels.platform_views, null);
     for (final channel in _channels.values) {
       _messenger.setMockMethodCallHandler(channel, null);
@@ -752,6 +833,16 @@ Future<void> onIOS(Future<void> Function() body) async {
     await body();
   } finally {
     debugDefaultTargetPlatformOverride = null;
+  }
+}
+
+Future<void> _pumpNativeConfiguration(WidgetTester tester) async {
+  // Prewarming must stay before mount. Completed cached PNG Futures still
+  // schedule listeners in runAsync's real zone; alternate real microtask turns
+  // with fake pumps for item artwork, read-action artwork and the view handshake.
+  for (var phase = 0; phase < 3; phase++) {
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+    await tester.pump();
   }
 }
 
