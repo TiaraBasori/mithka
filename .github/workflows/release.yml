@@ -922,6 +922,7 @@ jobs:
           PY
 
       - name: Publish to GitHub Release
+        id: github_release
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.prepare.outputs.release_tag }}
@@ -943,18 +944,24 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ needs.prepare.outputs.release_tag }}
+          RELEASE_ID: ${{ steps.github_release.outputs.id }}
         run: |
           python3 - <<'PY'
           import json, os, subprocess
           from pathlib import Path
           tag = os.environ['RELEASE_TAG']
-          release = json.loads(subprocess.check_output(['gh', 'api', f'repos/iebb/mithka/releases/tags/{tag}'], text=True))
+          release_id = os.environ['RELEASE_ID']
+          assert release_id.isdigit()
+          release = json.loads(subprocess.check_output(['gh', 'api', f'repos/iebb/mithka/releases/{release_id}'], text=True))
+          assert release['tag_name'] == tag
           assets = {asset['name']: asset for asset in release['assets']}
           manifest = json.loads(Path('release-assets/release-manifest.json').read_text())
           for name, expected in manifest['files'].items():
               actual = assets[name]
               assert actual['size'] == expected['size'] and actual.get('digest') == 'sha256:' + expected['sha256'], name
-          subprocess.run(['gh', 'release', 'edit', tag, '--draft=false', '--prerelease=false', '--latest', '--repo', 'iebb/mithka'], check=True)
+          subprocess.run(['gh', 'api', '--method', 'PATCH', f'repos/iebb/mithka/releases/{release_id}', '--input', '-'],
+                         input=json.dumps({'target_commitish': 'master', 'draft': False, 'prerelease': False, 'make_latest': 'true'}), text=True,
+                         check=True, stdout=subprocess.DEVNULL)
           PY
 
       - name: Notify Telegram channel

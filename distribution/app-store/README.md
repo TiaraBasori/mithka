@@ -105,3 +105,8 @@ intent, and partial drafts resume only when existing asset digests agree.
 The API uses `master` as `target_commitish` to avoid requesting workflow-write
 permission for an older source. The existing verified `vX.Y.Z` tag stays on
 the submitted source; the tag and release manifest determine the actual source.
+Drafts are looked up through authenticated listing and verified by release ID;
+the tag lookup endpoint exposes published releases only. A corrected publisher
+may resume a known failed attempt under a new immutable retry intent. Existing
+manifest bytes retain their initial upload identity when all source, original
+build, version and package digests match; no package or manifest is overwritten.

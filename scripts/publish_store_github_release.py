@@ -190,7 +190,20 @@ def existing_release(tag):
     )
     if result.returncode:
         if "HTTP 404" in result.stderr:
-            return None
+            # The tag endpoint returns published releases only. Authenticated
+            # listing includes drafts; refuse duplicate drafts rather than
+            # creating another release after an interrupted upload.
+            matches = []
+            page = 1
+            while True:
+                releases = api(f"releases?per_page=100&page={page}")
+                matches.extend(item for item in releases if item["tag_name"] == tag)
+                if len(releases) < 100:
+                    break
+                page += 1
+            if len(matches) > 1:
+                raise Error("multiple matching draft releases need reconciliation")
+            return matches[0] if matches else None
         raise Error("could not inspect the GitHub release")
     return json.loads(result.stdout)
 
@@ -213,6 +226,24 @@ def digest(path):
         while chunk := stream.read(1024 * 1024):
             value.update(chunk)
     return value.hexdigest()
+
+
+def asset_content(asset_id):
+    if not isinstance(asset_id, int) or asset_id <= 0:
+        raise Error("invalid manifest asset ID")
+    result = subprocess.run(
+        [
+            "gh",
+            "api",
+            f"repos/{REPO}/releases/assets/{asset_id}",
+            "-H",
+            "Accept: application/octet-stream",
+        ],
+        capture_output=True,
+    )
+    if result.returncode or len(result.stdout) > 1024 * 1024:
+        raise Error("could not read the existing release manifest")
+    return result.stdout
 
 
 def publish(plan, run_id, directory, publication_run_id):
@@ -241,14 +272,51 @@ def publish(plan, run_id, directory, publication_run_id):
         "publication_workflow_run_id": str(publication_run_id),
         "files": files,
     }
+    tag = f"v{plan['version']}"
+    release = existing_release(tag)
     manifest_path = root / "release-manifest.json"
-    manifest_path.write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n")
+    raw_manifest = (json.dumps(manifest, sort_keys=True, indent=2) + "\n").encode()
+    if release:
+        matches = [
+            asset for asset in release["assets"] if asset["name"] == manifest_path.name
+        ]
+        if len(matches) > 1:
+            raise Error("duplicate release manifest assets")
+        if matches:
+            previous = asset_content(matches[0]["id"])
+            recorded = json.loads(previous)
+            expected_core = {
+                key: value
+                for key, value in manifest.items()
+                if key != "publication_workflow_run_id"
+            }
+            actual_core = {
+                key: value
+                for key, value in recorded.items()
+                if key != "publication_workflow_run_id"
+            }
+            if (
+                actual_core != expected_core
+                or matches[0]["size"] != len(previous)
+                or matches[0].get("digest")
+                != "sha256:" + hashlib.sha256(previous).hexdigest()
+            ):
+                raise Error(
+                    "existing manifest does not match the verified original packages"
+                )
+            if (
+                "publication_workflow_run_id" in recorded
+                and not str(recorded["publication_workflow_run_id"]).isdigit()
+            ):
+                raise Error("invalid initial publication identity")
+            # Preserve the first upload's bytes and provenance on a later
+            # finalization attempt. No asset is replaced merely for a run ID.
+            raw_manifest = previous
+    manifest_path.write_bytes(raw_manifest)
     files[manifest_path.name] = {
         "size": manifest_path.stat().st_size,
         "sha256": digest(manifest_path),
     }
-    tag = f"v{plan['version']}"
-    release = existing_release(tag)
     if release and not release["draft"]:
         if release["prerelease"]:
             raise Error("existing release is a prerelease")
@@ -291,7 +359,7 @@ def publish(plan, run_id, directory, publication_run_id):
     remote = {asset["name"] for asset in release["assets"]}
     for name in sorted(set(files) - remote):
         command("gh", "release", "upload", tag, str(root / name), "--repo", REPO)
-    release = existing_release(tag)
+    release = api(f"releases/{release['id']}")
     verify_assets(release, files)
     verify_source(plan["source_sha"], command("git", "rev-parse", "HEAD"))
     release = api(

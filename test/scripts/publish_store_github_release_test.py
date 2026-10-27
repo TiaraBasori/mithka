@@ -80,6 +80,22 @@ def evidence():
 
 
 class StorePublicationTest(unittest.TestCase):
+    def test_published_only_tag_lookup_falls_back_to_unique_authenticated_draft(self):
+        missing = PUBLISHER.subprocess.CompletedProcess([], 1, "", "HTTP 404")
+        draft = {"id": 7, "tag_name": "v1.8.8", "draft": True}
+        with (
+            patch.object(PUBLISHER.subprocess, "run", return_value=missing),
+            patch.object(PUBLISHER, "api", return_value=[draft]) as api,
+        ):
+            self.assertEqual(PUBLISHER.existing_release("v1.8.8"), draft)
+            api.assert_called_once_with("releases?per_page=100&page=1")
+        with (
+            patch.object(PUBLISHER.subprocess, "run", return_value=missing),
+            patch.object(PUBLISHER, "api", return_value=[draft, draft]),
+            self.assertRaises(PUBLISHER.Error),
+        ):
+            PUBLISHER.existing_release("v1.8.8")
+
     def test_only_publication_failure_is_recoverable_after_every_build_passed(self):
         run, jobs, artifacts = evidence()
         self.assertEqual(
@@ -211,9 +227,13 @@ class StorePublicationTest(unittest.TestCase):
             remote = None
             mutations = []
             uploads = []
+            uploaded_bytes = {}
 
             def api(path, payload=None, method=None):
                 nonlocal remote
+                if payload is None:
+                    self.assertEqual(path, "releases/7")
+                    return copy.deepcopy(remote)
                 mutations.append((path, copy.deepcopy(payload), method))
                 self.assertEqual(payload["target_commitish"], "master")
                 if remote is None:
@@ -231,8 +251,10 @@ class StorePublicationTest(unittest.TestCase):
                     self.assertNotIn("--clobber", args)
                     path = Path(args[4])
                     uploads.append(path.name)
+                    uploaded_bytes[path.name] = path.read_bytes()
                     remote["assets"].append(
                         {
+                            "id": 100 + len(remote["assets"]),
                             "name": path.name,
                             "size": path.stat().st_size,
                             "digest": "sha256:"
@@ -251,6 +273,11 @@ class StorePublicationTest(unittest.TestCase):
                 ),
                 patch.object(PUBLISHER, "command", side_effect=command),
                 patch.object(PUBLISHER, "verify_source", return_value=PLAN) as tags,
+                patch.object(
+                    PUBLISHER,
+                    "asset_content",
+                    side_effect=lambda _id: uploaded_bytes["release-manifest.json"],
+                ),
             ):
                 PUBLISHER.publish(PLAN, 9, root, 88)
                 self.assertEqual(len(uploads), 12)
@@ -265,9 +292,15 @@ class StorePublicationTest(unittest.TestCase):
                 (root / "release-manifest.json").unlink()
                 mutations.clear()
                 uploads.clear()
-                PUBLISHER.publish(PLAN, 9, root, 88)
+                PUBLISHER.publish(PLAN, 9, root, 99)
                 self.assertEqual(mutations, [])
                 self.assertEqual(uploads, [])
+                self.assertEqual(
+                    json.loads((root / "release-manifest.json").read_bytes())[
+                        "publication_workflow_run_id"
+                    ],
+                    "88",
+                )
 
     def test_existing_draft_digest_conflict_never_overwrites_or_publishes(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -27,6 +27,11 @@ class WeeklyReleaseTest(unittest.TestCase):
             patch.object(RELEASE, "command") as command,
             patch.object(RELEASE, "package_intent", return_value=(intent, False)),
             patch.object(RELEASE, "runs", return_value=[recovery]),
+            patch.object(
+                RELEASE,
+                "api",
+                return_value={"status": "completed", "conclusion": "success"},
+            ),
             patch.object(RELEASE, "dispatch") as dispatch,
             patch.object(RELEASE, "wait_run") as wait,
         ):
@@ -36,6 +41,64 @@ class WeeklyReleaseTest(unittest.TestCase):
             self.assertIn("--verify", command.call_args.args)
             dispatch.assert_not_called()
             wait.assert_called_once_with(recovery, "c" * 40, "github-store-publish.yml")
+
+    def test_failed_publication_can_resume_only_after_a_real_publisher_correction(self):
+        plan = {"version": "1.8.8", "source_sha": "a" * 40}
+        old_intent = {
+            "workflow_sha": "c" * 40,
+            "started_after": "2026-10-27T00:00:00+00:00",
+        }
+        new_intent = dict(old_intent, workflow_sha="d" * 40)
+        old = {"id": 11, "created_at": "2026-10-27T00:00:01Z"}
+        failed = {
+            "status": "completed",
+            "conclusion": "failure",
+            "head_sha": "c" * 40,
+            "path": ".github/workflows/github-store-publish.yml",
+            "event": "workflow_dispatch",
+        }
+        head = {"object": {"sha": "d" * 40}}
+        for changed in (False, True):
+            with (
+                patch.object(
+                    RELEASE,
+                    "command",
+                    return_value="scripts/publish_store_github_release.py"
+                    if changed
+                    else "",
+                ),
+                patch.object(
+                    RELEASE,
+                    "package_intent",
+                    side_effect=[(old_intent, False), (new_intent, True)],
+                ) as intents,
+                patch.object(RELEASE, "runs", side_effect=[[old], []]),
+                patch.object(RELEASE, "api", side_effect=[failed, head, head]),
+                patch.object(RELEASE, "dispatch", return_value={"id": 12}) as dispatch,
+                patch.object(
+                    RELEASE,
+                    "wait_run",
+                    side_effect=None
+                    if changed
+                    else RELEASE.Error("old attempt failed"),
+                ),
+            ):
+                if changed:
+                    self.assertEqual(
+                        RELEASE.recover_github_publication(plan, {"id": 9}, "b" * 40),
+                        {"id": 12},
+                    )
+                    self.assertEqual(
+                        intents.call_args.kwargs["retry_controller"], "d" * 40
+                    )
+                    self.assertEqual(
+                        dispatch.call_args.args[0], "github-store-publish.yml"
+                    )
+                else:
+                    with self.assertRaises(RELEASE.Error):
+                        RELEASE.recover_github_publication(plan, {"id": 9}, "b" * 40)
+                    self.assertEqual(intents.call_count, 1)
+                    dispatch.assert_not_called()
 
     def test_unknown_recovery_is_not_redispatched_and_failed_builds_cannot_reserve_it(
         self,
