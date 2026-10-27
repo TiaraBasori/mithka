@@ -14,6 +14,14 @@ SPEC.loader.exec_module(RELEASE)
 
 
 class WeeklyReleaseTest(unittest.TestCase):
+    def test_development_advances_one_minor_from_the_submitted_version_only(self):
+        self.assertEqual(RELEASE.development_target("1.8.8", "1.8.8"), "1.9.0")
+        self.assertEqual(RELEASE.development_target("1.9.11", "1.9.11"), "1.10.0")
+        self.assertIsNone(RELEASE.development_target("1.9.0", "1.8.8"))
+        self.assertIsNone(RELEASE.development_target("1.9.2", "1.8.8"))
+        with self.assertRaises(RELEASE.Error):
+            RELEASE.development_target("1.8.9", "1.8.8")
+
     def test_state_lookup_failure_reports_only_sanitized_class_and_status(self):
         result = subprocess.CompletedProcess(
             [],
@@ -383,6 +391,26 @@ class WeeklyReleaseTest(unittest.TestCase):
                 )
                 self.assertEqual(recorded["source_sha"], plan["source_sha"])
                 self.assertEqual(recorded["kind"], "store_complete")
+                with patch.object(RELEASE.time, "time", return_value=200):
+                    RELEASE.advance_development_version(
+                        plan, state_reader=lambda: {"highest_version_code": 1000}
+                    )
+                self.assertIn("version: 1.9.0+297", Path("pubspec.yaml").read_text())
+                self.assertIn("dependencies: {}", Path("pubspec.yaml").read_text())
+                self.assertEqual(Path("android/version-code.txt").read_text(), "1001\n")
+                self.assertEqual(
+                    RELEASE.command("git", "rev-parse", "store-v1.8.8^{commit}"),
+                    plan["source_sha"],
+                )
+                self.assertEqual(
+                    RELEASE.command(
+                        "git", "ls-remote", "origin", "refs/heads/master"
+                    ).split()[0],
+                    RELEASE.command("git", "rev-parse", "HEAD"),
+                )
+                with patch.object(RELEASE, "play_state") as provider:
+                    RELEASE.advance_development_version(plan, state_reader=provider)
+                    provider.assert_not_called()
                 # Resume is idempotent and refuses another source identity.
                 RELEASE.record_completion(plan)
                 with self.assertRaises(RELEASE.Error):

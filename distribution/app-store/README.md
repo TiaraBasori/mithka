@@ -54,7 +54,11 @@ recorded snapshot and existing child workflow runs. It stops on a failed or
 ambiguous publication instead of dispatching another upload with a reused code.
 Resolve that attempt explicitly before resuming; do not rewrite release tags.
 After the actual Play/ASC postconditions pass, a `store-complete-YYYY-MM-DD`
-tag records completion. A later Friday resumes a unique unfinished snapshot
+tag records completion after master advances to the next minor's development
+version (`1.N.Z` submitted → `1.(N+1).0` on master). The bump increments build
+metadata and allocates a fresh shared Android code, preserving app changes
+and the submitted snapshot. It is idempotent and refuses to replace another
+newly selected patch version. A later Friday resumes a unique unfinished snapshot
 before allocating another patch. Multiple unfinished snapshots require
 reconciliation.
 Publication/completion markers created by Actions point to the current

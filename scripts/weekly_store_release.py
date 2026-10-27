@@ -70,6 +70,19 @@ def next_android_code(values, now):
     return code
 
 
+def development_target(current_version, released_version):
+    released = version_tuple(released_version)
+    target = (released[0], released[1] + 1, 0)
+    current = version_tuple(current_version)
+    if current >= target:
+        return None
+    if current != released:
+        raise Error(
+            "master's version changed during release; inspect it before advancing the minor"
+        )
+    return ".".join(map(str, target))
+
+
 def release_key(requested, tags, today):
     pending = sorted(
         tag.removeprefix("store-")
@@ -606,6 +619,69 @@ def record_completion(plan):
     )
 
 
+def advance_development_version(plan, state_reader=play_state):
+    # After verified store submission, under the shared nightly allocator lock.
+    # Preserve app work and the immutable submitted snapshot.
+    if command("git", "branch", "--show-current") != "master" or command(
+        "git", "status", "--porcelain"
+    ):
+        raise Error("development bump requires a clean master checkout")
+    command("git", "fetch", "origin", "master", "nightly")
+    command("git", "merge", "--ff-only", "origin/master")
+    base = command("git", "rev-parse", "origin/master")
+    if command("git", "rev-parse", "HEAD") != base:
+        raise Error("development bump found unpublished master work")
+    pubspec = Path("pubspec.yaml").read_text()
+    match = re.search(r"^version:[ \t]*(\d+\.\d+\.\d+)\+(\d+)[ \t]*$", pubspec, re.M)
+    if not match:
+        raise Error("master has no normal version and numeric build metadata")
+    target = development_target(match[1], plan["version"])
+    if target is None:
+        print(
+            "Master is already on the next development version; no extra bump.",
+            flush=True,
+        )
+        return
+    state = state_reader()
+    code = next_android_code(
+        [
+            Path("android/version-code.txt").read_text().strip(),
+            command("git", "show", "origin/nightly:android/version-code.txt"),
+            plan["android_version_code"],
+            state["highest_version_code"],
+        ],
+        time.time(),
+    )
+    raw = f"{target}+{int(match[2]) + 1}"
+    Path("pubspec.yaml").write_text(
+        pubspec[: match.start()] + f"version: {raw}" + pubspec[match.end() :]
+    )
+    Path("android/version-code.txt").write_text(f"{code}\n")
+    command("git", "add", "--", "pubspec.yaml", "android/version-code.txt")
+    command("git", "diff", "--cached", "--check")
+    if set(command("git", "diff", "--cached", "--name-only").splitlines()) != {
+        "pubspec.yaml",
+        "android/version-code.txt",
+    }:
+        raise Error("development bump staged unrelated files")
+    command(
+        "git",
+        "commit",
+        "-m",
+        f"chore: begin {target} development after store {plan['version']}",
+    )
+    command("git", "fetch", "origin", "master")
+    if command("git", "rev-parse", "origin/master") != base:
+        raise Error(
+            "master advanced before the development bump; no bump was published"
+        )
+    command("git", "push", "origin", "master")
+    print(
+        f"Advanced master to {raw}; submitted stores remain {plan['version']}.",
+        flush=True,
+    )
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--operation", choices=["plan", "release"], default="plan")
@@ -622,6 +698,7 @@ def main():
     print(json.dumps(plan, indent=2), flush=True)
     if args.operation == "release":
         submit(plan)
+        advance_development_version(plan)
         record_completion(plan)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
