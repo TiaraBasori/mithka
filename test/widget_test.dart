@@ -24,6 +24,7 @@ import 'package:mithka/chat/sticker_store.dart';
 import 'package:mithka/chat/telegram_ai_service.dart';
 import 'package:mithka/components/app_icons.dart';
 import 'package:mithka/components/app_interactive_surface.dart';
+import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/components/keyboard_dismiss_on_tap.dart';
 import 'package:mithka/l10n/app_locale_controller.dart';
 import 'package:mithka/l10n/app_localizations.dart';
@@ -2379,7 +2380,7 @@ void main() {
           ContentSizeScope.of(tester.element(textFieldFinder)).systemTextScaler,
         );
         final items =
-            (toolbarScope.child as AdaptiveTextSelectionToolbar).buttonItems!;
+            (toolbarScope.child as AppTextSelectionToolbar).buttonItems!;
         items.singleWhere((item) => item.label == 'Format').onPressed!();
       }
 
