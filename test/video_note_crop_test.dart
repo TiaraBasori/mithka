@@ -111,6 +111,85 @@ void main() {
         File('${dir.path}/$name')..writeAsBytesSync(const [0, 0, 0, 1]);
 
     test(
+      'a recorder disposal with no ticket of its own reclaims nothing',
+      () async {
+        // Regression for the review's P2: a normally cancelled recorder owns
+        // no export, yet dispose used to fire the global sweep and could
+        // reclaim another producer's pending or delivered-but-unaccepted crop.
+        // Disposal now surrenders only the state's own ticket, so a second
+        // producer's pending export and accepted send file both survive.
+        final pending = write('other-pending.mp4');
+        final delivered = write('other-delivered.mp4');
+        final parked = Completer<Object?>();
+        answer(
+          (call) => call.arguments['path'] == '${dir.path}/other-source.mov'
+              ? parked.future
+              : Future<Object?>.value(delivered.path),
+        );
+
+        // Another producer's export is pending (platform call parked).
+        final otherTicket = VideoNoteCropService.start(
+          '${dir.path}/other-source.mov',
+        );
+
+        // Another producer's crop is delivered but not yet accepted: the
+        // service answered, and the send path has not taken the file.
+        final deliveredTicket = VideoNoteCropService.start(
+          '${dir.path}/other-delivered-source.mov',
+        );
+        expect(await deliveredTicket!.resolve(), delivered.path);
+
+        // A recorder with no ticket of its own is disposed: it holds no
+        // export, so there is nothing to surrender. On the previous head
+        // that dispose fired the global
+        // `VideoNoteCropService.abandonInFlight()` sweep, which marked both
+        // requests above abandoned and reclaimed the delivered one's file
+        // (the pending one would follow on its platform completion). The
+        // recorder source pins below prove dispose cannot reach that sweep
+        // any more; here, nothing may touch another producer's files.
+        await pumpEventQueue();
+        expect(
+          pending.existsSync(),
+          isTrue,
+          reason:
+              "another producer's pending export must survive a "
+              'ticket-less recorder disposal',
+        );
+        expect(
+          delivered.existsSync(),
+          isTrue,
+          reason:
+              "another producer's delivered-but-unaccepted crop must "
+              'survive a ticket-less recorder disposal',
+        );
+
+        // The accepted send file survives the late reclaim as well: the send
+        // path owns it, and the platform completion of the still-pending
+        // export only reclaims that abandoned export. Its own producer
+        // surrenders it late — the bounded wait gives up, and the true
+        // platform completion still reclaims the file.
+        expect(deliveredTicket.accept(delivered.path), isTrue);
+        await otherTicket!.abandon(timeout: Duration.zero);
+        parked.complete(pending.path);
+        await pumpEventQueue();
+        await pumpEventQueue();
+        expect(
+          pending.existsSync(),
+          isFalse,
+          reason:
+              'an export its own producer abandoned is still reclaimed by '
+              'its platform completion',
+        );
+        expect(
+          delivered.existsSync(),
+          isTrue,
+          reason: 'an accepted send file must survive a late reclaim',
+        );
+        await delivered.delete();
+      },
+    );
+
+    test(
       'a slow export still has its file reclaimed after a cleanup wait gives up',
       () async {
         final lateFile = write('late.mp4');
@@ -577,6 +656,11 @@ void main() {
       final disposeBody = source.substring(disposeAt);
       expect(disposeBody, contains('_cropTicket'));
       expect(disposeBody, contains('ticket.abandon()'));
+      expect(
+        disposeBody,
+        isNot(contains('abandonInFlight')),
+        reason: 'a ticket-less disposal must not fire the global sweep',
+      );
     });
 
     test('accepts the crop only after the recording it replaces is gone', () {

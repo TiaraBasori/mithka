@@ -201,6 +201,10 @@ abstract final class VideoNoteCropService {
         return null;
       }
       request.output = output;
+      // Delivered, not yet abandoned and not accepted: the caller is between
+      // the platform answer and its accept/abandon decision. Nothing is
+      // reclaimed here, so a normal handoff keeps the file while any later
+      // abandonment still reclaims it — and only this request's own file.
       return output;
     } catch (_) {
       // MissingPluginException, PlatformException, TimeoutException and a

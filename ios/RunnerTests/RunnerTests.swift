@@ -318,7 +318,6 @@ final class RunnerTests: XCTestCase {
 }
 
 
-}
 
 // MARK: - Video note crop maths
 

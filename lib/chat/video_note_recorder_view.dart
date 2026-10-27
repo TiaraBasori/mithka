@@ -807,14 +807,13 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
     WidgetsBinding.instance.removeObserver(this);
     // A route closed mid-export owns no result: this recorder's own ticket is
     // surrendered when its platform call completes, even when that is long
-    // after dispose returned. Scoped to this state's own ticket so a second
-    // live recorder's still-pending handoff keeps its crop.
+    // after dispose returned. A recorder with no ticket never started an
+    // export of its own, so it surrenders nothing — a global sweep here
+    // could reclaim another live recorder's pending or accepted crop.
     final ticket = _cropTicket;
     _cropTicket = null;
     if (ticket != null) {
       unawaited(ticket.abandon());
-    } else {
-      unawaited(VideoNoteCropService.abandonInFlight());
     }
     _timer?.cancel();
     unawaited(_controller?.dispose());
