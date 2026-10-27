@@ -61,7 +61,8 @@ if $PROGRAM_NAME == __FILE__
     puts JSON.generate(MithkaStoreReleaseState.read(client, build_number: ARGV.first))
   rescue StandardError => error
     # Provider responses can contain private metadata; expose only the class.
-    warn "Store state lookup failed (#{error.class})"
+    status = error.respond_to?(:status) ? ", HTTP #{error.status}" : ""
+    warn "Store state lookup failed (#{error.class}#{status})"
     exit 1
   end
 end

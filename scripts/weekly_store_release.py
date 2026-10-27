@@ -34,6 +34,13 @@ def command(*args, data=None):
     result = subprocess.run(args, input=data, text=True, capture_output=True)
     if result.returncode:
         # Never include a provider body, environment or credential-bearing URL.
+        if args[:2] == ("ruby", "scripts/store_release_state.rb"):
+            safe = re.search(
+                r"Store state lookup failed \([A-Za-z0-9_:]+(?:, HTTP \d{3})?\)",
+                result.stderr,
+            )
+            if safe:
+                raise Error(safe[0])
         raise Error(f"{args[0]} failed (exit {result.returncode})")
     return result.stdout.strip()
 

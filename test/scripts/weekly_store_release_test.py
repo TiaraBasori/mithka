@@ -13,6 +13,21 @@ SPEC.loader.exec_module(RELEASE)
 
 
 class WeeklyReleaseTest(unittest.TestCase):
+    def test_state_lookup_failure_reports_only_sanitized_class_and_status(self):
+        result = subprocess.CompletedProcess(
+            [],
+            1,
+            "",
+            "private-key-or-response\nStore state lookup failed (MithkaAppStoreRelease::ApiError, HTTP 503)\nother-private-value",
+        )
+        with patch.object(RELEASE.subprocess, "run", return_value=result):
+            with self.assertRaises(RELEASE.Error) as raised:
+                RELEASE.command("ruby", "scripts/store_release_state.rb")
+        self.assertEqual(
+            str(raised.exception),
+            "Store state lookup failed (MithkaAppStoreRelease::ApiError, HTTP 503)",
+        )
+
     def test_a_later_friday_resumes_unfinished_snapshots_before_allocating(self):
         tags = ["store-2026-10-27", "store-v1.8.8"]
         self.assertEqual(RELEASE.release_key(None, tags, "2026-10-30"), "2026-10-27")
