@@ -7,6 +7,7 @@ import 'package:mithka/chat/chat_view_model.dart';
 import 'package:mithka/chat/rich_message_source.dart';
 import 'package:mithka/chat/rich_text_composer_view.dart';
 import 'package:mithka/components/app_icons.dart';
+import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/components/ui_components.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/settings/advanced_settings_view.dart';
@@ -16,7 +17,6 @@ import 'package:mithka/tdlib/td_client.dart';
 import 'package:mithka/theme/theme_controller.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'support/l10n_fixtures.dart';
 
 class _NonPremiumChatViewModel extends ChatViewModel {
@@ -238,7 +238,7 @@ void main() {
       editableTextState,
     );
 
-    expect(toolbar, isA<AdaptiveTextSelectionToolbar>());
+    expect(toolbar, isA<AppTextSelectionToolbar>());
   });
 
   testWidgets('Premium rich-text send never falls back to the relay bot', (

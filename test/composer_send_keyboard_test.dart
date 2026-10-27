@@ -1,10 +1,12 @@
 import 'dart:async';
-
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:heroicons_flutter/heroicons_flutter.dart';
 import 'package:mithka/chat/chat_input_bar.dart';
 import 'package:mithka/chat/chat_view_model.dart';
+import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/components/keyboard_dismiss_on_tap.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/theme/app_theme.dart';
@@ -49,6 +51,7 @@ Future<_SendKeyboardViewModel> _pumpComposer(
   WidgetTester tester, {
   required bool enterToSend,
   TargetPlatform platform = TargetPlatform.android,
+  Locale locale = const Locale('en'),
 }) async {
   final vm = _SendKeyboardViewModel();
   addTearDown(vm.dispose);
@@ -58,7 +61,7 @@ Future<_SendKeyboardViewModel> _pumpComposer(
       // reproduce that here so composer taps see the same behavior.
       builder: (context, child) =>
           AppKeyboardDismissOnTap(child: child ?? const SizedBox.shrink()),
-      locale: const Locale('en'),
+      locale: locale,
       localizationsDelegates: const [
         AppLocalizations.delegate,
         GlobalMaterialLocalizations.delegate,
@@ -314,6 +317,79 @@ void main() {
       },
     );
   }
+
+  testWidgets('Android composer selection overflow uses owned icons', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(240, 640);
+    addTearDown(tester.view.reset);
+
+    await _pumpComposer(
+      tester,
+      enterToSend: false,
+      locale: const Locale('zh', 'CN'),
+    );
+    const text = '选择这些文字';
+    final field = find.byType(TextField);
+    await tester.enterText(field, text);
+    await tester.pump();
+    final editable = tester.state<EditableTextState>(find.byType(EditableText));
+    // Partial selection keeps the "全选" (select all) item in the menu, so the
+    // Chinese toolbar (剪切/复制/粘贴/全选/格式) cannot fit the narrow screen
+    // and the framework renders its overflow "more" button.
+    editable.widget.controller.selection = const TextSelection(
+      baseOffset: 0,
+      extentOffset: 4,
+    );
+    await tester.pump();
+    editable.showToolbar();
+    await tester.pumpAndSettle();
+
+    // The owned toolbar replaces the framework's Material overflow affordance
+    // (whose Icons.more_vert renders as tofu without the bundled MaterialIcons
+    // font this app does not ship).
+    expect(find.byType(AppTextSelectionToolbar), findsOneWidget);
+    expect(find.byType(AdaptiveTextSelectionToolbar), findsNothing);
+    final moreButton = find.byKey(StandardComponentType.moreButton.key);
+    expect(moreButton, findsOneWidget);
+    final moreIcon = tester.widget<Icon>(
+      find.descendant(of: moreButton, matching: find.byType(Icon)),
+    );
+    expect(moreIcon.icon, HeroiconsOutline.ellipsisVertical);
+    expect(moreIcon.icon?.fontFamily, isNot('MaterialIcons'));
+
+    // Opening the overflow menu flips the affordance to the owned back glyph.
+    await tester.tap(moreButton);
+    await tester.pumpAndSettle();
+    final backButton = find.byKey(StandardComponentType.backButton.key);
+    expect(backButton, findsOneWidget);
+    final backIcon = tester.widget<Icon>(
+      find.descendant(of: backButton, matching: find.byType(Icon)),
+    );
+    expect(backIcon.icon, HeroiconsOutline.chevronLeft);
+
+    // The app still ships no MaterialIcons font.
+    final pubspecLines = File('pubspec.yaml').readAsLinesSync();
+    final flutterStart = pubspecLines.indexOf('flutter:');
+    expect(flutterStart, greaterThanOrEqualTo(0));
+    final nextSection = pubspecLines.indexWhere(
+      (line) => line.isNotEmpty && !line.startsWith(RegExp(r'\s')),
+      flutterStart + 1,
+    );
+    final flutterLines = pubspecLines.sublist(
+      flutterStart + 1,
+      nextSection < 0 ? pubspecLines.length : nextSection,
+    );
+    final materialDesignSetting = RegExp(
+      r'^\s+uses-material-design\s*:\s*true\s*$',
+    );
+    expect(
+      flutterLines.any(materialDesignSetting.hasMatch),
+      isFalse,
+      reason: 'the app must not bundle MaterialIcons for selection toolbars',
+    );
+  });
 
   testWidgets('desktop retains its default tap-region grouping', (
     tester,

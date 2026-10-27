@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/chat_input_bar.dart';
 import 'package:mithka/chat/chat_view_model.dart';
 import 'package:mithka/chat/emoji_text_controller.dart';
+import 'package:mithka/components/app_text_selection_toolbar.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/theme/app_theme.dart';
 import 'package:mithka/theme/content_size.dart';
@@ -131,7 +132,7 @@ void main() {
         toolbarScope.data.textScaler,
         ContentSizeScope.of(tester.element(fieldFinder)).systemTextScaler,
       );
-      final toolbar = toolbarScope.child as AdaptiveTextSelectionToolbar;
+      final toolbar = toolbarScope.child as AppTextSelectionToolbar;
       toolbar.buttonItems!
           .singleWhere(
             (item) => item.label == AppStrings.t(AppStringKeys.composerFormat),
