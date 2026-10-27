@@ -25,3 +25,40 @@ Run [Store Workflow Checks](https://github.com/iebb/mithka/actions/workflows/sto
 on `master` to test both store credentials. It performs an ASC app lookup and a
 Play track lookup using a temporary edit that is deleted without committing.
 Pull-request and push runs execute only offline tests and workflow validation.
+
+## Friday releases
+
+[Friday Store Release](https://github.com/iebb/mithka/actions/workflows/weekly-store-release.yml)
+runs every Friday at **09:00 Asia/Tokyo (00:00 UTC)**. It can also be dispatched
+from `master`: `plan` is the default and never publishes a version or submits
+an app; `release` performs the signed builds and store submissions.
+
+The coordinator reads live ASC/TestFlight and Play state, preserves the full
+normal `X.Y.Z` version, and increments the patch when the current number has
+already been used. It never changes a normal patch to `.0`. It advances only
+within master's current major/minor train. A new release snapshot updates only
+`pubspec.yaml`, the shared Android version code and versioned bilingual release
+notes. Curated notes at that version's path are retained; otherwise the fallback
+notes describe app maintenance without inventing feature claims.
+
+An atomic fast-forward publication creates immutable `store-vX.Y.Z` and
+`store-YYYY-MM-DD` tags. The annotated date tag records the source SHA, exact
+version, Android code and Apple build number. The date uses Tokyo time. Use the
+same `release_key` to resume an interrupted release: the coordinator reuses the
+recorded snapshot and existing child workflow runs. It stops on a failed or
+ambiguous publication instead of dispatching another upload with a reused code.
+Resolve that attempt explicitly before resuming; do not rewrite release tags.
+
+Both Apple builds must pass Quality, signing, processing and App Store
+eligibility. Both App Review plans are validated before Play production is
+published, then iOS/macOS are submitted sequentially and their actual store
+states are checked. A unique older `PREPARE_FOR_SUBMISSION` draft is advanced
+in place, preserving screenshots, listing metadata and review details, with
+release after approval. An active review or an ambiguous draft is left for the
+maintainer. Store review can still delay public availability after submission.
+
+The scheduler shares the nightly version allocator's lock; Play state lookups
+share the existing Play publication lock. Upload-only Apple builds skip beta
+distribution and keep every official-build Terms guard disabled. The
+coordinator does not dispatch the desktop/Telegram release workflow or install
+a schedule on the maintainer's computer.

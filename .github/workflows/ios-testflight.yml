@@ -142,6 +142,8 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Prepare deterministic iOS build inputs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: sh ci_scripts/ci_post_clone.sh
 
       - name: Verify the MDK Apple SDK is still fresh

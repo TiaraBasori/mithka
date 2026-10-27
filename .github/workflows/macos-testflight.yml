@@ -138,6 +138,8 @@ jobs:
           } >> "$GITHUB_ENV"
 
       - name: Prepare deterministic macOS build inputs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: sh ci_scripts/macos_post_clone.sh
 
       - name: Archive macOS app

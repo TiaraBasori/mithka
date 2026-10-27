@@ -6,7 +6,9 @@ from contextlib import redirect_stderr
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-SOURCE = Path(__file__).resolve().parents[2] / "scripts/check_google_play_credentials.py"
+SOURCE = (
+    Path(__file__).resolve().parents[2] / "scripts/check_google_play_credentials.py"
+)
 SPEC = importlib.util.spec_from_file_location("play_credentials", SOURCE)
 CHECK = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CHECK)
@@ -45,9 +47,52 @@ class PlayCredentialsTest(unittest.TestCase):
 
     def test_cleanup_failure_is_not_reported_as_success(self):
         session = self.session()
-        session.delete.return_value.raise_for_status.side_effect = RuntimeError("failed")
+        session.delete.return_value.raise_for_status.side_effect = RuntimeError(
+            "failed"
+        )
         with self.assertRaises(RuntimeError):
             CHECK.check_access(session)
+
+    def test_report_reads_all_used_codes_and_completed_production(self):
+        session = self.session()
+        payloads = [
+            {
+                "tracks": [
+                    {
+                        "track": "production",
+                        "releases": [{"status": "completed", "versionCodes": ["200"]}],
+                    },
+                    {
+                        "track": "beta",
+                        "releases": [{"status": "completed", "versionCodes": ["300"]}],
+                    },
+                    {
+                        "track": "production",
+                        "releases": [{"status": "draft", "versionCodes": ["400"]}],
+                    },
+                ]
+            },
+            {"bundles": [{"versionCode": 500}]},
+            {"apks": [{"versionCode": 450}]},
+        ]
+        responses = []
+        for payload in payloads:
+            response = Mock()
+            response.json.return_value = payload
+            responses.append(response)
+        session.get.side_effect = responses
+        self.assertEqual(
+            CHECK.check_access(session, report=True),
+            {"production_codes": [200], "highest_version_code": 500},
+        )
+        session.delete.assert_called_once()
+
+    def test_report_failure_discards_edit_and_does_not_commit(self):
+        session = self.session()
+        session.get.side_effect = RuntimeError("failed")
+        with self.assertRaises(RuntimeError):
+            CHECK.check_access(session, report=True)
+        session.delete.assert_called_once()
 
     def test_edit_identifier_cannot_redirect_or_traverse(self):
         for identifier in ["../other", "https://other.example", "", None, 123]:
@@ -86,9 +131,7 @@ class PlayCredentialsTest(unittest.TestCase):
             patch.dict(
                 CHECK.os.environ, {"GOOGLE_PLAY_SERVICE_ACCOUNT_JSON": json.dumps(info)}
             ),
-            patch.object(
-                CHECK.Credentials, "from_service_account_info"
-            ) as credentials,
+            patch.object(CHECK.Credentials, "from_service_account_info") as credentials,
             redirect_stderr(io.StringIO()),
         ):
             self.assertEqual(CHECK.main(), 1)
