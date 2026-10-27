@@ -27,7 +27,8 @@ permissions:
 
 jobs:
   tests:
-    runs-on: ubuntu-latest
+    # Keep the real IPA/plutil provenance tests enabled.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v7
         with:
