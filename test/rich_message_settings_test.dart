@@ -219,6 +219,18 @@ void main() {
   testWidgets('relay token input exposes the platform paste menu', (
     tester,
   ) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          return switch (call.method) {
+            'Clipboard.hasStrings' => {'value': true},
+            'Clipboard.getData' => {'text': 'clipboard value'},
+            _ => null,
+          };
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null),
+    );
     final theme = await _themeController();
     addTearDown(theme.dispose);
     await tester.pumpWidget(_app(theme, const RichMessageRelayView()));
@@ -230,8 +242,6 @@ void main() {
       of: textFieldFinder,
       matching: find.byType(EditableText),
     );
-    await Clipboard.setData(const ClipboardData(text: 'clipboard value'));
-    addTearDown(() => Clipboard.setData(const ClipboardData(text: '')));
     await tester.enterText(textFieldFinder, 'replace me');
     final field = tester.widget<EditableText>(fieldFinder);
     field.controller.selection = const TextSelection(

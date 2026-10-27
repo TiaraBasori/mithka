@@ -2967,7 +2967,7 @@ void main() {
         ContentSizeScope.of(tester.element(textFieldFinder)).systemTextScaler,
       );
       final buttonItems =
-          (toolbarScope.child as AppTextSelectionToolbar).buttonItems;
+          (toolbarScope.child as AdaptiveTextSelectionToolbar).buttonItems;
 
       final pasteItems = buttonItems!.where(
         (item) => item.type == ContextMenuButtonType.paste,
