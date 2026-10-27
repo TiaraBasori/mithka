@@ -1,8 +1,8 @@
 name: 📦 Google Play Release
 
 # Nightly builds go to Google Play's beta track (Open testing), while release
-# builds continue to go to Production. Manual runs are available from either
-# publishing branch.
+# builds continue to go to Production. A manual master run also publishes to
+# Production, using the exact selected master commit and the same quality gate.
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
 
   prepare:
     name: Read release version
-    if: github.ref == 'refs/heads/nightly' || github.ref == 'refs/heads/release'
+    if: github.ref == 'refs/heads/nightly' || github.ref == 'refs/heads/release' || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')
     needs: quality
     runs-on: ubuntu-latest
     outputs:
@@ -65,7 +65,7 @@ jobs:
               play_track="beta"
               release_name="Mithka $app_version Beta · $release_date ($short_sha)"
               ;;
-            release)
+            master|release)
               play_track="production"
               release_name="Mithka $app_version · $release_date"
               ;;

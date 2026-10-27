@@ -1,0 +1,102 @@
+name: Store Workflow Checks
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/app-store-submit.yml'
+      - '.github/workflows/google-play.yml'
+      - '.github/workflows/store-checks.yml'
+      - 'scripts/*store*'
+      - 'scripts/check_google_play_credentials.py'
+      - 'test/scripts/*store*'
+      - 'test/scripts/check_google_play_credentials_test.py'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/app-store-submit.yml'
+      - '.github/workflows/google-play.yml'
+      - '.github/workflows/store-checks.yml'
+      - 'scripts/*store*'
+      - 'scripts/check_google_play_credentials.py'
+      - 'test/scripts/*store*'
+      - 'test/scripts/check_google_play_credentials_test.py'
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r scripts/requirements-store-checks.txt
+      - name: Test store submission boundaries
+        run: |
+          ruby -Itest test/scripts/app_store_release_test.rb
+          ruby -Itest test/scripts/app_store_workflow_test.rb
+          python -m unittest discover -s test/scripts -p 'check_google_play_credentials_test.py' -v
+      - name: Validate the store workflows
+        run: |
+          go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 \
+            .github/workflows/app-store-submit.yml \
+            .github/workflows/google-play.yml \
+            .github/workflows/store-checks.yml
+
+  asc-credentials:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'iebb/mithka' && github.ref == 'refs/heads/master'
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check App Store Connect access without writes
+        env:
+          ASC_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          ASC_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          : "${ASC_KEY_ID:?missing APP_STORE_CONNECT_KEY_ID}"
+          : "${ASC_ISSUER_ID:?missing APP_STORE_CONNECT_ISSUER_ID}"
+          : "${ASC_PRIVATE_KEY:?missing APP_STORE_CONNECT_PRIVATE_KEY}"
+          umask 077
+          export ASC_KEY_PATH="$RUNNER_TEMP/store-check-key.p8"
+          trap 'rm -f "$ASC_KEY_PATH"' EXIT
+          printf '%s' "$ASC_PRIVATE_KEY" > "$ASC_KEY_PATH"
+          unset ASC_PRIVATE_KEY
+          ruby -r ./scripts/app_store_release.rb -e '
+            client = MithkaAppStoreRelease::Client.new(
+              key_id: ENV.fetch("ASC_KEY_ID"), issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+              key_path: ENV.fetch("ASC_KEY_PATH"))
+            app = client.get("/apps/6783830742").fetch("data")
+            abort "ASC app identity mismatch" unless app.dig("attributes", "bundleId") == "ad.neko.mithka"
+            puts "App Store Connect credential verified for Mithka."
+          '
+
+  play-credentials:
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'iebb/mithka' && github.ref == 'refs/heads/master'
+    needs: tests
+    runs-on: ubuntu-latest
+    environment: google-play-production
+    concurrency:
+      group: google-play-publication
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r scripts/requirements-store-checks.txt
+      - name: Verify Google Play app access and discard the temporary edit
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        run: python scripts/check_google_play_credentials.py
