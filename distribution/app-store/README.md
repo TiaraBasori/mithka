@@ -16,6 +16,8 @@ Only a canonical master App Review dispatch may select a source override, and
 that source must be an ancestor of master. PR and push checks keep their event
 SHA and merge-identity checks. Release-source checks have a distinct job name
 so they cannot substitute for current-head PR evidence.
+Empty release notes in additional inherited listing locales receive the en-US
+text. Existing translations in those locales are preserved.
 It never selects a build merely because it is the latest upload.
 Completed historical submissions whose items for the selected version were
 removed are ignored. Multiple remaining submissions still block publication.

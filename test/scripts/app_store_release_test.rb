@@ -152,6 +152,42 @@ class AppStoreReleaseTest < Minitest::Test
     assert_includes output.string, "no App Store Connect state was changed"
   end
 
+  def inherited_locale_routes
+    routes = base_routes
+    notes = MithkaAppStoreRelease::DEFAULT_RELEASE_NOTES
+    locales = notes.map do |locale, text|
+      { "id" => locale, "attributes" => { "locale" => locale, "whatsNew" => text,
+        "description" => "Description", "keywords" => "chat", "supportUrl" => "https://example.com" } }
+    end
+    locales += [
+      { "id" => "canada", "attributes" => { "locale" => "en-CA", "whatsNew" => nil } },
+      { "id" => "french", "attributes" => { "locale" => "fr-FR", "whatsNew" => "Curated French notes." } }
+    ]
+    routes[["/appStoreVersions/#{TARGET_VERSION_ID}/appStoreVersionLocalizations", { "limit" => "200" }]] = { "data" => locales }
+    routes
+  end
+
+  def test_empty_inherited_release_notes_are_planned_without_writes
+    client = FakeClient.new(inherited_locale_routes)
+    output = StringIO.new
+    build_runner(client, output).send(:sync_version_metadata, TARGET_VERSION_ID, MithkaAppStoreRelease::DEFAULT_RELEASE_NOTES)
+    assert_empty client.writes
+    assert_includes output.string, "PLAN fill empty en-CA release notes"
+    refute_includes output.string, "fr-FR"
+  end
+
+  def test_only_empty_inherited_notes_receive_the_english_fallback
+    client = FakeClient.new(inherited_locale_routes)
+    client.define_singleton_method(:patch) do |path, body|
+      writes << [:patch, path, body]
+      { "data" => body.fetch("data") }
+    end
+    build_runner(client, StringIO.new, apply: true).send(:sync_version_metadata, TARGET_VERSION_ID, MithkaAppStoreRelease::DEFAULT_RELEASE_NOTES)
+    assert_equal 1, client.writes.length
+    assert_equal "/appStoreVersionLocalizations/canada", client.writes.first[1]
+    assert_equal({ "whatsNew" => MithkaAppStoreRelease::DEFAULT_RELEASE_NOTES.fetch("en-US") }, client.writes.first.last.dig("data", "attributes"))
+  end
+
   def draft_routes(states: ["PREPARE_FOR_SUBMISSION"], version: "0.7.40")
     routes = base_routes
     drafts = states.each_with_index.map do |state, index|

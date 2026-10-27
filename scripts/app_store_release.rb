@@ -689,6 +689,26 @@ module MithkaAppStoreRelease
           }
         )
       end
+
+      # ASC can inherit additional locales (for example en-CA) with empty
+      # release notes. Every inherited listing needs whatsNew before review.
+      # Preserve curated translations and fill only otherwise empty entries.
+      (existing.keys - release_notes.keys).each do |locale|
+        localization = existing.fetch(locale)
+        next unless localization.dig("attributes", "whatsNew").to_s.strip.empty?
+        unless @apply
+          log("PLAN fill empty #{locale} release notes with the en-US text")
+          next
+        end
+        log("FILL empty #{locale} release notes with the en-US text")
+        @client.patch(
+          "/appStoreVersionLocalizations/#{localization.fetch('id')}",
+          "data" => {
+            "type" => "appStoreVersionLocalizations", "id" => localization.fetch("id"),
+            "attributes" => { "whatsNew" => release_notes.fetch("en-US") }
+          }
+        )
+      end
     end
 
     def latest_sale_localizations(excluding_version_id)
