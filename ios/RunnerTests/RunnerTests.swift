@@ -183,4 +183,134 @@ class RunnerTests: XCTestCase {
     )
   }
 
+  @MainActor
+  func testNativeGlassSelectionHierarchyCapsulesRTLAndResize() throws {
+    let host = GlassSurfaceHost(frame: CGRect(x: 0, y: 0, width: 300, height: 72))
+    var config: [String: Any] = [
+      "radius": 999, "selection": 0, "itemCount": 4, "selectionInset": 5,
+      "durationMs": 0, "dark": false, "tint": UInt32(0x5CFFFFFF),
+      "selectionTint": UInt32(0x1A007AFF), "rtl": false,
+    ]
+    host.apply(config)
+    let outer = try XCTUnwrap(host.subviews.first as? UIVisualEffectView)
+    let selected = try XCTUnwrap(outer.contentView.subviews.first as? UIVisualEffectView)
+    XCTAssertEqual(host.subviews.count, 1)
+    XCTAssertFalse(host.isUserInteractionEnabled)
+    XCTAssertTrue(host.accessibilityElementsHidden)
+    XCTAssertEqual(outer.frame, host.bounds)
+    XCTAssertEqual(outer.layer.cornerRadius, 36)
+    XCTAssertEqual(selected.frame, CGRect(x: 5, y: 5, width: 72.5, height: 62))
+    XCTAssertEqual(selected.layer.cornerRadius, 31)
+
+    for count in 1...4 {
+      for rtl in [false, true] {
+        for selection in 0..<count {
+          config["itemCount"] = count
+          config["selection"] = selection
+          config["rtl"] = rtl
+          host.apply(config)
+          let width = CGFloat(290) / CGFloat(count)
+          let slot = rtl ? count - 1 - selection : selection
+          // UIView stores center + bounds, so fractional third-slot origins can
+          // round by ~1e-14 when frame is reconstructed. Keep subpixel accuracy
+          // without requiring bit-identical floating-point arithmetic.
+          XCTAssertEqual(selected.frame.minX, 5 + CGFloat(slot) * width, accuracy: 0.000001)
+          XCTAssertEqual(selected.frame.minY, 5, accuracy: 0.000001)
+          XCTAssertEqual(selected.frame.width, width, accuracy: 0.000001)
+          XCTAssertEqual(selected.frame.height, 62, accuracy: 0.000001)
+          XCTAssertEqual(selected.layer.cornerRadius, min(width, 62) / 2)
+        }
+      }
+    }
+    config["itemCount"] = 4
+    config["selection"] = 1
+    config["rtl"] = true
+    host.apply(config)
+    host.frame.size = CGSize(width: 180, height: 100)
+    host.setNeedsLayout()
+    host.layoutIfNeeded()
+    XCTAssertEqual(outer.frame, host.bounds)
+    XCTAssertEqual(outer.layer.cornerRadius, 50)
+    XCTAssertEqual(selected.frame, CGRect(x: 90, y: 5, width: 42.5, height: 90))
+    XCTAssertEqual(selected.layer.cornerRadius, 21.25)
+    config["selection"] = -1
+    host.apply(config)
+    XCTAssertTrue(selected.isHidden)
+  }
+
+  @MainActor
+  func testNativeGlassOpaqueFallbackAndFreshTintAssignment() throws {
+    let host = GlassSurfaceHost(frame: CGRect(x: 0, y: 0, width: 300, height: 72))
+    var config: [String: Any] = [
+      "radius": 999, "selection": 1, "itemCount": 3, "selectionInset": 5,
+      "durationMs": 0, "dark": false, "highContrast": true,
+      "opaqueBackground": UInt32(0xFFEEEEEE), "opaqueSelection": UInt32(0xFFCCDDFF),
+      "contrastBorder": UInt32(0xFF007AFF),
+    ]
+    host.apply(config)
+    let outer = try XCTUnwrap(host.subviews.first as? UIVisualEffectView)
+    let selected = try XCTUnwrap(outer.contentView.subviews.first as? UIVisualEffectView)
+    XCTAssertNil(outer.effect)
+    XCTAssertNil(selected.effect)
+    XCTAssertEqual(outer.backgroundColor?.cgColor.alpha, 1)
+    XCTAssertEqual(selected.backgroundColor?.cgColor.alpha, 1)
+    XCTAssertEqual(selected.layer.borderWidth, 1)
+    XCTAssertEqual(selected.layer.cornerRadius, 31)
+
+    config["highContrast"] = false
+    config["tint"] = UInt32(0x5CFFFFFF)
+    config["selectionTint"] = UInt32(0x30007AFF)
+    host.apply(config)
+    if !UIAccessibility.isReduceTransparencyEnabled && !UIAccessibility.isDarkerSystemColorsEnabled {
+      if #available(iOS 26.0, *) {
+        let firstOuter = try XCTUnwrap(outer.effect as? UIGlassEffect)
+        let firstSelected = try XCTUnwrap(selected.effect as? UIGlassEffect)
+        config["dark"] = true
+        config["tint"] = UInt32(0x20101010)
+        config["selectionTint"] = UInt32(0x4000FF00)
+        host.apply(config)
+        let nextOuter = try XCTUnwrap(outer.effect as? UIGlassEffect)
+        let nextSelected = try XCTUnwrap(selected.effect as? UIGlassEffect)
+        XCTAssertFalse(firstOuter === nextOuter)
+        XCTAssertFalse(firstSelected === nextSelected)
+        XCTAssertNotEqual(firstSelected.tintColor, nextSelected.tintColor)
+        XCTAssertEqual(outer.overrideUserInterfaceStyle, .dark)
+        XCTAssertEqual(selected.overrideUserInterfaceStyle, .dark)
+      } else {
+        XCTAssertTrue(outer.effect is UIBlurEffect)
+        XCTAssertTrue(selected.effect is UIBlurEffect)
+        XCTAssertNotNil(selected.contentView.backgroundColor)
+      }
+    }
+  }
+
+  @MainActor
+  func testNativeGlassRapidRetargetThenResizeAndReducedDurationSettleLatestSlot() throws {
+    let host = GlassSurfaceHost(frame: CGRect(x: 0, y: 0, width: 300, height: 72))
+    var config: [String: Any] = [
+      "radius": 999, "selection": 0, "itemCount": 4, "selectionInset": 5,
+      "durationMs": 280, "dark": false,
+    ]
+    host.apply(config)
+    for selection in [3, 1, 2] {
+      config["selection"] = selection
+      host.apply(config)
+    }
+    let outer = try XCTUnwrap(host.subviews.first as? UIVisualEffectView)
+    let selected = try XCTUnwrap(outer.contentView.subviews.first as? UIVisualEffectView)
+    host.frame.size.width = 220
+    host.setNeedsLayout()
+    host.layoutIfNeeded()
+    XCTAssertEqual(selected.frame, CGRect(x: 110, y: 5, width: 52.5, height: 62))
+    config["selection"] = 0
+    host.apply(config)
+    config["selection"] = 3
+    config["durationMs"] = 0
+    host.apply(config)
+    XCTAssertEqual(selected.frame, CGRect(x: 162.5, y: 5, width: 52.5, height: 62))
+    XCTAssertEqual(selected.layer.cornerRadius, 26.25)
+    // Endpoint/layout coverage only; live interruption continuity and material
+    // contrast still require on-device/simulator optical verification.
+  }
+
 }

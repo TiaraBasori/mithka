@@ -61,8 +61,7 @@ import 'desktop_navigation_rail.dart';
 import 'desktop_utility_window.dart';
 import 'detail_content_reveal.dart';
 import 'horizontal_safe_viewport.dart';
-import 'liquid_glass_bottom_bar.dart'
-    show GlassSelectionIndicator, LiquidGlassBottomBar;
+import 'liquid_glass_bottom_bar.dart' show LiquidGlassBottomBar;
 import 'native_glass_surface.dart';
 import 'primary_chat_launcher.dart';
 import 'unread_badge_model.dart';
@@ -2457,14 +2456,12 @@ class _MainBottomBar extends StatelessWidget {
     final controls = controlsWithBottomInset(0.0);
     if (glass) {
       // iOS hosts the real Liquid Glass: a native surface draws only the glass
-      // (public UIGlassEffect on iOS 26+, system material blur before), while
-      // the app-owned row, its selection pill, and every gesture stay in
+      // and its selected capsule (public UIGlassEffect on iOS 26+, system
+      // material before). The app-owned controls and every gesture stay in
       // Flutter above the surface — one geometry source in any host, window
       // bottom bar or sidebar column. The Flutter glass bar remains the
       // fallback for every other target.
-      if (!kIsWeb &&
-          defaultTargetPlatform == TargetPlatform.iOS &&
-          !MediaQuery.highContrastOf(context)) {
+      if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
         // A platform view has no insets of its own, so the host repeats the
         // exact containment chain the Flutter glass bar applies: the surface
         // stops at the bottom safe area instead of reaching under the home
@@ -2476,20 +2473,9 @@ class _MainBottomBar extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(14, 8, 14, 0),
             child: NativeGlassSurface(
-              child: Padding(
-                padding: const EdgeInsets.all(5),
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: GlassSelectionIndicator(
-                        selection: selection,
-                        itemCount: items.length,
-                      ),
-                    ),
-                    controls,
-                  ],
-                ),
-              ),
+              selection: selection,
+              itemCount: items.length,
+              child: Padding(padding: const EdgeInsets.all(5), child: controls),
             ),
           ),
         );
