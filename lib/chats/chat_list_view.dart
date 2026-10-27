@@ -43,6 +43,7 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../contacts/add_people_view.dart';
 import '../contacts/create_group_view.dart';
+import '../platform/adaptive_platform.dart' show isTouchTargetPlatform;
 import '../profile/emoji_status_picker.dart';
 import '../security/local_app_lock_controller.dart';
 import '../settings/chat_folder_management_view.dart';
@@ -62,6 +63,7 @@ import 'chat_folder_tag_controller.dart';
 import 'chat_list_preview.dart';
 import 'chat_list_view_model.dart';
 import 'chat_removal_actions.dart';
+import 'chat_row_metrics.dart';
 import 'chat_row_view.dart';
 import 'filtered_chats_view.dart';
 import 'qr_scanner_view.dart';
@@ -1169,6 +1171,7 @@ class _ChatListViewState extends State<ChatListView>
   bool _modelDirtyWhileInactive = false;
   bool _reactivationFollowUpPending = false;
   int _lastVisibleRows = 1;
+  double? _lastRowWidth;
   final ChatListSwipeSession _chatListSwipeSession = ChatListSwipeSession();
   final ScrollController _folderTabScrollController = ScrollController();
   final Map<int?, GlobalKey> _folderTabKeys = {};
@@ -1288,7 +1291,11 @@ class _ChatListViewState extends State<ChatListView>
     if (positions.length != 1) return;
     final position = positions.single;
     final theme = context.read<ThemeController>();
-    final rowHeight = chatListRowExtentFor(context, listen: false) + 0.5;
+    final rowHeight = chatListRowExtentFor(
+      context,
+      listen: false,
+      width: _lastRowWidth,
+    );
     final archiveMode = effectiveChatListArchiveDisplayMode(
       theme.archivedChatsDisplayMode,
     );
@@ -2147,8 +2154,14 @@ class _ChatListViewState extends State<ChatListView>
     );
     if (entryIndex < 0) return null;
 
-    var itemIndex = entryIndex;
-    if (_model.isAllFilter && _model.filtered.isNotEmpty) itemIndex++;
+    final preceding = <double>[
+      for (final entry in entries.take(entryIndex)) _entryExtent(entry),
+    ];
+    if (_model.isAllFilter && _model.filtered.isNotEmpty) {
+      preceding.add(
+        _summaryExtent(FilteredChatsRow(chats: _model.filtered).summary),
+      );
+    }
     final archiveMode = effectiveChatListArchiveDisplayMode(
       context.read<ThemeController>().archivedChatsDisplayMode,
     );
@@ -2163,17 +2176,59 @@ class _ChatListViewState extends State<ChatListView>
               chatCount: entries.length,
               visibleRows: _lastVisibleRows,
             );
-      if (archiveIndex <= entryIndex) itemIndex++;
+      if (archiveIndex <= entryIndex) preceding.add(_archiveExtent());
     }
-    return chatListItemScrollOffset(
-      itemIndex: itemIndex,
-      rowHeight: chatListRowExtentFor(context, listen: false),
-      maxScrollExtent: _scrollController.position.maxScrollExtent,
-      leadingExtent: _leadingListControlsExtent(
-        context.read<ThemeController>(),
+    // These builders contain no inter-row Divider/SizedBox. Do not add the
+    // former estimated 0.5px: it accumulated drift on long unread jumps.
+    return math.min(
+      _scrollController.position.maxScrollExtent,
+      chatRowCumulativeOffset(
+        preceding,
+        leadingExtent: _leadingListControlsExtent(
+          context.read<ThemeController>(),
+        ),
       ),
     );
   }
+
+  double _summaryExtent(
+    ChatSummary summary, {
+    bool? pinned,
+    double trailingWidth = 0,
+    double titleAccessoryWidth = 0,
+  }) => chatRowMetricsFor(
+    context,
+    summary,
+    listen: false,
+    width: _lastRowWidth,
+    pinned: pinned,
+    trailingWidth: trailingWidth,
+    titleAccessoryWidth: titleAccessoryWidth,
+  ).extent;
+
+  double _entryExtent(CommunityChatListEntry entry) => switch (entry) {
+    CommunityChatEntry(:final chat) => _summaryExtent(
+      chat,
+      pinned: _model.isPinnedInSelectedList(chat),
+      titleAccessoryWidth:
+          (chat.kind == ChatKind.secret ? 18 : 0) +
+          (chat.peerEmojiStatusId != 0 &&
+                  context
+                      .read<ThemeController>()
+                      .chatListStatusEmojiMode
+                      .visible
+              ? 21
+              : 0),
+    ),
+    CommunityGroupEntry() => _summaryExtent(
+      CommunityChatListRow(entry: entry).summary,
+      trailingWidth: isDesktopTargetPlatform() ? 0 : 13,
+      titleAccessoryWidth: 22,
+    ),
+  };
+
+  double _archiveExtent() =>
+      _summaryExtent(ArchivedChatsRow(archived: _model.archived).summary);
 
   void _animateListTo(double target) {
     if (!_scrollController.hasClients) return;
@@ -2466,15 +2521,31 @@ class _ChatListViewState extends State<ChatListView>
         child: Row(
           children: [
             GestureDetector(
+              key: const ValueKey('chat-list-header-avatar-hit'),
+              behavior: HitTestBehavior.opaque,
               onTap: () => context.read<dc.DrawerController>().open(),
-              child: PhotoAvatar(
-                title: _meName,
-                photo: _mePhoto,
-                size: AppMetric.headerAvatarSize,
-                allowAnimation: false,
+              child: SizedBox(
+                width: AppMetric.chatHeaderHitTarget(),
+                height: AppMetric.chatHeaderHitTarget(),
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: PhotoAvatar(
+                    title: _meName,
+                    photo: _mePhoto,
+                    size: AppMetric.chatHeaderAvatarSize(),
+                    allowAnimation: false,
+                  ),
+                ),
               ),
             ),
-            const SizedBox(width: AppSpacing.lg),
+            // The larger transparent hit box borrows from the existing 12pt
+            // artwork/name gap, leaving artwork at the same 16pt inset.
+            SizedBox(
+              width:
+                  AppSpacing.lg -
+                  (AppMetric.chatHeaderHitTarget() -
+                      AppMetric.chatHeaderAvatarSize()),
+            ),
             Expanded(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -2583,14 +2654,15 @@ class _ChatListViewState extends State<ChatListView>
               ),
             ],
             GestureDetector(
+              key: const ValueKey('chat-list-header-add-hit'),
               behavior: HitTestBehavior.opaque,
               onTap: _openPlusMenu,
               child: SizedBox(
-                width: AppMetric.hitTarget,
-                height: AppMetric.hitTarget,
+                width: AppMetric.chatHeaderHitTarget(),
+                height: AppMetric.chatHeaderHitTarget(),
                 child: AppIcon(
                   HeroAppIcons.plus,
-                  size: AppIconSize.add,
+                  size: AppMetric.chatHeaderAddSize(),
                   color: c.textPrimary,
                 ),
               ),
@@ -2748,8 +2820,83 @@ class _ChatListViewState extends State<ChatListView>
 
   // MARK: - Search
 
+  // Measure the same inherited font, locale and OS scaler as the visible
+  // placeholder. The default remains 33pt; accessibility and tall custom fonts
+  // grow the visual and its scroll allocation together instead of clipping.
+  double _touchSearchVisualHeight() {
+    final style = AppTextStyle.forSystemBoldTextMeasurement(
+      DefaultTextStyle.of(context).style.merge(const TextStyle(fontSize: 16)),
+      boldText: MediaQuery.boldTextOf(context),
+    );
+    final painter = TextPainter(
+      text: TextSpan(
+        text: AppStringKeys.topicChatSearch.l10n(context),
+        style: style,
+      ),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+      locale: Localizations.maybeLocaleOf(context),
+      maxLines: 1,
+    )..layout();
+    final height = math.max(AppMetric.chatSearchHeight(), painter.height + 8);
+    painter.dispose();
+    return height;
+  }
+
+  double _searchSlotExtent() =>
+      isTouchTargetPlatform() && !widget.desktopSidebar
+      ? math.max(_searchPillExtent, _touchSearchVisualHeight() + 17)
+      : _searchPillExtent;
+
   Widget _searchPill() {
     final c = context.colors;
+    if (isTouchTargetPlatform() && !widget.desktopSidebar) {
+      return Container(
+        key: const ValueKey('chat-list-inline-search'),
+        color: c.listHeaderTint,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: GestureDetector(
+          key: const ValueKey('chat-list-search-hit'),
+          behavior: HitTestBehavior.opaque,
+          onTap: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SearchView())),
+          child: SizedBox(
+            height: _searchSlotExtent(),
+            child: Center(
+              child: Container(
+                key: const ValueKey('chat-list-search-visual'),
+                height: _touchSearchVisualHeight(),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                decoration: BoxDecoration(
+                  color: c.searchFill,
+                  borderRadius: BorderRadius.circular(AppRadius.card),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AppIcon(
+                      HeroAppIcons.magnifyingGlass,
+                      size: AppMetric.chatSearchIcon(),
+                      color: c.textTertiary,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Flexible(
+                      child: Text(
+                        AppStringKeys.topicChatSearch.l10n(context),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: 16, color: c.textTertiary),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
     final search = GestureDetector(
       onTap: () => Navigator.of(
         context,
@@ -2773,7 +2920,7 @@ class _ChatListViewState extends State<ChatListView>
             Text(
               AppStringKeys.topicChatSearch.l10n(context),
               style: TextStyle(
-                fontSize: AppTextSize.callout,
+                fontSize: isTouchTargetPlatform() ? 16 : AppTextSize.callout,
                 color: c.textTertiary,
               ),
             ),
@@ -2875,7 +3022,19 @@ class _ChatListViewState extends State<ChatListView>
   /// A read-only rendering of the folder a swipe is heading for. It never takes
   /// the shared scroll controller and never wires up row actions, so the list
   /// being left behind keeps its position and its gestures.
-  Widget _folderPeekList(ChatFilterOption filter) {
+  Widget _folderPeekList(ChatFilterOption filter) => LayoutBuilder(
+    builder: (context, constraints) => ChatRowWidth(
+      width: constraints.maxWidth,
+      child: Builder(
+        builder: (context) => _folderPeekListContents(context, filter),
+      ),
+    ),
+  );
+
+  Widget _folderPeekListContents(
+    BuildContext context,
+    ChatFilterOption filter,
+  ) {
     final c = context.colors;
     final theme = context.watch<ThemeController>();
     final entries = _model.chatListEntriesForFolder(
@@ -2895,7 +3054,7 @@ class _ChatListViewState extends State<ChatListView>
           color: c.background,
           child: LayoutBuilder(
             builder: (context, geo) {
-              final rowH = chatListRowExtentFor(context) + 0.5;
+              final rowH = chatListRowExtentFor(context);
               if (entries.isEmpty && !showInlineArchive) {
                 return ListView(
                   primary: false,
@@ -2970,7 +3129,17 @@ class _ChatListViewState extends State<ChatListView>
     );
   }
 
-  Widget _chatList() {
+  Widget _chatList() => LayoutBuilder(
+    builder: (context, constraints) {
+      _lastRowWidth = constraints.maxWidth;
+      return ChatRowWidth(
+        width: constraints.maxWidth,
+        child: Builder(builder: _chatListContents),
+      );
+    },
+  );
+
+  Widget _chatListContents(BuildContext context) {
     final c = context.colors;
     final theme = context.watch<ThemeController>();
     final leadingControlsExtent = _leadingListControlsExtent(theme);
@@ -2982,7 +3151,7 @@ class _ChatListViewState extends State<ChatListView>
       color: c.background,
       child: LayoutBuilder(
         builder: (context, geo) {
-          final rowH = chatListRowExtentFor(context) + 0.5;
+          final rowH = chatListRowExtentFor(context);
           final searchHeight = leadingControlsExtent;
           final visibleRows = math.max(1, (geo.maxHeight / rowH).ceil());
           _lastVisibleRows = visibleRows;
@@ -3121,7 +3290,7 @@ class _ChatListViewState extends State<ChatListView>
 
   double _leadingListControlsExtent(ThemeController theme) {
     if (!widget.desktopSidebar) {
-      return theme.showChatListSearch ? _searchPillExtent : 0;
+      return theme.showChatListSearch ? _searchSlotExtent() : 0;
     }
     final showFolder =
         theme.chatFolderDisplayMode == ChatFolderDisplayMode.menu &&
@@ -3146,7 +3315,7 @@ class _ChatListViewState extends State<ChatListView>
         : const Duration(milliseconds: 180);
     return ChatListPullDownArchiveSlot(
       controller: _scrollController,
-      rowHeight: rowHeight,
+      rowHeight: _archiveExtent(),
       visible: visible,
       duration: duration,
       child: _assistantRow(),

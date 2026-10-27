@@ -17,6 +17,11 @@ import '../platform/adaptive_platform.dart';
 Color _hex(int rgb, [double opacity = 1]) =>
     Color((rgb & 0xFFFFFF) | 0xFF000000).withValues(alpha: opacity);
 
+// This calibration is intentionally limited to iOS and Android. Other target
+// platforms keep their existing typography and geometry.
+bool _isMobileChatPlatform(TargetPlatform? platform) =>
+    isTouchTargetPlatform(platform);
+
 abstract final class AppTextSize {
   static const double tiny = 10;
   static const double caption = 12;
@@ -28,20 +33,53 @@ abstract final class AppTextSize {
   static const double display = 22;
   static const double largeDisplay = 24;
 
-  /// Compact chat typography for native desktop windows while preserving the
-  /// existing touch layouts and every user-selected font family.
+  /// Role-specific chat typography: readable touch sizes and compact native
+  /// desktop sizes, independent of settings/navigation tokens and font family.
   static double chatListTitle([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? callout : body;
+      isDesktopTargetPlatform(platform)
+      ? callout
+      : _isMobileChatPlatform(platform)
+      ? title
+      : bodyLarge;
   static double chatListPreview([TargetPlatform? platform]) =>
+      isDesktopTargetPlatform(platform)
+      ? caption
+      : _isMobileChatPlatform(platform)
+      ? footnote
+      : callout;
+
+  /// Legacy/shared previews retain their standard size at Small on touch.
+  /// Actual chat rows opt into the separate sender/message roles below.
+  static double chatListPreviewContentScale(
+    double appScale, [
+    TargetPlatform? platform,
+  ]) => _isMobileChatPlatform(platform) ? math.max(appScale, 1.0) : appScale;
+
+  /// Pre-OS sizes for actual chat-row spans. Apply the captured OS scaler
+  /// once after resolving the saved content scale, including custom values.
+  static double chatRowPreviewMessageSize(
+    double appScale, [
+    TargetPlatform? platform,
+  ]) => _isMobileChatPlatform(platform)
+      ? math.max(12.5, footnote * appScale)
+      : chatListPreview(platform) * appScale;
+
+  static double chatRowPreviewSenderSize(
+    double appScale, [
+    TargetPlatform? platform,
+  ]) =>
+      chatListPreview(platform) *
+      chatListPreviewContentScale(appScale, platform);
+
+  static double chatListTimestamp([TargetPlatform? platform]) =>
       isDesktopTargetPlatform(platform) ? caption : footnote;
-  static double chatListTimestamp([TargetPlatform? platform]) => caption;
 
   /// The folder-tag line a chat row draws between its name and its preview.
   static double chatListFolderTag([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? tiny : caption - 1;
+      isDesktopTargetPlatform(platform) ? tiny : caption;
 
   static double messageBody([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? callout : body;
+      isDesktopTargetPlatform(platform) ? callout : title;
 }
 
 abstract final class AppTextWeight {
@@ -96,6 +134,28 @@ extension AppTextWeightContext on BuildContext {
 }
 
 abstract final class AppTextStyle {
+  /// Mirrors Flutter Text's OS Bold Text override when measuring a label.
+  /// This is an accessibility measurement, not an app-authored weight: the
+  /// inherited style is unchanged when Bold Text is off, and when on the
+  /// painter must match Flutter's bold override rather than our design ladder.
+  static TextStyle forSystemBoldTextMeasurement(
+    TextStyle style, {
+    required bool boldText,
+  }) => boldText ? style.copyWith(fontWeight: FontWeight.bold) : style;
+
+  /// Message-body-sized text runs only, never an entire bubble subtree.
+  /// Overrides inherited leading (which otherwise produces about 24pt pitch
+  /// at 17pt) without changing font selection, weight, tracking or OS scaling.
+  static TextStyle messageBody(Color color, {TargetPlatform? platform}) =>
+      TextStyle(
+        fontSize: AppTextSize.messageBody(platform),
+        color: color,
+        height: _isMobileChatPlatform(platform) ? 22 / 17 : null,
+        leadingDistribution: _isMobileChatPlatform(platform)
+            ? TextLeadingDistribution.even
+            : null,
+      );
+
   static TextStyle tiny(Color color, {FontWeight? weight}) => TextStyle(
     fontSize: AppTextSize.tiny,
     fontWeight: weight ?? AppTextWeight.regular,
@@ -240,7 +300,11 @@ abstract final class AppMetric {
   static const double avatarSize = 48;
 
   static double chatListRowHeight([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? 58 : listRowHeight;
+      isDesktopTargetPlatform(platform)
+      ? 58
+      : _isMobileChatPlatform(platform)
+      ? 72
+      : listRowHeight;
 
   /// Rough line box of a text run relative to its font size. Only used to
   /// grow fixed-extent rows, so it errs generous rather than exact.
@@ -288,7 +352,26 @@ abstract final class AppMetric {
   );
 
   static double chatListAvatarSize([TargetPlatform? platform]) =>
-      isDesktopTargetPlatform(platform) ? 44 : avatarSize;
+      isDesktopTargetPlatform(platform)
+      ? 44
+      : _isMobileChatPlatform(platform)
+      ? 49
+      : avatarSize;
+
+  static double chatRowHorizontalInset([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 16 : AppSpacing.xl;
+  static double chatRowPreviewGap([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 2 : AppSpacing.xs;
+  static double chatHeaderAvatarSize([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 38 : headerAvatarSize;
+  static double chatHeaderHitTarget([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 44 : hitTarget;
+  static double chatHeaderAddSize([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 29 : AppIconSize.add;
+  static double chatSearchHeight([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 33 : searchHeight;
+  static double chatSearchIcon([TargetPlatform? platform]) =>
+      _isMobileChatPlatform(platform) ? 18 : searchIcon;
   static const double headerAvatarSize = 36;
   static const double hitTarget = 36;
   static const double searchHeight = 36;

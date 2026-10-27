@@ -205,7 +205,10 @@ void main() {
       expect(front, findsOneWidget);
       expect(nearBack, findsOneWidget);
       expect(farBack, findsOneWidget);
-      expect(tester.getSize(front), Size.square(theme.avatarSize));
+      expect(
+        tester.getSize(front),
+        Size.square(AppMetric.chatListAvatarSize()),
+      );
       expect(
         tester.getTopLeft(nearBack).dx,
         lessThan(tester.getTopLeft(front).dx),

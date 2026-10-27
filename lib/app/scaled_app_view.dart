@@ -9,6 +9,8 @@
 import 'package:flutter/widgets.dart';
 
 import '../components/keyboard_dismiss_on_tap.dart';
+import '../platform/adaptive_platform.dart';
+import '../theme/content_size.dart';
 
 class ScaledAppView extends StatelessWidget {
   const ScaledAppView({
@@ -18,6 +20,7 @@ class ScaledAppView extends StatelessWidget {
     required this.child,
   });
 
+  /// App content scale only; chrome shares the touch-floored OS scaler.
   final double textScale;
   final double interfaceScale;
   final Widget child;
@@ -28,17 +31,17 @@ class ScaledAppView extends StatelessWidget {
     final scale = interfaceScale;
     final virtualSize = media.size / scale;
     final scaledMedia = media.copyWith(
+      // Floor the OS scaler once, before ContentSizeRoot captures it. Clamp
+      // per font size so nonlinear accessibility growth remains intact; never
+      // fold the app content scale into this window-wide/chrome scaler.
+      textScaler: isTouchTargetPlatform()
+          ? media.textScaler.clamp(minScaleFactor: 1.0)
+          : media.textScaler,
       size: virtualSize,
       padding: media.padding / scale,
       viewPadding: media.viewPadding / scale,
       viewInsets: media.viewInsets / scale,
       systemGestureInsets: media.systemGestureInsets / scale,
-      // Every surface reads this one scaler: Text applies it implicitly and
-      // the chat's RichText widgets read it explicitly. The outer transform
-      // scales geometry and text together for interface size, so the font
-      // preference belongs here on its own — dividing by interfaceScale caused
-      // normal Text widgets to stay small while noScaling text still grew.
-      textScaler: TextScaler.linear(textScale),
     );
 
     return AppKeyboardDismissOnTap(
@@ -55,7 +58,10 @@ class ScaledAppView extends StatelessWidget {
             child: SizedBox(
               width: virtualSize.width,
               height: virtualSize.height,
-              child: MediaQuery(data: scaledMedia, child: child),
+              child: MediaQuery(
+                data: scaledMedia,
+                child: ContentSizeRoot(appScale: textScale, child: child),
+              ),
             ),
           ),
         ),

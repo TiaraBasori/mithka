@@ -171,7 +171,10 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
     widget.prefs,
   );
   late final MithkaProService _mithkaPro = MithkaProService.shared;
-  late final AppIconController _appIcons = AppIconController(widget.prefs);
+  late final AppIconController _appIcons = AppIconController(
+    widget.prefs,
+    proService: _mithkaPro,
+  );
   late final AutoDownloadMediaController _autoDownload =
       AutoDownloadMediaController.shared;
   late final NotificationPreferences _notificationPreferences =
@@ -877,9 +880,7 @@ class _DesktopUtilityWindowAppState extends State<DesktopUtilityWindowApp> {
               return ColoredBox(color: currentTheme.scaffoldBackgroundColor);
             }
             return ScaledAppView(
-              textScale: _theme.effectiveTextScale(
-                MediaQuery.textScalerOf(context),
-              ),
+              textScale: _theme.fontScale,
               interfaceScale: _theme.renderedInterfaceScale,
               child: appSurface,
             );

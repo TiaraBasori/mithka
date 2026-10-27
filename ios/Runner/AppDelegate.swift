@@ -136,6 +136,7 @@ import UserNotifications
 
   private static func nativeIconName(_ name: String) -> String? {
     switch name {
+    case "default": return nil
     case "white": return "MithkaWhite"
     case "blue": return "MithkaBlue"
     case "purple": return "MithkaPurple"
@@ -143,12 +144,65 @@ import UserNotifications
     case "aurora": return "MithkaAurora"
     case "prism": return "MithkaPrism"
     case "signal": return "MithkaSignal"
+    case "pilot": return "MithkaPilot"
+    case "headphones": return "MithkaHeadphones"
+    case "winter": return "MithkaWinter"
+    case "astronaut": return "MithkaAstronaut"
+    case "crown": return "MithkaCrown"
+    case "party": return "MithkaParty"
+    case "sleepy": return "MithkaSleepy"
+    case "heart": return "MithkaHeart"
+    case "coffee": return "MithkaCoffee"
+    case "detective": return "MithkaDetective"
+    case "gamer": return "MithkaGamer"
+    case "fishing": return "MithkaFishing"
+    case "pixel_neutral": return "MithkaPixelNeutral"
+    case "pixel_gradient": return "MithkaPixelGradient"
+    case "letter_m_neutral": return "MithkaLetterMNeutral"
+    case "letter_m_gradient": return "MithkaLetterMGradient"
+    case "skateboard": return "MithkaSkateboard"
+    case "surfboard": return "MithkaSurfboard"
+    case "basketball": return "MithkaBasketball"
+    case "football": return "MithkaFootball"
+    case "tennis": return "MithkaTennis"
+    case "skiing": return "MithkaSkiing"
+    case "painter": return "MithkaPainter"
+    case "guitar": return "MithkaGuitar"
+    case "drummer": return "MithkaDrummer"
+    case "photographer": return "MithkaPhotographer"
+    case "magician": return "MithkaMagician"
+    case "chef": return "MithkaChef"
+    case "reader": return "MithkaReader"
+    case "scientist": return "MithkaScientist"
+    case "gardener": return "MithkaGardener"
+    case "mail-carrier": return "MithkaMailCarrier"
+    case "pirate": return "MithkaPirate"
+    case "dragon": return "MithkaDragon"
+    case "bubblegum": return "MithkaBubblegum"
+    case "raincoat": return "MithkaRaincoat"
+    case "noodles": return "MithkaNoodles"
+    case "ice-cream": return "MithkaIceCream"
+    case "sunflower": return "MithkaSunflower"
+    case "ninja": return "MithkaNinja"
+    case "high-five": return "MithkaHighFive"
+    case "hug": return "MithkaHug"
+    case "seesaw": return "MithkaSeesaw"
+    case "dance": return "MithkaDance"
+    case "pillow-fight": return "MithkaPillowFight"
+    case "snowball": return "MithkaSnowball"
+    case "parade": return "MithkaParade"
+    case "choir": return "MithkaChoir"
+    case "stack": return "MithkaStack"
+    case "picnic": return "MithkaPicnic"
+    case "paper-planes": return "MithkaPaperPlanes"
+    case "stargazing": return "MithkaStargazing"
     default: return nil
     }
   }
 
   private static func flutterIconName(_ name: String?) -> String {
     switch name {
+    case nil: return "default"
     case "MithkaWhite": return "white"
     case "MithkaBlue": return "blue"
     case "MithkaPurple": return "purple"
@@ -156,7 +210,61 @@ import UserNotifications
     case "MithkaAurora": return "aurora"
     case "MithkaPrism": return "prism"
     case "MithkaSignal": return "signal"
-    default: return "default"
+    case "MithkaPilot": return "pilot"
+    case "MithkaHeadphones": return "headphones"
+    case "MithkaWinter": return "winter"
+    case "MithkaAstronaut": return "astronaut"
+    case "MithkaCrown": return "crown"
+    case "MithkaParty": return "party"
+    case "MithkaSleepy": return "sleepy"
+    case "MithkaHeart": return "heart"
+    case "MithkaCoffee": return "coffee"
+    case "MithkaDetective": return "detective"
+    case "MithkaGamer": return "gamer"
+    case "MithkaFishing": return "fishing"
+    case "MithkaPixelNeutral": return "pixel_neutral"
+    case "MithkaPixelGradient": return "pixel_gradient"
+    case "MithkaLetterMNeutral": return "letter_m_neutral"
+    case "MithkaLetterMGradient": return "letter_m_gradient"
+    case "MithkaSkateboard": return "skateboard"
+    case "MithkaSurfboard": return "surfboard"
+    case "MithkaBasketball": return "basketball"
+    case "MithkaFootball": return "football"
+    case "MithkaTennis": return "tennis"
+    case "MithkaSkiing": return "skiing"
+    case "MithkaPainter": return "painter"
+    case "MithkaGuitar": return "guitar"
+    case "MithkaDrummer": return "drummer"
+    case "MithkaPhotographer": return "photographer"
+    case "MithkaMagician": return "magician"
+    case "MithkaChef": return "chef"
+    case "MithkaReader": return "reader"
+    case "MithkaScientist": return "scientist"
+    case "MithkaGardener": return "gardener"
+    case "MithkaMailCarrier": return "mail-carrier"
+    case "MithkaPirate": return "pirate"
+    case "MithkaDragon": return "dragon"
+    case "MithkaBubblegum": return "bubblegum"
+    case "MithkaRaincoat": return "raincoat"
+    case "MithkaNoodles": return "noodles"
+    case "MithkaIceCream": return "ice-cream"
+    case "MithkaSunflower": return "sunflower"
+    case "MithkaNinja": return "ninja"
+    case "MithkaHighFive": return "high-five"
+    case "MithkaHug": return "hug"
+    case "MithkaSeesaw": return "seesaw"
+    case "MithkaDance": return "dance"
+    case "MithkaPillowFight": return "pillow-fight"
+    case "MithkaSnowball": return "snowball"
+    case "MithkaParade": return "parade"
+    case "MithkaChoir": return "choir"
+    case "MithkaStack": return "stack"
+    case "MithkaPicnic": return "picnic"
+    case "MithkaPaperPlanes": return "paper-planes"
+    case "MithkaStargazing": return "stargazing"
+    // nil is the genuine primary icon. Preserve an unrecognized non-nil
+    // native identity for Dart; merely reading must not claim default.
+    default: return name ?? "default"
     }
   }
 
@@ -172,6 +280,23 @@ import UserNotifications
     guard !didRegisterFlutterPlugins else { return }
     didRegisterFlutterPlugins = true
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NativeGlassSurface") {
+      registrar.register(NativeGlassSurfaceFactory(registrar: registrar), withId: "mithka/native_glass")
+    }
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "NativeTabBar") {
+      registrar.register(NativeTabBarFactory(registrar: registrar), withId: "mithka/native_tab_bar")
+    }
+    let nativeTabAvailability = FlutterMethodChannel(
+      name: "mithka/native_tab_bar",
+      binaryMessenger: engineBridge.applicationRegistrar.messenger()
+    )
+    nativeTabAvailability.setMethodCallHandler { call, result in
+      guard call.method == "isSupported" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      if #available(iOS 26.0, *) { result(true) } else { result(false) }
+    }
     let windowGeometryChannel = FlutterMethodChannel(
       name: "mithka/window_geometry",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
@@ -184,7 +309,8 @@ import UserNotifications
       var bottom: CGFloat = 0
       let insets = window.safeAreaInsets
       let sideWidth = max(insets.left, insets.right)
-      guard sideWidth >= 64, window.bounds.height > 0 else {
+      guard sideWidth.isFinite, sideWidth >= 64,
+            window.bounds.height.isFinite, window.bounds.height > 0 else {
         result(nil)
         return
       }
@@ -196,7 +322,7 @@ import UserNotifications
         let frame = window.convert(manager.statusBarFrame, from: scene.coordinateSpace)
         if frame.intersects(side) { bottom = max(bottom, frame.maxY) }
       }
-      #if compiler(>=6.4)
+      #if MITHKA_HAS_RESERVED_REGIONS
       if #available(iOS 27.1, *) {
         for region in window.reservedRegions(kind: .occlusion) where region.isActive {
           if region.frame.intersects(side) { bottom = max(bottom, region.frame.maxY) }
@@ -205,8 +331,10 @@ import UserNotifications
       #endif
       // Do not invent usable space when the system reserves the whole edge.
       var geometry: [String: Any] = [:]
-      if bottom > 0 && bottom < window.bounds.height {
-        geometry["topFraction"] = Double((bottom + 8) / window.bounds.height)
+      if !bottom.isFinite || bottom >= window.bounds.height {
+        geometry["topFraction"] = 1.0
+      } else if bottom > 0 {
+        geometry["topFraction"] = Double(min(1, (bottom + 8) / window.bounds.height))
       }
       result(geometry)
     }
@@ -453,18 +581,42 @@ import UserNotifications
         let args = call.arguments as? [String: Any]
         let requested = args?["name"] as? String ?? "default"
         let nativeName = Self.nativeIconName(requested)
-        UIApplication.shared.setAlternateIconName(nativeName) { error in
-          if let error {
-            result(
-              FlutterError(
-                code: "app_icon_failed",
-                message: error.localizedDescription,
-                details: nil
+        guard requested == "default" || nativeName != nil else {
+          result(FlutterError(code: "invalid_icon", message: "Unknown app icon", details: nil))
+          return
+        }
+        let freeIconNames: Set<String> = [
+          "default", "white", "blue", "purple", "pixel", "aurora", "prism", "signal",
+          "pixel_neutral", "pixel_gradient", "letter_m_neutral", "letter_m_gradient",
+        ]
+        Task { @MainActor in
+          // Gate explicit paid selections only. Reading or retaining the
+          // currently installed icon never requires an active subscription.
+          if !freeIconNames.contains(requested) {
+            guard await MithkaProBridge.hasActiveSupporterEntitlement() else {
+              result(
+                FlutterError(
+                  code: "supporter_required",
+                  message: "An active Mithka Pro subscription is required to select this icon",
+                  details: nil
+                )
               )
-            )
-            return
+              return
+            }
           }
-          result(nil)
+          UIApplication.shared.setAlternateIconName(nativeName) { error in
+            if let error {
+              result(
+                FlutterError(
+                  code: "app_icon_failed",
+                  message: error.localizedDescription,
+                  details: nil
+                )
+              )
+              return
+            }
+            result(nil)
+          }
         }
       default:
         result(FlutterMethodNotImplemented)

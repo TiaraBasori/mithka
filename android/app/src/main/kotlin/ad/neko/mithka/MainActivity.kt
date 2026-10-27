@@ -80,6 +80,7 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        mithkaPro?.onActivityResumed()
         FVideoPictureInPicturePlugin.onActivityResumed(this)
         if (fullscreenSystemUi) applyFullscreenSystemUi()
     }
@@ -101,6 +102,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun onPause() {
+        mithkaPro?.onActivityPaused()
         FVideoPictureInPicturePlugin.onActivityPaused(this)
         super.onPause()
     }
@@ -213,11 +215,105 @@ class MainActivity : FlutterFragmentActivity() {
                     "setIcon" -> {
                         val args = call.arguments as? Map<*, *>
                         val name = args?.get("name") as? String ?: "default"
-                        try {
-                            setLauncherIcon(name)
-                            result.success(null)
-                        } catch (e: Exception) {
-                            result.error("app_icon_failed", e.localizedMessage, null)
+                        val freeIcons = setOf(
+                            "default", "white", "blue", "purple",
+                            "pixel", "aurora", "prism", "signal",
+                            "pixel_neutral",
+                            "pixel_gradient",
+                            "letter_m_neutral",
+                            "letter_m_gradient",
+                        )
+                        val paidIcons = setOf(
+                            "pilot", "headphones", "winter", "astronaut",
+                            "crown", "party", "sleepy", "heart",
+                            "coffee", "detective", "gamer", "fishing",
+                            "skateboard",
+                            "surfboard",
+                            "basketball",
+                            "football",
+                            "tennis",
+                            "skiing",
+                            "painter",
+                            "guitar",
+                            "drummer",
+                            "photographer",
+                            "magician",
+                            "chef",
+                            "reader",
+                            "scientist",
+                            "gardener",
+                            "mail-carrier",
+                            "pirate",
+                            "dragon",
+                            "bubblegum",
+                            "raincoat",
+                            "noodles",
+                            "ice-cream",
+                            "sunflower",
+                            "ninja",
+                            "high-five",
+                            "hug",
+                            "seesaw",
+                            "dance",
+                            "pillow-fight",
+                            "snowball",
+                            "parade",
+                            "choir",
+                            "stack",
+                            "picnic",
+                            "paper-planes",
+                            "stargazing",
+                        )
+                        fun applyIcon() {
+                            runOnUiThread {
+                                try {
+                                    setLauncherIcon(name)
+                                    result.success(null)
+                                } catch (e: Exception) {
+                                    result.error("app_icon_failed", e.localizedMessage, null)
+                                }
+                            }
+                        }
+                        fun denyPaidIcon() {
+                            runOnUiThread {
+                                result.error(
+                                    "supporter_required",
+                                    "An active Mithka Pro subscription is required for this icon",
+                                    null,
+                                )
+                            }
+                        }
+                        when (name) {
+                            in freeIcons -> applyIcon()
+                            in paidIcons -> {
+                                val pro = mithkaPro
+                                if (pro == null) {
+                                    denyPaidIcon()
+                                } else {
+                                    // Query Play for each paid selection; never trust
+                                    // cached Dart/native state or alter an existing icon
+                                    // merely because the subscription has expired.
+                                    pro.querySupporterEvidence { evidence ->
+                                        runOnUiThread {
+                                            try {
+                                                // Final epoch/lifecycle check surrounds
+                                                // the setter itself, not an earlier hop.
+                                                if (pro.applyIfCurrent(evidence) {
+                                                        setLauncherIcon(name)
+                                                    }
+                                                ) {
+                                                    result.success(null)
+                                                } else {
+                                                    denyPaidIcon()
+                                                }
+                                            } catch (e: Exception) {
+                                                result.error("app_icon_failed", e.localizedMessage, null)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else -> result.error("invalid_icon", "Unknown app icon", null)
                         }
                     }
                     else -> result.notImplemented()
@@ -778,6 +874,58 @@ class MainActivity : FlutterFragmentActivity() {
         "aurora" to "$packageName.MainActivityAurora",
         "prism" to "$packageName.MainActivityPrism",
         "signal" to "$packageName.MainActivitySignal",
+        "pilot" to "$packageName.MainActivityPilot",
+        "headphones" to "$packageName.MainActivityHeadphones",
+        "winter" to "$packageName.MainActivityWinter",
+        "astronaut" to "$packageName.MainActivityAstronaut",
+        "crown" to "$packageName.MainActivityCrown",
+        "party" to "$packageName.MainActivityParty",
+        "sleepy" to "$packageName.MainActivitySleepy",
+        "heart" to "$packageName.MainActivityHeart",
+        "coffee" to "$packageName.MainActivityCoffee",
+        "detective" to "$packageName.MainActivityDetective",
+        "gamer" to "$packageName.MainActivityGamer",
+        "fishing" to "$packageName.MainActivityFishing",
+        "pixel_neutral" to "$packageName.MainActivityPixelNeutral",
+        "pixel_gradient" to "$packageName.MainActivityPixelGradient",
+        "letter_m_neutral" to "$packageName.MainActivityLetterMNeutral",
+        "letter_m_gradient" to "$packageName.MainActivityLetterMGradient",
+        "skateboard" to "$packageName.MainActivitySkateboard",
+        "surfboard" to "$packageName.MainActivitySurfboard",
+        "basketball" to "$packageName.MainActivityBasketball",
+        "football" to "$packageName.MainActivityFootball",
+        "tennis" to "$packageName.MainActivityTennis",
+        "skiing" to "$packageName.MainActivitySkiing",
+        "painter" to "$packageName.MainActivityPainter",
+        "guitar" to "$packageName.MainActivityGuitar",
+        "drummer" to "$packageName.MainActivityDrummer",
+        "photographer" to "$packageName.MainActivityPhotographer",
+        "magician" to "$packageName.MainActivityMagician",
+        "chef" to "$packageName.MainActivityChef",
+        "reader" to "$packageName.MainActivityReader",
+        "scientist" to "$packageName.MainActivityScientist",
+        "gardener" to "$packageName.MainActivityGardener",
+        "mail-carrier" to "$packageName.MainActivityMailCarrier",
+        "pirate" to "$packageName.MainActivityPirate",
+        "dragon" to "$packageName.MainActivityDragon",
+        "bubblegum" to "$packageName.MainActivityBubblegum",
+        "raincoat" to "$packageName.MainActivityRaincoat",
+        "noodles" to "$packageName.MainActivityNoodles",
+        "ice-cream" to "$packageName.MainActivityIceCream",
+        "sunflower" to "$packageName.MainActivitySunflower",
+        "ninja" to "$packageName.MainActivityNinja",
+        "high-five" to "$packageName.MainActivityHighFive",
+        "hug" to "$packageName.MainActivityHug",
+        "seesaw" to "$packageName.MainActivitySeesaw",
+        "dance" to "$packageName.MainActivityDance",
+        "pillow-fight" to "$packageName.MainActivityPillowFight",
+        "snowball" to "$packageName.MainActivitySnowball",
+        "parade" to "$packageName.MainActivityParade",
+        "choir" to "$packageName.MainActivityChoir",
+        "stack" to "$packageName.MainActivityStack",
+        "picnic" to "$packageName.MainActivityPicnic",
+        "paper-planes" to "$packageName.MainActivityPaperPlanes",
+        "stargazing" to "$packageName.MainActivityStargazing",
     )
 
     private fun currentLauncherIcon(): String {

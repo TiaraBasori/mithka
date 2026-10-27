@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -213,6 +214,7 @@ void main() {
 
           // The rail switches topic transcripts in place; the route below
           // is never replaced, so the split shell keeps its outer display.
+          await _revealRailTopic(tester, '88');
           await tester.tap(
             find.byKey(const ValueKey('topic-navigation-item-88')),
           );
@@ -231,6 +233,7 @@ void main() {
           expect(navigator.canPop(), isFalse);
           expect(find.byType(TopicChatView), findsNothing);
 
+          await _revealRailTopic(tester, '77', scrollDelta: -200);
           await tester.tap(
             find.byKey(const ValueKey('topic-navigation-item-77')),
           );
@@ -359,6 +362,7 @@ void main() {
           tester.element(find.byType(ChatView)),
           rootNavigator: true,
         );
+        await _revealRailTopic(tester, '88');
         await tester.tap(
           find.byKey(const ValueKey('topic-navigation-item-88')),
         );
@@ -374,6 +378,7 @@ void main() {
         expect(tester.getRect(find.byType(ChatListView)), sidebar);
         expect(navigator.canPop(), isFalse);
 
+        await _revealRailTopic(tester, 'all');
         await tester.tap(
           find.byKey(const ValueKey('topic-navigation-item-all')),
         );
@@ -405,6 +410,7 @@ void main() {
       await _settle(tester);
       expect(find.byType(DesktopChatContextPane), findsOneWidget);
 
+      await _revealRailTopic(tester, '88');
       await tester.tap(find.byKey(const ValueKey('topic-navigation-item-88')));
       await _settle(tester);
       expect(tester.widget<ChatView>(find.byType(ChatView)).forumTopicId, 88);
@@ -420,6 +426,7 @@ void main() {
       await _settle(tester);
       expect(find.byType(DesktopChatContextPane), findsOneWidget);
 
+      await _revealRailTopic(tester, 'all');
       await tester.tap(find.byKey(const ValueKey('topic-navigation-item-all')));
       await _settle(tester);
       expect(
@@ -705,6 +712,24 @@ Future<_MainShellHarness> _pumpMainShell(
   );
   await tester.pump();
   return _MainShellHarness(drawer: drawer);
+}
+
+// Topic rows grow with content sizing and timestamp fallback. The final topic
+// can be outside both the viewport and ListView's lazy-build cache.
+Future<void> _revealRailTopic(
+  WidgetTester tester,
+  String id, {
+  double? scrollDelta,
+}) async {
+  await tester.scrollUntilVisible(
+    find.byKey(ValueKey('topic-navigation-item-$id')),
+    scrollDelta ?? (id == 'all' ? -200 : 200),
+    scrollable: find.descendant(
+      of: find.byKey(const ValueKey('topic-navigation-left')),
+      matching: find.byType(Scrollable),
+    ),
+  );
+  await _settle(tester);
 }
 
 Future<void> _disposeShell(WidgetTester tester) async {
