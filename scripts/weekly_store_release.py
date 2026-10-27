@@ -63,6 +63,24 @@ def next_android_code(values, now):
     return code
 
 
+def release_key(requested, tags, today):
+    pending = sorted(
+        tag.removeprefix("store-")
+        for tag in tags
+        if re.fullmatch(r"store-\d{4}-\d{2}-\d{2}", tag)
+        and f"store-complete-{tag.removeprefix('store-')}" not in tags
+    )
+    if len(pending) > 1:
+        raise Error("multiple unfinished store snapshots need reconciliation")
+    if pending:
+        if requested and requested != pending[0]:
+            raise Error(
+                f"resume unfinished release {pending[0]} before allocating another snapshot"
+            )
+        return pending[0]
+    return requested or today
+
+
 def assert_context(env):
     if (
         env.get("GITHUB_REPOSITORY") != REPO
@@ -220,9 +238,8 @@ def validate_plan(plan, key):
 
 
 def prepare(key, state, play, apply=False):
-    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", key):
+    if key is not None and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", key):
         raise Error("release key must be YYYY-MM-DD")
-    dt.date.fromisoformat(key)
     if command("git", "branch", "--show-current") != "master" or command(
         "git", "status", "--porcelain"
     ):
@@ -234,6 +251,9 @@ def prepare(key, state, play, apply=False):
     ):
         raise Error("local master contains unpublished work")
     tags = command("git", "tag", "--list").splitlines()
+    today = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).date().isoformat()
+    key = release_key(key, tags, today)
+    dt.date.fromisoformat(key)
     day_tag = f"store-{key}"
     if day_tag in tags:
         if command("git", "cat-file", "-t", f"refs/tags/{day_tag}") != "tag":
@@ -457,12 +477,38 @@ def submit(plan):
     )
 
 
+def record_completion(plan):
+    # A later Friday must resume any snapshot lacking this verified marker.
+    # This is written only after all actual store postconditions pass.
+    command("git", "fetch", "origin", "--tags")
+    tag = f"store-complete-{plan['release_key']}"
+    if tag in command("git", "tag", "--list").splitlines():
+        if command("git", "rev-parse", f"{tag}^{{commit}}") != plan["source_sha"]:
+            raise Error("completion marker points to another snapshot")
+        return
+    message = json.dumps(
+        {
+            "schema_version": 1,
+            "version": plan["version"],
+            "source_sha": plan["source_sha"],
+            "android_version_code": plan["android_version_code"],
+            "apple_build_number": plan["apple_build_number"],
+            "github_run_id": os.environ.get("GITHUB_RUN_ID"),
+            "google_play_verified": True,
+            "apple_platforms_verified": ["IOS", "MAC_OS"],
+        },
+        sort_keys=True,
+    )
+    command("git", "tag", "-a", tag, plan["source_sha"], "-m", message)
+    command("git", "push", "origin", tag)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--operation", choices=["plan", "release"], default="plan")
     parser.add_argument(
         "--release-key",
-        default=dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).date().isoformat(),
+        default=None,
     )
     args = parser.parse_args()
     assert_context(os.environ)
@@ -473,6 +519,7 @@ def main():
     print(json.dumps(plan, indent=2), flush=True)
     if args.operation == "release":
         submit(plan)
+        record_completion(plan)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:
         with open(summary, "a", encoding="utf-8") as output:

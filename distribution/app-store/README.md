@@ -48,6 +48,10 @@ same `release_key` to resume an interrupted release: the coordinator reuses the
 recorded snapshot and existing child workflow runs. It stops on a failed or
 ambiguous publication instead of dispatching another upload with a reused code.
 Resolve that attempt explicitly before resuming; do not rewrite release tags.
+After the actual Play/ASC postconditions pass, a `store-complete-YYYY-MM-DD`
+tag records completion. A later Friday resumes a unique unfinished snapshot
+before allocating another patch. Multiple unfinished snapshots require
+reconciliation.
 
 Both Apple builds must pass Quality, signing, processing and App Store
 eligibility. Both App Review plans are validated before Play production is

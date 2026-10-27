@@ -13,6 +13,17 @@ SPEC.loader.exec_module(RELEASE)
 
 
 class WeeklyReleaseTest(unittest.TestCase):
+    def test_a_later_friday_resumes_unfinished_snapshots_before_allocating(self):
+        tags = ["store-2026-10-27", "store-v1.8.8"]
+        self.assertEqual(RELEASE.release_key(None, tags, "2026-10-30"), "2026-10-27")
+        with self.assertRaises(RELEASE.Error):
+            RELEASE.release_key("2026-10-30", tags, "2026-10-30")
+        tags.append("store-complete-2026-10-27")
+        self.assertEqual(RELEASE.release_key(None, tags, "2026-10-30"), "2026-10-30")
+        tags.extend(["store-2026-10-29", "store-2026-10-30"])
+        with self.assertRaises(RELEASE.Error):
+            RELEASE.release_key(None, tags, "2026-11-06")
+
     def test_normal_patch_is_preserved_or_advanced_above_used_versions(self):
         self.assertEqual(RELEASE.choose_version("1.8.6", ["1.7.11", "1.8.5"]), "1.8.6")
         self.assertEqual(RELEASE.choose_version("1.8.6", ["1.8.7", "1.8.4"]), "1.8.8")
@@ -269,6 +280,19 @@ class WeeklyReleaseTest(unittest.TestCase):
                 self.assertEqual(resumed, plan)
                 self.assertEqual(
                     RELEASE.command("git", "rev-list", "--count", "HEAD"), "2"
+                )
+                # The next date cannot conceal an unresolved publication.
+                with self.assertRaises(RELEASE.Error):
+                    RELEASE.prepare("2026-10-31", state, play, apply=True)
+                RELEASE.record_completion(plan)
+                self.assertEqual(
+                    RELEASE.command(
+                        "git",
+                        "ls-remote",
+                        "origin",
+                        "refs/tags/store-complete-2026-10-30^{}",
+                    ).split()[0],
+                    plan["source_sha"],
                 )
                 with self.assertRaises(RELEASE.Error):
                     RELEASE.prepare(
