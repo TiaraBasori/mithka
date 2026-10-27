@@ -1016,6 +1016,127 @@ void main() {
       store.setActiveAccountUserId(null);
     },
   );
+  test('a folder toggle reads the folder pin state, not Main', () async {
+    final prefs = await _openStorePrefs();
+    final store = LocalPinStore.shared;
+    store.initialize(prefs);
+    await store.setUnlimitedEnabled(true);
+    store.setActiveAccountUserId(_accountUserId);
+
+    final modelRequests = <Map<String, dynamic>>[];
+    final model = ChatListViewModel(
+      queryForTesting: (request) => _respond(modelRequests, request),
+    );
+    addTearDown(model.dispose);
+    model.meId = _accountUserId;
+    model.onAppear();
+    model.loadMore();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    // Give every chat a folder position that disagrees with Main: pinned on
+    // Main, unpinned in folder 7.
+    for (final id in const [1, 2, 3, 4, 5, _unpinnedChatId]) {
+      model.applyUpdateForTesting({
+        '@type': 'updateChatLastMessage',
+        'chat_id': id,
+        'last_message': _chat(id)['last_message'],
+        'positions': [
+          {
+            '@type': 'chatPosition',
+            'list': {'@type': 'chatListFolder', 'chat_folder_id': 7},
+            'order': 900 - id,
+            'is_pinned': false,
+          },
+        ],
+      });
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    model.selectFilter(const ChatFilterOption(title: 'Work', folderId: 7));
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    requests.clear();
+    modelRequests.clear();
+    final chat = model.chats.first;
+    expect(chat.isPinned, isTrue, reason: 'Main pins the chat');
+    expect(
+      model.isPinnedInSelectedList(chat),
+      isFalse,
+      reason: 'the folder does not',
+    );
+
+    model.togglePin(chat);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    final toggles = requests
+        .where((r) => r['@type'] == 'toggleChatIsPinned')
+        .toList();
+    expect(
+      toggles,
+      isNotEmpty,
+      reason: 'a folder toggle stays a server toggle',
+    );
+    expect(
+      toggles.last['is_pinned'],
+      isTrue,
+      reason:
+          'the toggle inverts the folder list state (unpinned -> pin); '
+          'deriving from Main would send false (pinned -> unpin)',
+    );
+  });
+
+  test('a folder toggle never lands in the Main device-pin band', () async {
+    final prefs = await _openStorePrefs();
+    final store = LocalPinStore.shared;
+    store.initialize(prefs);
+    await store.setUnlimitedEnabled(true);
+    store.setActiveAccountUserId(_accountUserId);
+
+    final modelRequests = <Map<String, dynamic>>[];
+    final model = ChatListViewModel(
+      queryForTesting: (request) => _respond(modelRequests, request),
+    );
+    addTearDown(model.dispose);
+    model.meId = _accountUserId;
+    model.onAppear();
+    model.loadMore();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    for (final id in const [1, 2, 3, 4, 5, _unpinnedChatId]) {
+      model.applyUpdateForTesting({
+        '@type': 'updateChatLastMessage',
+        'chat_id': id,
+        'last_message': _chat(id)['last_message'],
+        'positions': [
+          {
+            '@type': 'chatPosition',
+            'list': {'@type': 'chatListFolder', 'chat_folder_id': 7},
+            'order': 900 - id,
+            'is_pinned': false,
+          },
+        ],
+      });
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    model.selectFilter(const ChatFilterOption(title: 'Work', folderId: 7));
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    requests.clear();
+    // The only chat Main leaves unpinned: at the Main cap the old head would
+    // have pushed exactly this row into the Main device-pin band.
+    final chat = model.chats.firstWhere((c) => c.id == _unpinnedChatId);
+    expect(chat.isPinned, isFalse);
+    model.togglePin(chat);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    expect(
+      store.pinnedChatIds,
+      isEmpty,
+      reason: 'a folder gesture must not write a Main device pin',
+    );
+    expect(
+      requests.where((r) => r['@type'] == 'toggleChatIsPinned'),
+      isNotEmpty,
+      reason: 'the folder gesture goes to the server in its own list',
+    );
+  });
 }
 
 /// The id of the chat the tests pin: the one that is not pinned on the server.

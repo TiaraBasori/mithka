@@ -822,6 +822,16 @@ class ChatListViewModel extends ChangeNotifier {
       _togglePinOnServer(chat);
       return;
     }
+
+    // The device-pin band, its cap and the global device-pin fallback are
+    // Main-list concepts: the cap counts Main's server pins and the fallback
+    // releases rows on Main's order. A folder action through them would
+    // reorder the Main list instead of the folder the user acted on, so a
+    // folder toggle stays a plain server toggle in its own list.
+    if (_selectedFilter.folderId != null) {
+      _togglePinOnServer(chat);
+      return;
+    }
     final epoch = _pinEpoch;
     final generation = store.loadGeneration;
     if (store.isLocallyPinned(chat.id)) {
@@ -923,7 +933,11 @@ class ChatListViewModel extends ChangeNotifier {
 
   void _togglePinOnServer(ChatSummary chat) {
     final target = _pinTargetForCurrentList();
-    final newValue = !chat.isPinned;
+    // The toggle reflects the list the user is acting on: a folder row can
+    // disagree with the Main list's chat.isPinned in both directions, and
+    // deriving from Main regresses #275's list-specific state even with the
+    // extra-pin runtime switch off.
+    final newValue = !target.isPinned(chat);
     final id = chat.id;
     target.apply(target.chatList, id, newValue);
     _resort();
@@ -2766,7 +2780,7 @@ class ChatListViewModel extends ChangeNotifier {
     candidate.unreadCount = existing.unreadCount;
   }
 
-  static int _compare(ChatSummary a, ChatSummary b) {
+  int _compare(ChatSummary a, ChatSummary b) {
     if (a.isPinned != b.isPinned) return a.isPinned ? -1 : 1;
     // Within the pinned group the band of device-only pins — orders the local
     // store assigned — sorts above every server pin. The band is built from
@@ -2776,7 +2790,11 @@ class ChatListViewModel extends ChangeNotifier {
     // gesture on this device and must stay on top. The store never assigns a
     // band while its switch is off, so an inert build compares exactly as
     // before.
-    if (a.isPinned && b.isPinned) {
+    //
+    // Owner-bound: the comparator reads the shared store through this list's
+    // own account scope only. Simultaneous models with colliding chat ids
+    // used to sort A's rows by B's local pins.
+    if (a.isPinned && b.isPinned && _storeIsOwnAccount) {
       final store = LocalPinStore.shared;
       final aLocal = store.isLocallyPinned(a.id);
       final bLocal = store.isLocallyPinned(b.id);
