@@ -290,6 +290,7 @@ module MithkaAppStoreRelease
       build = resolve_exact_build
       @resolved_build_id = build.fetch("id")
       version = find_version
+      version ||= reuse_editable_draft
 
       if version.nil? && !@apply
         validate_copy_sources(release_notes)
@@ -554,6 +555,47 @@ module MithkaAppStoreRelease
         }
       )
       response.fetch("data")
+    end
+
+    def reuse_editable_draft
+      versions = @client.get(
+        "/apps/#{@app_id}/appStoreVersions",
+        "filter[platform]" => @platform,
+        "limit" => "200"
+      ).fetch("data")
+      drafts = versions.select do |version|
+        state = version.dig("attributes", "appStoreState")
+        REVIEWABLE_VERSION_STATES.include?(state) ||
+          (SUBMITTED_VERSION_STATES.include?(state) && !%w[READY_FOR_SALE READY_FOR_DISTRIBUTION].include?(state))
+      end
+      return nil if drafts.empty?
+      raise Error, "another active #{platform_name} version needs attention" unless drafts.length == 1 && drafts.first.dig("attributes", "appStoreState") == "PREPARE_FOR_SUBMISSION"
+
+      draft = @client.get("/appStoreVersions/#{drafts.first.fetch('id')}", "include" => "build").fetch("data")
+      unless draft.dig("attributes", "appStoreState") == "PREPARE_FOR_SUBMISSION"
+        raise Error, "editable #{platform_name} draft changed state; refusing to replace it"
+      end
+      previous = draft.dig("attributes", "versionString").to_s
+      unless previous.match?(/\A\d+\.\d+\.\d+\z/) &&
+             (previous.split(".").map(&:to_i) <=> @version.split(".").map(&:to_i)) == -1
+        raise Error, "editable draft must have a lower normal version than #{@version}"
+      end
+      unless active_review_submissions.empty?
+        raise Error, "an active #{platform_name} review submission prevents renaming the draft"
+      end
+      log("#{@apply ? 'UPDATE' : 'PLAN update'} existing #{platform_name} draft #{previous} to #{@version}; preserve its listing assets and review details")
+      return draft unless @apply
+
+      @client.patch(
+        "/appStoreVersions/#{draft.fetch('id')}",
+        "data" => {
+          "type" => "appStoreVersions", "id" => draft.fetch("id"),
+          "attributes" => { "versionString" => @version, "releaseType" => "AFTER_APPROVAL" },
+          "relationships" => {
+            "build" => { "data" => { "type" => "builds", "id" => @resolved_build_id } }
+          }
+        }
+      ).fetch("data")
     end
 
     def ensure_version_can_be_used!(version)

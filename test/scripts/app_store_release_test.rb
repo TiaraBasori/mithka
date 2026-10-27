@@ -152,6 +152,75 @@ class AppStoreReleaseTest < Minitest::Test
     assert_includes output.string, "no App Store Connect state was changed"
   end
 
+  def draft_routes(states: ["PREPARE_FOR_SUBMISSION"], version: "0.7.40")
+    routes = base_routes
+    drafts = states.each_with_index.map do |state, index|
+      {
+        "id" => index.zero? ? TARGET_VERSION_ID : "other-draft",
+        "attributes" => { "appStoreState" => state, "versionString" => version, "releaseType" => "MANUAL" }
+      }
+    end
+    routes[["/apps/#{APP_ID}/appStoreVersions", { "filter[platform]" => "IOS", "limit" => "200" }]] = { "data" => drafts }
+    routes[["/appStoreVersions/#{TARGET_VERSION_ID}", { "include" => "build" }]] = { "data" => drafts.first }
+    routes
+  end
+
+  def test_draft_rename_dry_run_never_writes
+    client = FakeClient.new(draft_routes)
+    output = StringIO.new
+    draft = build_runner(client, output).send(:reuse_editable_draft)
+
+    assert_equal TARGET_VERSION_ID, draft.fetch("id")
+    assert_empty client.writes
+    assert_includes output.string, "PLAN update existing iOS draft 0.7.40 to 0.7.41"
+  end
+
+  def test_draft_rename_attaches_exact_build_and_preserves_other_metadata
+    client = FakeClient.new(draft_routes)
+    client.define_singleton_method(:patch) do |path, body|
+      writes << [:patch, path, body]
+      { "data" => body.fetch("data").merge("attributes" => body.fetch("data").fetch("attributes").merge("appStoreState" => "PREPARE_FOR_SUBMISSION")) }
+    end
+    runner = build_runner(client, StringIO.new, apply: true)
+    runner.instance_variable_set(:@resolved_build_id, BUILD_ID)
+    runner.send(:reuse_editable_draft)
+
+    assert_equal 1, client.writes.length
+    payload = client.writes.first.last.fetch("data")
+    assert_equal({ "versionString" => "0.7.41", "releaseType" => "AFTER_APPROVAL" }, payload.fetch("attributes"))
+    assert_equal BUILD_ID, payload.dig("relationships", "build", "data", "id")
+    assert_equal ["build"], payload.fetch("relationships").keys
+  end
+
+  def test_draft_rename_refuses_multiple_or_noneditable_active_versions
+    [["PREPARE_FOR_SUBMISSION", "PREPARE_FOR_SUBMISSION"], ["WAITING_FOR_REVIEW"], ["REJECTED"]].each do |states|
+      client = FakeClient.new(draft_routes(states: states))
+      assert_raises(MithkaAppStoreRelease::Error) { build_runner(client, StringIO.new).send(:reuse_editable_draft) }
+      assert_empty client.writes
+    end
+  end
+
+  def test_draft_rename_refuses_a_newer_version_or_concurrent_review
+    ["0.7.42", "0.7.41"].each do |version|
+      client = FakeClient.new(draft_routes(version: version))
+      assert_raises(MithkaAppStoreRelease::Error) { build_runner(client, StringIO.new).send(:reuse_editable_draft) }
+      assert_empty client.writes
+    end
+    routes = draft_routes
+    routes[["/apps/#{APP_ID}/reviewSubmissions", { "filter[platform]" => "IOS", "limit" => "200" }]] = { "data" => [{ "id" => "active", "attributes" => { "state" => "WAITING_FOR_REVIEW" } }] }
+    client = FakeClient.new(routes)
+    assert_raises(MithkaAppStoreRelease::Error) { build_runner(client, StringIO.new).send(:reuse_editable_draft) }
+    assert_empty client.writes
+  end
+
+  def test_draft_rename_rechecks_state_before_mutation
+    routes = draft_routes
+    routes[["/appStoreVersions/#{TARGET_VERSION_ID}", { "include" => "build" }]]["data"]["attributes"]["appStoreState"] = "WAITING_FOR_REVIEW"
+    client = FakeClient.new(routes)
+    assert_raises(MithkaAppStoreRelease::Error) { build_runner(client, StringIO.new).send(:reuse_editable_draft) }
+    assert_empty client.writes
+  end
+
   def test_macos_dry_run_uses_macos_versions_and_metadata_sources
     client = FakeClient.new(base_routes(platform: "MAC_OS", version: "1.1.0"))
     output = StringIO.new
@@ -855,6 +924,14 @@ class AppStoreReleaseTest < Minitest::Test
           "attributes" => { "platform" => platform, "version" => platform == "MAC_OS" ? "1.1.0" : "0.7.0" }
         }
       },
+      ["/apps/#{APP_ID}/appStoreVersions", {
+        "filter[platform]" => platform,
+        "limit" => "200"
+      }] => { "data" => [] },
+      ["/apps/#{APP_ID}/reviewSubmissions", {
+        "filter[platform]" => platform,
+        "limit" => "200"
+      }] => { "data" => [] },
       ["/apps/#{APP_ID}/appStoreVersions", {
         "filter[platform]" => platform,
         "filter[versionString]" => version,
