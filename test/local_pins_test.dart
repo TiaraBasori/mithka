@@ -15,6 +15,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chats/chat_list_view_model.dart';
 import 'package:mithka/chats/local_pin_store.dart';
+import 'package:mithka/l10n/app_localizations.dart';
 import 'package:mithka/tdlib/json_helpers.dart';
 import 'package:mithka/tdlib/td_bindings.dart';
 import 'package:mithka/tdlib/td_client.dart';
@@ -33,6 +34,7 @@ void main() {
   late Directory supportDir;
   late List<Map<String, dynamic>> requests;
   late _FakeBindings bindings;
+  Object? pinFailure;
 
   setUpAll(() async {
     supportDir = await Directory.systemTemp.createTemp('mithka-local-pins');
@@ -51,6 +53,9 @@ void main() {
       bindings: bindings,
       queryOverride: (request, clientId) async {
         requests.add(Map<String, dynamic>.from(request));
+        if (request['@type'] == 'toggleChatIsPinned' && pinFailure != null) {
+          throw pinFailure!;
+        }
         return {'@type': 'ok'};
       },
     );
@@ -61,6 +66,7 @@ void main() {
   });
 
   setUp(() async {
+    pinFailure = null;
     requests = <Map<String, dynamic>>[];
     SharedPreferences.setMockInitialValues(const {});
     final prefs = await SharedPreferences.getInstance();
@@ -181,6 +187,27 @@ void main() {
       expect(requests, isEmpty);
     },
   );
+
+  test('a rejected server pin has a complete generic limit notice', () async {
+    final modelRequests = <Map<String, dynamic>>[];
+    final model = ChatListViewModel(
+      queryForTesting: (request) => _respond(modelRequests, request),
+    );
+    addTearDown(model.dispose);
+    model.onAppear();
+    model.loadMore();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    final target = model.chats.firstWhere((c) => c.id == _unpinnedChatId);
+    pinFailure = TdError({'code': 400, 'message': 'PINNED_CHAT_TOO_MUCH'});
+
+    model.togglePin(target);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+
+    expect(target.isPinned, isFalse, reason: 'the rejected pin is rolled back');
+    expect(model.notice, AppStringKeys.chatInfoPinLimitReachedError);
+    expect(AppStrings.t(model.notice!), isNot(contains('{value1}')));
+    expect(LocalPinStore.shared.pinnedChatIds, isEmpty);
+  });
 
   test('the switch persists and the store pins and unpins', () async {
     final store = await _openStore();
@@ -1016,6 +1043,70 @@ void main() {
       store.setActiveAccountUserId(null);
     },
   );
+  test('two live lists never sort by the other account local pins', () async {
+    final prefs = await _openStorePrefs();
+    final store = LocalPinStore.shared;
+    store.initialize(prefs);
+    await store.setUnlimitedEnabled(true);
+    Future<Map<String, dynamic>> query(
+      Map<String, dynamic> request, {
+      required bool firstAccount,
+    }) async {
+      if (request['@type'] == 'getChats') {
+        return {
+          '@type': 'chats',
+          'chat_ids': firstAccount ? [1, 2] : [2],
+        };
+      }
+      if (!firstAccount && request['@type'] == 'getChat') {
+        final chat = _chat(jsonInt(request['chat_id'])!);
+        (chat['positions'] as List).single['is_pinned'] = false;
+        return chat;
+      }
+      return _respond([], request);
+    }
+
+    final first = ChatListViewModel(
+      queryForTesting: (request) => query(request, firstAccount: true),
+    );
+    final second = ChatListViewModel(
+      queryForTesting: (request) => query(request, firstAccount: false),
+    );
+    addTearDown(first.dispose);
+    addTearDown(second.dispose);
+    first.meId = _accountUserId;
+    first.onAppear();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(first.chats.map((chat) => chat.id), [1, 2]);
+
+    // B has the same chat ID, unpinned on its server and pinned on-device.
+    // A's two rows remain server pins in their original order.
+    second.meId = 7272;
+    second.onAppear();
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    await store.pin(2, serverPinOrder: 900, pinnedAt: 9);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(second.chats.single.isPinned, isTrue);
+    expect(store.activeAccountUserId, 7272);
+    expect(store.isLocallyPinned(2), isTrue);
+
+    // Force the first live list through its real sorting path while B owns
+    // the singleton. Reading B's pin here would incorrectly put A's row 2 first.
+    first.applyUpdateForTesting({
+      '@type': 'updateChatPosition',
+      'chat_id': 1,
+      'position': {
+        '@type': 'chatPosition',
+        'list': {'@type': 'chatListMain'},
+        'order': 500,
+        'is_pinned': true,
+      },
+    });
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    expect(first.chats.map((chat) => chat.id), [1, 2]);
+    expect(store.isLocallyPinned(2), isTrue);
+  });
+
   test('a folder toggle reads the folder pin state, not Main', () async {
     final prefs = await _openStorePrefs();
     final store = LocalPinStore.shared;

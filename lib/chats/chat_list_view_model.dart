@@ -3002,10 +3002,10 @@ class ChatListViewModel extends ChangeNotifier {
         normalized.contains('much') ||
         normalized.contains(AppStringKeys.chatInfoPinLimit);
     if (hitPinned && hitLimit) {
-      // Pinning everything the server allows is the ordinary outcome; the
-      // notice that explains the limit is also where the device-only pin
-      // switch is made discoverable.
-      return AppStringKeys.chatListLocalPinLimitReached;
+      // This path also handles folder limits and runs before the Main pin
+      // cap is known. Keep its generic notice; the settings explanation owns
+      // the Main-specific limit and its formatting arguments.
+      return AppStringKeys.chatInfoPinLimitReachedError;
     }
     return text.isEmpty
         ? AppStringKeys.chatInfoPinFailed
