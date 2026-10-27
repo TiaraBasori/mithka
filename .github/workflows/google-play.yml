@@ -257,15 +257,20 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: master
+          fetch-depth: 0
 
       - name: Create immutable version marker
         env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
           VERSION_CODE: ${{ needs.prepare.outputs.android_version_code }}
         run: |
-          marker_tag="play-version-code-$VERSION_CODE"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$marker_tag" -m "Google Play version code $VERSION_CODE" "$GITHUB_SHA"
-          git push origin "refs/tags/$marker_tag"
+          python3 -m unittest discover -s test/scripts -p 'weekly_store_release_test.py' -v
+          python3 scripts/record_play_marker.py

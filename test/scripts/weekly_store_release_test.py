@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -92,6 +93,63 @@ class WeeklyReleaseTest(unittest.TestCase):
         ):
             RELEASE.wait_run(run, "b" * 40, "ios-testflight.yml")
 
+    def play_run_and_jobs(self):
+        run = {
+            "id": 99,
+            "head_sha": "a" * 40,
+            "path": ".github/workflows/google-play.yml",
+            "event": "workflow_dispatch",
+            "status": "completed",
+            "conclusion": "failure",
+        }
+        jobs = [
+            {"name": name, "conclusion": "success"}
+            for name in [
+                "Verify source snapshot",
+                "Required quality gate / Analyze and test",
+                "Read release version",
+                "Publish AAB to Google Play",
+            ]
+        ]
+        jobs.append(
+            {"name": "Record published Play version code", "conclusion": "failure"}
+        )
+        return run, jobs
+
+    def test_only_a_failed_marker_can_be_reconciled_without_another_upload(self):
+        run, jobs = self.play_run_and_jobs()
+
+        def api(path):
+            return {"jobs": jobs} if "/jobs?" in path else run
+
+        with patch.object(RELEASE, "api", side_effect=api):
+            self.assertEqual(
+                RELEASE.wait_run(
+                    {"id": 99},
+                    "a" * 40,
+                    "google-play.yml",
+                    allow_play_marker_failure=True,
+                ),
+                run,
+            )
+            with self.assertRaises(RELEASE.Error):
+                RELEASE.wait_run({"id": 99}, "a" * 40, "google-play.yml")
+            # Actual upload or Quality failures are never treated as a marker
+            # issue, even when the marker job failed too.
+            for index in [1, 3]:
+                jobs[index]["conclusion"] = "failure"
+                with self.assertRaises(RELEASE.Error):
+                    RELEASE.wait_run(
+                        {"id": 99},
+                        "a" * 40,
+                        "google-play.yml",
+                        allow_play_marker_failure=True,
+                    )
+                jobs[index]["conclusion"] = "success"
+            run["head_sha"] = "b" * 40
+            with self.assertRaises(RELEASE.Error):
+                RELEASE.verify_play_publication(99, "a" * 40)
+
     def test_existing_upload_attempt_is_resumed_without_redispatch(self):
         with (
             patch.object(RELEASE, "runs", return_value=[{"id": 10}]),
@@ -183,9 +241,11 @@ class WeeklyReleaseTest(unittest.TestCase):
             patch.object(RELEASE, "runs", return_value=[]),
             patch.object(RELEASE, "dispatch", side_effect=dispatch),
             patch.object(RELEASE, "play_state") as play,
+            patch.object(RELEASE, "record_play_marker") as marker,
         ):
             RELEASE.submit(plan)
             play.assert_called_once_with(500)
+            marker.assert_called_once_with("a" * 40, 500, 3)
         self.assertEqual(
             events,
             [
@@ -210,7 +270,7 @@ class WeeklyReleaseTest(unittest.TestCase):
         }
         builds = {platform: {"id": platform} for platform in ["IOS", "MAC_OS"]}
 
-        def wait(run, *_args):
+        def wait(run, *_args, **_kwargs):
             if run["id"] == 99:
                 raise RELEASE.Error("failed publication")
 
@@ -299,6 +359,10 @@ class WeeklyReleaseTest(unittest.TestCase):
                 # The next date cannot conceal an unresolved publication.
                 with self.assertRaises(RELEASE.Error):
                     RELEASE.prepare("2026-10-31", state, play, apply=True)
+                Path("controller.txt").write_text("new controller commit\n")
+                RELEASE.command("git", "add", "controller.txt")
+                RELEASE.command("git", "commit", "-m", "Advance controller")
+                RELEASE.command("git", "push", "origin", "master")
                 RELEASE.record_completion(plan)
                 self.assertEqual(
                     RELEASE.command(
@@ -307,8 +371,26 @@ class WeeklyReleaseTest(unittest.TestCase):
                         "origin",
                         "refs/tags/store-complete-2026-10-30^{}",
                     ).split()[0],
-                    plan["source_sha"],
+                    RELEASE.command("git", "rev-parse", "HEAD"),
                 )
+                recorded = json.loads(
+                    RELEASE.command(
+                        "git",
+                        "for-each-ref",
+                        "--format=%(contents)",
+                        "refs/tags/store-complete-2026-10-30",
+                    )
+                )
+                self.assertEqual(recorded["source_sha"], plan["source_sha"])
+                self.assertEqual(recorded["kind"], "store_complete")
+                # Resume is idempotent and refuses another source identity.
+                RELEASE.record_completion(plan)
+                with self.assertRaises(RELEASE.Error):
+                    RELEASE.record_marker(
+                        "store-complete-2026-10-30",
+                        "b" * 40,
+                        {"kind": "store_complete"},
+                    )
                 with self.assertRaises(RELEASE.Error):
                     RELEASE.prepare(
                         "2026-10-31",

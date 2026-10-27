@@ -116,7 +116,40 @@ def runs(workflow, sha=None):
     return result["workflow_runs"]
 
 
-def wait_run(run, sha, workflow, timeout=14400):
+def verify_play_publication(run_id, source_sha):
+    run = api(f"actions/runs/{run_id}")
+    if (
+        run["head_sha"] != source_sha
+        or run["path"] != ".github/workflows/google-play.yml"
+        or run["event"] not in {"push", "workflow_dispatch"}
+    ):
+        raise Error("Play publication run identity mismatch")
+    jobs = api(f"actions/runs/{run_id}/jobs?per_page=100")["jobs"]
+    required = {
+        "Verify source snapshot",
+        "Required quality gate / Analyze and test",
+        "Read release version",
+        "Publish AAB to Google Play",
+    }
+    for name in required:
+        matches = [job for job in jobs if job["name"] == name]
+        if len(matches) != 1 or matches[0]["conclusion"] != "success":
+            raise Error(f"Play publication prerequisite did not succeed: {name}")
+    for job in jobs:
+        if job["name"] == "Record published Play version code":
+            continue
+        if job["conclusion"] == "success":
+            continue
+        if (
+            job["name"].startswith("Required quality gate / Merge snapshot ")
+            and job["conclusion"] == "skipped"
+        ):
+            continue
+        raise Error("Play publication has a failure outside its marker job")
+    return jobs
+
+
+def wait_run(run, sha, workflow, timeout=14400, allow_play_marker_failure=False):
     deadline = time.monotonic() + timeout
     while True:
         current = api(f"actions/runs/{run['id']}")
@@ -128,6 +161,20 @@ def wait_run(run, sha, workflow, timeout=14400):
             raise Error("workflow run identity changed")
         if current["status"] == "completed":
             if current["conclusion"] != "success":
+                if (
+                    allow_play_marker_failure
+                    and workflow == "google-play.yml"
+                    and current["conclusion"] == "failure"
+                ):
+                    jobs = verify_play_publication(run["id"], sha)
+                    failed = [job for job in jobs if job["conclusion"] == "failure"]
+                    if (
+                        len(failed) == 1
+                        and failed[0]["name"] == "Record published Play version code"
+                    ):
+                        # No second upload: the caller must verify the actual
+                        # production code and repair only its immutable marker.
+                        return current
                 raise Error(
                     f"workflow {workflow} run {run['id']} needs attention ({current['conclusion']})"
                 )
@@ -426,8 +473,16 @@ def submit(plan):
                     {"expected_source_commit": plan["source_sha"]},
                 )
             )
-            wait_run(run, plan["source_sha"], "google-play.yml")
+            wait_run(
+                run,
+                plan["source_sha"],
+                "google-play.yml",
+                allow_play_marker_failure=True,
+            )
             play_state(plan["android_version_code"])
+            record_play_marker(
+                plan["source_sha"], plan["android_version_code"], run["id"]
+            )
         # Sequential: the reusable Quality gate is scoped to workflow + ref.
         for platform in APPLE_WORKFLOWS:
             state = asc_state(plan["apple_build_number"])
@@ -484,30 +539,71 @@ def submit(plan):
     )
 
 
-def record_completion(plan):
-    # A later Friday must resume any snapshot lacking this verified marker.
-    # This is written only after all actual store postconditions pass.
-    command("git", "fetch", "origin", "--tags")
-    tag = f"store-complete-{plan['release_key']}"
-    if tag in command("git", "tag", "--list").splitlines():
-        if command("git", "rev-parse", f"{tag}^{{commit}}") != plan["source_sha"]:
-            raise Error("completion marker points to another snapshot")
+def record_marker(tag, source_sha, metadata):
+    if not SHA.fullmatch(source_sha):
+        raise Error("marker requires a full source SHA")
+    command("git", "fetch", "origin", "master", "--tags")
+    if command("git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}"):
+        target = command("git", "rev-parse", f"{tag}^{{commit}}")
+        # Legacy markers point directly to the built source. New markers use
+        # current master as their Git ref; their annotation binds the source.
+        if target == source_sha:
+            return
+        if command("git", "cat-file", "-t", f"refs/tags/{tag}") != "tag":
+            raise Error("marker must be annotated")
+        recorded = json.loads(
+            command("git", "for-each-ref", "--format=%(contents)", f"refs/tags/{tag}")
+        )
+        if recorded.get("source_sha") != source_sha or any(
+            recorded.get(key) != value for key, value in metadata.items()
+        ):
+            raise Error("immutable marker belongs to a different publication")
+        command("git", "merge-base", "--is-ancestor", source_sha, target)
         return
+    target = command("git", "rev-parse", "origin/master")
+    command("git", "merge-base", "--is-ancestor", source_sha, target)
     message = json.dumps(
+        dict(metadata, source_sha=source_sha, marker_commit=target), sort_keys=True
+    )
+    command("git", "tag", "-a", tag, target, "-m", message)
+    command("git", "fetch", "origin", "master")
+    if command("git", "rev-parse", "origin/master") != target:
+        raise Error("master advanced before marker publication; resume safely")
+    command("git", "push", "origin", tag)
+
+
+def record_play_marker(source_sha, code, run_id):
+    if not str(code).isdigit() or not 1 <= int(code) <= 2100000000:
+        raise Error("invalid Play marker code")
+    verify_play_publication(run_id, source_sha)
+    record_marker(
+        f"play-version-code-{code}",
+        source_sha,
+        {
+            "schema_version": 2,
+            "kind": "google_play",
+            "android_version_code": int(code),
+            "publication_run_id": str(run_id),
+        },
+    )
+
+
+def record_completion(plan):
+    # Only after actual Play/ASC postconditions pass. The annotation keeps the
+    # immutable built source even when master has advanced since the snapshot.
+    record_marker(
+        f"store-complete-{plan['release_key']}",
+        plan["source_sha"],
         {
             "schema_version": 1,
+            "kind": "store_complete",
             "version": plan["version"],
-            "source_sha": plan["source_sha"],
             "android_version_code": plan["android_version_code"],
             "apple_build_number": plan["apple_build_number"],
-            "github_run_id": os.environ.get("GITHUB_RUN_ID"),
             "google_play_verified": True,
             "apple_platforms_verified": ["IOS", "MAC_OS"],
         },
-        sort_keys=True,
     )
-    command("git", "tag", "-a", tag, plan["source_sha"], "-m", message)
-    command("git", "push", "origin", tag)
 
 
 def main():

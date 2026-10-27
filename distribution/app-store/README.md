@@ -52,6 +52,14 @@ After the actual Play/ASC postconditions pass, a `store-complete-YYYY-MM-DD`
 tag records completion. A later Friday resumes a unique unfinished snapshot
 before allocating another patch. Multiple unfinished snapshots require
 reconciliation.
+Publication/completion markers created by Actions point to the current
+`master` controller commit. Their immutable JSON annotations contain the
+actual `source_sha` of the built snapshot. This avoids requesting permission
+to rewrite workflow files just to tag an older snapshot. Legacy Play markers
+that point directly to the source remain valid. A Play marker-only failure can
+be repaired only after the exact upload and Quality jobs succeeded and a
+separate API lookup verified the expected completed production code; the AAB
+is never uploaded again for that repair.
 
 Both Apple builds must pass Quality, signing, processing and App Store
 eligibility. Both App Review plans are validated before Play production is
