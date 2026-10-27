@@ -899,7 +899,19 @@ module MithkaAppStoreRelease
         submission.dig("relationships", "appStoreVersionForReview", "data", "id") == version_id
       end
       active_matches = matches.reject { |submission| submission.dig("attributes", "state") == "COMPLETE" }
-      matches = active_matches unless active_matches.empty?
+      if active_matches.empty?
+        # Removing a version from an old submission leaves its completed
+        # submission associated with that version. Discard only records whose
+        # authoritative items for this exact version are all REMOVED.
+        matches = matches.reject do |submission|
+          items = review_submission_items(submission.fetch("id")).select do |item|
+            review_item_version_id(item) == version_id
+          end
+          !items.empty? && items.all? { |item| item.dig("attributes", "state") == "REMOVED" }
+        end
+      else
+        matches = active_matches
+      end
       if matches.length > 1
         raise Error, "multiple #{platform_name} review submissions are associated with App Store version #{@version}"
       end
@@ -943,7 +955,7 @@ module MithkaAppStoreRelease
       items = review_submission_items(submission.fetch("id"))
       item = items.find { |candidate| review_item_version_id(candidate) == version_id }
       raise Error, "verification failed: review submission does not contain version #{@version}" unless item
-      if %w[REJECTED UNRESOLVED_ISSUES].include?(item.dig("attributes", "state"))
+      if %w[REJECTED UNRESOLVED_ISSUES REMOVED].include?(item.dig("attributes", "state"))
         raise Error, "verification failed: review item is #{item.dig('attributes', 'state')}"
       end
       log("SUBMITTED #{@version} (#{@build_number}) to App Review; submission #{submission['id']} is #{state}")

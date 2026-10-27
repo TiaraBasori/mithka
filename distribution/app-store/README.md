@@ -12,6 +12,8 @@ workflows build, sign and upload binaries. App Review is a separate manual step:
 
 The workflow runs the required Quality gate before accessing ASC credentials.
 It never selects a build merely because it is the latest upload.
+Completed historical submissions whose items for the selected version were
+removed are ignored. Multiple remaining submissions still block publication.
 
 Required repository secrets are `APP_STORE_CONNECT_KEY_ID`,
 `APP_STORE_CONNECT_ISSUER_ID` and `APP_STORE_CONNECT_PRIVATE_KEY` (raw `.p8`

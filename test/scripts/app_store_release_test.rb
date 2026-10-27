@@ -546,7 +546,99 @@ class AppStoreReleaseTest < Minitest::Test
     assert_includes output.string, "App Store release preparation verified"
   end
 
+  def test_completed_removed_history_does_not_hide_the_approved_submission
+    client = review_history_client([
+      ["COMPLETE", "REMOVED"], ["COMPLETE", "APPROVED"], ["COMPLETE", "REMOVED"]
+    ])
+    runner = build_runner(client, StringIO.new)
+
+    assert_equal "history-1", runner.send(:find_submission_for_version, TARGET_VERSION_ID).fetch("id")
+    assert_empty client.writes
+  end
+
+  def test_active_submission_takes_precedence_over_completed_history
+    client = review_history_client([["COMPLETE", "APPROVED"], ["IN_REVIEW", "IN_REVIEW"]])
+    runner = build_runner(client, StringIO.new)
+
+    assert_equal "history-1", runner.send(:find_submission_for_version, TARGET_VERSION_ID).fetch("id")
+  end
+
+  def test_multiple_active_submissions_remain_ambiguous
+    client = review_history_client([["IN_REVIEW", "IN_REVIEW"], ["WAITING_FOR_REVIEW", "WAITING_FOR_REVIEW"]])
+    runner = build_runner(client, StringIO.new)
+
+    assert_raises(MithkaAppStoreRelease::Error) { runner.send(:find_submission_for_version, TARGET_VERSION_ID) }
+    assert_empty client.writes
+  end
+
+  def test_multiple_completed_approved_submissions_remain_ambiguous
+    client = review_history_client([["COMPLETE", "APPROVED"], ["COMPLETE", "APPROVED"]])
+    runner = build_runner(client, StringIO.new)
+
+    assert_raises(MithkaAppStoreRelease::Error) { runner.send(:find_submission_for_version, TARGET_VERSION_ID) }
+  end
+
+  def test_completed_rejected_or_unrelated_items_are_not_silently_discarded
+    ["REJECTED", "UNRESOLVED_ISSUES", nil].each do |state|
+      client = review_history_client([["COMPLETE", "APPROVED"], ["COMPLETE", state]])
+      runner = build_runner(client, StringIO.new)
+      assert_raises(MithkaAppStoreRelease::Error) { runner.send(:find_submission_for_version, TARGET_VERSION_ID) }
+    end
+    client = review_history_client([["COMPLETE", "APPROVED"], ["COMPLETE", "REMOVED", SOURCE_VERSION_ID]])
+    runner = build_runner(client, StringIO.new)
+    assert_raises(MithkaAppStoreRelease::Error) { runner.send(:find_submission_for_version, TARGET_VERSION_ID) }
+  end
+
+  def test_only_removed_history_cannot_be_treated_as_a_submitted_version
+    client = review_history_client([["COMPLETE", "REMOVED"]])
+    runner = build_runner(client, StringIO.new)
+
+    assert_nil runner.send(:find_submission_for_version, TARGET_VERSION_ID)
+    assert_empty client.writes
+  end
+
+  def test_final_verification_rejects_a_removed_review_item
+    routes = base_routes.merge(submitted_routes)
+    item_route = ["/reviewSubmissions/#{SUBMISSION_ID}/items", {
+      "include" => "appStoreVersion", "limit" => "200"
+    }]
+    routes.fetch(item_route).fetch("data").first.fetch("attributes")["state"] = "REMOVED"
+    client = FakeClient.new(routes)
+    error = assert_raises(MithkaAppStoreRelease::Error) do
+      build_runner(client, StringIO.new, apply: true).run
+    end
+
+    assert_includes error.message, "review item is REMOVED"
+    assert_empty client.writes
+  end
+
   private
+
+  def review_history_client(entries)
+    submissions = []
+    routes = {}
+    entries.each_with_index do |(state, item_state, item_version), index|
+      id = "history-#{index}"
+      submissions << {
+        "id" => id, "attributes" => { "state" => state },
+        "relationships" => {
+          "appStoreVersionForReview" => { "data" => { "id" => TARGET_VERSION_ID } }
+        }
+      }
+      routes[["/reviewSubmissions/#{id}/items", { "include" => "appStoreVersion", "limit" => "200" }]] = {
+        "data" => [{
+          "id" => "item-#{index}", "attributes" => { "state" => item_state },
+          "relationships" => {
+            "appStoreVersion" => { "data" => { "id" => item_version || TARGET_VERSION_ID } }
+          }
+        }]
+      }
+    end
+    routes[["/apps/#{APP_ID}/reviewSubmissions", {
+      "filter[platform]" => "IOS", "include" => "appStoreVersionForReview", "limit" => "200"
+    }]] = { "data" => submissions }
+    FakeClient.new(routes)
+  end
 
   def build_runner(client, output, apply: false, platform: "IOS", version: "0.7.41", binary_version: "0.7.0")
     MithkaAppStoreRelease::Runner.new(
