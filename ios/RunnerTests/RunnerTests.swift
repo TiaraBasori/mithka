@@ -993,6 +993,25 @@ final class VideoNoteCropTests: XCTestCase {
 /// Actual production UIKit host tests. Gesture/compositing and the native
 /// public-control hit-map still require parent-owned simulator acceptance.
 class NativeTabBarTests: XCTestCase {
+  /// Match the production Flutter root's bar policy without starting another
+  /// Flutter engine for each synthetic UIKit fixture.
+  @MainActor
+  private class HorizontalBarRoot: UIViewController {
+    @available(iOS 27.1, *)
+    override var preferredVerticalBarBehavior: UIVerticalBarBehavior { .disabled }
+  }
+
+  @MainActor
+  func testApplicationRootUsesTheHorizontalEmbeddedBarPolicy() throws {
+    let root = try XCTUnwrap(UIApplication.shared.connectedScenes
+      .compactMap { $0 as? UIWindowScene }
+      .flatMap { $0.windows }
+      .compactMap { $0.rootViewController as? MithkaFlutterViewController }.first,
+      "The application storyboard must install the owned Flutter root")
+    if #available(iOS 27.1, *) {
+      XCTAssertEqual(root.preferredVerticalBarBehavior, .disabled)
+    }
+  }
   @MainActor
   private func configuration() throws -> [String: Any] {
     let format = UIGraphicsImageRendererFormat()
@@ -1019,7 +1038,7 @@ class NativeTabBarTests: XCTestCase {
 
   @MainActor
   func testActualControllerContainmentTemplateImagesLabelsAndFullBadges() throws {
-    let parent = UIViewController()
+    let parent = HorizontalBarRoot()
     let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
     window.rootViewController = parent
     window.makeKeyAndVisible()
@@ -1253,7 +1272,7 @@ class NativeTabBarTests: XCTestCase {
   }
 
   @MainActor
-  private final class VisibleTabRoot: UIViewController {
+  private final class VisibleTabRoot: HorizontalBarRoot {
     private(set) var appearanceCount = 0
     private(set) var appearanceGeneration = 0
     private(set) var isAppeared = false
@@ -1961,7 +1980,7 @@ class NativeTabBarTests: XCTestCase {
   /// its frames are arbitrary fixtures, never production tab hit regions.
   @MainActor
   private func syntheticFaultHost() throws -> (UIWindow, NativeTabBarHost, UIView) {
-    let parent = UIViewController()
+    let parent = HorizontalBarRoot()
     let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
     window.rootViewController = parent
     window.makeKeyAndVisible()
