@@ -143,6 +143,20 @@ missing—or contains only an empty placeholder—the app builds and runs with
 analytics disabled. Maintainers and release CI provide the real, git-ignored
 configuration files automatically.
 
+FlutterFire's `lib/firebase_options.dart` and `firebase.json` use the existing
+Android/iOS apps in Firebase project `mithka`. To refresh their configuration,
+sign in with `firebase login`, then run from the project root:
+
+```bash
+dart pub global activate flutterfire_cli
+flutterfire configure --project=mithka --platforms=android,ios
+```
+
+Startup awaits `Firebase.initializeApp` with
+`DefaultFirebaseOptions.currentPlatform` inside the existing optional telemetry
+task. Missing native configuration still disables analytics for contributor
+builds; initialization errors do not prevent the app from opening.
+
 ### Android release signing
 
 Android release builds use the project’s upload key when
