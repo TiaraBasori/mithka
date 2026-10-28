@@ -141,69 +141,95 @@ void main() {
     );
   }
 
-  testWidgets('a finished recorder hands its crop to the route consumer', (
-    tester,
-  ) async {
-    final previousPlatform = CameraPlatform.instance;
-    final platform = _FakeCameraPlatform();
-    CameraPlatform.instance = platform;
-    final directory = Directory.systemTemp.createTempSync('recorder-send-');
-    final recording = File('${directory.path}/recording.mov')
-      ..writeAsBytesSync([1]);
-    final cropped = File('${directory.path}/cropped.mp4')
-      ..writeAsBytesSync([2]);
-    platform.stoppedVideo = Future.value(XFile(recording.path));
-    const channel = MethodChannel('mithka/media_editor');
-    final messenger =
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-    var cropsStarted = 0;
-    messenger.setMockMethodCallHandler(channel, (call) async {
-      expect(call.method, 'cropVideoNote');
-      expect((call.arguments as Map)['path'], recording.path);
-      cropsStarted++;
-      return cropped.path;
-    });
-    addTearDown(() async {
-      messenger.setMockMethodCallHandler(channel, null);
-      CameraPlatform.instance = previousPlatform;
-      await VideoNoteCropService.abandonInFlight(timeout: Duration.zero);
-      if (directory.existsSync()) directory.deleteSync(recursive: true);
-    });
-    final navigator = GlobalKey<NavigatorState>();
-    await tester.pumpWidget(
-      MaterialApp(navigatorKey: navigator, home: const SizedBox.shrink()),
+  for (final cancelDuringCrop in [false, true]) {
+    testWidgets(
+      cancelDuringCrop
+          ? 'closing a processing recorder cancels the send and reclaims its files'
+          : 'a finished recorder hands its crop to the route consumer',
+      (tester) async {
+        final previousPlatform = CameraPlatform.instance;
+        final platform = _FakeCameraPlatform();
+        CameraPlatform.instance = platform;
+        final directory = Directory.systemTemp.createTempSync('recorder-send-');
+        final recording = File('${directory.path}/recording.mov')
+          ..writeAsBytesSync([1]);
+        final cropped = File('${directory.path}/cropped.mp4')
+          ..writeAsBytesSync([2]);
+        platform.stoppedVideo = Future.value(XFile(recording.path));
+        const channel = MethodChannel('mithka/media_editor');
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        var cropsStarted = 0;
+        final exported = Completer<String?>();
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'cropVideoNote');
+          expect((call.arguments as Map)['path'], recording.path);
+          cropsStarted++;
+          return exported.future;
+        });
+        addTearDown(() async {
+          messenger.setMockMethodCallHandler(channel, null);
+          CameraPlatform.instance = previousPlatform;
+          await VideoNoteCropService.abandonInFlight(timeout: Duration.zero);
+          if (directory.existsSync()) directory.deleteSync(recursive: true);
+        });
+        final navigator = GlobalKey<NavigatorState>();
+        await tester.pumpWidget(
+          MaterialApp(navigatorKey: navigator, home: const SizedBox.shrink()),
+        );
+        VideoNoteCaptureResult? result;
+        var routeCompleted = false;
+        unawaited(
+          navigator.currentState!
+              .push<VideoNoteCaptureResult>(
+                MaterialPageRoute(
+                  builder: (_) => const VideoNoteRecorderView(),
+                ),
+              )
+              .then((value) {
+                routeCompleted = true;
+                result = value;
+              }),
+        );
+        await tester.pumpAndSettle();
+        final shutter = find.byKey(const ValueKey('videoNoteRecordButton'));
+        await tester.tap(shutter);
+        await tester.pump();
+        await tester.tap(shutter);
+        await tester.pump();
+        expect(cropsStarted, 1);
+        if (cancelDuringCrop) {
+          await tester.tap(_roundButton('Close camera'));
+          await tester.pumpAndSettle();
+          expect(routeCompleted, isTrue);
+          expect(result, isNull);
+          expect(find.byType(VideoNoteRecorderView), findsNothing);
+        }
+        exported.complete(cropped.path);
+        for (var attempt = 0; attempt < 100; attempt++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 5)),
+          );
+          await tester.pump(const Duration(milliseconds: 20));
+          if (routeCompleted &&
+              !recording.existsSync() &&
+              cropped.existsSync() == !cancelDuringCrop)
+            break;
+        }
+        await tester.pumpAndSettle();
+        expect(routeCompleted, isTrue);
+        expect(result?.path, cancelDuringCrop ? isNull : cropped.path);
+        if (!cancelDuringCrop) expect(result?.duration, 1);
+        expect(find.byType(VideoNoteRecorderView), findsNothing);
+        expect(recording.existsSync(), isFalse);
+        expect(cropped.existsSync(), !cancelDuringCrop);
+        await VideoNoteCropService.abandonInFlight(timeout: Duration.zero);
+        expect(cropped.existsSync(), !cancelDuringCrop);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      },
     );
-    VideoNoteCaptureResult? result;
-    unawaited(
-      navigator.currentState!
-          .push<VideoNoteCaptureResult>(
-            MaterialPageRoute(builder: (_) => const VideoNoteRecorderView()),
-          )
-          .then((value) => result = value),
-    );
-    await tester.pumpAndSettle();
-    final shutter = find.byKey(const ValueKey('videoNoteRecordButton'));
-    await tester.tap(shutter);
-    await tester.pump();
-    await tester.tap(shutter);
-    for (var attempt = 0; attempt < 100 && result == null; attempt++) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 5)),
-      );
-      await tester.pump(const Duration(milliseconds: 20));
-    }
-    await tester.pumpAndSettle();
-    expect(cropsStarted, 1);
-    expect(result?.path, cropped.path);
-    expect(result?.duration, 1);
-    expect(find.byType(VideoNoteRecorderView), findsNothing);
-    expect(recording.existsSync(), isFalse);
-    expect(cropped.existsSync(), isTrue);
-    await VideoNoteCropService.abandonInFlight(timeout: Duration.zero);
-    expect(cropped.existsSync(), isTrue);
-    expect(tester.takeException(), isNull);
-    await tester.pumpWidget(const SizedBox.shrink());
-  });
+  }
 
   testWidgets('recorder chrome is a light film over the black preview', (
     tester,
