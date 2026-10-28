@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compress launcher PNGs and create 256px transparent picker WebPs.
+"""Compress launcher PNGs and create transparent picker WebPs up to 256px.
 
 Writing requires pngquant, cwebp and Pillow. Checking uses only Python's
 standard library, so the byte/dimension budgets also run in read-only CI.
@@ -132,9 +132,15 @@ def optimize():
     for source in sorted(PICKER.glob("*.png")):
         output = source.with_suffix(".webp")
         with Image.open(source) as image:
+            resampling = (
+                Image.Resampling.NEAREST
+                if "pixel" in source.stem
+                else Image.Resampling.LANCZOS
+            )
+            image.thumbnail((256, 256), resampling)
             if "pixel" in source.stem:
                 # Keep the pixel-art grid and every alpha value exact.
-                image.resize((256, 256), Image.Resampling.NEAREST).save(
+                image.save(
                     output,
                     "WEBP",
                     lossless=True,
@@ -146,8 +152,8 @@ def optimize():
                         "cwebp",
                         "-quiet",
                         "-resize",
-                        "256",
-                        "256",
+                        str(image.width),
+                        str(image.height),
                         "-q",
                         "85",
                         "-alpha_q",
@@ -163,7 +169,7 @@ def optimize():
                     timeout=60,
                 )
         with Image.open(output) as image:
-            assert image.size == (256, 256) and image.mode == "RGBA"
+            assert max(image.size) <= 256 and image.mode == "RGBA"
         source.unlink()
     print(json.dumps({"before": before, "after": inventory()}, indent=2))
     check()
