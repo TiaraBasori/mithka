@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:camera/camera.dart';
 // The fake platform is the published camera interface the `camera` package
@@ -8,6 +9,7 @@ import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mithka/chat/video_note_crop_service.dart';
 import 'package:mithka/chat/video_note_recorder_view.dart';
 import 'package:mithka/l10n/app_localizations.dart';
 
@@ -50,6 +52,94 @@ void main() {
       VideoNoteRecordGesture.continueRecording,
     );
   });
+
+  for (final cropStartedBeforeDisposal in [false, true]) {
+    testWidgets(
+      'real recorder disposal ${cropStartedBeforeDisposal ? 'during crop' : 'during camera stop'} reclaims only its own export',
+      (tester) async {
+        final previousPlatform = CameraPlatform.instance;
+        final platform = _FakeCameraPlatform();
+        CameraPlatform.instance = platform;
+        final directory = Directory.systemTemp.createTempSync(
+          'recorder-dispose-',
+        );
+        final recording = File('${directory.path}/recording.mov')
+          ..writeAsBytesSync([1]);
+        final cropped = File('${directory.path}/cropped.mp4')
+          ..writeAsBytesSync([2]);
+        final other = File('${directory.path}/other.mp4')
+          ..writeAsBytesSync([3]);
+        final stopped = Completer<XFile>();
+        final exported = Completer<String?>();
+        platform.stoppedVideo = stopped.future;
+        var cropsStarted = 0;
+        const channel = MethodChannel('mithka/media_editor');
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(channel, (call) async {
+          expect(call.method, 'cropVideoNote');
+          if ((call.arguments as Map)['path'] == 'other-recording.mov') {
+            return other.path;
+          }
+          expect((call.arguments as Map)['path'], recording.path);
+          cropsStarted++;
+          return exported.future;
+        });
+        addTearDown(() async {
+          messenger.setMockMethodCallHandler(channel, null);
+          CameraPlatform.instance = previousPlatform;
+          await VideoNoteCropService.abandonInFlight(timeout: Duration.zero);
+          if (directory.existsSync()) directory.deleteSync(recursive: true);
+        });
+
+        // A second producer is between native completion and acceptance. A
+        // global sweep from State.dispose would wrongly delete this file.
+        final otherTicket = VideoNoteCropService.start('other-recording.mov')!;
+        expect(await tester.runAsync(() => otherTicket.resolve()), other.path);
+        await tester.pumpWidget(
+          const MaterialApp(home: VideoNoteRecorderView()),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(CameraPreview), findsOneWidget);
+        final shutter = find.byKey(const ValueKey('videoNoteRecordButton'));
+        await tester.tap(shutter);
+        await tester.pump();
+        await tester.tap(shutter);
+        await tester.pump();
+        expect(platform.stopCalls, 1);
+        if (cropStartedBeforeDisposal) {
+          stopped.complete(XFile(recording.path));
+          await tester.pump();
+          expect(cropsStarted, 1);
+        }
+
+        // Unmount the actual recording State, not a helper standing in for it.
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+        expect(other.existsSync(), isTrue);
+        if (!cropStartedBeforeDisposal) {
+          stopped.complete(XFile(recording.path));
+          await tester.pump();
+          expect(cropsStarted, 1);
+        }
+        exported.complete(cropped.path);
+        await tester.pump();
+        await tester.runAsync(() async {
+          for (
+            var attempt = 0;
+            attempt < 100 && cropped.existsSync();
+            attempt++
+          ) {
+            await Future<void>.delayed(const Duration(milliseconds: 5));
+          }
+        });
+        expect(cropped.existsSync(), isFalse);
+        expect(other.existsSync(), isTrue);
+        otherTicket.accept(other.path);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
 
   testWidgets('recorder chrome is a light film over the black preview', (
     tester,
@@ -640,6 +730,8 @@ class _FakeCameraPlatform extends CameraPlatform {
   Size previewSize = const Size(1280, 720);
   DeviceOrientation deviceOrientation = DeviceOrientation.portraitUp;
   CameraController? controller;
+  Future<XFile>? stoppedVideo;
+  int stopCalls = 0;
 
   @override
   Future<List<CameraDescription>> availableCameras() async {
@@ -743,6 +835,9 @@ class _FakeCameraPlatform extends CameraPlatform {
 
   @override
   Future<XFile> stopVideoRecording(int cameraId) async {
+    stopCalls++;
+    final pending = stoppedVideo;
+    if (pending != null) return pending;
     return XFile('video-note-test.mp4');
   }
 

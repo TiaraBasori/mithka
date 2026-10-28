@@ -6,11 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mithka/chat/video_note_crop_service.dart';
 import 'package:mithka/chat/video_note_recorder_view.dart';
 
-/// The recorder widget needs a real `CameraController`, which the existing
-/// harness in `test/video_note_recorder_test.dart` cannot provide. The decision
-/// `_finishRecording` makes after the camera stops is therefore extracted as
-/// `videoNoteUploadPath` and driven directly here, and a source pin proves that
-/// `_finishRecording` is the only place the recorder reaches for it.
+/// Service/channel boundaries are driven directly here. The companion recorder
+/// tests also mount the real recorder State and dispose it during camera stop
+/// and native export, proving cleanup cannot reclaim another producer's file.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const channel = MethodChannel('mithka/media_editor');
