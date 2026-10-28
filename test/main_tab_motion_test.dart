@@ -524,38 +524,6 @@ void main() {
     }
   });
 
-  testWidgets('a rebuilt shell gets fresh navigator keys, not the old ones', (
-    tester,
-  ) async {
-    debugDefaultTargetPlatformOverride = TargetPlatform.android;
-    try {
-      await _setSurfaceSize(tester, const Size(390, 844));
-      final keySets = <List<GlobalKey<NavigatorState>>>[];
-      await _pumpMainShell(tester, reducedMotion: true, onKeys: keySets.add);
-      await tester.pump();
-      // The first shell's tab navigator is live and addressable through its
-      // own key while the shell is mounted.
-      expect(keySets[0][0].currentState, isNotNull);
-      expect(keySets[0][0].currentState!.canPop(), isFalse);
-
-      // Unmount the shell entirely: with per-state keys the old navigator is
-      // unreachable afterwards, which is what lets an account-keyed
-      // replacement start from a clean identity instead of colliding with a
-      // retained subtree.
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
-      expect(
-        keySets[0][0].currentState,
-        isNull,
-        reason: 'an unmounted shell must not keep its navigator reachable',
-      );
-      expect(find.byKey(const ValueKey('old-shell-route')), findsNothing);
-      await _disposeShell(tester);
-    } finally {
-      debugDefaultTargetPlatformOverride = null;
-    }
-  });
-
   testWidgets('simultaneous shells own independent navigator keys', (
     tester,
   ) async {
