@@ -95,7 +95,7 @@ void main() {
         // A second producer is between native completion and acceptance. A
         // global sweep from State.dispose would wrongly delete this file.
         final otherTicket = VideoNoteCropService.start('other-recording.mov')!;
-        expect(await tester.runAsync(() => otherTicket.resolve()), other.path);
+        expect(await tester.runAsync(otherTicket.resolve), other.path);
         await tester.pumpWidget(
           const MaterialApp(home: VideoNoteRecorderView()),
         );
