@@ -624,9 +624,13 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
               child: _roundButton(
                 icon: HeroAppIcons.xmark,
                 label: AppStrings.t(AppStringKeys.videoNoteRecorderCloseCamera),
-                onTap: _recording && !_finishing
-                    ? () => unawaited(_cancelRecording())
-                    : () => Navigator.of(context).pop(),
+                onTap: () {
+                  if (_recording && !_finishing) {
+                    unawaited(_cancelRecording());
+                  } else {
+                    Navigator.of(context).pop();
+                  }
+                },
               ),
             ),
             if (_recording)
