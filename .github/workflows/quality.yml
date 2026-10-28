@@ -129,6 +129,9 @@ jobs:
       - name: Verify the registration anchors match their pinned dataset
         run: python3 tool/gen_registration_anchors.py --check
 
+      - name: Check optimized artwork budgets
+        run: python3 tool/optimize_app_artwork.py --check
+
       - name: Verify formatting
         run: dart format --output=none --set-exit-if-changed lib test integration_test test_driver
 
