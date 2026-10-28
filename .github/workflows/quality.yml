@@ -112,6 +112,9 @@ jobs:
       - name: Test Apple MDK helper failure paths
         run: bash scripts/tests/refresh_apple_mdk_test.sh
 
+      - name: Test Firebase release configuration verification
+        run: python3 -m unittest discover -s test/scripts -p 'firebase_configuration_test.py' -v
+
       - name: Verify Apple MDK preparation through the resolved dependency
         env:
           GITHUB_TOKEN: ${{ github.token }}
