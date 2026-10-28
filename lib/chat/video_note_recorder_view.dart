@@ -308,6 +308,7 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
 
   List<CameraDescription> _cameras = const [];
   CameraController? _controller;
+  Future<XFile>? _recordingStop;
   int _cameraIndex = 0;
   bool _initializing = true;
   bool _recording = false;
@@ -405,7 +406,27 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
   Future<void> _disposeController() async {
     final controller = _controller;
     _controller = null;
+    // CameraController updates its notifier after the native stop callback.
+    // Disposing it first makes that callback use an already disposed notifier.
+    final stopping = _recordingStop;
+    if (stopping != null) {
+      try {
+        await stopping;
+      } catch (_) {
+        // A failed stop must still release the controller.
+      }
+    }
     if (controller != null) await controller.dispose();
+  }
+
+  Future<XFile> _stopRecording(CameraController controller) async {
+    final stopping = controller.stopVideoRecording();
+    _recordingStop = stopping;
+    try {
+      return await stopping;
+    } finally {
+      if (identical(_recordingStop, stopping)) _recordingStop = null;
+    }
   }
 
   Future<void> _switchCamera() async {
@@ -471,7 +492,13 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
     _finishing = true;
     _timer?.cancel();
     try {
-      final video = await controller.stopVideoRecording();
+      final video = await _stopRecording(controller);
+      if (!mounted) {
+        // No consumer remains and no crop has started. Reclaim this recording
+        // without starting another native encode for a disposed route.
+        await _abandonCropAfterResolve(video.path, video.path);
+        return;
+      }
       final seconds =
           (_elapsed.inMilliseconds < 1000
                   ? 1
@@ -491,8 +518,7 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
         // send the file it produced, so drop it instead of leaving an unowned
         // temporary next to the recording. A crop accepted a microsecond
         // before dispose is no longer the service's to reclaim, so the file
-        // this call resolved to is deleted here too; the recording itself is
-        // only kept when it is the resolved path.
+        // this call resolved to and the discarded recording are reclaimed here.
         unawaited(_abandonCropAfterResolve(path, video.path));
         return;
       }
@@ -514,16 +540,15 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
   }
 
   /// Surrenders this recorder's own export and, when a path already exists,
-  /// deletes it — scoped to the ticket [videoNoteUploadPath] handed out.
+  /// reclaims the discarded recording and output without touching another ticket.
   Future<void> _abandonCropAfterResolve(
     String path,
     String recordingPath,
   ) async {
-    final accepted = path != recordingPath;
-    if (accepted) {
+    for (final ownedPath in {path, recordingPath}) {
       try {
-        final cropped = File(path);
-        if (await cropped.exists()) await cropped.delete();
+        final file = File(ownedPath);
+        if (await file.exists()) await file.delete();
       } catch (_) {
         // The platform cache reclaims it anyway.
       }
@@ -544,7 +569,7 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
     _finishing = true;
     _timer?.cancel();
     try {
-      final video = await controller.stopVideoRecording();
+      final video = await _stopRecording(controller);
       try {
         final file = File(video.path);
         if (await file.exists()) await file.delete();
@@ -816,8 +841,7 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
       unawaited(ticket.abandon());
     }
     _timer?.cancel();
-    unawaited(_controller?.dispose());
-    _controller = null;
+    unawaited(_disposeController());
     super.dispose();
   }
 }

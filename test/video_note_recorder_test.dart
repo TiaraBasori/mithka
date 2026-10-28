@@ -65,8 +65,7 @@ void main() {
         );
         final recording = File('${directory.path}/recording.mov')
           ..writeAsBytesSync([1]);
-        final cropped = File('${directory.path}/cropped.mp4')
-          ..writeAsBytesSync([2]);
+        final cropped = File('${directory.path}/cropped.mp4');
         final other = File('${directory.path}/other.mp4')
           ..writeAsBytesSync([3]);
         final stopped = Completer<XFile>();
@@ -120,26 +119,91 @@ void main() {
         if (!cropStartedBeforeDisposal) {
           stopped.complete(XFile(recording.path));
           await tester.pump();
-          expect(cropsStarted, 1);
+          expect(cropsStarted, 0);
+        } else {
+          cropped.writeAsBytesSync([2]);
         }
         exported.complete(cropped.path);
         await tester.pump();
-        await tester.runAsync(() async {
-          for (
-            var attempt = 0;
-            attempt < 100 && cropped.existsSync();
-            attempt++
-          ) {
-            await Future<void>.delayed(const Duration(milliseconds: 5));
-          }
-        });
+        for (var attempt = 0; attempt < 100; attempt++) {
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 5)),
+          );
+          await tester.pump();
+          if (!recording.existsSync() && !cropped.existsSync()) break;
+        }
         expect(cropped.existsSync(), isFalse);
+        expect(recording.existsSync(), isFalse);
         expect(other.existsSync(), isTrue);
         otherTicket.accept(other.path);
         expect(tester.takeException(), isNull);
       },
     );
   }
+
+  testWidgets('a finished recorder hands its crop to the route consumer', (
+    tester,
+  ) async {
+    final previousPlatform = CameraPlatform.instance;
+    final platform = _FakeCameraPlatform();
+    CameraPlatform.instance = platform;
+    final directory = Directory.systemTemp.createTempSync('recorder-send-');
+    final recording = File('${directory.path}/recording.mov')
+      ..writeAsBytesSync([1]);
+    final cropped = File('${directory.path}/cropped.mp4')
+      ..writeAsBytesSync([2]);
+    platform.stoppedVideo = Future.value(XFile(recording.path));
+    const channel = MethodChannel('mithka/media_editor');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    var cropsStarted = 0;
+    messenger.setMockMethodCallHandler(channel, (call) async {
+      expect(call.method, 'cropVideoNote');
+      expect((call.arguments as Map)['path'], recording.path);
+      cropsStarted++;
+      return cropped.path;
+    });
+    addTearDown(() async {
+      messenger.setMockMethodCallHandler(channel, null);
+      CameraPlatform.instance = previousPlatform;
+      await VideoNoteCropService.abandonInFlight(timeout: Duration.zero);
+      if (directory.existsSync()) directory.deleteSync(recursive: true);
+    });
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      MaterialApp(navigatorKey: navigator, home: const SizedBox.shrink()),
+    );
+    VideoNoteCaptureResult? result;
+    unawaited(
+      navigator.currentState!
+          .push<VideoNoteCaptureResult>(
+            MaterialPageRoute(builder: (_) => const VideoNoteRecorderView()),
+          )
+          .then((value) => result = value),
+    );
+    await tester.pumpAndSettle();
+    final shutter = find.byKey(const ValueKey('videoNoteRecordButton'));
+    await tester.tap(shutter);
+    await tester.pump();
+    await tester.tap(shutter);
+    for (var attempt = 0; attempt < 100 && result == null; attempt++) {
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 5)),
+      );
+      await tester.pump(const Duration(milliseconds: 20));
+    }
+    await tester.pumpAndSettle();
+    expect(cropsStarted, 1);
+    expect(result?.path, cropped.path);
+    expect(result?.duration, 1);
+    expect(find.byType(VideoNoteRecorderView), findsNothing);
+    expect(recording.existsSync(), isFalse);
+    expect(cropped.existsSync(), isTrue);
+    await VideoNoteCropService.abandonInFlight(timeout: Duration.zero);
+    expect(cropped.existsSync(), isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 
   testWidgets('recorder chrome is a light film over the black preview', (
     tester,
