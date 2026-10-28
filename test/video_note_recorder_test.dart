@@ -213,8 +213,9 @@ void main() {
           await tester.pump(const Duration(milliseconds: 20));
           if (routeCompleted &&
               !recording.existsSync() &&
-              cropped.existsSync() == !cancelDuringCrop)
+              cropped.existsSync() == !cancelDuringCrop) {
             break;
+          }
         }
         await tester.pumpAndSettle();
         expect(routeCompleted, isTrue);
