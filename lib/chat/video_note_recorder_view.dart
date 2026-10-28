@@ -489,11 +489,12 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
   Future<void> _finishRecording() async {
     final controller = _controller;
     if (!_recording || _finishing || controller == null) return;
+    final route = ModalRoute.of(context);
     _finishing = true;
     _timer?.cancel();
     try {
       final video = await _stopRecording(controller);
-      if (!mounted) {
+      if (!mounted || route?.isCurrent != true) {
         // No consumer remains and no crop has started. Reclaim this recording
         // without starting another native encode for a disposed route.
         await _abandonCropAfterResolve(video.path, video.path);
@@ -513,7 +514,7 @@ class _VideoNoteRecorderViewState extends State<VideoNoteRecorderView>
         video.path,
         onStarted: (ticket) => _cropTicket = ticket,
       );
-      if (!mounted) {
+      if (!mounted || route?.isCurrent != true) {
         // The recorder was left while the crop was still running: nobody will
         // send the file it produced, so drop it instead of leaving an unowned
         // temporary next to the recording. A crop accepted a microsecond

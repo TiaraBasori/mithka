@@ -175,7 +175,10 @@ void main() {
         });
         final navigator = GlobalKey<NavigatorState>();
         await tester.pumpWidget(
-          MaterialApp(navigatorKey: navigator, home: const SizedBox.shrink()),
+          MaterialApp(
+            navigatorKey: navigator,
+            home: const SizedBox(key: ValueKey('recorder-home')),
+          ),
         );
         VideoNoteCaptureResult? result;
         var routeCompleted = false;
@@ -200,10 +203,12 @@ void main() {
         expect(cropsStarted, 1);
         if (cancelDuringCrop) {
           await tester.tap(_roundButton('Close camera'));
-          await tester.pumpAndSettle();
+          // Complete the native reply while the popped route is still mounted
+          // for its reverse animation. Mounted alone is not route ownership.
+          await tester.pump();
           expect(routeCompleted, isTrue);
           expect(result, isNull);
-          expect(find.byType(VideoNoteRecorderView), findsNothing);
+          expect(find.byType(VideoNoteRecorderView), findsOneWidget);
         }
         exported.complete(cropped.path);
         for (var attempt = 0; attempt < 100; attempt++) {
@@ -222,6 +227,7 @@ void main() {
         expect(result?.path, cancelDuringCrop ? isNull : cropped.path);
         if (!cancelDuringCrop) expect(result?.duration, 1);
         expect(find.byType(VideoNoteRecorderView), findsNothing);
+        expect(find.byKey(const ValueKey('recorder-home')), findsOneWidget);
         expect(recording.existsSync(), isFalse);
         expect(cropped.existsSync(), !cancelDuringCrop);
         await VideoNoteCropService.abandonInFlight(timeout: Duration.zero);
