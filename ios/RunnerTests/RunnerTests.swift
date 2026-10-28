@@ -1689,6 +1689,8 @@ class NativeTabBarTests: XCTestCase {
       host.controller.view.layoutIfNeeded()
       host.tabBar.layoutIfNeeded()
       let metrics = host.runtimeMetrics()
+      XCTAssertLessThan(host.tabBar.bounds.height, host.tabBar.bounds.width,
+                        "An embedded footer must stay horizontal in an adaptive window")
       let tree = publicTabHierarchy(host, rtl: rtl)
       print(tree)
       let attachment = XCTAttachment(string: tree)

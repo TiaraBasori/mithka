@@ -437,6 +437,18 @@ final class NativeTabBarHost: UIView, UITabBarControllerDelegate, UIContextMenuI
     backgroundColor = .clear
     isOpaque = false
     controller.delegate = self
+    // This controller renders one embedded horizontal tab row; Flutter owns
+    // the surrounding split/sidebar layout. Inheriting the window's regular
+    // width lets adaptive UIKit turn this footer into a full-height side bar.
+    if #available(iOS 17.0, *) {
+      controller.traitOverrides.horizontalSizeClass = .compact
+    }
+    if #available(iOS 18.0, *) {
+      controller.mode = .tabBar
+    }
+    if #available(iOS 27.0, *) {
+      controller.sidebar.preferredPlacement = .tabBar
+    }
     controller.loadViewIfNeeded()
     controller.view.backgroundColor = .clear
     addSubview(controller.view)
