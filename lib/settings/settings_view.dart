@@ -1210,9 +1210,7 @@ class _SettingsViewState extends State<SettingsView> {
     Widget row(String? version) => SettingsRow(
       key: ValueKey('settings-destination-${destination.id}'),
       title: destination.titleKey,
-      value: showOwner
-          ? destination.owner?.titleKey ?? ''
-          : version ?? '',
+      value: showOwner ? destination.owner?.titleKey ?? '' : version ?? '',
       leading: SettingsIconTile(
         icon: destination.icon,
         backgroundColor: destination.color,
@@ -1239,9 +1237,7 @@ class _SettingsViewState extends State<SettingsView> {
     BuildContext? context,
   }) {
     Navigator.of(context ?? this.context).push(
-      AppPageRoute<void>(
-        pageBuilder: (_, _, _) => destination.destination(),
-      ),
+      AppPageRoute<void>(pageBuilder: (_, _, _) => destination.destination()),
     );
   }
 
