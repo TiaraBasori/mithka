@@ -113,6 +113,7 @@ dependencies:
   google_fonts: ^8.2.1
   firebase_core: ^4.14.0
   firebase_analytics: ^12.5.0
+  firebase_messaging: ^16.7.0
   # 10.x requires win32 6, while compatible file_picker 10.x requires win32 5.
   package_info_plus: ^9.0.1
   sentry_flutter: ^9.28.0
