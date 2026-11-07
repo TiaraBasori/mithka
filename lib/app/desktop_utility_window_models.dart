@@ -303,7 +303,7 @@ class DesktopUtilityWindowArguments {
   }
 
   static String normalizeTitle(String? source) =>
-      normalizeDesktopWindowTitle(source, fallback: 'MithkaX');
+      normalizeDesktopWindowTitle(source, fallback: 'Mithka X');
 
   static String normalizeLocaleTag(String? source) =>
       normalizeDesktopWindowLocaleTag(source);

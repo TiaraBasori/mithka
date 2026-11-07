@@ -1,10 +1,10 @@
 # MithkaX
 
-![MithkaX](docs/images/mithka-github-banner.png)
+![Mithka X](docs/images/mithka-github-banner.png)
 
 English | [简体中文](README.zh-CN.md)
 
-MithkaX is an unofficial fork of [Mithka](https://github.com/iebb/mithka),
+Mithka X is an unofficial fork of [Mithka](https://github.com/iebb/mithka),
 the cross-platform Telegram client built with Flutter and
 [TDLib](https://core.telegram.org/tdlib). It keeps Mithka's compact,
 QQ-flavored interface and unlocks everything the upstream gates behind
@@ -14,7 +14,7 @@ payments and Telegram ToS acceptance:
 - No Telegram ToS gate — sign in and use the client as-is.
 - Own package id (`x.empty.mithka`) — installs side-by-side with the
   official Mithka, upstream builds, or other forks.
-- All branding switched to MithkaX.
+- All branding switched to Mithka X.
 
 ## Download
 

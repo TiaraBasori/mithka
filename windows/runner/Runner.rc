@@ -93,12 +93,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "ad.neko" "\0"
-            VALUE "FileDescription", "Mithka" "\0"
+            VALUE "FileDescription", "Mithka X" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "mithka" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 ad.neko. All rights reserved." "\0"
             VALUE "OriginalFilename", "mithka.exe" "\0"
-            VALUE "ProductName", "Mithka" "\0"
+            VALUE "ProductName", "Mithka X" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

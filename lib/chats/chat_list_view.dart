@@ -3554,7 +3554,7 @@ class _ChatListViewState extends State<ChatListView>
       DesktopChatWindowArguments(
         accountSlot: accounts.activeSlot,
         accountUserId: activeAccount?.userId,
-        accountName: activeAccount?.name ?? 'MithkaX',
+        accountName: activeAccount?.name ?? 'Mithka X',
         accountAvatarPath: activeAccount?.avatarPath,
         chatId: chat.id,
         title: chat.title,

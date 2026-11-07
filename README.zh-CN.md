@@ -1,10 +1,10 @@
 # MithkaX
 
-![MithkaX](docs/images/mithka-github-banner.png)
+![Mithka X](docs/images/mithka-github-banner.png)
 
 [English](README.md) | 简体中文
 
-MithkaX 是 [Mithka](https://github.com/iebb/mithka) 的非官方分支。Mithka
+Mithka X 是 [Mithka](https://github.com/iebb/mithka) 的非官方分支。Mithka
 是基于 Flutter 与 [TDLib](https://core.telegram.org/tdlib) 的跨平台
 Telegram 客户端。MithkaX 保留原版紧凑的 QQ 风格界面，同时解锁了上游
 放在付费和 Telegram ToS 门后面的全部功能：
@@ -13,7 +13,7 @@ Telegram 客户端。MithkaX 保留原版紧凑的 QQ 风格界面，同时解�
 - 没有 Telegram ToS 门 —— 装好即用。
 - 独立包名（`x.empty.mithka`）—— 可与官方 Mithka、上游构建或其他分支
   并排安装。
-- 品牌全部换成 MithkaX。
+- 品牌全部换成 Mithka X。
 
 ## 下载
 
@@ -34,7 +34,7 @@ master。这里的一切都源于上游 Mithka 主动锁住了这些路径 —�
 
 ## 免责声明
 
-MithkaX 是独立开发的非官方项目，与 Telegram 不存在任何隶属、认可或其他
+Mithka X 是独立开发的非官方项目，与 Telegram 不存在任何隶属、认可或其他
 关联。“Telegram”商标归其权利人所有。本分支不使用、不包含、不复制、不再分发
 QQ 的专有素材；“Tencent”“QQ”商标归腾讯所有。
 

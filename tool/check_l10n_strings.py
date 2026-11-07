@@ -59,6 +59,7 @@ ALLOWED_VISIBLE_VALUES = {
     "Mini App",
     "Mithka",
     "MithkaX",
+    "Mithka X",
     "OCR",
     "RTMP URL",
     "Smart Glocal",

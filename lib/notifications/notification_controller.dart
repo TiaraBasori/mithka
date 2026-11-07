@@ -184,7 +184,7 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
           defaultPresentBadge: false,
         ),
         windows: WindowsInitializationSettings(
-          appName: 'MithkaX',
+          appName: 'Mithka X',
           appUserModelId: 'Iebb.Mithka.Desktop',
           guid: '19a46b98-1781-4d9e-92ed-bd0576e48e2d',
         ),
@@ -413,7 +413,7 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
       final sender = showPreview
           ? await _senderLabel(raw, chat, clientId)
           : null;
-      final chatTitle = chat.str('title') ?? 'MithkaX';
+      final chatTitle = chat.str('title') ?? 'Mithka X';
       final isTargetAccountActive = clientId == _client.activeClientId;
       final accountName = isTargetAccountActive
           ? null
@@ -457,14 +457,14 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
       return;
     }
     if (surface != NotificationSurface.system) return;
-    final chatTitle = chat.str('title') ?? 'MithkaX';
+    final chatTitle = chat.str('title') ?? 'Mithka X';
     final isTargetAccountActive = clientId == _client.activeClientId;
     final accountName = isTargetAccountActive
         ? null
         : await _notificationAccountName(clientId);
     final visibleTitle = _notificationPreferences.namesOnLockScreen
         ? chatTitle
-        : 'MithkaX';
+        : 'Mithka X';
     final title = notificationTitleForAccount(
       title: visibleTitle,
       isActiveAccount: isTargetAccountActive,
@@ -1231,7 +1231,7 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
     _lastOpenedAt = now;
     ChatDeepLinkController.shared.openChat(
       chatId: target.chatId,
-      title: target.title ?? 'MithkaX',
+      title: target.title ?? 'Mithka X',
       messageId: target.messageId,
       accountUserId: target.accountUserId,
       accountSlot: target.accountSlot,

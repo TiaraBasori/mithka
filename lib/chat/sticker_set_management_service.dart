@@ -276,7 +276,7 @@ Map<String, dynamic> createStickerSetRequest({
   required OwnedStickerSetType type,
   required bool needsRepainting,
   required List<NewStickerDraft> stickers,
-  String source = 'MithkaX',
+  String source = 'Mithka X',
 }) => {
   '@type': 'createNewStickerSet',
   'user_id': userId,

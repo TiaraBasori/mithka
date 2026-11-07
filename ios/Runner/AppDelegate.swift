@@ -703,7 +703,7 @@ enum VideoNoteExportError: Error, Sendable {
           let utcDay = Int((Date().timeIntervalSince1970 / 86_400).rounded(.down))
           let count = dailyPenguinOrder.count
           let dailyPenguin = dailyPenguinOrder[((utcDay % count) + count) % count]
-          // MithkaX: every icon ships free; no supporter entitlement check.
+          // Mithka X: every icon ships free; no supporter entitlement check.
           _ = dailyPenguin
           _ = freeIconNames
           UIApplication.shared.setAlternateIconName(nativeName) { error in

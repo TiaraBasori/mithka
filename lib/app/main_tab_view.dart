@@ -1950,7 +1950,7 @@ class _MessageEmptyPane extends StatelessWidget {
               Image.asset('assets/penguin.png', width: 92, height: 92),
               const SizedBox(width: 18),
               Text(
-                'MithkaX',
+                'Mithka X',
                 style: TextStyle(
                   fontSize: 64,
                   fontWeight: FontWeight.w600,

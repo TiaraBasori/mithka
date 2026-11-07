@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=MithkaX
+Name=Mithka X
 Comment=Telegram client
 Exec=mithka %U
 Icon=x.empty.mithka

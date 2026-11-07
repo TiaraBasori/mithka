@@ -270,7 +270,7 @@ class _DesktopPrimaryWindowFrameState extends State<DesktopPrimaryWindowFrame> {
     final identity = widget.accountName?.trim().isNotEmpty == true
         ? widget.accountName!.trim()
         : activeAccount?.name.trim();
-    final label = identity == null || identity.isEmpty ? 'MithkaX' : identity;
+    final label = identity == null || identity.isEmpty ? 'Mithka X' : identity;
     final phone = widget.accountPhone?.trim().isNotEmpty == true
         ? widget.accountPhone!.trim()
         : activeAccount?.phone.trim();
@@ -623,7 +623,7 @@ class _MacosTitleBarAvatar extends StatelessWidget {
 
   Widget _fallback() {
     final trimmedName = name.trim();
-    if (trimmedName.isEmpty || trimmedName == 'MithkaX') {
+    if (trimmedName.isEmpty || trimmedName == 'Mithka X') {
       // The icon is 1024x1024: 4 MB of RGBA for a 24 pt slot without a decode
       // hint. Width only, so the square aspect survives.
       return Image.asset(

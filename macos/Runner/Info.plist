@@ -45,11 +45,11 @@
 	<key>NSMainNibFile</key>
 	<string>MainMenu</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>MithkaX uses the microphone to record voice messages you choose to send.</string>
+	<string>Mithka X uses the microphone to record voice messages you choose to send.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>MithkaX needs permission to save images and videos to Photos.</string>
+	<string>Mithka X needs permission to save images and videos to Photos.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>MithkaX needs photo access to send and save images and videos.</string>
+	<string>Mithka X needs photo access to send and save images and videos.</string>
 	<key>NSUserActivityTypes</key>
 	<array>
 		<string>x.empty.mithka.chat</string>
