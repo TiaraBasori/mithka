@@ -2,7 +2,7 @@ name: MithkaX Android Release
 
 on:
   push:
-    branches: [mithkax]
+    branches: [master]
   workflow_dispatch:
 
 permissions:
