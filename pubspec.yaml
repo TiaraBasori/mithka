@@ -111,9 +111,9 @@ dependencies:
       path: packages/f_videoplayer_pip
   flutter_local_notifications: ^22.2.0
   google_fonts: ^8.2.1
-  firebase_core: ^4.14.0
-  firebase_analytics: ^12.5.0
-  firebase_messaging: ^16.7.0
+  firebase_core: ^4.15.1
+  firebase_analytics: ^12.6.1
+  firebase_messaging: ^16.7.1
   # 10.x requires win32 6, while compatible file_picker 10.x requires win32 5.
   package_info_plus: ^9.0.1
   sentry_flutter: ^9.28.0
