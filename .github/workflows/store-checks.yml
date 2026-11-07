@@ -45,6 +45,8 @@ on:
       - 'test/scripts/store_source_test.py'
       - 'test/scripts/quality_release_source_test.py'
       - 'test/scripts/release_snapshot_workflow_test.py'
+      - 'scripts/app_store_release.rb'
+      - 'test/scripts/app_store_release_test.rb'
 
 permissions:
   contents: read
