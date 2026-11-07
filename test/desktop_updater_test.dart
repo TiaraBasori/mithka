@@ -129,12 +129,12 @@ void main() {
 
     test('accepts an archive holding one Mithka build', () {
       final directory = unpacked((root) {
-        Directory('${root.path}/Mithka').createSync();
+        Directory('${root.path}/Mithka X').createSync();
         File(
-          '${root.path}/Mithka/${DesktopUpdater.launcherFileName}',
+          '${root.path}/Mithka X/${DesktopUpdater.launcherFileName}',
         ).writeAsStringSync('');
       });
-      expect(DesktopUpdater.packageRoot(directory).path, endsWith('Mithka'));
+      expect(DesktopUpdater.packageRoot(directory).path, endsWith('Mithka X'));
       directory.deleteSync(recursive: true);
     });
 
