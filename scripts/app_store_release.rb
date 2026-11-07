@@ -53,8 +53,8 @@ module MithkaAppStoreRelease
   # so an open iOS review submission may already hold Mithka Pro. These are
   # the only non-version items a release may submit with its version.
   SUBSCRIPTION_PRODUCT_IDS = %w[
-    ad.neko.mithka.pro.monthly
-    ad.neko.mithka.pro.yearly
+    x.empty.mithka.pro.monthly
+    x.empty.mithka.pro.yearly
   ].freeze
   SUBSCRIPTION_GROUP_NAME = "Mithka Pro"
   SUBSCRIPTION_RELATIONSHIPS = %w[subscriptionVersion subscriptionGroupVersion].freeze
