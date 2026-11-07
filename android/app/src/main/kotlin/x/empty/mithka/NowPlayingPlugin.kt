@@ -1,4 +1,4 @@
-package ad.neko.mithka
+package x.empty.mithka
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -296,11 +296,11 @@ class NowPlayingPlugin(
                 PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
                 PlaybackStateCompat.ACTION_SEEK_TO or
                 PlaybackStateCompat.ACTION_STOP
-        internal const val ACTION_PLAY = "ad.neko.mithka.music.PLAY"
-        internal const val ACTION_PAUSE = "ad.neko.mithka.music.PAUSE"
-        internal const val ACTION_NEXT = "ad.neko.mithka.music.NEXT"
-        internal const val ACTION_PREVIOUS = "ad.neko.mithka.music.PREVIOUS"
-        internal const val ACTION_STOP = "ad.neko.mithka.music.STOP"
+        internal const val ACTION_PLAY = "x.empty.mithka.music.PLAY"
+        internal const val ACTION_PAUSE = "x.empty.mithka.music.PAUSE"
+        internal const val ACTION_NEXT = "x.empty.mithka.music.NEXT"
+        internal const val ACTION_PREVIOUS = "x.empty.mithka.music.PREVIOUS"
+        internal const val ACTION_STOP = "x.empty.mithka.music.STOP"
 
         @Volatile
         internal var active: NowPlayingPlugin? = null

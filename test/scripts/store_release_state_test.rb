@@ -16,7 +16,7 @@ class StoreReleaseStateTest < Minitest::Test
 
   def test_state_export_excludes_review_and_credential_fields
     client = Client.new(
-      "/apps/6783830742" => { "data" => { "attributes" => { "bundleId" => "ad.neko.mithka" } } },
+      "/apps/6783830742" => { "data" => { "attributes" => { "bundleId" => "x.empty.mithka" } } },
       "/apps/6783830742/appStoreVersions" => { "data" => [{ "id" => "listing", "attributes" => { "versionString" => "1.8.8", "platform" => "IOS", "appStoreState" => "WAITING_FOR_REVIEW", "privateValue" => "DO_NOT_EXPORT" }, "relationships" => { "build" => { "data" => { "id" => "build" } } } }] },
       "/apps/6783830742/preReleaseVersions" => { "data" => [{ "attributes" => { "version" => "1.8.8", "platform" => "IOS", "privateValue" => "DO_NOT_EXPORT" } }] }
     )

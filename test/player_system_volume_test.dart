@@ -85,7 +85,7 @@ void main() {
 
   test('Android bridge uses STREAM_MUSIC and its existing permission', () {
     final activity = File(
-      'android/app/src/main/kotlin/ad/neko/mithka/MainActivity.kt',
+      'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
     ).readAsStringSync();
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',

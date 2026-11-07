@@ -53,7 +53,7 @@ void main() {
       'ios/Runner.xcodeproj/project.pbxproj',
     ).readAsStringSync();
 
-    const bundleSetting = 'PRODUCT_BUNDLE_IDENTIFIER = ad.neko.mithka';
+    const bundleSetting = 'PRODUCT_BUNDLE_IDENTIFIER = x.empty.mithka';
     expect(appInfo, contains(bundleSetting));
     expect(
       RegExp('${RegExp.escape(bundleSetting)};').allMatches(macProject),

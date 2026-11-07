@@ -228,7 +228,7 @@ void main() {
         kernelVersion: 'PRIVATE',
       );
       final app = SentryApp.fromJson({
-        'app_identifier': 'ad.neko.mithka',
+        'app_identifier': 'x.empty.mithka',
         'app_version': '1.5.3',
         'app_memory': 123456,
         'device_app_hash': 'PRIVATE',

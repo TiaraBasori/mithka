@@ -180,7 +180,7 @@ enum VideoNoteExportError: Error, Sendable {
   }
 
   private static func sentryReleaseName(info: [String: Any]) -> String {
-    let bundleId = info["CFBundleIdentifier"] as? String ?? "ad.neko.mithka"
+    let bundleId = info["CFBundleIdentifier"] as? String ?? "x.empty.mithka"
     let version = info["CFBundleShortVersionString"] as? String ?? "0"
     let build = info["CFBundleVersion"] as? String ?? "0"
     return "\(bundleId)@\(version)+\(build)"
@@ -703,20 +703,9 @@ enum VideoNoteExportError: Error, Sendable {
           let utcDay = Int((Date().timeIntervalSince1970 / 86_400).rounded(.down))
           let count = dailyPenguinOrder.count
           let dailyPenguin = dailyPenguinOrder[((utcDay % count) + count) % count]
-          // Gate explicit paid selections only. Reading or retaining the
-          // currently installed icon never requires an active subscription.
-          if !freeIconNames.contains(requested) && requested != dailyPenguin {
-            guard await MithkaProBridge.hasActiveSupporterEntitlement() else {
-              result(
-                FlutterError(
-                  code: "supporter_required",
-                  message: "An active Mithka Pro subscription is required to select this icon",
-                  details: nil
-                )
-              )
-              return
-            }
-          }
+          // MithkaX: every icon ships free; no supporter entitlement check.
+          _ = dailyPenguin
+          _ = freeIconNames
           UIApplication.shared.setAlternateIconName(nativeName) { error in
             if let error {
               result(
@@ -1493,7 +1482,7 @@ private enum StickerAlphaMovError: LocalizedError {
 /// a matching background.
 private enum StickerAlphaMovTranscoder {
   private static let queue = DispatchQueue(
-    label: "ad.neko.mithka.sticker-export",
+    label: "x.empty.mithka.sticker-export",
     qos: .userInitiated
   )
   private static let defaultFrameDuration = 1.0 / 30.0
@@ -1719,7 +1708,7 @@ private struct AnimatedAvatarCropRegion: Sendable {
 
 private enum AnimatedAvatarTranscoder {
   private static let queue = DispatchQueue(
-    label: "ad.neko.mithka.animated-avatar",
+    label: "x.empty.mithka.animated-avatar",
     qos: .userInitiated
   )
   private static let maximumDuration = 10.0
@@ -2289,7 +2278,7 @@ private final class AccountSessionBackupKeychain {
   private let localService: String
 
   init() {
-    let bundleId = Bundle.main.bundleIdentifier ?? "ad.neko.mithka"
+    let bundleId = Bundle.main.bundleIdentifier ?? "x.empty.mithka"
     self.syncedService = "\(bundleId).sessionsbackup"
     self.localService = "\(bundleId).sessionsbackup.local"
   }

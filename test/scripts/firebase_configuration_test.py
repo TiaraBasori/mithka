@@ -26,7 +26,7 @@ class FirebaseReleaseConfigurationTest(unittest.TestCase):
             "projectId": "mithka",
             "apiKey": "public-client-key-for-test",
             "storageBucket": "mithka.firebasestorage.app",
-            "iosBundleId": "ad.neko.mithka",
+            "iosBundleId": "x.empty.mithka",
         }
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
@@ -47,7 +47,7 @@ class FirebaseReleaseConfigurationTest(unittest.TestCase):
                 },
                 {
                     "client_info": {
-                        "android_client_info": {"package_name": "ad.neko.mithka"},
+                        "android_client_info": {"package_name": "x.empty.mithka"},
                         "mobilesdk_app_id": self.options["appId"],
                     },
                     "api_key": [{"current_key": self.options["apiKey"]}],

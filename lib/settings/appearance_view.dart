@@ -37,7 +37,6 @@ import '../components/toast.dart';
 import '../components/ui_components.dart';
 import '../platform/adaptive_platform.dart';
 import '../platform/system_ui.dart';
-import '../pro/mithka_pro_view.dart';
 import '../tdlib/td_models.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -375,34 +374,14 @@ class _AppIconSettingsViewState extends State<AppIconSettingsView>
     // including an expired paid choice. Other paid choices still use the
     // controller's unchanged entitlement-first verification below.
     if (controller.isCurrent(icon)) return;
-    // Today's penguin applies directly. If the UTC day rolls over before it
-    // is applied, the old icon stays and the change fails visibly instead of
-    // turning into a purchase prompt.
-    final freeToday = controller.dailyPenguin == icon;
     setState(() {
       _selecting = true;
       _changeFailed = false;
     });
     try {
-      var applied = await controller.setVariant(icon);
+      final applied = await controller.setVariant(icon);
       if (!mounted) return;
-      if (!applied &&
-          !freeToday &&
-          icon.requiresSupporter &&
-          !controller.activeSupporter) {
-        final unlocked = await Navigator.of(context).push<bool>(
-          AppPageRoute<bool>(
-            pageBuilder: (_, _, _) => MithkaProView(
-              service: controller.proService,
-              returnOnEntitlement: true,
-            ),
-          ),
-        );
-        if (!mounted || unlocked != true) return;
-        // The route result is not authority: recheck native state at selection.
-        applied = await controller.setVariant(icon);
-      }
-      if (!applied && mounted) {
+      if (!applied) {
         setState(() => _changeFailed = true);
         showToast(context, AppStringKeys.appIconChangeFailed);
       }

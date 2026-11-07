@@ -10,8 +10,8 @@ private enum MithkaPurchaseReportingPolicy {
 
 @MainActor
 final class MithkaProBridge {
-  static let monthlyProductID = "ad.neko.mithka.pro.monthly"
-  static let yearlyProductID = "ad.neko.mithka.pro.yearly"
+  static let monthlyProductID = "x.empty.mithka.pro.monthly"
+  static let yearlyProductID = "x.empty.mithka.pro.yearly"
 
   private static let productIDs = [monthlyProductID, yearlyProductID]
   private static let productIDSet = Set(productIDs)

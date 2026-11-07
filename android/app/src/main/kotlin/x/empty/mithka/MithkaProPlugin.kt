@@ -1,4 +1,4 @@
-package ad.neko.mithka
+package x.empty.mithka
 
 import android.app.Activity
 import android.content.ActivityNotFoundException
@@ -623,10 +623,10 @@ class MithkaProPlugin(
 
     companion object {
         private const val CHANNEL = "mithka/pro"
-        private const val PRODUCT_MONTHLY = "ad.neko.mithka.pro.monthly"
-        private const val PRODUCT_YEARLY = "ad.neko.mithka.pro.yearly"
+        private const val PRODUCT_MONTHLY = "x.empty.mithka.pro.monthly"
+        private const val PRODUCT_YEARLY = "x.empty.mithka.pro.yearly"
         private val PRODUCT_IDS = listOf(PRODUCT_MONTHLY, PRODUCT_YEARLY)
-        private const val APPLICATION_PACKAGE = "ad.neko.mithka"
+        private const val APPLICATION_PACKAGE = "x.empty.mithka"
         private const val SUBSCRIPTIONS_URL =
             "https://play.google.com/store/account/subscriptions"
         private const val PLAY_STORE_PACKAGE = "com.android.vending"

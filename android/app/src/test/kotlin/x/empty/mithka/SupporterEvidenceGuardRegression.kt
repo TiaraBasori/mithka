@@ -1,4 +1,4 @@
-package ad.neko.mithka
+package x.empty.mithka
 
 /**
  * Dependency-free regression entry point: compile with the pure

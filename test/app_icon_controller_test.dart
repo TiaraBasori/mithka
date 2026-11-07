@@ -82,7 +82,7 @@ void main() {
     };
     const densities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'];
     final activity = File(
-      'android/app/src/main/kotlin/ad/neko/mithka/MainActivity.kt',
+      'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
     ).readAsStringSync();
     final manifest = File(
       'android/app/src/main/AndroidManifest.xml',

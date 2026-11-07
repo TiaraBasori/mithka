@@ -9,7 +9,7 @@ import 'package:mithka/security/local_app_lock_controller.dart';
 void main() {
   test('Android registers the app-lock platform plugins', () {
     final activity = File(
-      'android/app/src/main/kotlin/ad/neko/mithka/MainActivity.kt',
+      'android/app/src/main/kotlin/x/empty/mithka/MainActivity.kt',
     ).readAsStringSync();
 
     expect(activity, contains('registerPlugins(flutterEngine)'));

@@ -1,4 +1,4 @@
-package ad.neko.mithka
+package x.empty.mithka
 
 import android.content.Context
 import io.flutter.plugin.common.StandardMessageCodec

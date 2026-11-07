@@ -1,4 +1,4 @@
-package ad.neko.mithka
+package x.empty.mithka
 
 import android.content.Intent
 import android.net.Uri

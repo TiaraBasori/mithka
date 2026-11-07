@@ -12,7 +12,7 @@ namespace {
 
 constexpr const wchar_t kPrimaryWindowTitle[] = L"mithka";
 constexpr const wchar_t kPrimaryInstanceMutex[] =
-    L"Local\\ad.neko.mithka.primary-window";
+    L"Local\\x.empty.mithka.primary-window";
 
 bool ActivateExistingPrimaryWindow() {
   // The mutex is created before Flutter initializes, so a near-simultaneous
@@ -83,7 +83,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
         auto child = std::make_shared<FlutterWindow>(child_project);
         const Win32Window::Point child_origin(40, 40);
         const Win32Window::Size child_size(880, 520);
-        if (!child->Create(L"Mithka Video", child_origin, child_size)) {
+        if (!child->Create(L"MithkaX Video", child_origin, child_size)) {
           std::cerr << "Failed to create a video window" << std::endl;
         }
         child->SetQuitOnClose(false);

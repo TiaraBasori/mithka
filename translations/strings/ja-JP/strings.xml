@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Mithka's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- MithkaX's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutCheckForUpdates">アップデートを確認</string>
     <string name="aboutCheckingForUpdates">確認中…</string>
@@ -30,7 +30,7 @@
     <string name="accountBackupEnabled">アカウントをバックアップ</string>
     <string name="accountBackupFreshSessionCreate">新しいセッションを作成</string>
     <string name="accountBackupFreshSessionInteractive">新しいセッションの作成を完了するには、ログイン手順を続けてください。</string>
-    <string name="accountBackupFreshSessionMessage">復元したセッションは利用できます。同じ Telegram セッションを複数の端末で使うことを避けるため、Mithka はこのセッションから QR ログインで新しいセッションを作成できます。Telegram の2段階認証パスワードが必要になる場合があります。</string>
+    <string name="accountBackupFreshSessionMessage">復元したセッションは利用できます。同じ Telegram セッションを複数の端末で使うことを避けるため、MithkaX はこのセッションから QR ログインで新しいセッションを作成できます。Telegram の2段階認証パスワードが必要になる場合があります。</string>
     <string name="accountBackupFreshSessionReady">スロット {value1} に新しいセッションを作成しました</string>
     <string name="accountBackupFreshSessionTitle">新しいセッションを作成しますか？</string>
     <string name="accountBackupFreshSessionUseRestored">復元したセッションを使う</string>
@@ -391,17 +391,17 @@
     <string name="appLocaleUkrainian">Українська</string>
     <string name="appLocaleVietnamese">Tiếng Việt</string>
     <string name="appLockAutoLock">自動ロック</string>
-    <string name="appLockAutoLockDescription">しばらく Mithka を離れるとパスコードを要求します。</string>
+    <string name="appLockAutoLockDescription">しばらく MithkaX を離れるとパスコードを要求します。</string>
     <string name="appLockAutoLockDisabled">無効</string>
     <string name="appLockAutoLockFiveHours">5 時間後</string>
     <string name="appLockAutoLockFiveMinutes">5 分後</string>
     <string name="appLockAutoLockOneHour">1 時間後</string>
     <string name="appLockAutoLockOneMinute">1 分後</string>
-    <string name="appLockBiometricDescription">アプリロックの表示後、{value1}で Mithka をロック解除できます。</string>
+    <string name="appLockBiometricDescription">アプリロックの表示後、{value1}で MithkaX をロック解除できます。</string>
     <string name="appLockBiometricEnableReason">{value1}を確認して生体認証ロック解除を有効にします。</string>
     <string name="appLockBiometricFailed">生体認証に失敗しました。もう一度お試しください。</string>
     <string name="appLockBiometricLockedOut">生体認証は一時的にロックされています。PIN またはジェスチャーを使用してください。</string>
-    <string name="appLockBiometricReason">Mithka のロックを解除するために認証してください。</string>
+    <string name="appLockBiometricReason">MithkaX のロックを解除するために認証してください。</string>
     <string name="appLockBiometricUnavailable">このデバイスでは生体認証を利用できません。</string>
     <string name="appLockBiometricUnlock">生体認証でロック解除</string>
     <string name="appLockBiometrics">生体認証</string>
@@ -412,7 +412,7 @@
     <string name="appLockConfirmPin">確認のため、もう一度 PIN を入力してください</string>
     <string name="appLockCreateGesture">4 個以上の点をつないでジェスチャーを作成</string>
     <string name="appLockCreatePin">4 桁の PIN を作成</string>
-    <string name="appLockDescription">Mithka の起動時または選択した離脱時間の経過後に PIN またはジェスチャーを要求します。</string>
+    <string name="appLockDescription">MithkaX の起動時または選択した離脱時間の経過後に PIN またはジェスチャーを要求します。</string>
     <string name="appLockDisable">パスコードをオフにする</string>
     <string name="appLockDrawGesture">ロック解除ジェスチャーを描いてください</string>
     <string name="appLockEnabled">アプリロックを有効にする</string>
@@ -428,7 +428,7 @@
     <string name="appLockGestureGrid">3×3 ジェスチャーロック解除グリッド</string>
     <string name="appLockGestureMismatch">ジェスチャーが一致しません。もう一度お試しください。</string>
     <string name="appLockGestureTooShort">4 個以上の点をつないでください。</string>
-    <string name="appLockLockNow">Mithka をロック</string>
+    <string name="appLockLockNow">MithkaX をロック</string>
     <string name="appLockPin">暗証番号</string>
     <string name="appLockPinDescription">4 桁の数字コード</string>
     <string name="appLockPinMismatch">PIN が一致しません。もう一度お試しください。</string>
@@ -437,7 +437,7 @@
     <string name="appLockTitle">アプリロック</string>
     <string name="appLockTryBiometric">{value1}を使用</string>
     <string name="appLockUnlockMethod">ロック解除方法</string>
-    <string name="appLockUnlockTitle">Mithka のロックを解除</string>
+    <string name="appLockUnlockTitle">MithkaX のロックを解除</string>
     <string name="appLockUseBiometric">{value1}でロック解除</string>
     <string name="appLockVerifyTitle">アプリロックを確認</string>
     <string name="appLockWrongGesture">ジェスチャーが正しくありません。</string>
@@ -514,7 +514,7 @@
     <string name="appearancePreviewChatTextSample">チャットの文字はこのように表示されます。</string>
     <string name="appearancePreviewGroupTitle">デザインサークル</string>
     <string name="appearancePreviewMessageSample">Jennie: チャットでね</string>
-    <string name="appearancePreviewUsersSample">Mithka ユーザー</string>
+    <string name="appearancePreviewUsersSample">MithkaX ユーザー</string>
     <string name="appearanceRefreshCacheList">キャッシュ一覧を更新</string>
     <string name="appearanceRoundGroupAvatars">グループチャットのアイコンを丸く表示</string>
     <string name="appearanceSearchFont">フォントを検索</string>
@@ -1588,7 +1588,7 @@
     <string name="feedbackReportSent">レポートを送信しました · ID {value1}</string>
     <string name="feedbackReportTitle">問題を報告</string>
         <string name="fileDetailApkInstallGranted">インストールが許可されました。もう一度ファイルを開くとインストールできます。</string>
-    <string name="fileDetailApkInstallMessage">Android で APK ファイルをインストールするには、先に Mithka への許可が必要です。システム設定で許可すると、インストーラーが開きます。</string>
+    <string name="fileDetailApkInstallMessage">Android で APK ファイルをインストールするには、先に MithkaX への許可が必要です。システム設定で許可すると、インストーラーが開きます。</string>
     <string name="fileDetailApkInstallOpenSettings">設定を開く</string>
     <string name="fileDetailApkInstallTitle">アプリのインストールを許可しますか？</string>
     <string name="fileDetailDownloadProgress">ファイルをダウンロード中…（{value1}/{value2}）</string>
@@ -1978,7 +1978,7 @@
     <string name="keywordBlockerRulesAdded">{value1} 件のルールを追加しました</string>
     <string name="keywordBlockerRulesUpToDate">ルールは最新です</string>
     <string name="keywordBlockerTitle">キーワードブロック</string>
-    <string name="languageMithkaLanguage">Mithka の言語</string>
+    <string name="languageMithkaLanguage">MithkaX の言語</string>
     <string name="languageTitle">言語</string>
     <string name="linkBrowserAddress">ウェブサイトのアドレス</string>
     <string name="linkBrowserAskEveryTime">毎回確認</string>
@@ -1987,8 +1987,8 @@
     <string name="linkBrowserDefaultBrowser">デフォルトのブラウザ</string>
     <string name="linkBrowserDefaultBrowserDescription">端末のデフォルトのブラウザでリンクを開きます。</string>
     <string name="linkBrowserForward">進む</string>
-    <string name="linkBrowserMithkaBrowser">Mithkaブラウザ</string>
-    <string name="linkBrowserMithkaBrowserDescription">Mithkaを離れずにリンクを開きます。</string>
+    <string name="linkBrowserMithkaBrowser">MithkaXブラウザ</string>
+    <string name="linkBrowserMithkaBrowserDescription">MithkaXを離れずにリンクを開きます。</string>
     <string name="linkBrowserOpenInDefaultBrowser">デフォルトのブラウザで開く</string>
     <string name="linkBrowserOpenLinkWith">リンクを開くブラウザ</string>
     <string name="linkBrowserOpenLinksIn">リンクを開く場所</string>
@@ -2044,7 +2044,7 @@
     <string name="linkHandlerOperationPremiumGiftPurchase">Premium ギフトの購入</string>
     <string name="linkHandlerOperationRestorePurchases">App Store の購入の復元</string>
     <string name="linkHandlerOperationStarsPurchase">Telegram Stars の購入</string>
-    <string name="linkHandlerPassportSubtitle">要求されている本人確認データを確認してください。完全な認証フローを経ずに Mithka が Passport の情報を共有することはありません。</string>
+    <string name="linkHandlerPassportSubtitle">要求されている本人確認データを確認してください。完全な認証フローを経ずに MithkaX が Passport の情報を共有することはありません。</string>
     <string name="linkHandlerPremiumFeaturesSubtitle">このアカウントで利用できる機能</string>
     <string name="linkHandlerPremiumGift">プレミアムギフト</string>
     <string name="linkHandlerPremiumGiftPickerSubtitleValue1">{value1} 用のサブスクリプションを選んでください。購入は App Store で完了し、この Telegram アカウントに割り当てられます。</string>
@@ -2077,7 +2077,7 @@
     <string name="botApiPrivacyWarning">グループプライバシーが有効です。このボットが管理者でない場合、通常のグループメッセージを受信できないことがあります。</string>
     <string name="botApiBotToBotWarning">ボット間通信モードを確認できません。@BotFather で無効になっている場合、他のボットからのメッセージは表示されません。</string>
     <string name="botApiWarningDismiss">警告を閉じる</string>
-    <string name="loginBotAccountDescription">Bot は過去のメッセージを取得できません。ログイン後に受信した新しいメッセージは Mithka がこの端末に保存します。</string>
+    <string name="loginBotAccountDescription">Bot は過去のメッセージを取得できません。ログイン後に受信した新しいメッセージは MithkaX がこの端末に保存します。</string>
     <string name="loginBotAccountTitle">Bot としてログイン</string>
     <string name="loginBotApiEndpoint">Bot API エンドポイント</string>
     <string name="loginBotApiEndpointHint">サーバーのルートのみ。既定値: https://api.telegram.org</string>
@@ -2127,7 +2127,7 @@
     <string name="loginTelegramPremiumIsRequired">テレグラムプレミアムが必要です</string>
     <string name="loginTelegramRequiresAnEmailAddressToFinishSigning">Telegram では、サインインを完了するには電子メール アドレスが必要です。</string>
     <string name="loginTermsAccept">同意して続ける</string>
-    <string name="loginTermsBody">このアプリを使用するには、Telegram の利用規約に従う必要があります。Mithka は既存の Telegram アカウントにログインし、Telegram のネットワーク規則に従います。</string>
+    <string name="loginTermsBody">このアプリを使用するには、Telegram の利用規約に従う必要があります。MithkaX は既存の Telegram アカウントにログインし、Telegram のネットワーク規則に従います。</string>
     <string name="loginTermsButton">利用規約</string>
     <string name="loginTermsOpenTelegram">Telegram の利用規約を開く</string>
     <string name="loginTermsTitle">Telegram 利用規約</string>
@@ -2339,8 +2339,8 @@
     <string name="mithkaProRestore">購入を復元</string>
     <string name="mithkaProRestoreFailed">購入を復元できませんでした。もう一度お試しください。</string>
     <string name="mithkaProStoreUnavailable">ストアを利用できません</string>
-    <string name="mithkaProSupportDevelopment">Mithka を支援</string>
-    <string name="mithkaProSupportDevelopmentDescription">Mithka を支援して、12 種類の追加ペンギンアイコンを使おう。</string>
+    <string name="mithkaProSupportDevelopment">MithkaX を支援</string>
+    <string name="mithkaProSupportDevelopmentDescription">MithkaX を支援して、12 種類の追加ペンギンアイコンを使おう。</string>
     <string name="mithkaProSupportOnly">お気に入りのペンギンを選びましょう。</string>
     <string name="mithkaProTerms">利用規約</string>
     <string name="mithkaProTitle">開発を支援</string>
@@ -2456,7 +2456,7 @@
     <string name="notificationAllAccountsDescription">ログイン中のすべてのアカウントから通知を受け取ります。</string>
     <string name="notificationAllAccountsDescriptionOff">すべてのアカウントから通知を受け取るには、これをオンにしてください。</string>
     <string name="notificationAllStories">すべてのストーリー</string>
-    <string name="notificationChannelMessagesDescription">Mithka の受信メッセージ</string>
+    <string name="notificationChannelMessagesDescription">MithkaX の受信メッセージ</string>
     <string name="notificationChannelMessagesName">メッセージ</string>
     <string name="notificationChannels">チャンネル</string>
     <string name="notificationCurrentAccount">現在のアカウント</string>
@@ -2523,7 +2523,7 @@
     <string name="passkeysErrorAlreadySignedIn">その Telegram アカウントはこの端末ですでにログイン済みです。</string>
     <string name="passkeysErrorGeneric">パスキーの操作を完了できませんでした。</string>
     <string name="passkeysErrorNoCredential">一致する Telegram パスキーが見つかりません。</string>
-    <string name="passkeysErrorNotAllowed">Android により、この端末での Mithka の Telegram パスキー使用が許可されませんでした。</string>
+    <string name="passkeysErrorNotAllowed">Android により、この端末での MithkaX の Telegram パスキー使用が許可されませんでした。</string>
     <string name="passkeysErrorUnavailable">この端末ではパスキーを利用できません。</string>
     <string name="passkeysLastUsedOn">最終使用: {value1}</string>
     <string name="passkeysRemoved">パスキーを削除しました</string>
@@ -3011,14 +3011,14 @@
     <string name="sensitiveContentUnblockFailed">18+ コンテンツを有効にできません：{value1}</string>
     <string name="sensitiveContentUnblockMessage">Telegram アカウント全体の 18+ コンテンツ設定を有効にします。後でプライバシーとセキュリティからオフにできます。</string>
     <string name="sensitiveContentUnblockTitle">18+ コンテンツを表示しますか？</string>
-    <string name="settingsAboutMithka">Mithka について</string>
+    <string name="settingsAboutMithka">MithkaX について</string>
     <string name="settingsChatBehavior">チャットの動作</string>
     <string name="settingsChooseSection">左側から項目を選択してください</string>
     <string name="settingsContentFilters">コンテンツフィルター</string>
     <string name="settingsDataAndStorage">データとストレージ</string>
     <string name="settingsLogOut">ログアウト</string>
     <string name="settingsNoResults">一致する設定がありません</string>
-    <string name="settingsScopeMithka">Mithka</string>
+    <string name="settingsScopeMithka">MithkaX</string>
     <string name="settingsScopeTelegram">Telegram アカウント</string>
     <string name="settingsSearchHint">設定を検索</string>
     <string name="sharedContactAdd">Add to Contacts</string>
@@ -3195,7 +3195,7 @@
     <string name="storageDashboardDatabase">データベース</string>
     <string name="storageDashboardLanguagePacks">言語パック</string>
     <string name="storageDashboardLogs">ログ</string>
-    <string name="storageDashboardManagedDescription">Mithka が管理する Telegram のキャッシュとローカルデータベースです。</string>
+    <string name="storageDashboardManagedDescription">MithkaX が管理する Telegram のキャッシュとローカルデータベースです。</string>
     <string name="storageDashboardManagedStorage">管理対象ストレージ</string>
     <string name="storageDashboardOtherData">その他の管理データ</string>
     <string name="storageDashboardOtherDescription">安定した動作のため、Telegram データベース、言語パック、ログは保持されます。</string>
@@ -3446,7 +3446,7 @@
     <string name="supporterPlansRetry">もう一度試す</string>
     <string name="supporterPlansUnavailable">現在プランを利用できません。しばらくしてからお試しください。</string>
     <string name="supporterPurchasePending">購入は保留中です。確認されるとサポーターが有効になります。</string>
-    <string name="supporterPurchaseSuccess">Mithka のご支援ありがとうございます。</string>
+    <string name="supporterPurchaseSuccess">MithkaX のご支援ありがとうございます。</string>
     <string name="supporterPurchasing">購入を完了中…</string>
     <string name="supporterRestoreSuccess">サポーターを復元しました。</string>
     <string name="supporterRestoring">購入を復元中…</string>
@@ -3742,11 +3742,11 @@
     <string name="translationSystem">システム翻訳</string>
     <string name="translationTelegram">Telegram 翻訳</string>
     <string name="updateAction">更新</string>
-    <string name="updateDownloadingTitle">Mithka を更新中</string>
+    <string name="updateDownloadingTitle">MithkaX を更新中</string>
     <string name="updateInstallAction">インストールして再起動</string>
     <string name="updateInstallPrompt">現在のバージョンは {value1}、最新は {value2} です。今すぐ更新をインストールしますか？</string>
     <string name="updateLater">後で</string>
-    <string name="updateManagedInstall">この Mithka はシステムによって管理されています。インストールしたときと同じ方法で更新してください。</string>
+    <string name="updateManagedInstall">この MithkaX はシステムによって管理されています。インストールしたときと同じ方法で更新してください。</string>
     <string name="updateNewVersionFound">新しいバージョンがあります</string>
     <string name="updateOpenReleasePage">リリースページを開く</string>
     <string name="updateProgressOfTotal">{value1} / {value2}</string>
@@ -3924,8 +3924,8 @@
     <string name="storageDownloadSaveFolder">ファイルの保存先フォルダ</string>
     <string name="storageDownloadShared">共有ストレージ</string>
     <string name="storageDownloadPrivate">アプリ専用の内部ストレージ</string>
-    <string name="storageDownloadRestart">変更は Mithka の次回起動時に反映されます。既存のダウンロードは自動で移行されます。</string>
-    <string name="storageDownloadSaveHint">ダウンロード画面の「名前を付けて保存」でファイルをここにコピーできます。保存したコピーは Mithka のアンインストール後も残ります。</string>
+    <string name="storageDownloadRestart">変更は MithkaX の次回起動時に反映されます。既存のダウンロードは自動で移行されます。</string>
+    <string name="storageDownloadSaveHint">ダウンロード画面の「名前を付けて保存」でファイルをここにコピーできます。保存したコピーは MithkaX のアンインストール後も残ります。</string>
     <string name="storageDownloadMigrationFailed">ダウンロードを移行できませんでした。元の保存先を使用し、次回起動時に再試行します。</string>
     <string name="storageDownloadLocationFailed">ダウンロード先にアクセスできませんでした</string>
     <string name="storageDownloadFolderNotSelected">フォルダを選択</string>

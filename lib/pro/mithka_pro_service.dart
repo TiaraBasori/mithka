@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-const mithkaProMonthlyProductId = 'ad.neko.mithka.pro.monthly';
-const mithkaProYearlyProductId = 'ad.neko.mithka.pro.yearly';
+const mithkaProMonthlyProductId = 'x.empty.mithka.pro.monthly';
+const mithkaProYearlyProductId = 'x.empty.mithka.pro.yearly';
 
 enum MithkaDistribution {
   appStore,
@@ -238,12 +238,8 @@ class MithkaProService extends ChangeNotifier {
   // It grants no entitlement; native code still checks for a scene/URL handler.
   bool get canManageSubscriptions =>
       mobileSupporterAvailable && !_disposed && _state.canManageSubscriptions;
-  bool get isPro =>
-      mobileSupporterAvailable &&
-      _verified &&
-      _state.isPro &&
-      (_state.expirationDate == null ||
-          _state.expirationDate!.isAfter(DateTime.now()));
+  // MithkaX: every paid gate is removed — the fork ships all features free.
+  bool get isPro => true;
 
   MithkaProProduct? product(String id) {
     for (final product in _products) {

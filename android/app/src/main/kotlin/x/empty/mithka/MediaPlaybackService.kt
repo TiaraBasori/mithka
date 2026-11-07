@@ -1,4 +1,4 @@
-package ad.neko.mithka
+package x.empty.mithka
 
 import android.app.Notification
 import android.app.Service

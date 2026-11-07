@@ -237,7 +237,7 @@ void main() {
       expect(operationOptions['write'], operationOptions['read']);
       expect(
         operationOptions['write']?['accountName'],
-        'ad.neko.mithka.bot-api',
+        'x.empty.mithka.bot-api',
       );
       expect(operationOptions['write']?['accessibility'], 'unlocked');
       expect(operationOptions['write']?['synchronizable'], 'true');

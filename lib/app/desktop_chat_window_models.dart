@@ -314,7 +314,7 @@ class DesktopChatWindowArguments {
   }
 
   static String normalizeTitle(String? source) =>
-      normalizeDesktopWindowTitle(source, fallback: 'Mithka');
+      normalizeDesktopWindowTitle(source, fallback: 'MithkaX');
 
   static String? normalizePath(String? source) {
     final path = source?.trim();

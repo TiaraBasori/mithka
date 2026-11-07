@@ -24,8 +24,6 @@ import '../components/app_icons.dart';
 import '../components/app_interactive_surface.dart';
 import '../components/ui_components.dart';
 import '../l10n/app_localizations.dart';
-import '../pro/mithka_pro_service.dart';
-import '../pro/mithka_pro_view.dart';
 import '../security/local_app_lock_views.dart';
 import '../theme/app_motion.dart';
 import '../theme/app_theme.dart';
@@ -725,7 +723,6 @@ class _SettingsViewState extends State<SettingsView> {
 
   List<_SettingsDestination> _destinations(BuildContext context) {
     final developer = context.watch<DeveloperModeController>();
-    final pro = context.watch<MithkaProService>();
     return [
       _SettingsDestination(
         id: 'notifications',
@@ -830,20 +827,6 @@ class _SettingsViewState extends State<SettingsView> {
           'locale',
         ],
       ),
-      if (pro.storeAvailable || pro.canManageSubscriptions)
-        _SettingsDestination(
-          id: 'mithka-pro',
-          owner: _SettingsOwner.mithka,
-          group: 1,
-          order: 0,
-          titleKey: AppStringKeys.mithkaProTitle,
-          icon: HeroAppIcons.solidStar,
-          color: const Color(0xFF7C5CFC),
-          destination: () => const MithkaProView(),
-          trailingKey: pro.isPro ? AppStringKeys.mithkaProActive : null,
-          platformNeutralRoute: true,
-          searchTerms: const ['pro', 'support', 'subscription'],
-        ),
       _SettingsDestination(
         id: 'mithka-theme',
         owner: _SettingsOwner.mithka,
@@ -1229,7 +1212,7 @@ class _SettingsViewState extends State<SettingsView> {
       title: destination.titleKey,
       value: showOwner
           ? destination.owner?.titleKey ?? ''
-          : destination.trailingKey ?? version ?? '',
+          : version ?? '',
       leading: SettingsIconTile(
         icon: destination.icon,
         backgroundColor: destination.color,
@@ -1256,11 +1239,9 @@ class _SettingsViewState extends State<SettingsView> {
     BuildContext? context,
   }) {
     Navigator.of(context ?? this.context).push(
-      destination.platformNeutralRoute
-          ? AppPageRoute<void>(
-              pageBuilder: (_, _, _) => destination.destination(),
-            )
-          : MaterialPageRoute<void>(builder: (_) => destination.destination()),
+      AppPageRoute<void>(
+        pageBuilder: (_, _, _) => destination.destination(),
+      ),
     );
   }
 
@@ -1439,8 +1420,6 @@ class _SettingsDestination {
     required this.destination,
     this.splitDestination,
     this.owner,
-    this.trailingKey,
-    this.platformNeutralRoute = false,
     this.showsVersion = false,
     this.searchTerms = const [],
   });
@@ -1454,8 +1433,6 @@ class _SettingsDestination {
   final Color color;
   final Widget Function() destination;
   final Widget Function()? splitDestination;
-  final String? trailingKey;
-  final bool platformNeutralRoute;
   final bool showsVersion;
   final List<String> searchTerms;
 
