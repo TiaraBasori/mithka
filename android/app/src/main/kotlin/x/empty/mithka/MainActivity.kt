@@ -932,14 +932,14 @@ class MainActivity : FlutterFragmentActivity() {
                 return key
             }
         }
-        // MithkaX ships the neutral penguin as the default identity.
-        return "white"
+        // MithkaX ships the neutral letter mark as the default identity.
+        return "letter_m_neutral"
     }
 
     private fun setLauncherIcon(name: String) {
         val aliases = launcherAliases()
-        // MithkaX ships the neutral penguin as the default identity.
-        val target = if (aliases.containsKey(name)) name else "white"
+        // MithkaX ships the neutral letter mark as the default identity.
+        val target = if (aliases.containsKey(name)) name else "letter_m_neutral"
 
         // Enable the target alias first so there's never a window where no
         // launcher icon alias is active — that can cause a crash when the

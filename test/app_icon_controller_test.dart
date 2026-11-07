@@ -135,8 +135,8 @@ void main() {
 
       expect(controller.supported, isFalse);
       expect(await controller.setVariant(AppIconVariant.blue), isFalse);
-      // MithkaX ships the neutral penguin as its default identity.
-      expect(controller.variant, AppIconVariant.white);
+      // MithkaX ships the neutral letter mark as its default identity.
+      expect(controller.variant, AppIconVariant.letterMNeutral);
     },
   );
 

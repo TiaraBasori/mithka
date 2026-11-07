@@ -889,8 +889,8 @@ class AppIconController extends ChangeNotifier {
     return changed;
   }
 
-  // MithkaX ships the neutral penguin as its default identity.
-  AppIconVariant _variant = AppIconVariant.white;
+  // MithkaX ships the neutral letter mark as its default identity.
+  AppIconVariant _variant = AppIconVariant.letterMNeutral;
   bool _supported = false;
   bool _loading = false;
 
@@ -932,9 +932,12 @@ class AppIconController extends ChangeNotifier {
 
   Future<void> initialize() async {
     final saved = _prefs.getString(_selectedKey);
-    // MithkaX ships the neutral penguin as its default identity; the original
-    // pink-purple mark remains one tap away in the picker.
-    _retainKey(saved ?? 'white', RetainedUnknownIconSource.savedPreference);
+    // MithkaX ships the neutral letter mark as its default identity; the
+    // original pink-purple penguin remains one tap away in the picker.
+    _retainKey(
+      saved ?? 'letter_m_neutral',
+      RetainedUnknownIconSource.savedPreference,
+    );
     try {
       _supported = await _channel.invokeMethod<bool>('isSupported') ?? false;
       final current = await _channel.invokeMethod<String>('currentIcon');
