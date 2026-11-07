@@ -164,7 +164,9 @@ class NotificationController with WidgetsBindingObserver, ChangeNotifier {
 
     await _plugin.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings(
+          '@mipmap/ic_launcher_letter_m_neutral',
+        ),
         iOS: DarwinInitializationSettings(
           requestAlertPermission: false,
           requestBadgePermission: false,
