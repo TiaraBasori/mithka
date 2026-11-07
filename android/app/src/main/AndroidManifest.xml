@@ -127,7 +127,7 @@
         </activity>
         <activity-alias
             android:name=".MainActivityDefault"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@mipmap/ic_launcher"
             android:label="MithkaX"
@@ -139,7 +139,7 @@
         </activity-alias>
         <activity-alias
             android:name=".MainActivityWhite"
-            android:enabled="false"
+            android:enabled="true"
             android:exported="true"
             android:icon="@mipmap/ic_launcher_white"
             android:label="MithkaX"
