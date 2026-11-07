@@ -28,10 +28,10 @@ class AppStoreReleaseTest < Minitest::Test
       "included" => [{ "type" => "subscriptionGroups", "attributes" => { "referenceName" => "Mithka Pro" } }]
     },
     ["/subscriptionVersions/monthly-version", { "include" => "subscription" }] => {
-      "included" => [{ "type" => "subscriptions", "attributes" => { "productId" => "ad.neko.mithka.pro.monthly" } }]
+      "included" => [{ "type" => "subscriptions", "attributes" => { "productId" => "x.empty.mithka.pro.monthly" } }]
     },
     ["/subscriptionVersions/yearly-version", { "include" => "subscription" }] => {
-      "included" => [{ "type" => "subscriptions", "attributes" => { "productId" => "ad.neko.mithka.pro.yearly" } }]
+      "included" => [{ "type" => "subscriptions", "attributes" => { "productId" => "x.empty.mithka.pro.yearly" } }]
     }
   }.freeze
 
@@ -858,7 +858,7 @@ class AppStoreReleaseTest < Minitest::Test
     )
   end
 
-  def with_artifact(bundle_id: "ad.neko.mithka", short_version: "0.7.41", build_number: "346")
+  def with_artifact(bundle_id: "x.empty.mithka", short_version: "0.7.41", build_number: "346")
     Dir.mktmpdir("mithka-release") do |directory|
       app_directory = File.join(directory, "Payload", "Runner.app")
       FileUtils.mkdir_p(app_directory)
@@ -896,7 +896,7 @@ class AppStoreReleaseTest < Minitest::Test
         }
       },
       "/builds/#{UPLOADED_BUILD_ID}/app" => {
-        "data" => { "type" => "apps", "id" => APP_ID, "attributes" => { "bundleId" => "ad.neko.mithka" } }
+        "data" => { "type" => "apps", "id" => APP_ID, "attributes" => { "bundleId" => "x.empty.mithka" } }
       },
       "/builds/#{UPLOADED_BUILD_ID}/preReleaseVersion" => {
         "data" => {

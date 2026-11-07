@@ -1,4 +1,4 @@
-package ad.neko.mithka
+package x.empty.mithka
 
 /**
  * Square cropping of recorded video notes on Android.

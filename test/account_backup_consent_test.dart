@@ -149,7 +149,7 @@ void main() {
         'lib/profile/profile_view.dart',
         'lib/settings/account_backup_view.dart',
         'lib/tdlib/td_client.dart',
-        'android/app/src/main/kotlin/ad/neko/mithka/AccountBackupPlugin.kt',
+        'android/app/src/main/kotlin/x/empty/mithka/AccountBackupPlugin.kt',
       ]) {
         expect(
           supporter.hasMatch(File(path).readAsStringSync()),

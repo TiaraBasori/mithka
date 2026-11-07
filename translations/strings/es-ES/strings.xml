@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Mithka's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- MithkaX's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutCheckForUpdates">Buscar actualizaciones</string>
     <string name="aboutCheckingForUpdates">Buscando…</string>
@@ -8,7 +8,7 @@
     <string name="aboutReportProblemDetail">Incluye diagnósticos sin datos privados</string>
     <string name="aboutTelegramChannel">Canal de Telegram</string>
     <string name="aboutTitle">Acerca de</string>
-    <string name="aboutUpToDate">Mithka está actualizado</string>
+    <string name="aboutUpToDate">MithkaX está actualizado</string>
     <string name="aboutUpdateAvailable">La versión {value1} está disponible</string>
     <string name="aboutUpdateCheckFailed">No se pudieron buscar actualizaciones</string>
     <string name="aboutVersion">Versión {value1}</string>
@@ -30,7 +30,7 @@
     <string name="accountBackupEnabled">Guardar cuentas</string>
     <string name="accountBackupFreshSessionCreate">Crear nueva sesión</string>
     <string name="accountBackupFreshSessionInteractive">Continúa el paso de inicio de sesión para terminar de crear la nueva sesión.</string>
-    <string name="accountBackupFreshSessionMessage">La sesión restaurada está lista. Para evitar usar la misma sesión de Telegram en varios dispositivos, Mithka puede crear una nueva sesión a partir de esta con inicio de sesión por QR. Telegram puede pedir tu contraseña de verificación en dos pasos.</string>
+    <string name="accountBackupFreshSessionMessage">La sesión restaurada está lista. Para evitar usar la misma sesión de Telegram en varios dispositivos, MithkaX puede crear una nueva sesión a partir de esta con inicio de sesión por QR. Telegram puede pedir tu contraseña de verificación en dos pasos.</string>
     <string name="accountBackupFreshSessionReady">Nueva sesión creada en la ranura {value1}</string>
     <string name="accountBackupFreshSessionTitle">¿Crear una nueva sesión?</string>
     <string name="accountBackupFreshSessionUseRestored">Usar sesión restaurada</string>
@@ -393,17 +393,17 @@
     <string name="appLocaleUkrainian">Українська</string>
     <string name="appLocaleVietnamese">Tiếng Việt</string>
     <string name="appLockAutoLock">Bloqueo automático</string>
-    <string name="appLockAutoLockDescription">Solicita tu código si Mithka ha estado fuera de la app durante un tiempo.</string>
+    <string name="appLockAutoLockDescription">Solicita tu código si MithkaX ha estado fuera de la app durante un tiempo.</string>
     <string name="appLockAutoLockDisabled">Desactivado</string>
     <string name="appLockAutoLockFiveHours">Después de 5 horas</string>
     <string name="appLockAutoLockFiveMinutes">Después de 5 minutos</string>
     <string name="appLockAutoLockOneHour">Después de 1 hora</string>
     <string name="appLockAutoLockOneMinute">Después de 1 minuto</string>
-    <string name="appLockBiometricDescription">Cuando aparezca el bloqueo, usa {value1} para desbloquear Mithka.</string>
+    <string name="appLockBiometricDescription">Cuando aparezca el bloqueo, usa {value1} para desbloquear MithkaX.</string>
     <string name="appLockBiometricEnableReason">Confirma {value1} para activar el desbloqueo biométrico.</string>
     <string name="appLockBiometricFailed">La autenticación biométrica falló. Inténtalo de nuevo.</string>
     <string name="appLockBiometricLockedOut">La biometría está bloqueada temporalmente. Usa tu PIN o gesto.</string>
-    <string name="appLockBiometricReason">Autentícate para desbloquear Mithka.</string>
+    <string name="appLockBiometricReason">Autentícate para desbloquear MithkaX.</string>
     <string name="appLockBiometricUnavailable">La autenticación biométrica no está disponible en este dispositivo.</string>
     <string name="appLockBiometricUnlock">Desbloqueo biométrico</string>
     <string name="appLockBiometrics">biometría</string>
@@ -414,7 +414,7 @@
     <string name="appLockConfirmPin">Introduce el PIN de nuevo para confirmarlo</string>
     <string name="appLockCreateGesture">Dibuja un gesto con al menos 4 puntos</string>
     <string name="appLockCreatePin">Crea un PIN de 4 dígitos</string>
-    <string name="appLockDescription">Exige un PIN o gesto al iniciar Mithka o después del tiempo de ausencia seleccionado.</string>
+    <string name="appLockDescription">Exige un PIN o gesto al iniciar MithkaX o después del tiempo de ausencia seleccionado.</string>
     <string name="appLockDisable">Desactivar código</string>
     <string name="appLockDrawGesture">Dibuja tu gesto de desbloqueo</string>
     <string name="appLockEnabled">Activar bloqueo de la app</string>
@@ -430,7 +430,7 @@
     <string name="appLockGestureGrid">Cuadrícula de desbloqueo gestual de 3 por 3</string>
     <string name="appLockGestureMismatch">Los gestos no coinciden. Inténtalo de nuevo.</string>
     <string name="appLockGestureTooShort">Conecta al menos 4 puntos.</string>
-    <string name="appLockLockNow">Bloquear Mithka</string>
+    <string name="appLockLockNow">Bloquear MithkaX</string>
     <string name="appLockPin">PIN</string>
     <string name="appLockPinDescription">Un código numérico de 4 dígitos</string>
     <string name="appLockPinMismatch">Los PIN no coinciden. Inténtalo de nuevo.</string>
@@ -439,7 +439,7 @@
     <string name="appLockTitle">Bloqueo de la app</string>
     <string name="appLockTryBiometric">Usar {value1}</string>
     <string name="appLockUnlockMethod">Método de desbloqueo</string>
-    <string name="appLockUnlockTitle">Desbloquear Mithka</string>
+    <string name="appLockUnlockTitle">Desbloquear MithkaX</string>
     <string name="appLockUseBiometric">Desbloquear con {value1}</string>
     <string name="appLockVerifyTitle">Verificar bloqueo</string>
     <string name="appLockWrongGesture">Ese gesto no es correcto.</string>
@@ -516,7 +516,7 @@
     <string name="appearancePreviewChatTextSample">Así se verá el texto del chat.</string>
     <string name="appearancePreviewGroupTitle">Círculo de diseño</string>
     <string name="appearancePreviewMessageSample">Jennie: Nos vemos en el chat</string>
-    <string name="appearancePreviewUsersSample">Usuarios de Mithka</string>
+    <string name="appearancePreviewUsersSample">Usuarios de MithkaX</string>
     <string name="appearanceRefreshCacheList">Actualizar lista de caché</string>
     <string name="appearanceRoundGroupAvatars">Mostrar avatares de grupos redondos</string>
     <string name="appearanceSearchFont">Buscar fuente</string>
@@ -1597,7 +1597,7 @@
     <string name="feedbackReportSent">Informe enviado · ID {value1}</string>
     <string name="feedbackReportTitle">Informar de un problema</string>
         <string name="fileDetailApkInstallGranted">Instalación permitida. Abre el archivo de nuevo para instalarlo.</string>
-    <string name="fileDetailApkInstallMessage">Android requiere tu aprobación antes de que Mithka pueda instalar archivos APK. Permítelo en los ajustes del sistema y el instalador se abrirá.</string>
+    <string name="fileDetailApkInstallMessage">Android requiere tu aprobación antes de que MithkaX pueda instalar archivos APK. Permítelo en los ajustes del sistema y el instalador se abrirá.</string>
     <string name="fileDetailApkInstallOpenSettings">Abrir ajustes</string>
     <string name="fileDetailApkInstallTitle">¿Permitir instalar apps?</string>
     <string name="fileDetailDownloadProgress">Descargando archivo… ({value1}/{value2})</string>
@@ -1987,7 +1987,7 @@
     <string name="keywordBlockerRulesAdded">Se añadieron {value1} reglas</string>
     <string name="keywordBlockerRulesUpToDate">Las reglas ya están actualizadas</string>
     <string name="keywordBlockerTitle">Bloqueo por palabras clave</string>
-    <string name="languageMithkaLanguage">Idioma de Mithka</string>
+    <string name="languageMithkaLanguage">Idioma de MithkaX</string>
     <string name="languageTitle">Idioma</string>
     <string name="linkBrowserAddress">Dirección del sitio web</string>
     <string name="linkBrowserAskEveryTime">Preguntar siempre</string>
@@ -1996,8 +1996,8 @@
     <string name="linkBrowserDefaultBrowser">Navegador predeterminado</string>
     <string name="linkBrowserDefaultBrowserDescription">Abre los enlaces con el navegador predeterminado del dispositivo.</string>
     <string name="linkBrowserForward">Adelante</string>
-    <string name="linkBrowserMithkaBrowser">Navegador de Mithka</string>
-    <string name="linkBrowserMithkaBrowserDescription">Abre enlaces sin salir de Mithka.</string>
+    <string name="linkBrowserMithkaBrowser">Navegador de MithkaX</string>
+    <string name="linkBrowserMithkaBrowserDescription">Abre enlaces sin salir de MithkaX.</string>
     <string name="linkBrowserOpenInDefaultBrowser">Abrir en el navegador predeterminado</string>
     <string name="linkBrowserOpenLinkWith">Abrir enlace con</string>
     <string name="linkBrowserOpenLinksIn">Abrir enlaces en</string>
@@ -2053,7 +2053,7 @@
     <string name="linkHandlerOperationPremiumGiftPurchase">Compra de un regalo Premium</string>
     <string name="linkHandlerOperationRestorePurchases">Restauración de compras de la App Store</string>
     <string name="linkHandlerOperationStarsPurchase">Compra de Telegram Stars</string>
-    <string name="linkHandlerPassportSubtitle">Revisa los datos de identidad solicitados. Mithka no compartirá ningún elemento de Passport sin un flujo de autorización completo.</string>
+    <string name="linkHandlerPassportSubtitle">Revisa los datos de identidad solicitados. MithkaX no compartirá ningún elemento de Passport sin un flujo de autorización completo.</string>
     <string name="linkHandlerPremiumFeaturesSubtitle">Funciones disponibles para esta cuenta</string>
     <string name="linkHandlerPremiumGift">Regalo premium</string>
     <string name="linkHandlerPremiumGiftPickerSubtitleValue1">Elige una suscripción para {value1}. La compra se realiza en la App Store y se asigna a esta cuenta de Telegram.</string>
@@ -2086,7 +2086,7 @@
     <string name="botApiPrivacyWarning">La privacidad de grupo está activada. A menos que el bot sea administrador, puede que no reciba los mensajes normales del grupo.</string>
     <string name="botApiBotToBotWarning">No se puede verificar el modo de comunicación entre bots. Si está desactivado en @BotFather, no aparecerán los mensajes de otros bots.</string>
     <string name="botApiWarningDismiss">Descartar aviso</string>
-    <string name="loginBotAccountDescription">Los bots no pueden recuperar mensajes anteriores. Mithka guarda en este dispositivo los mensajes nuevos recibidos después de iniciar sesión.</string>
+    <string name="loginBotAccountDescription">Los bots no pueden recuperar mensajes anteriores. MithkaX guarda en este dispositivo los mensajes nuevos recibidos después de iniciar sesión.</string>
     <string name="loginBotAccountTitle">Iniciar sesión como bot</string>
     <string name="loginBotApiEndpoint">Endpoint de la API de bots</string>
     <string name="loginBotApiEndpointHint">Solo la raíz del servidor. Predeterminado: https://api.telegram.org</string>
@@ -2136,7 +2136,7 @@
     <string name="loginTelegramPremiumIsRequired">Se requiere Telegram Premium</string>
     <string name="loginTelegramRequiresAnEmailAddressToFinishSigning">Telegram requiere una dirección de correo electrónico para finalizar el inicio de sesión.</string>
     <string name="loginTermsAccept">Aceptar y continuar</string>
-    <string name="loginTermsBody">Al usar esta app, debes cumplir los Términos de servicio de Telegram. Mithka inicia sesión en cuentas de Telegram existentes y sigue las reglas de la red de Telegram.</string>
+    <string name="loginTermsBody">Al usar esta app, debes cumplir los Términos de servicio de Telegram. MithkaX inicia sesión en cuentas de Telegram existentes y sigue las reglas de la red de Telegram.</string>
     <string name="loginTermsButton">Términos de servicio</string>
     <string name="loginTermsOpenTelegram">Abrir los términos de Telegram</string>
     <string name="loginTermsTitle">Términos de uso de Telegram</string>
@@ -2349,8 +2349,8 @@
     <string name="mithkaProRestore">Restaurar compras</string>
     <string name="mithkaProRestoreFailed">No se pudieron restaurar las compras. Inténtalo de nuevo.</string>
     <string name="mithkaProStoreUnavailable">Tienda no disponible</string>
-    <string name="mithkaProSupportDevelopment">Apoya a Mithka</string>
-    <string name="mithkaProSupportDevelopmentDescription">Ayuda a Mithka y desbloquea 12 iconos de pingüino adicionales.</string>
+    <string name="mithkaProSupportDevelopment">Apoya a MithkaX</string>
+    <string name="mithkaProSupportDevelopmentDescription">Ayuda a MithkaX y desbloquea 12 iconos de pingüino adicionales.</string>
     <string name="mithkaProSupportOnly">Elige tu pingüino favorito.</string>
     <string name="mithkaProTerms">Condiciones de uso</string>
     <string name="mithkaProTitle">Apóyanos</string>
@@ -2468,7 +2468,7 @@
     <string name="notificationAllAccountsDescription">Recibe notificaciones de todas tus cuentas conectadas.</string>
     <string name="notificationAllAccountsDescriptionOff">Activa esta opción para recibir notificaciones de todas tus cuentas.</string>
     <string name="notificationAllStories">Todas las historias</string>
-    <string name="notificationChannelMessagesDescription">Mensajes entrantes de Mithka</string>
+    <string name="notificationChannelMessagesDescription">Mensajes entrantes de MithkaX</string>
     <string name="notificationChannelMessagesName">Mensajes</string>
     <string name="notificationChannels">Canales</string>
     <string name="notificationCurrentAccount">Cuenta actual</string>
@@ -2535,7 +2535,7 @@
     <string name="passkeysErrorAlreadySignedIn">Esa cuenta de Telegram ya tiene una sesión iniciada en este dispositivo.</string>
     <string name="passkeysErrorGeneric">No se pudo completar la operación de la llave de acceso.</string>
     <string name="passkeysErrorNoCredential">No se encontró una llave de acceso de Telegram que coincida.</string>
-    <string name="passkeysErrorNotAllowed">Android no permitió que Mithka usara llaves de acceso de Telegram en este dispositivo.</string>
+    <string name="passkeysErrorNotAllowed">Android no permitió que MithkaX usara llaves de acceso de Telegram en este dispositivo.</string>
     <string name="passkeysErrorUnavailable">Las llaves de acceso no están disponibles en este dispositivo.</string>
     <string name="passkeysLastUsedOn">Último uso: {value1}</string>
     <string name="passkeysRemoved">Llave de acceso eliminada</string>
@@ -3023,14 +3023,14 @@
     <string name="sensitiveContentUnblockFailed">No se pudo activar el contenido 18+: {value1}</string>
     <string name="sensitiveContentUnblockMessage">Esto activa el ajuste de Telegram para contenido 18+ en toda la cuenta. Puedes desactivarlo más tarde en Privacidad y seguridad.</string>
     <string name="sensitiveContentUnblockTitle">¿Mostrar contenido 18+?</string>
-    <string name="settingsAboutMithka">Acerca de Mithka</string>
+    <string name="settingsAboutMithka">Acerca de MithkaX</string>
     <string name="settingsChatBehavior">Comportamiento del chat</string>
     <string name="settingsChooseSection">Elige una sección a la izquierda</string>
     <string name="settingsContentFilters">Filtros de contenido</string>
     <string name="settingsDataAndStorage">Datos y almacenamiento</string>
     <string name="settingsLogOut">Cerrar sesión</string>
     <string name="settingsNoResults">No hay ajustes coincidentes</string>
-    <string name="settingsScopeMithka">Mithka</string>
+    <string name="settingsScopeMithka">MithkaX</string>
     <string name="settingsScopeTelegram">Cuenta de Telegram</string>
     <string name="settingsSearchHint">Buscar ajustes</string>
     <string name="sharedContactAdd">Add to Contacts</string>
@@ -3208,7 +3208,7 @@
     <string name="storageDashboardDatabase">Base de datos</string>
     <string name="storageDashboardLanguagePacks">Idiomas</string>
     <string name="storageDashboardLogs">Registros</string>
-    <string name="storageDashboardManagedDescription">Caché de Telegram y bases de datos locales gestionados por Mithka.</string>
+    <string name="storageDashboardManagedDescription">Caché de Telegram y bases de datos locales gestionados por MithkaX.</string>
     <string name="storageDashboardManagedStorage">Almacenamiento administrado</string>
     <string name="storageDashboardOtherData">Otros datos administrados</string>
     <string name="storageDashboardOtherDescription">La base de datos de Telegram, los idiomas y los registros se conservan para un funcionamiento fiable.</string>
@@ -3459,7 +3459,7 @@
     <string name="supporterPlansRetry">Intentar de nuevo</string>
     <string name="supporterPlansUnavailable">Los planes no están disponibles ahora. Inténtalo más tarde.</string>
     <string name="supporterPurchasePending">Tu compra está pendiente. El apoyo se activará cuando se confirme.</string>
-    <string name="supporterPurchaseSuccess">Gracias por apoyar a Mithka.</string>
+    <string name="supporterPurchaseSuccess">Gracias por apoyar a MithkaX.</string>
     <string name="supporterPurchasing">Completando compra…</string>
     <string name="supporterRestoreSuccess">Apoyo restaurado.</string>
     <string name="supporterRestoring">Restaurando compras…</string>
@@ -3756,11 +3756,11 @@
     <string name="translationSystem">Traducción del sistema</string>
     <string name="translationTelegram">Traducción de Telegram</string>
     <string name="updateAction">Actualizar</string>
-    <string name="updateDownloadingTitle">Actualizando Mithka</string>
+    <string name="updateDownloadingTitle">Actualizando MithkaX</string>
     <string name="updateInstallAction">Instalar y reiniciar</string>
     <string name="updateInstallPrompt">Versión actual: {value1}. Última: {value2}. ¿Instalar la actualización ahora?</string>
     <string name="updateLater">Más tarde</string>
-    <string name="updateManagedInstall">Tu sistema gestiona esta copia de Mithka. Actualízala del mismo modo en que la instalaste.</string>
+    <string name="updateManagedInstall">Tu sistema gestiona esta copia de MithkaX. Actualízala del mismo modo en que la instalaste.</string>
     <string name="updateNewVersionFound">Nueva versión disponible</string>
     <string name="updateOpenReleasePage">Abrir versiones</string>
     <string name="updateProgressOfTotal">{value1} de {value2}</string>
@@ -3944,9 +3944,9 @@
     <string name="storageDownloadSaveFolder">Carpeta de archivos guardados</string>
     <string name="storageDownloadShared">Almacenamiento compartido</string>
     <string name="storageDownloadPrivate">Almacenamiento privado de la aplicación</string>
-    <string name="storageDownloadRestart">Los cambios se aplicarán al volver a iniciar Mithka. Las descargas existentes se trasladarán automáticamente.</string>
-    <string name="storageDownloadSaveHint">Usa Guardar como en Descargas para copiar un archivo aquí. Las copias se conservan después de desinstalar Mithka.</string>
-    <string name="storageDownloadMigrationFailed">No se pudieron mover las descargas. Se sigue usando la ubicación original; Mithka lo volverá a intentar al iniciarse.</string>
+    <string name="storageDownloadRestart">Los cambios se aplicarán al volver a iniciar MithkaX. Las descargas existentes se trasladarán automáticamente.</string>
+    <string name="storageDownloadSaveHint">Usa Guardar como en Descargas para copiar un archivo aquí. Las copias se conservan después de desinstalar MithkaX.</string>
+    <string name="storageDownloadMigrationFailed">No se pudieron mover las descargas. Se sigue usando la ubicación original; MithkaX lo volverá a intentar al iniciarse.</string>
     <string name="storageDownloadLocationFailed">No se pudo acceder a la ubicación de las descargas</string>
     <string name="storageDownloadFolderNotSelected">Elegir una carpeta</string>
     <string name="storageDownloadCurrent">Ubicación actual: {value1}</string>

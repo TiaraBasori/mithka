@@ -26,7 +26,7 @@ private final class TelegramCallEventStream: NSObject, FlutterStreamHandler {
 import TgVoipWebrtc
 
 private final class TelegramGroupCallQueue: NSObject, OngoingCallThreadLocalContextQueueWebrtc {
-  private let queue = DispatchQueue(label: "ad.neko.mithka.group-call", qos: .userInitiated)
+  private let queue = DispatchQueue(label: "x.empty.mithka.group-call", qos: .userInitiated)
   private let key = DispatchSpecificKey<Void>()
 
   override init() {

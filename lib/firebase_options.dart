@@ -63,6 +63,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '147507301358',
     projectId: 'mithka',
     storageBucket: 'mithka.firebasestorage.app',
-    iosBundleId: 'ad.neko.mithka',
+    iosBundleId: 'x.empty.mithka',
   );
 }

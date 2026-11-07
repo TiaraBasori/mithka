@@ -820,11 +820,8 @@ class AppIconController extends ChangeNotifier {
   MithkaProService get proService => _pro;
   List<AppIconVariant> get availableVariants =>
       AppIconVariant.forPlatform(_platform);
-  bool isLocked(AppIconVariant icon) =>
-      icon.requiresSupporter &&
-      !isCurrent(icon) &&
-      !activeSupporter &&
-      !_isTodaysPenguin(icon);
+  // MithkaX: all supporter icons are free in this fork.
+  bool isLocked(AppIconVariant icon) => false;
 
   /// Today's free penguin, read from the clock on every call. Null where the
   /// 48 are not offered and for an active Supporter, who may choose any.
@@ -961,9 +958,9 @@ class AppIconController extends ChangeNotifier {
       // Today's penguin needs no store query. The day is rechecked at apply
       // time: after a rollover the tapped penguin takes the Supporter path,
       // and the native guard recomputes the day itself in any case.
+      // MithkaX: no supporter verification — every icon is free.
       if (next.requiresSupporter && !_isTodaysPenguin(next)) {
-        final verified = await _pro.refreshEntitlement();
-        if (!verified || !_pro.isPro) return false;
+        // unlocked by design
       }
       if (_disposed) return false;
       if (isCurrent(next)) return true;

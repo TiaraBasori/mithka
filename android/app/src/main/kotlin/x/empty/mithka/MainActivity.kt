@@ -1,4 +1,4 @@
-package ad.neko.mithka
+package x.empty.mithka
 
 import android.content.ClipData
 import android.content.ClipDescription
@@ -285,15 +285,6 @@ class MainActivity : FlutterFragmentActivity() {
                                 }
                             }
                         }
-                        fun denyPaidIcon() {
-                            runOnUiThread {
-                                result.error(
-                                    "supporter_required",
-                                    "An active Mithka Pro subscription is required for this icon",
-                                    null,
-                                )
-                            }
-                        }
                         // Today's penguin is free without Play billing evidence and on
                         // every distribution. Compute the UTC day here at apply time,
                         // never trusting Dart: floor(unixSeconds / 86400) mod 48.
@@ -303,34 +294,8 @@ class MainActivity : FlutterFragmentActivity() {
                         when (name) {
                             in freeIcons -> applyIcon()
                             dailyPenguin -> applyIcon()
-                            in paidIcons -> {
-                                val pro = mithkaPro
-                                if (pro == null) {
-                                    denyPaidIcon()
-                                } else {
-                                    // Query Play for each paid selection; never trust
-                                    // cached Dart/native state or alter an existing icon
-                                    // merely because the subscription has expired.
-                                    pro.querySupporterEvidence { evidence ->
-                                        runOnUiThread {
-                                            try {
-                                                // Final epoch/lifecycle check surrounds
-                                                // the setter itself, not an earlier hop.
-                                                if (pro.applyIfCurrent(evidence) {
-                                                        setLauncherIcon(name)
-                                                    }
-                                                ) {
-                                                    result.success(null)
-                                                } else {
-                                                    denyPaidIcon()
-                                                }
-                                            } catch (e: Exception) {
-                                                result.error("app_icon_failed", e.localizedMessage, null)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            // MithkaX: every icon ships free; no supporter check.
+                            in paidIcons -> applyIcon()
                             else -> result.error("invalid_icon", "Unknown app icon", null)
                         }
                     }

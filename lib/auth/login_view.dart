@@ -379,7 +379,7 @@ class _LoginViewState extends State<LoginView> {
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Text(
-                        'Mithka',
+                        'MithkaX',
                         style: AppTextStyle.body(
                           c.textPrimary,
                           weight: AppTextWeight.semibold,
@@ -676,7 +676,7 @@ class _LoginViewState extends State<LoginView> {
                         const SizedBox(width: AppSpacing.md),
                         Expanded(
                           child: Text(
-                            'Mithka',
+                            'MithkaX',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppTextStyle.body(

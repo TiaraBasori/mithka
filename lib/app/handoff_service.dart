@@ -370,7 +370,7 @@ class HandoffService {
 
   Future<String> _chatTitle({required int slot, required int chatId}) async {
     final clientId = TdClient.shared.clientId(slot);
-    if (clientId == null) return 'Mithka';
+    if (clientId == null) return 'MithkaX';
     try {
       final chat = await TdClient.shared
           .queryTo({'@type': 'getChat', 'chat_id': chatId}, clientId)
@@ -379,10 +379,10 @@ class HandoffService {
           .str('title')
           ?.replaceAll(RegExp(r'[\r\n]+'), ' ')
           .trim();
-      if (title == null || title.isEmpty) return 'Mithka';
+      if (title == null || title.isEmpty) return 'MithkaX';
       return title.length <= 256 ? title : title.substring(0, 256);
     } catch (_) {
-      return 'Mithka';
+      return 'MithkaX';
     }
   }
 

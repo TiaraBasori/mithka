@@ -14,7 +14,7 @@ val googleServicesFile = file("google-services.json")
 val hasFirebaseConfig = googleServicesFile.isFile && Regex(
     "\\\"mobilesdk_app_id\\\"\\s*:\\s*\\\"1:[0-9]+:android:[0-9a-fA-F]+\\\"",
 ).containsMatchIn(googleServicesFile.readText()) && Regex(
-    "\\\"package_name\\\"\\s*:\\s*\\\"ad\\.neko\\.mithka\\\"",
+    "\\\"package_name\\\"\\s*:\\s*\\\"x\\.empty\\.mithka\\\"",
 ).containsMatchIn(googleServicesFile.readText())
 if (hasFirebaseConfig) {
     apply(plugin = "com.google.gms.google-services")
@@ -35,7 +35,7 @@ val sentryDsn = providers.environmentVariable("SENTRY_DSN").orNull.orEmpty()
 val sentryEnvironment = providers.environmentVariable("SENTRY_ENVIRONMENT").orNull ?: "production"
 
 android {
-    namespace = "ad.neko.mithka"
+    namespace = "x.empty.mithka"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -46,7 +46,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "ad.neko.mithka"
+        applicationId = "x.empty.mithka"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // The prebuilt TDLib (tdjson) artifacts target API 23. The manifest-aware

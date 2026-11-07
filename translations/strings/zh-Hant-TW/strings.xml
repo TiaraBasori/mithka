@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Mithka's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
+<!-- MithkaX's string catalogue. Edit translations here; run tools/gen_assets.py to push them into the app. -->
 <resources>
     <string name="aboutCheckForUpdates">檢查更新</string>
     <string name="aboutCheckingForUpdates">檢查中…</string>
@@ -30,7 +30,7 @@
     <string name="accountBackupEnabled">備份帳號</string>
     <string name="accountBackupFreshSessionCreate">建立新工作階段</string>
     <string name="accountBackupFreshSessionInteractive">請繼續登入步驟，以完成新工作階段建立。</string>
-    <string name="accountBackupFreshSessionMessage">已成功復原工作階段。為避免在多個裝置上使用同一個 Telegram 工作階段，Mithka 可以基於此工作階段透過 QR Code 登入建立新的工作階段。Telegram 可能會要求輸入兩步驟驗證密碼。</string>
+    <string name="accountBackupFreshSessionMessage">已成功復原工作階段。為避免在多個裝置上使用同一個 Telegram 工作階段，MithkaX 可以基於此工作階段透過 QR Code 登入建立新的工作階段。Telegram 可能會要求輸入兩步驟驗證密碼。</string>
     <string name="accountBackupFreshSessionReady">已在槽位 {value1} 建立新工作階段</string>
     <string name="accountBackupFreshSessionTitle">要建立新工作階段嗎？</string>
     <string name="accountBackupFreshSessionUseRestored">使用已復原的工作階段</string>
@@ -393,17 +393,17 @@
     <string name="appLocaleUkrainian">Українська</string>
     <string name="appLocaleVietnamese">Tiếng Việt</string>
     <string name="appLockAutoLock">自動鎖定</string>
-    <string name="appLockAutoLockDescription">離開 Mithka 一段時間後需要重新輸入鎖定密碼。</string>
+    <string name="appLockAutoLockDescription">離開 MithkaX 一段時間後需要重新輸入鎖定密碼。</string>
     <string name="appLockAutoLockDisabled">停用</string>
     <string name="appLockAutoLockFiveHours">離開 5 小時後</string>
     <string name="appLockAutoLockFiveMinutes">離開 5 分鐘後</string>
     <string name="appLockAutoLockOneHour">離開 1 小時後</string>
     <string name="appLockAutoLockOneMinute">離開 1 分鐘後</string>
-    <string name="appLockBiometricDescription">App 鎖定畫面顯示後，可使用{value1}解鎖 Mithka。</string>
+    <string name="appLockBiometricDescription">App 鎖定畫面顯示後，可使用{value1}解鎖 MithkaX。</string>
     <string name="appLockBiometricEnableReason">請驗證{value1}以啟用生物辨識解鎖。</string>
     <string name="appLockBiometricFailed">生物辨識驗證失敗，請再試一次。</string>
     <string name="appLockBiometricLockedOut">生物辨識暫時鎖定，請使用 PIN 或手勢。</string>
-    <string name="appLockBiometricReason">驗證身分以解鎖 Mithka。</string>
+    <string name="appLockBiometricReason">驗證身分以解鎖 MithkaX。</string>
     <string name="appLockBiometricUnavailable">此裝置無法使用生物辨識驗證。</string>
     <string name="appLockBiometricUnlock">生物辨識解鎖</string>
     <string name="appLockBiometrics">生物辨識</string>
@@ -414,7 +414,7 @@
     <string name="appLockConfirmPin">再次輸入 PIN 以確認</string>
     <string name="appLockCreateGesture">連接至少 4 個點以建立手勢</string>
     <string name="appLockCreatePin">建立 4 位數 PIN</string>
-    <string name="appLockDescription">Mithka 啟動或離開 App 達到所選時間後，需要使用 PIN 或手勢解鎖。</string>
+    <string name="appLockDescription">MithkaX 啟動或離開 App 達到所選時間後，需要使用 PIN 或手勢解鎖。</string>
     <string name="appLockDisable">關閉鎖定密碼</string>
     <string name="appLockDrawGesture">請輸入手勢密碼</string>
     <string name="appLockEnabled">啟用 App 鎖定</string>
@@ -430,7 +430,7 @@
     <string name="appLockGestureGrid">3×3 手勢解鎖點陣</string>
     <string name="appLockGestureMismatch">兩次手勢不一致，請再試一次。</string>
     <string name="appLockGestureTooShort">請至少連接 4 個點。</string>
-    <string name="appLockLockNow">鎖定 Mithka</string>
+    <string name="appLockLockNow">鎖定 MithkaX</string>
     <string name="appLockPin">PIN 碼</string>
     <string name="appLockPinDescription">4 位數字密碼</string>
     <string name="appLockPinMismatch">兩次 PIN 不一致，請再試一次。</string>
@@ -439,7 +439,7 @@
     <string name="appLockTitle">解鎖設定</string>
     <string name="appLockTryBiometric">使用{value1}</string>
     <string name="appLockUnlockMethod">解鎖方式</string>
-    <string name="appLockUnlockTitle">解鎖 Mithka</string>
+    <string name="appLockUnlockTitle">解鎖 MithkaX</string>
     <string name="appLockUseBiometric">使用{value1}解鎖</string>
     <string name="appLockVerifyTitle">驗證 App 鎖定</string>
     <string name="appLockWrongGesture">手勢不正確。</string>
@@ -516,7 +516,7 @@
     <string name="appearancePreviewChatTextSample">聊天文字將以這種樣式顯示。</string>
     <string name="appearancePreviewGroupTitle">設計圈</string>
     <string name="appearancePreviewMessageSample">Jennie：聊天裡見</string>
-    <string name="appearancePreviewUsersSample">Mithka 使用者</string>
+    <string name="appearancePreviewUsersSample">MithkaX 使用者</string>
     <string name="appearanceRefreshCacheList">重新整理快取列表</string>
     <string name="appearanceRoundGroupAvatars">群組頭像顯示為圓形</string>
     <string name="appearanceSearchFont">搜尋字型</string>
@@ -1590,7 +1590,7 @@
     <string name="feedbackReportSent">回報已傳送 · 編號 {value1}</string>
     <string name="feedbackReportTitle">回報問題</string>
         <string name="fileDetailApkInstallGranted">已允許安裝應用程式，再次開啟檔案即可安裝。</string>
-    <string name="fileDetailApkInstallMessage">Android 需要你先授權，Mithka 才能安裝 APK 檔案。請在系統設定中允許，之後會自動開啟安裝器。</string>
+    <string name="fileDetailApkInstallMessage">Android 需要你先授權，MithkaX 才能安裝 APK 檔案。請在系統設定中允許，之後會自動開啟安裝器。</string>
     <string name="fileDetailApkInstallOpenSettings">前往設定</string>
     <string name="fileDetailApkInstallTitle">允許安裝應用程式？</string>
     <string name="fileDetailDownloadProgress">檔案下載中…({value1}/{value2})</string>
@@ -1980,7 +1980,7 @@
     <string name="keywordBlockerRulesAdded">已新增 {value1} 條規則</string>
     <string name="keywordBlockerRulesUpToDate">規則已是最新</string>
     <string name="keywordBlockerTitle">關鍵字封鎖</string>
-    <string name="languageMithkaLanguage">Mithka 語言</string>
+    <string name="languageMithkaLanguage">MithkaX 語言</string>
     <string name="languageTitle">語言</string>
     <string name="linkBrowserAddress">網站位址</string>
     <string name="linkBrowserAskEveryTime">每次詢問</string>
@@ -1989,8 +1989,8 @@
     <string name="linkBrowserDefaultBrowser">預設瀏覽器</string>
     <string name="linkBrowserDefaultBrowserDescription">使用裝置的預設瀏覽器開啟連結。</string>
     <string name="linkBrowserForward">前進</string>
-    <string name="linkBrowserMithkaBrowser">Mithka 瀏覽器</string>
-    <string name="linkBrowserMithkaBrowserDescription">無需離開 Mithka 即可開啟連結。</string>
+    <string name="linkBrowserMithkaBrowser">MithkaX 瀏覽器</string>
+    <string name="linkBrowserMithkaBrowserDescription">無需離開 MithkaX 即可開啟連結。</string>
     <string name="linkBrowserOpenInDefaultBrowser">在預設瀏覽器中開啟</string>
     <string name="linkBrowserOpenLinkWith">選擇開啟連結的瀏覽器</string>
     <string name="linkBrowserOpenLinksIn">連結開啟方式</string>
@@ -2046,7 +2046,7 @@
     <string name="linkHandlerOperationPremiumGiftPurchase">Premium 禮物購買</string>
     <string name="linkHandlerOperationRestorePurchases">App Store 購買回復</string>
     <string name="linkHandlerOperationStarsPurchase">Telegram Stars 購買</string>
-    <string name="linkHandlerPassportSubtitle">請查看請求的身分資料。未完成完整的授權流程前，Mithka 不會分享任何 Passport 資訊。</string>
+    <string name="linkHandlerPassportSubtitle">請查看請求的身分資料。未完成完整的授權流程前，MithkaX 不會分享任何 Passport 資訊。</string>
     <string name="linkHandlerPremiumFeaturesSubtitle">此帳號可用的功能</string>
     <string name="linkHandlerPremiumGift">Premium 禮物</string>
     <string name="linkHandlerPremiumGiftPickerSubtitleValue1">為 {value1} 選擇一個訂閱方案。購買由 App Store 完成，並分配給此 Telegram 帳號。</string>
@@ -2079,7 +2079,7 @@
     <string name="botApiPrivacyWarning">群組隱私模式已啟用。除非機器人是管理員，否則可能收不到一般群組訊息。</string>
     <string name="botApiBotToBotWarning">無法驗證機器人間通訊模式。如果未在 @BotFather 中啟用，其他機器人傳送的訊息將不會顯示。</string>
     <string name="botApiWarningDismiss">關閉警告</string>
-    <string name="loginBotAccountDescription">機器人無法取得之前的訊息。登入後收到的新訊息將由 Mithka 儲存在此裝置上。</string>
+    <string name="loginBotAccountDescription">機器人無法取得之前的訊息。登入後收到的新訊息將由 MithkaX 儲存在此裝置上。</string>
     <string name="loginBotAccountTitle">以機器人身分登入</string>
     <string name="loginBotApiEndpoint">機器人 API 端點</string>
     <string name="loginBotApiEndpointHint">僅填寫伺服器根網址。預設：https://api.telegram.org</string>
@@ -2129,7 +2129,7 @@
     <string name="loginTelegramPremiumIsRequired">需要 Telegram Premium</string>
     <string name="loginTelegramRequiresAnEmailAddressToFinishSigning">Telegram 需要電子郵件地址才能完成登入。</string>
     <string name="loginTermsAccept">同意並繼續</string>
-    <string name="loginTermsBody">使用本應用程式即表示你需要遵守 Telegram 服務條款。Mithka 用於登入既有 Telegram 帳號，並遵循 Telegram 的網路規則。</string>
+    <string name="loginTermsBody">使用本應用程式即表示你需要遵守 Telegram 服務條款。MithkaX 用於登入既有 Telegram 帳號，並遵循 Telegram 的網路規則。</string>
     <string name="loginTermsButton">服務條款</string>
     <string name="loginTermsOpenTelegram">開啟 Telegram 服務條款</string>
     <string name="loginTermsTitle">Telegram 使用條款</string>
@@ -2341,8 +2341,8 @@
     <string name="mithkaProRestore">回復購買項目</string>
     <string name="mithkaProRestoreFailed">無法回復購買，請再試一次。</string>
     <string name="mithkaProStoreUnavailable">商店無法使用</string>
-    <string name="mithkaProSupportDevelopment">支持 Mithka</string>
-    <string name="mithkaProSupportDevelopmentDescription">支持 Mithka，解鎖 12 款額外的企鵝圖示。</string>
+    <string name="mithkaProSupportDevelopment">支持 MithkaX</string>
+    <string name="mithkaProSupportDevelopmentDescription">支持 MithkaX，解鎖 12 款額外的企鵝圖示。</string>
     <string name="mithkaProSupportOnly">選一隻你喜歡的企鵝。</string>
     <string name="mithkaProTerms">使用條款</string>
     <string name="mithkaProTitle">支持我們</string>
@@ -2458,7 +2458,7 @@
     <string name="notificationAllAccountsDescription">接收所有已登入帳號的通知。</string>
     <string name="notificationAllAccountsDescriptionOff">開啟此選項以接收所有帳號的通知。</string>
     <string name="notificationAllStories">所有限時動態</string>
-    <string name="notificationChannelMessagesDescription">收到的 Mithka 訊息</string>
+    <string name="notificationChannelMessagesDescription">收到的 MithkaX 訊息</string>
     <string name="notificationChannelMessagesName">訊息</string>
     <string name="notificationChannels">頻道</string>
     <string name="notificationCurrentAccount">目前帳號</string>
@@ -2525,7 +2525,7 @@
     <string name="passkeysErrorAlreadySignedIn">該 Telegram 帳號已在此裝置上登入。</string>
     <string name="passkeysErrorGeneric">無法完成通行密鑰操作。</string>
     <string name="passkeysErrorNoCredential">找不到相符的 Telegram 通行密鑰。</string>
-    <string name="passkeysErrorNotAllowed">Android 不允許 Mithka 在此裝置上使用 Telegram 通行密鑰。</string>
+    <string name="passkeysErrorNotAllowed">Android 不允許 MithkaX 在此裝置上使用 Telegram 通行密鑰。</string>
     <string name="passkeysErrorUnavailable">此裝置無法使用通行密鑰。</string>
     <string name="passkeysLastUsedOn">上次使用於 {value1}</string>
     <string name="passkeysRemoved">通行密鑰已刪除</string>
@@ -3013,14 +3013,14 @@
     <string name="sensitiveContentUnblockFailed">無法啟用 18+ 內容：{value1}</string>
     <string name="sensitiveContentUnblockMessage">這會啟用 Telegram 帳號層級的 18+ 內容設定。之後可在「隱私與安全」中關閉。</string>
     <string name="sensitiveContentUnblockTitle">顯示 18+ 內容？</string>
-    <string name="settingsAboutMithka">關於 Mithka</string>
+    <string name="settingsAboutMithka">關於 MithkaX</string>
     <string name="settingsChatBehavior">聊天行為</string>
     <string name="settingsChooseSection">在左側選擇一個項目</string>
     <string name="settingsContentFilters">內容篩選</string>
     <string name="settingsDataAndStorage">資料與儲存空間</string>
     <string name="settingsLogOut">登出</string>
     <string name="settingsNoResults">沒有符合的設定</string>
-    <string name="settingsScopeMithka">Mithka</string>
+    <string name="settingsScopeMithka">MithkaX</string>
     <string name="settingsScopeTelegram">Telegram 帳號</string>
     <string name="settingsSearchHint">搜尋設定</string>
     <string name="sharedContactAdd">Add to Contacts</string>
@@ -3197,7 +3197,7 @@
     <string name="storageDashboardDatabase">資料庫</string>
     <string name="storageDashboardLanguagePacks">語言套件</string>
     <string name="storageDashboardLogs">記錄檔</string>
-    <string name="storageDashboardManagedDescription">Mithka 管理的 Telegram 快取和本機資料庫。</string>
+    <string name="storageDashboardManagedDescription">MithkaX 管理的 Telegram 快取和本機資料庫。</string>
     <string name="storageDashboardManagedStorage">已管理儲存空間</string>
     <string name="storageDashboardOtherData">其他已管理資料</string>
     <string name="storageDashboardOtherDescription">為確保可靠運作，Telegram 資料庫、語言套件和記錄檔會保留。</string>
@@ -3448,7 +3448,7 @@
     <string name="supporterPlansRetry">再試一次</string>
     <string name="supporterPlansUnavailable">訂閱方案暫時無法使用，請稍後再試。</string>
     <string name="supporterPurchasePending">購買正在等待確認。確認後即可解鎖 Supporter。</string>
-    <string name="supporterPurchaseSuccess">感謝你支持 Mithka。</string>
+    <string name="supporterPurchaseSuccess">感謝你支持 MithkaX。</string>
     <string name="supporterPurchasing">正在完成購買⋯</string>
     <string name="supporterRestoreSuccess">已回復 Supporter。</string>
     <string name="supporterRestoring">正在回復購買⋯</string>
@@ -3744,11 +3744,11 @@
     <string name="translationSystem">系統翻譯</string>
     <string name="translationTelegram">Telegram 翻譯</string>
     <string name="updateAction">更新</string>
-    <string name="updateDownloadingTitle">正在更新 Mithka</string>
+    <string name="updateDownloadingTitle">正在更新 MithkaX</string>
     <string name="updateInstallAction">安裝並重新啟動</string>
     <string name="updateInstallPrompt">目前版本 {value1}，最新 {value2}。是否立即安裝更新？</string>
     <string name="updateLater">稍後</string>
-    <string name="updateManagedInstall">此 Mithka 由系統管理，請以原本的安裝方式更新。</string>
+    <string name="updateManagedInstall">此 MithkaX 由系統管理，請以原本的安裝方式更新。</string>
     <string name="updateNewVersionFound">發現新版本</string>
     <string name="updateOpenReleasePage">開啟發布頁</string>
     <string name="updateProgressOfTotal">{value1} / {value2}</string>
@@ -3927,9 +3927,9 @@
     <string name="storageDownloadSaveFolder">檔案儲存資料夾</string>
     <string name="storageDownloadShared">共用儲存空間</string>
     <string name="storageDownloadPrivate">應用程式私人儲存空間</string>
-    <string name="storageDownloadRestart">變更將於下次啟動 Mithka 時生效，現有下載會自動移轉。</string>
-    <string name="storageDownloadSaveHint">在下載頁面使用「另存新檔」將檔案複製到這裡。解除安裝 Mithka 後，儲存的副本仍會保留。</string>
-    <string name="storageDownloadMigrationFailed">無法移轉下載檔案，仍在使用原位置。Mithka 將於下次啟動時重試。</string>
+    <string name="storageDownloadRestart">變更將於下次啟動 MithkaX 時生效，現有下載會自動移轉。</string>
+    <string name="storageDownloadSaveHint">在下載頁面使用「另存新檔」將檔案複製到這裡。解除安裝 MithkaX 後，儲存的副本仍會保留。</string>
+    <string name="storageDownloadMigrationFailed">無法移轉下載檔案，仍在使用原位置。MithkaX 將於下次啟動時重試。</string>
     <string name="storageDownloadLocationFailed">無法存取下載位置</string>
     <string name="storageDownloadFolderNotSelected">選擇資料夾</string>
     <string name="storageDownloadCurrent">目前位置：{value1}</string>

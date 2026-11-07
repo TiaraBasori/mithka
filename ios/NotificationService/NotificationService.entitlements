@@ -8,7 +8,7 @@
 	<true/>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.ad.neko.mithka.notifications</string>
+		<string>group.x.empty.mithka.notifications</string>
 	</array>
 </dict>
 </plist>

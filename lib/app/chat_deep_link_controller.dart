@@ -56,7 +56,7 @@ class ChatDeepLinkRequest {
 
 String _normalizeDesktopChatTitle(String? source) {
   final value = source?.replaceAll(RegExp(r'[\r\n]+'), ' ').trim() ?? '';
-  if (value.isEmpty) return 'Mithka';
+  if (value.isEmpty) return 'MithkaX';
   return value.length <= 256 ? value : value.substring(0, 256);
 }
 
