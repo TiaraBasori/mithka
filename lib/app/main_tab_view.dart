@@ -1949,12 +1949,19 @@ class _MessageEmptyPane extends StatelessWidget {
             children: [
               Image.asset('assets/penguin.png', width: 92, height: 92),
               const SizedBox(width: 18),
-              Text(
-                'Mithka X',
-                style: TextStyle(
-                  fontSize: 64,
-                  fontWeight: FontWeight.w600,
-                  color: c.textTertiary,
+              // The 64 pt wordmark plus the mark overflows narrow panes; scale
+              // the pair down as one unit instead of clipping the text.
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    'Mithka X',
+                    style: TextStyle(
+                      fontSize: 64,
+                      fontWeight: FontWeight.w600,
+                      color: c.textTertiary,
+                    ),
+                  ),
                 ),
               ),
             ],
