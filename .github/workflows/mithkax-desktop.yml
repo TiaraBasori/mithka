@@ -118,7 +118,7 @@ jobs:
       - name: Build macOS release
         run: |
           flutter build macos --release --dart-define="I_DONT_FUCKING_CARE_ABOUT_TOS=true"
-          app='build/macos/Build/Products/Release/Mithka.app'
+          app='build/macos/Build/Products/Release/Mithka X.app'
           test -f "$app/Contents/MacOS/Mithka"
           ditto -c -k --sequesterRsrc --keepParent "$app" "$RUNNER_TEMP/MithkaX-macos-universal.zip"
       - uses: actions/upload-artifact@v7
