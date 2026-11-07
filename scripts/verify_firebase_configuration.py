@@ -17,7 +17,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BUNDLE = "ad.neko.mithka"
+BUNDLE = "x.empty.mithka"
 
 
 def require_equal(actual, expected, field):
