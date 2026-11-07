@@ -28,7 +28,7 @@ module MithkaStoreReleaseState
 
   def self.read(client, build_number: nil)
     app = client.get("/apps/#{APP}").fetch("data")
-    raise "ASC app identity mismatch" unless app.dig("attributes", "bundleId") == "ad.neko.mithka"
+    raise "ASC app identity mismatch" unless app.dig("attributes", "bundleId") == "x.empty.mithka"
     result = { "versions" => [], "trains" => [], "builds" => [] }
     all(client, "/apps/#{APP}/appStoreVersions", "limit" => "200", "include" => "build").each do |version|
       attrs = version.fetch("attributes")
